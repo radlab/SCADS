@@ -2,7 +2,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html>
         <head>
-          <title>deploylib.ec2.EC2Instance</title>
+          <title>deploylib.ec2.EC2Region.EC2Instance</title>
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link type="text/css" media="screen" rel="stylesheet" href="../../lib/template.css" />
@@ -14,9 +14,9 @@
         </head>
         <body class="type">
       <div id="definition">
-        <a title="Go to companion" href="EC2Instance$.html"><img src="../../lib/class_to_object_big.png" /></a>
-        <p id="owner"><a name="deploylib" class="extype" href="../package.html">deploylib</a>.<a name="deploylib.ec2" class="extype" href="package.html">ec2</a></p>
-        <h1><a title="Go to companion" href="EC2Instance$.html">EC2Instance</a></h1>
+        <img src="../../lib/class_big.png" />
+        <p id="owner"><a name="deploylib" class="extype" href="../package.html">deploylib</a>.<a name="deploylib.ec2" class="extype" href="package.html">ec2</a>.<a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></p>
+        <h1>EC2Instance</h1>
       </div>
 
       <h4 class="signature" id="signature">
@@ -24,15 +24,15 @@
       <span class="symbol"> 
         <span class="name">EC2Instance</span>
         
-        <span class="result"> extends <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a> with <a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a> with <a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></span>
+        <span class="result"> extends <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a> with <a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a> with <a name="deploylib.Sudo" class="extype" href="../Sudo.html">Sudo</a> with <a name="deploylib.ServiceManager" class="extype" href="../ServiceManager.html">ServiceManager</a></span>
       </span>
       </h4>
       
-          <div class="fullcommenttop" id="comment"><div class="comment cmt"><p>A specific RemoteMachine used to control a single EC2Instance.
-Instances of this class can be obtained by instanceId from the static method EC2Instance.getInstance
+          <div class="fullcommenttop" id="comment"><div class="comment cmt"><p>A specific RemoteMachine used to control a single
+Instances of this class can be obtained by instanceId from the static method getInstance
 </p></div><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent"><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a>, <a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a>, <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><a name="deploylib.ServiceManager" class="extype" href="../ServiceManager.html">ServiceManager</a>, <a name="deploylib.Sudo" class="extype" href="../Sudo.html">Sudo</a>, <a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a>, <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
         
 
@@ -48,7 +48,7 @@ Instances of this class can be obtained by instanceId from the static method EC2
                 <span class="filtertype">Inherited</span>
                 <ol><li class="hideall out"><span>Hide All</span></li>
                 <li class="showall in"><span>Show all</span></li></ol>
-                <ol id="linearization"><li name="deploylib.ec2.EC2Instance" class="in"><span>EC2Instance</span></li><li name="deploylib.ec2.AWSConnection" class="in"><span>AWSConnection</span></li><li name="deploylib.runit.RunitManager" class="in"><span>RunitManager</span></li><li name="deploylib.RemoteMachine" class="in"><span>RemoteMachine</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
+                <ol id="linearization"><li name="deploylib.ec2.EC2Region.EC2Instance" class="in"><span>EC2Instance</span></li><li name="deploylib.ServiceManager" class="in"><span>ServiceManager</span></li><li name="deploylib.Sudo" class="in"><span>Sudo</span></li><li name="deploylib.runit.RunitManager" class="in"><span>RunitManager</span></li><li name="deploylib.RemoteMachine" class="in"><span>RemoteMachine</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
               </div>
           <div id="visbl">
               <span class="filtertype">Visibility</span>
@@ -58,7 +58,7 @@ Instances of this class can be obtained by instanceId from the static method EC2
 
         <div class="members" id="constructors">
               <h3>Instance Constructors</h3>
-              <ol><li visbl="prt" name="deploylib.ec2.EC2Instance#this" data-isabs="false">
+              <ol><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#this" data-isabs="false">
       <a id="this:EC2Instance"></a>
       <h4 class="signature">
       <span class="kind">new</span>
@@ -68,7 +68,7 @@ Instances of this class can be obtained by instanceId from the static method EC2
         <span class="params">(<span name="instanceId">instanceId: String</span>)</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+      
     </li></ol>
             </div>
 
@@ -115,6 +115,17 @@ Instances of this class can be obtained by instanceId from the static method EC2
         <a href="../RemoteMachine$RemoteProcess.html"><span class="name">RemoteProcess</span></a>
         
         <span class="params">(<span name="user">user: String</span>, <span name="pid">pid: Int</span>, <span name="cpu">cpu: Float</span>, <span name="mem">mem: Float</span>, <span name="vsz">vsz: Int</span>, <span name="rss">rss: Int</span>, <span name="tty">tty: String</span>, <span name="stat">stat: String</span>, <span name="start">start: String</span>, <span name="time">time: String</span>, <span name="command">command: String</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.ServiceManager.RemoteService" data-isabs="false">
+      <a id="RemoteService:RemoteService"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="../ServiceManager$RemoteService.html"><span class="name">RemoteService</span></a>
+        
+        <span class="params">(<span name="name">name: String</span>)</span><span class="result"> extends Product with Serializable</span>
       </span>
       </h4>
       
@@ -205,28 +216,6 @@ Instances of this class can be obtained by instanceId from the static method EC2
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="prt" name="deploylib.ec2.AWSConnection#accessKeyId" data-isabs="false">
-      <a id="accessKeyId:String"></a>
-      <h4 class="signature">
-      <span class="kind">val</span>
-      <span class="symbol"> 
-        <span class="name">accessKeyId</span>
-        
-        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.RemoteMachine#addService" data-isabs="false">
-      <a id="addService(Service):Unit"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">addService</span>
-        
-        <span class="params">(<span name="service">service: <a name="deploylib.Service" class="extype" href="../Service.html">Service</a></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#appendFile" data-isabs="false">
       <a id="appendFile(File,String):Unit"></a>
       <h4 class="signature">
@@ -262,7 +251,7 @@ Instances of this class can be obtained by instanceId from the static method EC2
       </h4>
       <p class="shortcomment cmt">The services that are assigned to be deployed to this remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>The services that are assigned to be deployed to this remote machine.
 </p></div><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#availabilityZone" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#availabilityZone" data-isabs="false">
       <a id="availabilityZone:String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -297,7 +286,7 @@ Instances of this class can be obtained by instanceId from the static method EC2
       </h4>
       <p class="shortcomment cmt">Block until we can make a connection to the given port, checking every 5 seconds.</p><div class="fullcomment"><div class="comment cmt"><p>Block until we can make a connection to the given port, checking every 5 seconds.
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#blockUntilRunning" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#blockUntilRunning" data-isabs="false">
       <a id="blockUntilRunning():Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -308,7 +297,7 @@ Instances of this class can be obtained by instanceId from the static method EC2
       </span>
       </h4>
       <p class="shortcomment cmt">Blocks the current thread until this instance is up and accepting ssh connections.</p>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#bundleNewAMI" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#bundleNewAMI" data-isabs="false">
       <a id="bundleNewAMI(String):String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -320,7 +309,7 @@ Instances of this class can be obtained by instanceId from the static method EC2
       </h4>
       <p class="shortcomment cmt">Creates a new AMI based on this image using ec2-bundle-vol and
 ec2-upload-bundle.</p>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#cacheFiles" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#cacheFiles" data-isabs="false">
       <a id="cacheFiles(Seq[File]):Seq[File]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -369,17 +358,6 @@ ec2-upload-bundle.</p>
                 <span class="name">@throws</span><span class="args">()</span>
               
         </dd></dl></div>
-    </li><li visbl="prt" name="deploylib.ec2.AWSConnection#config" data-isabs="false">
-      <a id="config:ClientConfiguration"></a>
-      <h4 class="signature">
-      <span class="kind">val</span>
-      <span class="symbol"> 
-        <span class="name">config</span>
-        
-        <span class="result">: <span name="com.amazonaws.ClientConfiguration" class="extype">ClientConfiguration</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#createFile" data-isabs="false">
       <a id="createFile(File,String):Unit"></a>
       <h4 class="signature">
@@ -392,18 +370,7 @@ ec2-upload-bundle.</p>
       </h4>
       <p class="shortcomment cmt">Create a file on the remote machine with the given contents</p><div class="fullcomment"><div class="comment cmt"><p>Create a file on the remote machine with the given contents</p></div><dl class="paramcmts block"><dt class="param">file</dt><dd class="cmt"><p>- The desired path of the file. If the given path is relative, the file will be created in the rootDirectory</p></dd><dt class="param">contents</dt><dd class="cmt"><p>- A string with the desired contents of the file
 </p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="prt" name="deploylib.ec2.AWSConnection#credentials" data-isabs="false">
-      <a id="credentials:BasicAWSCredentials"></a>
-      <h4 class="signature">
-      <span class="kind">val</span>
-      <span class="symbol"> 
-        <span class="name">credentials</span>
-        
-        <span class="result">: <span name="com.amazonaws.auth.BasicAWSCredentials" class="extype">BasicAWSCredentials</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#currentState" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#currentState" data-isabs="false">
       <a id="currentState:Instance"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -414,7 +381,7 @@ ec2-upload-bundle.</p>
       </span>
       </h4>
       
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#disableMonitoring" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#disableMonitoring" data-isabs="false">
       <a id="disableMonitoring():Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -437,29 +404,7 @@ ec2-upload-bundle.</p>
       </h4>
       <p class="shortcomment cmt">Downloads a file from the remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>Downloads a file from the remote machine.
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="prt" name="deploylib.ec2.AWSConnection#ec2Cert" data-isabs="false">
-      <a id="ec2Cert:File"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">ec2Cert</span>
-        
-        <span class="result">: <span name="java.io.File" class="extype">File</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
-    </li><li visbl="prt" name="deploylib.ec2.AWSConnection#ec2PrivateKey" data-isabs="false">
-      <a id="ec2PrivateKey:File"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">ec2PrivateKey</span>
-        
-        <span class="result">: <span name="java.io.File" class="extype">File</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#enableMonitoring" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#enableMonitoring" data-isabs="false">
       <a id="enableMonitoring():Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -481,7 +426,7 @@ ec2-upload-bundle.</p>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#equals" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#equals" data-isabs="false">
       <a id="equals(Any):Boolean"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -491,7 +436,7 @@ ec2-upload-bundle.</p>
         <span class="params">(<span name="other">other: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Instance" class="extype" href="">EC2Instance</a> → AnyRef → Any</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="">EC2Instance</a> → AnyRef → Any</dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#executeCommand" data-isabs="false">
       <a id="executeCommand(String,Long):ExecuteResponse"></a>
       <h4 class="signature">
@@ -499,7 +444,7 @@ ec2-upload-bundle.</p>
       <span class="symbol"> 
         <span class="name">executeCommand</span>
         
-        <span class="params">(<span name="cmd">cmd: String</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="result">: <a name="deploylib.ExecuteResponse" class="extype" href="../ExecuteResponse.html">ExecuteResponse</a></span>
+        <span class="params">(<span name="cmd">cmd: String</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span> = <span class="symbol">0</span></span>)</span><span class="result">: <a name="deploylib.ExecuteResponse" class="extype" href="../ExecuteResponse.html">ExecuteResponse</a></span>
       </span>
       </h4>
       <p class="shortcomment cmt">Execute a command sync with a maximum timeout to wait for result
@@ -507,20 +452,7 @@ and return the result as an ExecuteResponse
 </p><div class="fullcomment"><div class="comment cmt"><p>Execute a command sync with a maximum timeout to wait for result
 and return the result as an ExecuteResponse
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.RemoteMachine#executeCommand" data-isabs="false">
-      <a id="executeCommand(String):ExecuteResponse"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">executeCommand</span>
-        
-        <span class="params">(<span name="cmd">cmd: String</span>)</span><span class="result">: <a name="deploylib.ExecuteResponse" class="extype" href="../ExecuteResponse.html">ExecuteResponse</a></span>
-      </span>
-      </h4>
-      <p class="shortcomment cmt">Execute a command sync and return the result as an ExecuteResponse
-</p><div class="fullcomment"><div class="comment cmt"><p>Execute a command sync and return the result as an ExecuteResponse
-</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#fileCache" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#fileCache" data-isabs="false">
       <a id="fileCache:File"></a>
       <h4 class="signature">
       <span class="kind">val</span>
@@ -556,7 +488,7 @@ and return the result as an ExecuteResponse
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#fixHostname" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#fixHostname" data-isabs="false">
       <a id="fixHostname:Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -603,7 +535,7 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#getHostname" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#getHostname" data-isabs="false">
       <a id="getHostname():String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -614,7 +546,18 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
       </span>
       </h4>
       
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#halt" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ServiceManager#getService" data-isabs="false">
+      <a id="getService(String,String):RemoteService"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">getService</span>
+        
+        <span class="params">(<span name="name">name: String</span>, <span name="cmd">cmd: String</span>)</span><span class="result">: <a name="deploylib.ServiceManager.RemoteService" class="extype" href="../ServiceManager$RemoteService.html">RemoteService</a></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ServiceManager" class="extype" href="../ServiceManager.html">ServiceManager</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#halt" data-isabs="false">
       <a id="halt:Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -625,7 +568,7 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
       </span>
       </h4>
       
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#hashCode" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#hashCode" data-isabs="false">
       <a id="hashCode():Int"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -635,8 +578,8 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
         <span class="params">()</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Instance" class="extype" href="">EC2Instance</a> → AnyRef → Any</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#hostname" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="">EC2Instance</a> → AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#hostname" data-isabs="false">
       <a id="hostname:String"></a>
       <h4 class="signature">
       <span class="kind">lazy val</span>
@@ -646,8 +589,8 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
         <span class="result">: String</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#imageId" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#imageId" data-isabs="false">
       <a id="imageId:String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -658,7 +601,7 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
       </span>
       </h4>
       
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#instanceId" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#instanceId" data-isabs="false">
       <a id="instanceId:String"></a>
       <h4 class="signature">
       <span class="kind">val</span>
@@ -669,7 +612,7 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
       </span>
       </h4>
       
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#instanceState" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#instanceState" data-isabs="false">
       <a id="instanceState:String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -680,7 +623,7 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
       </span>
       </h4>
       
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#instanceType" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#instanceType" data-isabs="false">
       <a id="instanceType:String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -714,7 +657,7 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
       </h4>
       <p class="shortcomment cmt">Use netstat to check if a port is currently bound to a listening socket on the remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>Use netstat to check if a port is currently bound to a listening socket on the remote machine.
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#javaCmd" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#javaCmd" data-isabs="false">
       <a id="javaCmd:File"></a>
       <h4 class="signature">
       <span class="kind">val</span>
@@ -726,7 +669,7 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
       </h4>
       <p class="shortcomment cmt">The location of the java command on the remote machine
 </p><div class="fullcomment"><div class="comment cmt"><p>The location of the java command on the remote machine
-</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#jps" data-isabs="false">
       <a id="jps:Seq[RemoteJavaProcess]"></a>
       <h4 class="signature">
@@ -739,7 +682,7 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
       </h4>
       <p class="shortcomment cmt">Return a list of all the java processes running on the remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>Return a list of all the java processes running on the remote machine.
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#keyName" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#keyName" data-isabs="false">
       <a id="keyName:String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -750,6 +693,17 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
       </span>
       </h4>
       
+    </li><li visbl="pub" name="deploylib.ServiceManager#logDir" data-isabs="false">
+      <a id="logDir:File"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">logDir</span>
+        
+        <span class="result">: <span name="java.io.File" class="extype">File</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ServiceManager" class="extype" href="../ServiceManager.html">ServiceManager</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#logger" data-isabs="false">
       <a id="logger:Logger"></a>
       <h4 class="signature">
@@ -831,7 +785,18 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#privateDnsName" data-isabs="false">
+    </li><li visbl="prt" name="deploylib.Sudo#prepareCommand" data-isabs="false">
+      <a id="prepareCommand(String):String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">prepareCommand</span>
+        
+        <span class="params">(<span name="cmd">cmd: String</span>)</span><span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.Sudo" class="extype" href="../Sudo.html">Sudo</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#privateDnsName" data-isabs="false">
       <a id="privateDnsName:String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -842,7 +807,7 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
       </span>
       </h4>
       
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#privateKey" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#privateKey" data-isabs="false">
       <a id="privateKey:File"></a>
       <h4 class="signature">
       <span class="kind">val</span>
@@ -854,7 +819,7 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
       </h4>
       <p class="shortcomment cmt">The private key used to authenticate with the remote ssh server
 </p><div class="fullcomment"><div class="comment cmt"><p>The private key used to authenticate with the remote ssh server
-</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#ps" data-isabs="false">
       <a id="ps:Seq[RemoteProcess]"></a>
       <h4 class="signature">
@@ -870,7 +835,7 @@ Expects:
 USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
 root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#publicDnsName" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#publicDnsName" data-isabs="false">
       <a id="publicDnsName:String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -881,7 +846,7 @@ root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
       </span>
       </h4>
       
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#pushJars" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#pushJars" data-isabs="false">
       <a id="pushJars(Seq[File]):Seq[File]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -896,7 +861,7 @@ for working with them
 Note, this is mostly a hack to work around problems with mesos on EC2.
 TODO: Integrate w/ sbt
 </p></div></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#rootDirectory" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#rootDirectory" data-isabs="false">
       <a id="rootDirectory:File"></a>
       <h4 class="signature">
       <span class="kind">val</span>
@@ -908,8 +873,8 @@ TODO: Integrate w/ sbt
       </h4>
       <p class="shortcomment cmt">The default root directory for operations (The user should have read write permissions to this directory)
 </p><div class="fullcomment"><div class="comment cmt"><p>The default root directory for operations (The user should have read write permissions to this directory)
-</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#runitBinaryPath" data-isabs="false">
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#runitBinaryPath" data-isabs="false">
       <a id="runitBinaryPath:File"></a>
       <h4 class="signature">
       <span class="kind">val</span>
@@ -919,8 +884,8 @@ TODO: Integrate w/ sbt
         <span class="result">: <span name="java.io.File" class="extype">File</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.RemoteMachine#runsvdirCmd" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.runit.RunitManager#runsvdirCmd" data-isabs="false">
       <a id="runsvdirCmd:File"></a>
       <h4 class="signature">
       <span class="kind">lazy val</span>
@@ -930,19 +895,19 @@ TODO: Integrate w/ sbt
         <span class="result">: <span name="java.io.File" class="extype">File</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="prt" name="deploylib.ec2.AWSConnection#secretAccessKey" data-isabs="false">
-      <a id="secretAccessKey:String"></a>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ServiceManager#serviceDir" data-isabs="false">
+      <a id="serviceDir:File"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
-        <span class="name">secretAccessKey</span>
+        <span class="name">serviceDir</span>
         
-        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+        <span class="result">: <span name="java.io.File" class="extype">File</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.RemoteMachine#serviceRoot" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ServiceManager" class="extype" href="../ServiceManager.html">ServiceManager</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.runit.RunitManager#serviceRoot" data-isabs="false">
       <a id="serviceRoot:File"></a>
       <h4 class="signature">
       <span class="kind">lazy val</span>
@@ -952,7 +917,7 @@ TODO: Integrate w/ sbt
         <span class="result">: <span name="java.io.File" class="extype">File</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.runit.RunitManager#services" data-isabs="false">
       <a id="services:List[RunitService]"></a>
       <h4 class="signature">
@@ -964,7 +929,7 @@ TODO: Integrate w/ sbt
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#setup" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#setup" data-isabs="false">
       <a id="setup():Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -988,7 +953,7 @@ TODO: Integrate w/ sbt
       </h4>
       <p class="shortcomment cmt">Kill all processes currently tailing a file.</p><div class="fullcomment"><div class="comment cmt"><p>Kill all processes currently tailing a file.
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.RemoteMachine#svCmd" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.runit.RunitManager#svCmd" data-isabs="false">
       <a id="svCmd:File"></a>
       <h4 class="signature">
       <span class="kind">lazy val</span>
@@ -998,8 +963,8 @@ TODO: Integrate w/ sbt
         <span class="result">: <span name="java.io.File" class="extype">File</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.RemoteMachine#svlogdCmd" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.runit.RunitManager#svlogdCmd" data-isabs="false">
       <a id="svlogdCmd:File"></a>
       <h4 class="signature">
       <span class="kind">lazy val</span>
@@ -1009,7 +974,7 @@ TODO: Integrate w/ sbt
         <span class="result">: <span name="java.io.File" class="extype">File</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#synchronized" data-isabs="false">
       <a id="synchronized[T0](⇒ T0):T0"></a>
       <h4 class="signature">
@@ -1021,12 +986,12 @@ TODO: Integrate w/ sbt
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance.tags" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance.tags" data-isabs="false">
       <a id="tags:tags"></a>
       <h4 class="signature">
       <span class="kind">object</span>
       <span class="symbol"> 
-        <a href="EC2Instance$tags$.html"><span class="name">tags</span></a>
+        <a href="EC2Region$EC2Instance$tags$.html"><span class="name">tags</span></a>
         
         <span class="result"> extends SeqForwarder[TagDescription]</span>
       </span>
@@ -1045,7 +1010,7 @@ TODO: Integrate w/ sbt
       <p class="shortcomment cmt">return the last numLines from the specified file
 </p><div class="fullcomment"><div class="comment cmt"><p>return the last numLines from the specified file
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.RemoteMachine#toOption" data-isabs="false">
+    </li><li visbl="prt" name="deploylib.RemoteMachine#toOption" data-isabs="false">
       <a id="toOption[A](A):Option[A]"></a>
       <h4 class="signature">
       <span class="kind">implicit def</span>
@@ -1055,8 +1020,8 @@ TODO: Integrate w/ sbt
         <span class="params">(<span name="a">a: A</span>)</span><span class="result">: <span name="scala.Option" class="extype">Option</span>[A]</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#toString" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected implicit </dd><dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#toString" data-isabs="false">
       <a id="toString():String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -1066,8 +1031,8 @@ TODO: Integrate w/ sbt
         <span class="params">()</span><span class="result">: String</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a> → AnyRef → Any</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#upload" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a> → AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#upload" data-isabs="false">
       <a id="upload(File,File):Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -1078,7 +1043,7 @@ TODO: Integrate w/ sbt
       </span>
       </h4>
       <p class="shortcomment cmt">Custom upload method that copies a file once to S3 and then from there to any number of EC2Instances.</p><div class="fullcomment"><div class="comment cmt"><p>Custom upload method that copies a file once to S3 and then from there to any number of EC2Instances.
-</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="prt" name="deploylib.RemoteMachine#useConnection" data-isabs="false">
       <a id="useConnection[ReturnType]((Connection) ⇒ ReturnType,Int):ReturnType"></a>
       <h4 class="signature">
@@ -1091,18 +1056,7 @@ TODO: Integrate w/ sbt
       </h4>
       <p class="shortcomment cmt">Provide an ssh connection to the server.</p><div class="fullcomment"><div class="comment cmt"><p>Provide an ssh connection to the server.  If one is not already available or has been disconnected, create one.
 </p></div><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="prt" name="deploylib.ec2.AWSConnection#userID" data-isabs="false">
-      <a id="userID:String"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">userID</span>
-        
-        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#username" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance#username" data-isabs="false">
       <a id="username:String"></a>
       <h4 class="signature">
       <span class="kind">val</span>
@@ -1114,7 +1068,7 @@ TODO: Integrate w/ sbt
       </h4>
       <p class="shortcomment cmt">The username used to authenticate with the remote ssh server
 </p><div class="fullcomment"><div class="comment cmt"><p>The username used to authenticate with the remote ssh server
-</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="">EC2Instance</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
       <a id="wait():Unit"></a>
       <h4 class="signature">
@@ -1172,10 +1126,29 @@ TODO: Integrate w/ sbt
     </li></ol>
             </div>
 
+        <div class="values members" id="values">
+              <h3>Deprecated Value Members</h3>
+              <ol><li visbl="pub" name="deploylib.RemoteMachine#addService" data-isabs="false">
+      <a id="addService(Service):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name deprecated">addService</span>
         
+        <span class="params">(<span name="service">service: <a name="deploylib.Service" class="extype" href="../Service.html">Service</a></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd><dt>Annotations</dt><dd>
+                <span class="name">@deprecated</span>
+              
+        </dd><dt>Deprecated</dt><dd class="cmt"><p>use getService</p></dd></dl></div>
+    </li></ol>
+            </div>
 
-        <div name="deploylib.ec2.AWSConnection" class="parent">
-              <h3>Inherited from <a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></h3>
+        <div name="deploylib.ServiceManager" class="parent">
+              <h3>Inherited from <a name="deploylib.ServiceManager" class="extype" href="../ServiceManager.html">ServiceManager</a></h3>
+            </div><div name="deploylib.Sudo" class="parent">
+              <h3>Inherited from <a name="deploylib.Sudo" class="extype" href="../Sudo.html">Sudo</a></h3>
             </div><div name="deploylib.runit.RunitManager" class="parent">
               <h3>Inherited from <a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></h3>
             </div><div name="deploylib.RemoteMachine" class="parent">

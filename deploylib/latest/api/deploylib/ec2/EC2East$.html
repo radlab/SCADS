@@ -2,7 +2,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html>
         <head>
-          <title>deploylib.ec2.EC2Instance</title>
+          <title>deploylib.ec2.EC2East</title>
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link type="text/css" media="screen" rel="stylesheet" href="../../lib/template.css" />
@@ -14,27 +14,23 @@
         </head>
         <body class="value">
       <div id="definition">
-        <a title="Go to companion" href="EC2Instance.html"><img src="../../lib/object_to_class_big.png" /></a>
+        <img src="../../lib/object_big.png" />
         <p id="owner"><a name="deploylib" class="extype" href="../package.html">deploylib</a>.<a name="deploylib.ec2" class="extype" href="package.html">ec2</a></p>
-        <h1><a title="Go to companion" href="EC2Instance.html">EC2Instance</a></h1>
+        <h1>EC2East</h1>
       </div>
 
       <h4 class="signature" id="signature">
       <span class="kind">object</span>
       <span class="symbol"> 
-        <span class="name">EC2Instance</span>
+        <span class="name">EC2East</span>
         
-        <span class="result"> extends <a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></span>
+        <span class="result"> extends <a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a> with <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
       </span>
       </h4>
       
-          <div class="fullcommenttop" id="comment"><div class="comment cmt"><p>Provides static methds for interacting with instances running on amazons EC2.
-It caches all data received from the EC2 api and updates it only when accessing a volitile field (such as instanceState) or when an update is manually requested.
-Additionally, it will only make an update call to EC2 no more often than every 10 seconds.
-This means it is safe to make many concurrent calls to the static methods or instance methods of a specific EC2Instance concurrently from many threads with out fear of overloading amazons api.
-</p></div><div class="toggleContainer block">
+          <div class="fullcommenttop" id="comment"><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent"><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, <span name="scala.Product" class="extype">Product</span>, <span name="scala.Equals" class="extype">Equals</span>, <a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a>, <a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
         
 
@@ -50,7 +46,7 @@ This means it is safe to make many concurrent calls to the static methods or ins
                 <span class="filtertype">Inherited</span>
                 <ol><li class="hideall out"><span>Hide All</span></li>
                 <li class="showall in"><span>Show all</span></li></ol>
-                <ol id="linearization"><li name="deploylib.ec2.EC2Instance" class="in"><span>EC2Instance</span></li><li name="deploylib.ec2.AWSConnection" class="in"><span>AWSConnection</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
+                <ol id="linearization"><li name="deploylib.ec2.EC2East" class="in"><span>EC2East</span></li><li name="scala.Serializable" class="in"><span>Serializable</span></li><li name="java.io.Serializable" class="in"><span>Serializable</span></li><li name="scala.Product" class="in"><span>Product</span></li><li name="scala.Equals" class="in"><span>Equals</span></li><li name="deploylib.ec2.EC2Region" class="in"><span>EC2Region</span></li><li name="deploylib.ec2.AWSConnection" class="in"><span>AWSConnection</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
               </div>
           <div id="visbl">
               <span class="filtertype">Visibility</span>
@@ -60,7 +56,23 @@ This means it is safe to make many concurrent calls to the static methods or ins
 
         
 
+        <div class="types members" id="types">
+              <h3>Type Members</h3>
+              <ol><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance" data-isabs="false">
+      <a id="EC2Instance:EC2Instance"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="EC2Region$EC2Instance.html"><span class="name">EC2Instance</span></a>
         
+        <span class="result"> extends RemoteMachine with RunitManager with Sudo with ServiceManager</span>
+      </span>
+      </h4>
+      <p class="comment cmt">A specific RemoteMachine used to control a single
+Instances of this class can be obtained by instanceId from the static method getInstance
+</p>
+    </li></ol>
+            </div>
         
         
 
@@ -132,18 +144,19 @@ This means it is safe to make many concurrent calls to the static methods or ins
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#activeInstances" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#activeInstances" data-isabs="false">
       <a id="activeInstances:List[EC2Instance]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">activeInstances</span>
         
-        <span class="result">: List[<a name="deploylib.ec2.EC2Instance" class="extype" href="EC2Instance.html">EC2Instance</a>]</span>
+        <span class="result">: List[<a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a>]</span>
       </span>
       </h4>
       <p class="shortcomment cmt">Returns a list of all instances currently in the running state
-</p>
+</p><div class="fullcomment"><div class="comment cmt"><p>Returns a list of all instances currently in the running state
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
     </li><li visbl="pub" name="scala.Any#asInstanceOf" data-isabs="false">
       <a id="asInstanceOf[T0]:T0"></a>
       <h4 class="signature">
@@ -155,7 +168,18 @@ This means it is safe to make many concurrent calls to the static methods or ins
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#client" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2East#canEqual" data-isabs="false">
+      <a id="canEqual(Any):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">canEqual</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2East" class="extype" href="">EC2East</a> → Equals</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#client" data-isabs="false">
       <a id="client:AmazonEC2Client"></a>
       <h4 class="signature">
       <span class="kind">val</span>
@@ -165,7 +189,7 @@ This means it is safe to make many concurrent calls to the static methods or ins
         <span class="result">: <span name="com.amazonaws.services.ec2.AmazonEC2Client" class="extype">AmazonEC2Client</span></span>
       </span>
       </h4>
-      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
     </li><li visbl="prt" name="scala.AnyRef#clone" data-isabs="false">
       <a id="clone():AnyRef"></a>
       <h4 class="signature">
@@ -202,6 +226,28 @@ This means it is safe to make many concurrent calls to the static methods or ins
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
+    </li><li visbl="prt" name="deploylib.ec2.EC2Region#defaultAMI" data-isabs="false">
+      <a id="defaultAMI:String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">defaultAMI</span>
+        
+        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
+    </li><li visbl="prt" name="deploylib.ec2.EC2Region#defaultZone" data-isabs="false">
+      <a id="defaultZone:String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">defaultZone</span>
+        
+        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
     </li><li visbl="prt" name="deploylib.ec2.AWSConnection#ec2Cert" data-isabs="false">
       <a id="ec2Cert:File"></a>
       <h4 class="signature">
@@ -224,17 +270,17 @@ This means it is safe to make many concurrent calls to the static methods or ins
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#endpoint" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#endpoint" data-isabs="false">
       <a id="endpoint:String"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">endpoint</span>
         
-        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+        <span class="result">: String</span>
       </span>
       </h4>
-      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#eq" data-isabs="false">
       <a id="eq(AnyRef):Boolean"></a>
       <h4 class="signature">
@@ -282,19 +328,20 @@ This means it is safe to make many concurrent calls to the static methods or ins
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#getInstance" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#getInstance" data-isabs="false">
       <a id="getInstance(String):EC2Instance"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">getInstance</span>
         
-        <span class="params">(<span name="instanceId">instanceId: String</span>)</span><span class="result">: <a name="deploylib.ec2.EC2Instance" class="extype" href="EC2Instance.html">EC2Instance</a></span>
+        <span class="params">(<span name="instanceId">instanceId: String</span>)</span><span class="result">: <a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a></span>
       </span>
       </h4>
       <p class="shortcomment cmt">Gets an instance object by instanceId
-</p>
-    </li><li visbl="pub" name="scala.AnyRef#hashCode" data-isabs="false">
+</p><div class="fullcomment"><div class="comment cmt"><p>Gets an instance object by instanceId
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2East#hashCode" data-isabs="false">
       <a id="hashCode():Int"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -304,8 +351,8 @@ This means it is safe to make many concurrent calls to the static methods or ins
         <span class="params">()</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#instanceData" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2East" class="extype" href="">EC2East</a> → AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#instanceData" data-isabs="false">
       <a id="instanceData:Map[String, Instance]"></a>
       <h4 class="signature">
       <span class="kind">var</span>
@@ -315,18 +362,18 @@ This means it is safe to make many concurrent calls to the static methods or ins
         <span class="result">: Map[String, <span name="com.amazonaws.services.ec2.model.Instance" class="extype">Instance</span>]</span>
       </span>
       </h4>
-      
-    </li><li visbl="prt" name="deploylib.ec2.EC2Instance#instances" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
+    </li><li visbl="prt" name="deploylib.ec2.EC2Region#instances" data-isabs="false">
       <a id="instances:HashMap[String, EC2Instance]"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">instances</span>
         
-        <span class="result">: <span name="scala.collection.mutable.HashMap" class="extype">HashMap</span>[String, <a name="deploylib.ec2.EC2Instance" class="extype" href="EC2Instance.html">EC2Instance</a>]</span>
+        <span class="result">: <span name="scala.collection.mutable.HashMap" class="extype">HashMap</span>[String, <a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a>]</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
     </li><li visbl="pub" name="scala.Any#isInstanceOf" data-isabs="false">
       <a id="isInstanceOf[T0]:Boolean"></a>
       <h4 class="signature">
@@ -338,7 +385,7 @@ This means it is safe to make many concurrent calls to the static methods or ins
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#keyName" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#keyName" data-isabs="false">
       <a id="keyName:String"></a>
       <h4 class="signature">
       <span class="kind">var</span>
@@ -348,8 +395,8 @@ This means it is safe to make many concurrent calls to the static methods or ins
         <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
       </span>
       </h4>
-      
-    </li><li visbl="prt" name="deploylib.ec2.EC2Instance#lastUpdate" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
+    </li><li visbl="prt" name="deploylib.ec2.EC2Region#lastUpdate" data-isabs="false">
       <a id="lastUpdate:Long"></a>
       <h4 class="signature">
       <span class="kind">var</span>
@@ -359,8 +406,19 @@ This means it is safe to make many concurrent calls to the static methods or ins
         <span class="result">: <span name="scala.Long" class="extype">Long</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
-    </li><li visbl="prt" name="deploylib.ec2.EC2Instance#logger" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#location" data-isabs="false">
+      <a id="location:String"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">location</span>
+        
+        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
+    </li><li visbl="prt" name="deploylib.ec2.EC2Region#logger" data-isabs="false">
       <a id="logger:Logger"></a>
       <h4 class="signature">
       <span class="kind">val</span>
@@ -370,19 +428,42 @@ This means it is safe to make many concurrent calls to the static methods or ins
         <span class="result">: <span name="net.lag.logging.Logger" class="extype">Logger</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#myInstances" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#myInstances" data-isabs="false">
       <a id="myInstances:List[EC2Instance]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">myInstances</span>
         
-        <span class="result">: List[<a name="deploylib.ec2.EC2Instance" class="extype" href="EC2Instance.html">EC2Instance</a>]</span>
+        <span class="result">: List[<a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a>]</span>
       </span>
       </h4>
       <p class="shortcomment cmt">Returns all instances that are configured to use the key specified in keyName
-</p>
+</p><div class="fullcomment"><div class="comment cmt"><p>Returns all instances that are configured to use the key specified in keyName
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#name" data-isabs="false">
+      <a id="name:String"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">name</span>
+        
+        <span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
+    </li><li visbl="prt" name="deploylib.ec2.EC2Region#nameRegEx" data-isabs="false">
+      <a id="nameRegEx:Regex"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">nameRegEx</span>
+        
+        <span class="result">: <span name="scala.util.matching.Regex" class="extype">Regex</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#ne" data-isabs="false">
       <a id="ne(AnyRef):Boolean"></a>
       <h4 class="signature">
@@ -416,40 +497,98 @@ This means it is safe to make many concurrent calls to the static methods or ins
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#runInstance" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2East#productArity" data-isabs="false">
+      <a id="productArity:Int"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">productArity</span>
+        
+        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2East" class="extype" href="">EC2East</a> → Product</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2East#productElement" data-isabs="false">
+      <a id="productElement(Int):Any"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">productElement</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Any" class="extype">Any</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2East" class="extype" href="">EC2East</a> → Product</dd></dl></div>
+    </li><li visbl="pub" name="scala.Product#productIterator" data-isabs="false">
+      <a id="productIterator:Iterator[Any]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">productIterator</span>
+        
+        <span class="result">: Iterator[<span name="scala.Any" class="extype">Any</span>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Product</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2East#productPrefix" data-isabs="false">
+      <a id="productPrefix:String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">productPrefix</span>
+        
+        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2East" class="extype" href="">EC2East</a> → Product</dd></dl></div>
+    </li><li visbl="prt" name="deploylib.ec2.EC2East#readResolve" data-isabs="false">
+      <a id="readResolve():AnyRef"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">readResolve</span>
+        
+        <span class="params">()</span><span class="result">: AnyRef</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#runInstance" data-isabs="false">
       <a id="runInstance():EC2Instance"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">runInstance</span>
         
-        <span class="params">()</span><span class="result">: <a name="deploylib.ec2.EC2Instance" class="extype" href="EC2Instance.html">EC2Instance</a></span>
+        <span class="params">()</span><span class="result">: <a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a></span>
       </span>
       </h4>
-      <p class="shortcomment cmt">Launch a single golden image instance with default configuration.</p>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#runInstances" data-isabs="false">
+      <p class="shortcomment cmt">Launch a single golden image instance with default configuration.</p><div class="fullcomment"><div class="comment cmt"><p>Launch a single golden image instance with default configuration.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#runInstances" data-isabs="false">
       <a id="runInstances(String,Int,Int,String,String,String,Option[String]):Seq[EC2Instance]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">runInstances</span>
         
-        <span class="params">(<span name="imageId">imageId: String</span>, <span name="min">min: <span name="scala.Int" class="extype">Int</span></span>, <span name="max">max: <span name="scala.Int" class="extype">Int</span></span>, <span name="keyName">keyName: String</span>, <span name="instanceType">instanceType: String</span>, <span name="location">location: String</span>, <span name="userData">userData: <span name="scala.Option" class="extype">Option</span>[String] = <span class="symbol"><span class="name"><a href="../../scala/package.html">None</a></span></span></span>)</span><span class="result">: Seq[<a name="deploylib.ec2.EC2Instance" class="extype" href="EC2Instance.html">EC2Instance</a>]</span>
+        <span class="params">(<span name="imageId">imageId: String</span>, <span name="min">min: <span name="scala.Int" class="extype">Int</span></span>, <span name="max">max: <span name="scala.Int" class="extype">Int</span></span>, <span name="keyName">keyName: String</span>, <span name="instanceType">instanceType: String</span>, <span name="location">location: String</span>, <span name="userData">userData: <span name="scala.Option" class="extype">Option</span>[String] = <span class="symbol"><span class="name"><a href="../../scala/package.html">None</a></span></span></span>)</span><span class="result">: Seq[<a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a>]</span>
       </span>
       </h4>
       <p class="shortcomment cmt">Launches a set of instances with the given parameters
-</p>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#runInstances" data-isabs="false">
+</p><div class="fullcomment"><div class="comment cmt"><p>Launches a set of instances with the given parameters
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#runInstances" data-isabs="false">
       <a id="runInstances(Int):Seq[EC2Instance]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">runInstances</span>
         
-        <span class="params">(<span name="num">num: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: Seq[<a name="deploylib.ec2.EC2Instance" class="extype" href="EC2Instance.html">EC2Instance</a>]</span>
+        <span class="params">(<span name="num">num: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: Seq[<a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a>]</span>
       </span>
       </h4>
-      <p class="shortcomment cmt">Launches the specified number of golden image instances with the default configuration.</p>
+      <p class="shortcomment cmt">Launches the specified number of golden image instances with the default configuration.</p><div class="fullcomment"><div class="comment cmt"><p>Launches the specified number of golden image instances with the default configuration.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
     </li><li visbl="prt" name="deploylib.ec2.AWSConnection#secretAccessKey" data-isabs="false">
       <a id="secretAccessKey:String"></a>
       <h4 class="signature">
@@ -472,7 +611,7 @@ This means it is safe to make many concurrent calls to the static methods or ins
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li visbl="pub" name="scala.AnyRef#toString" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2East#toString" data-isabs="false">
       <a id="toString():String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -482,8 +621,19 @@ This means it is safe to make many concurrent calls to the static methods or ins
         <span class="params">()</span><span class="result">: <span name="java.lang.String" class="extype">String</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance#update" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2East" class="extype" href="">EC2East</a> → AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#ubuntuRepo" data-isabs="false">
+      <a id="ubuntuRepo:String"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">ubuntuRepo</span>
+        
+        <span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#update" data-isabs="false">
       <a id="update():Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -495,7 +645,7 @@ This means it is safe to make many concurrent calls to the static methods or ins
       </h4>
       <p class="shortcomment cmt">Update the metadata for all ec2 instances.</p><div class="fullcomment"><div class="comment cmt"><p>Update the metadata for all ec2 instances.
 Safe to call repetedly, but will only actually update once ever 10 seconds.
-</p></div></div>
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
     </li><li visbl="prt" name="deploylib.ec2.AWSConnection#userID" data-isabs="false">
       <a id="userID:String"></a>
       <h4 class="signature">
@@ -552,9 +702,36 @@ Safe to call repetedly, but will only actually update once ever 10 seconds.
     </li></ol>
             </div>
 
+        <div class="values members" id="values">
+              <h3>Deprecated Value Members</h3>
+              <ol><li visbl="pub" name="scala.Product#productElements" data-isabs="false">
+      <a id="productElements:Iterator[Any]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name deprecated">productElements</span>
         
+        <span class="result">: Iterator[<span name="scala.Any" class="extype">Any</span>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Product</dd><dt>Annotations</dt><dd>
+                <span class="name">@deprecated</span>
+              
+        </dd><dt>Deprecated</dt><dd class="cmt"><p>use productIterator instead</p></dd></dl></div>
+    </li></ol>
+            </div>
 
-        <div name="deploylib.ec2.AWSConnection" class="parent">
+        <div name="scala.Serializable" class="parent">
+              <h3>Inherited from <span name="scala.Serializable" class="extype">Serializable</span></h3>
+            </div><div name="java.io.Serializable" class="parent">
+              <h3>Inherited from <span name="java.io.Serializable" class="extype">Serializable</span></h3>
+            </div><div name="scala.Product" class="parent">
+              <h3>Inherited from <span name="scala.Product" class="extype">Product</span></h3>
+            </div><div name="scala.Equals" class="parent">
+              <h3>Inherited from <span name="scala.Equals" class="extype">Equals</span></h3>
+            </div><div name="deploylib.ec2.EC2Region" class="parent">
+              <h3>Inherited from <a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></h3>
+            </div><div name="deploylib.ec2.AWSConnection" class="parent">
               <h3>Inherited from <a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></h3>
             </div><div name="scala.AnyRef" class="parent">
               <h3>Inherited from AnyRef</h3>

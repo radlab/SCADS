@@ -207,17 +207,6 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.RemoteMachine#addService" data-isabs="false">
-      <a id="addService(Service):Unit"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">addService</span>
-        
-        <span class="params">(<span name="service">service: <a name="deploylib.Service" class="extype" href="../Service.html">Service</a></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#appendFile" data-isabs="false">
       <a id="appendFile(File,String):Unit"></a>
       <h4 class="signature">
@@ -378,26 +367,13 @@
       <span class="symbol"> 
         <span class="name">executeCommand</span>
         
-        <span class="params">(<span name="cmd">cmd: String</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="result">: <a name="deploylib.ExecuteResponse" class="extype" href="../ExecuteResponse.html">ExecuteResponse</a></span>
+        <span class="params">(<span name="cmd">cmd: String</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span> = <span class="symbol">0</span></span>)</span><span class="result">: <a name="deploylib.ExecuteResponse" class="extype" href="../ExecuteResponse.html">ExecuteResponse</a></span>
       </span>
       </h4>
       <p class="shortcomment cmt">Execute a command sync with a maximum timeout to wait for result
 and return the result as an ExecuteResponse
 </p><div class="fullcomment"><div class="comment cmt"><p>Execute a command sync with a maximum timeout to wait for result
 and return the result as an ExecuteResponse
-</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.RemoteMachine#executeCommand" data-isabs="false">
-      <a id="executeCommand(String):ExecuteResponse"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">executeCommand</span>
-        
-        <span class="params">(<span name="cmd">cmd: String</span>)</span><span class="result">: <a name="deploylib.ExecuteResponse" class="extype" href="../ExecuteResponse.html">ExecuteResponse</a></span>
-      </span>
-      </h4>
-      <p class="shortcomment cmt">Execute a command sync and return the result as an ExecuteResponse
-</p><div class="fullcomment"><div class="comment cmt"><p>Execute a command sync and return the result as an ExecuteResponse
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="prt" name="scala.AnyRef#finalize" data-isabs="false">
       <a id="finalize():Unit"></a>
@@ -613,6 +589,17 @@ Mem:       7864548    4332752    3531796          0      78112    2640248
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="prt" name="deploylib.RemoteMachine#prepareCommand" data-isabs="false">
+      <a id="prepareCommand(String):String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">prepareCommand</span>
+        
+        <span class="params">(<span name="cmd">cmd: String</span>)</span><span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#privateKey" data-isabs="false">
       <a id="privateKey:File"></a>
       <h4 class="signature">
@@ -664,8 +651,8 @@ root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
         <span class="result">: <span name="java.io.File" class="extype">File</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.rcluster.RClusterNode" class="extype" href="">RClusterNode</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.RemoteMachine#runsvdirCmd" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.rcluster.RClusterNode" class="extype" href="">RClusterNode</a> → <a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.runit.RunitManager#runsvdirCmd" data-isabs="false">
       <a id="runsvdirCmd:File"></a>
       <h4 class="signature">
       <span class="kind">lazy val</span>
@@ -675,8 +662,8 @@ root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
         <span class="result">: <span name="java.io.File" class="extype">File</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.RemoteMachine#serviceRoot" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.runit.RunitManager#serviceRoot" data-isabs="false">
       <a id="serviceRoot:File"></a>
       <h4 class="signature">
       <span class="kind">lazy val</span>
@@ -686,7 +673,7 @@ root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
         <span class="result">: <span name="java.io.File" class="extype">File</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.runit.RunitManager#services" data-isabs="false">
       <a id="services:List[RunitService]"></a>
       <h4 class="signature">
@@ -721,7 +708,7 @@ root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
       </h4>
       <p class="shortcomment cmt">Kill all processes currently tailing a file.</p><div class="fullcomment"><div class="comment cmt"><p>Kill all processes currently tailing a file.
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.RemoteMachine#svCmd" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.runit.RunitManager#svCmd" data-isabs="false">
       <a id="svCmd:File"></a>
       <h4 class="signature">
       <span class="kind">lazy val</span>
@@ -731,8 +718,8 @@ root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
         <span class="result">: <span name="java.io.File" class="extype">File</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.RemoteMachine#svlogdCmd" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.runit.RunitManager#svlogdCmd" data-isabs="false">
       <a id="svlogdCmd:File"></a>
       <h4 class="signature">
       <span class="kind">lazy val</span>
@@ -742,7 +729,7 @@ root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
         <span class="result">: <span name="java.io.File" class="extype">File</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#synchronized" data-isabs="false">
       <a id="synchronized[T0](⇒ T0):T0"></a>
       <h4 class="signature">
@@ -767,7 +754,7 @@ root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
       <p class="shortcomment cmt">return the last numLines from the specified file
 </p><div class="fullcomment"><div class="comment cmt"><p>return the last numLines from the specified file
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.RemoteMachine#toOption" data-isabs="false">
+    </li><li visbl="prt" name="deploylib.RemoteMachine#toOption" data-isabs="false">
       <a id="toOption[A](A):Option[A]"></a>
       <h4 class="signature">
       <span class="kind">implicit def</span>
@@ -777,7 +764,7 @@ root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
         <span class="params">(<span name="a">a: A</span>)</span><span class="result">: <span name="scala.Option" class="extype">Option</span>[A]</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected implicit </dd><dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#toString" data-isabs="false">
       <a id="toString():String"></a>
       <h4 class="signature">
@@ -883,7 +870,24 @@ root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
     </li></ol>
             </div>
 
+        <div class="values members" id="values">
+              <h3>Deprecated Value Members</h3>
+              <ol><li visbl="pub" name="deploylib.RemoteMachine#addService" data-isabs="false">
+      <a id="addService(Service):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name deprecated">addService</span>
         
+        <span class="params">(<span name="service">service: <a name="deploylib.Service" class="extype" href="../Service.html">Service</a></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd><dt>Annotations</dt><dd>
+                <span class="name">@deprecated</span>
+              
+        </dd><dt>Deprecated</dt><dd class="cmt"><p>use getService</p></dd></dl></div>
+    </li></ol>
+            </div>
 
         <div name="deploylib.runit.RunitManager" class="parent">
               <h3>Inherited from <a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></h3>

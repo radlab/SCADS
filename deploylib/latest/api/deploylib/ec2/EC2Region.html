@@ -2,7 +2,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html>
         <head>
-          <title>deploylib.ec2.AWSConnection</title>
+          <title>deploylib.ec2.EC2Region</title>
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link type="text/css" media="screen" rel="stylesheet" href="../../lib/template.css" />
@@ -14,28 +14,30 @@
         </head>
         <body class="type">
       <div id="definition">
-        <img src="../../lib/trait_big.png" />
+        <img src="../../lib/class_big.png" />
         <p id="owner"><a name="deploylib" class="extype" href="../package.html">deploylib</a>.<a name="deploylib.ec2" class="extype" href="package.html">ec2</a></p>
-        <h1>AWSConnection</h1>
+        <h1>EC2Region</h1>
       </div>
 
       <h4 class="signature" id="signature">
-      <span class="kind">trait</span>
+      <span class="kind">class</span>
       <span class="symbol"> 
-        <span class="name">AWSConnection</span>
+        <span class="name">EC2Region</span>
         
-        <span class="result"> extends AnyRef</span>
+        <span class="result"> extends <a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></span>
       </span>
       </h4>
       
-          <div class="fullcommenttop" id="comment"><div class="comment cmt"><p>Abstract class that is used to get the the accessKeyId and the secretAcccess key from the environmental variables <code>AWS_ACCESS_KEY_ID</code> and <code>AWS_SECRET_ACCESS_KEY</code> respectively.
-It is used by the EC2Instance object and S3Cache.
+          <div class="fullcommenttop" id="comment"><div class="comment cmt"><p>Provides methods for interacting with nodes in a given ec2 region.
+It caches all data received from the EC2 api and updates it only when accessing a volitile field (such as instanceState) or when an update is manually requested.
+Additionally, it will only make an update call to EC2 no more often than every 10 seconds.
+This means it is safe to make many concurrent calls to the static methods or instance methods of a specific EC2Instance concurrently from many threads with out fear of overloading amazons api.
 </p></div><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent">AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div><div class="toggleContainer block">
           <span class="toggle">Known Subclasses</span>
-          <div class="subClasses hiddenContent"><a name="deploylib.ec2.EC2East" class="extype" href="EC2East$.html">EC2East</a>, <a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a>, <a name="deploylib.ec2.EC2West" class="extype" href="EC2West$.html">EC2West</a>, <a name="deploylib.ec2.ExperimentNotification" class="extype" href="ExperimentNotification$.html">ExperimentNotification</a>, <a name="deploylib.ec2.S3Cache" class="extype" href="S3Cache$.html">S3Cache</a></div>
+          <div class="subClasses hiddenContent"><a name="deploylib.ec2.EC2East" class="extype" href="EC2East$.html">EC2East</a>, <a name="deploylib.ec2.EC2West" class="extype" href="EC2West$.html">EC2West</a></div>
         </div></div>
         
 
@@ -51,7 +53,7 @@ It is used by the EC2Instance object and S3Cache.
                 <span class="filtertype">Inherited</span>
                 <ol><li class="hideall out"><span>Hide All</span></li>
                 <li class="showall in"><span>Show all</span></li></ol>
-                <ol id="linearization"><li name="deploylib.ec2.AWSConnection" class="in"><span>AWSConnection</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
+                <ol id="linearization"><li name="deploylib.ec2.EC2Region" class="in"><span>EC2Region</span></li><li name="deploylib.ec2.AWSConnection" class="in"><span>AWSConnection</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
               </div>
           <div id="visbl">
               <span class="filtertype">Visibility</span>
@@ -59,9 +61,39 @@ It is used by the EC2Instance object and S3Cache.
             </div>
         </div>
 
+        <div class="members" id="constructors">
+              <h3>Instance Constructors</h3>
+              <ol><li visbl="pub" name="deploylib.ec2.EC2Region#this" data-isabs="false">
+      <a id="this:EC2Region"></a>
+      <h4 class="signature">
+      <span class="kind">new</span>
+      <span class="symbol"> 
+        <span class="name">EC2Region</span>
         
+        <span class="params">(<span name="endpoint">endpoint: String</span>)</span>
+      </span>
+      </h4>
+      
+    </li></ol>
+            </div>
 
+        <div class="types members" id="types">
+              <h3>Type Members</h3>
+              <ol><li visbl="pub" name="deploylib.ec2.EC2Region.EC2Instance" data-isabs="false">
+      <a id="EC2Instance:EC2Instance"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="EC2Region$EC2Instance.html"><span class="name">EC2Instance</span></a>
         
+        <span class="result"> extends RemoteMachine with RunitManager with Sudo with ServiceManager</span>
+      </span>
+      </h4>
+      <p class="comment cmt">A specific RemoteMachine used to control a single
+Instances of this class can be obtained by instanceId from the static method getInstance
+</p>
+    </li></ol>
+            </div>
         
         
 
@@ -132,7 +164,19 @@ It is used by the EC2Instance object and S3Cache.
         <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#activeInstances" data-isabs="false">
+      <a id="activeInstances:List[EC2Instance]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">activeInstances</span>
+        
+        <span class="result">: List[<a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a>]</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Returns a list of all instances currently in the running state
+</p>
     </li><li visbl="pub" name="scala.Any#asInstanceOf" data-isabs="false">
       <a id="asInstanceOf[T0]:T0"></a>
       <h4 class="signature">
@@ -144,6 +188,17 @@ It is used by the EC2Instance object and S3Cache.
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#client" data-isabs="false">
+      <a id="client:AmazonEC2Client"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">client</span>
+        
+        <span class="result">: <span name="com.amazonaws.services.ec2.AmazonEC2Client" class="extype">AmazonEC2Client</span></span>
+      </span>
+      </h4>
+      
     </li><li visbl="prt" name="scala.AnyRef#clone" data-isabs="false">
       <a id="clone():AnyRef"></a>
       <h4 class="signature">
@@ -168,7 +223,7 @@ It is used by the EC2Instance object and S3Cache.
         <span class="result">: <span name="com.amazonaws.ClientConfiguration" class="extype">ClientConfiguration</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
     </li><li visbl="prt" name="deploylib.ec2.AWSConnection#credentials" data-isabs="false">
       <a id="credentials:BasicAWSCredentials"></a>
       <h4 class="signature">
@@ -177,6 +232,28 @@ It is used by the EC2Instance object and S3Cache.
         <span class="name">credentials</span>
         
         <span class="result">: <span name="com.amazonaws.auth.BasicAWSCredentials" class="extype">BasicAWSCredentials</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
+    </li><li visbl="prt" name="deploylib.ec2.EC2Region#defaultAMI" data-isabs="false">
+      <a id="defaultAMI:String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">defaultAMI</span>
+        
+        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+    </li><li visbl="prt" name="deploylib.ec2.EC2Region#defaultZone" data-isabs="false">
+      <a id="defaultZone:String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">defaultZone</span>
+        
+        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
@@ -190,7 +267,7 @@ It is used by the EC2Instance object and S3Cache.
         <span class="result">: <span name="java.io.File" class="extype">File</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
     </li><li visbl="prt" name="deploylib.ec2.AWSConnection#ec2PrivateKey" data-isabs="false">
       <a id="ec2PrivateKey:File"></a>
       <h4 class="signature">
@@ -201,7 +278,18 @@ It is used by the EC2Instance object and S3Cache.
         <span class="result">: <span name="java.io.File" class="extype">File</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#endpoint" data-isabs="false">
+      <a id="endpoint:String"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">endpoint</span>
+        
+        <span class="result">: String</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="scala.AnyRef#eq" data-isabs="false">
       <a id="eq(AnyRef):Boolean"></a>
       <h4 class="signature">
@@ -249,6 +337,18 @@ It is used by the EC2Instance object and S3Cache.
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#getInstance" data-isabs="false">
+      <a id="getInstance(String):EC2Instance"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">getInstance</span>
+        
+        <span class="params">(<span name="instanceId">instanceId: String</span>)</span><span class="result">: <a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Gets an instance object by instanceId
+</p>
     </li><li visbl="pub" name="scala.AnyRef#hashCode" data-isabs="false">
       <a id="hashCode():Int"></a>
       <h4 class="signature">
@@ -260,6 +360,28 @@ It is used by the EC2Instance object and S3Cache.
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#instanceData" data-isabs="false">
+      <a id="instanceData:Map[String, Instance]"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">instanceData</span>
+        
+        <span class="result">: Map[String, <span name="com.amazonaws.services.ec2.model.Instance" class="extype">Instance</span>]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="prt" name="deploylib.ec2.EC2Region#instances" data-isabs="false">
+      <a id="instances:HashMap[String, EC2Instance]"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">instances</span>
+        
+        <span class="result">: <span name="scala.collection.mutable.HashMap" class="extype">HashMap</span>[String, <a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
     </li><li visbl="pub" name="scala.Any#isInstanceOf" data-isabs="false">
       <a id="isInstanceOf[T0]:Boolean"></a>
       <h4 class="signature">
@@ -271,6 +393,84 @@ It is used by the EC2Instance object and S3Cache.
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#keyName" data-isabs="false">
+      <a id="keyName:String"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">keyName</span>
+        
+        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="prt" name="deploylib.ec2.EC2Region#lastUpdate" data-isabs="false">
+      <a id="lastUpdate:Long"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">lastUpdate</span>
+        
+        <span class="result">: <span name="scala.Long" class="extype">Long</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#location" data-isabs="false">
+      <a id="location:String"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">location</span>
+        
+        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="prt" name="deploylib.ec2.EC2Region#logger" data-isabs="false">
+      <a id="logger:Logger"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">logger</span>
+        
+        <span class="result">: <span name="net.lag.logging.Logger" class="extype">Logger</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#myInstances" data-isabs="false">
+      <a id="myInstances:List[EC2Instance]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">myInstances</span>
+        
+        <span class="result">: List[<a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a>]</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Returns all instances that are configured to use the key specified in keyName
+</p>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#name" data-isabs="false">
+      <a id="name:String"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">name</span>
+        
+        <span class="result">: String</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="prt" name="deploylib.ec2.EC2Region#nameRegEx" data-isabs="false">
+      <a id="nameRegEx:Regex"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">nameRegEx</span>
+        
+        <span class="result">: <span name="scala.util.matching.Regex" class="extype">Regex</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#ne" data-isabs="false">
       <a id="ne(AnyRef):Boolean"></a>
       <h4 class="signature">
@@ -304,6 +504,40 @@ It is used by the EC2Instance object and S3Cache.
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#runInstance" data-isabs="false">
+      <a id="runInstance():EC2Instance"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">runInstance</span>
+        
+        <span class="params">()</span><span class="result">: <a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Launch a single golden image instance with default configuration.</p>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#runInstances" data-isabs="false">
+      <a id="runInstances(String,Int,Int,String,String,String,Option[String]):Seq[EC2Instance]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">runInstances</span>
+        
+        <span class="params">(<span name="imageId">imageId: String</span>, <span name="min">min: <span name="scala.Int" class="extype">Int</span></span>, <span name="max">max: <span name="scala.Int" class="extype">Int</span></span>, <span name="keyName">keyName: String</span>, <span name="instanceType">instanceType: String</span>, <span name="location">location: String</span>, <span name="userData">userData: <span name="scala.Option" class="extype">Option</span>[String] = <span class="symbol"><span class="name"><a href="../../scala/package.html">None</a></span></span></span>)</span><span class="result">: Seq[<a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a>]</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Launches a set of instances with the given parameters
+</p>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#runInstances" data-isabs="false">
+      <a id="runInstances(Int):Seq[EC2Instance]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">runInstances</span>
+        
+        <span class="params">(<span name="num">num: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: Seq[<a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a>]</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Launches the specified number of golden image instances with the default configuration.</p>
     </li><li visbl="prt" name="deploylib.ec2.AWSConnection#secretAccessKey" data-isabs="false">
       <a id="secretAccessKey:String"></a>
       <h4 class="signature">
@@ -314,7 +548,7 @@ It is used by the EC2Instance object and S3Cache.
         <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#synchronized" data-isabs="false">
       <a id="synchronized[T0](⇒ T0):T0"></a>
       <h4 class="signature">
@@ -337,6 +571,30 @@ It is used by the EC2Instance object and S3Cache.
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#ubuntuRepo" data-isabs="false">
+      <a id="ubuntuRepo:String"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">ubuntuRepo</span>
+        
+        <span class="result">: String</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#update" data-isabs="false">
+      <a id="update():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">update</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Update the metadata for all ec2 instances.</p><div class="fullcomment"><div class="comment cmt"><p>Update the metadata for all ec2 instances.
+Safe to call repetedly, but will only actually update once ever 10 seconds.
+</p></div></div>
     </li><li visbl="prt" name="deploylib.ec2.AWSConnection#userID" data-isabs="false">
       <a id="userID:String"></a>
       <h4 class="signature">
@@ -347,7 +605,7 @@ It is used by the EC2Instance object and S3Cache.
         <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
       <a id="wait():Unit"></a>
       <h4 class="signature">
@@ -395,7 +653,9 @@ It is used by the EC2Instance object and S3Cache.
 
         
 
-        <div name="scala.AnyRef" class="parent">
+        <div name="deploylib.ec2.AWSConnection" class="parent">
+              <h3>Inherited from <a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></h3>
+            </div><div name="scala.AnyRef" class="parent">
               <h3>Inherited from AnyRef</h3>
             </div><div name="scala.Any" class="parent">
               <h3>Inherited from <span name="scala.Any" class="extype">Any</span></h3>

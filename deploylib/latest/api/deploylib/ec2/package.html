@@ -58,17 +58,28 @@
       </span>
       </h4>
       <p class="comment cmt">Abstract class that is used to get the the accessKeyId and the secretAcccess key from the environmental variables <code>AWS_ACCESS_KEY_ID</code> and <code>AWS_SECRET_ACCESS_KEY</code> respectively.</p>
-    </li><li visbl="pub" name="deploylib.ec2.EC2Instance" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.package#EC2Instance" data-isabs="false">
       <a id="EC2Instance:EC2Instance"></a>
+      <h4 class="signature">
+      <span class="kind">type</span>
+      <span class="symbol"> 
+        <span class="name">EC2Instance</span>
+        
+        <span class="result"> = <a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.package" class="extype" href="package$.html">package</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region" data-isabs="false">
+      <a id="EC2Region:EC2Region"></a>
       <h4 class="signature">
       <span class="kind">class</span>
       <span class="symbol"> 
-        <a href="EC2Instance.html"><span class="name">EC2Instance</span></a>
+        <a href="EC2Region.html"><span class="name">EC2Region</span></a>
         
-        <span class="result"> extends RemoteMachine with RunitManager with AWSConnection</span>
+        <span class="result"> extends AWSConnection</span>
       </span>
       </h4>
-      <p class="comment cmt">A specific RemoteMachine used to control a single EC2Instance.</p>
+      <p class="comment cmt">Provides methods for interacting with nodes in a given ec2 region.</p>
     </li></ol>
             </div>
         
@@ -76,17 +87,28 @@
 
         <div class="values members" id="values">
               <h3>Value Members</h3>
-              <ol><li visbl="pub" name="deploylib.ec2.EC2Instance" data-isabs="false">
-      <a id="EC2Instance:EC2Instance"></a>
+              <ol><li visbl="pub" name="deploylib.ec2.EC2East" data-isabs="false">
+      <a id="EC2East:EC2East"></a>
       <h4 class="signature">
       <span class="kind">object</span>
       <span class="symbol"> 
-        <a href="EC2Instance$.html"><span class="name">EC2Instance</span></a>
+        <a href="EC2East$.html"><span class="name">EC2East</span></a>
         
-        <span class="result"> extends AWSConnection</span>
+        <span class="result"> extends EC2Region with Product with Serializable</span>
       </span>
       </h4>
-      <p class="comment cmt">Provides static methds for interacting with instances running on amazons EC2.</p>
+      
+    </li><li visbl="pub" name="deploylib.ec2.EC2West" data-isabs="false">
+      <a id="EC2West:EC2West"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="EC2West$.html"><span class="name">EC2West</span></a>
+        
+        <span class="result"> extends EC2Region with Product with Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="deploylib.ec2.ExperimentNotification" data-isabs="false">
       <a id="ExperimentNotification:ExperimentNotification"></a>
       <h4 class="signature">
