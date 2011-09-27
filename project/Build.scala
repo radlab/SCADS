@@ -115,9 +115,9 @@ object ScadsBuild extends Build {
     file("axer"),
     settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin))
 
-  lazy val matheron = Project(
-    "matheron",
-    file("matheron"),
+  lazy val matheon = Project(
+    "matheon",
+    file("matheon"),
     settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
   ) dependsOn (config, comm, scalaEngine)
 
