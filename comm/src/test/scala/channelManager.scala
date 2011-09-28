@@ -1,17 +1,18 @@
-package edu.berkeley.cs.scads.comm.test
+package edu.berkeley.cs
+package scads.comm
+package test
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Spec
 import org.scalatest.matchers.ShouldMatchers
 
-import edu.berkeley.cs.scads.comm._
-
 import java.util.concurrent.ConcurrentHashMap
 
 import net.lag.logging.Logger
 
-import edu.berkeley.cs.avro.marker.AvroRecord
+import avro.runtime._
+import avro.marker._
 
 case class TestMsg(var payload: String) extends AvroRecord
 

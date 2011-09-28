@@ -17,7 +17,8 @@ import edu.berkeley.cs.avro.marker.{AvroRecord, AvroUnion}
 
 import remote.RemoteActor
 import scala.collection.JavaConversions._
-import edu.berkeley.cs.avro.runtime.TypedSchema
+import edu.berkeley.cs.avro.runtime._
+import org.apache.avro.Schema.Field
 
 /* General message types */
 sealed trait ServiceId extends AvroUnion
@@ -67,7 +68,9 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
    * case class MessageEnvelope[MessageType](var src: Option[ActorId], var dest: ActorId, var id: Option[Long], var body: MessageType) extends AvroRecord
    */
   protected val envelopeSchema = new TypedSchema[MessageEnvelope](Schema.createRecord(
-    new Schema.Field("src", classOf[ServiceId].newInstance.asInstanceOf[IndexedRecord].getSchema, null, null) :: Nil
+    new Schema.Field("src", TypedSchemas.schemaOf[ServiceId], null, null) ::
+    new Schema.Field("dest", TypedSchemas.schemaOf[ServiceId], null, null) ::
+    new Schema.Field("msg", schema, null, null) :: Nil
   ))
 
   private lazy val impl =
@@ -143,7 +146,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
       case RelayMessage => impl.sendMessage(dest.remoteNode, packaged)
       case DropMessage => /* Drop the message */
       case DelayMessage(delay, units) =>
-        delayExecutor.schedule(toRunnable(impl.sendMessage(dest.remoteNode, msg)), delay, units)
+        delayExecutor.schedule(toRunnable(impl.sendMessage(dest.remoteNode, packaged)), delay, units)
     }
   }
 

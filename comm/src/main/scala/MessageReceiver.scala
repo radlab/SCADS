@@ -42,7 +42,7 @@ abstract trait ServiceHandler[MessageType <: IndexedRecord] extends MessageRecei
    * initialization statements above. otherwise, NPE will ensue if a message
    * arrives immediately (since the thread pool has not been initialized yet,
    * etc) */
-  implicit val remoteHandle = registry.registerService(this)
+  implicit lazy val remoteHandle = registry.registerService(this)
 
   // TODO: use an explicit startup pattern - see warning message above
   startup()
@@ -93,7 +93,7 @@ abstract trait ServiceHandler[MessageType <: IndexedRecord] extends MessageRecei
   }
 
   /* Enque a recieve message on the threadpool executor */
-  def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
+  final def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
     try executor.execute(new Request(src, msg)) catch {
       case ree: java.util.concurrent.RejectedExecutionException => //TODO: Fix me: src.foreach(_ ! RequestRejected("Thread Pool Full", msg))
       case e: Throwable => {

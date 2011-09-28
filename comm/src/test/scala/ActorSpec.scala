@@ -1,30 +1,49 @@
-package edu.berkeley.cs.scads.comm.test
+package edu.berkeley.cs
+package scads.comm
+package test
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Spec
 import org.scalatest.matchers.ShouldMatchers
 
-import edu.berkeley.cs.scads.comm._
+import avro.runtime._
+import avro.marker.{AvroUnion, AvroRecord}
+
+package object messages {
+  sealed trait TestMessages extends AvroUnion
+  case class TestMsg1(var f1: Int) extends TestMessages with AvroRecord
+
+  implicit object TestRegistry extends ServiceRegistry[TestMessages]
+}
 
 @RunWith(classOf[JUnitRunner])
-class RemoteActorSpec extends Spec with ShouldMatchers {
-  val msg = PutResponse()
+class RemoteServiceSpec extends Spec with ShouldMatchers {
+  import messages._
+  val msg = TestMsg1(1)
+
+  object EchoService extends ServiceHandler[TestMessages] {
+    val logger = net.lag.logging.Logger()
+    val registry = TestRegistry
+    protected def process(src: Option[RemoteServiceProxy[TestMessages]], msg: TestMessages) = src.foreach(_ ! msg)
+    protected def startup() = null
+    protected def shutdown() = null
+  }
 
   describe("RemoteActors") {
     it("should send message asynchronously") {
-      val mailbox = new MessageFuture
-      implicit val sender = mailbox.remoteActor
-      mailbox.remoteActor ! msg
+      val mailbox = new MessageFuture[TestMessages]
+      implicit val sender = mailbox.remoteService
+      mailbox.remoteService ! msg
       mailbox.get(1000) should equal(Some(msg))
     }
 
     it("should send messages synchronously") {
-      (EchoActor.remoteActor !? msg) should equal(msg)
+      (EchoService.remoteHandle !? msg) should equal(msg)
     }
 
     it("should send messages and return a future") {
-      (EchoActor.remoteActor !! msg).get(1000) should equal(Some(msg))
+      (EchoService.remoteHandle !! msg).get(1000) should equal(Some(msg))
     }
   }
 }
