@@ -4,6 +4,7 @@ import scala.actors._
 import scala.concurrent.SyncVar
 import net.lag.logging.Logger
 
+import org.apache.avro.generic.IndexedRecord
 import java.util.concurrent.{ LinkedBlockingQueue, TimeUnit }
 import java.util.{LinkedList, Queue}
 import java.lang.ref.WeakReference
@@ -55,13 +56,13 @@ trait ScadsFuture[+T] { self =>
 object FutureReference {
   val logger = Logger()
 
-  val staleMessages = new java.lang.ref.ReferenceQueue[MessageFuture]()
+  val staleMessages = new java.lang.ref.ReferenceQueue[MessageFuture[_]]()
   val cleanupThread = new Thread("Failed Message Cleanup") {
     override def run(): Unit = {
       while(true) {
-        val futureRef = staleMessages.remove
+        val futureRef = staleMessages.remove.asInstanceOf[FutureReference[_]]
         logger.debug("Removing gced future from message regsistry.")
-        MessageHandler.unregisterActor(futureRef.asInstanceOf[FutureReference].remoteActor)
+        futureRef.unregister
       }
     }
   }
@@ -70,35 +71,37 @@ object FutureReference {
 
 }
 
-class FutureReference(future: MessageFuture) extends java.lang.ref.WeakReference(future, FutureReference.staleMessages) with MessageReceiver {
-  val remoteActor = MessageHandler.registerService(this)
+class FutureReference[MessageType <: IndexedRecord](future: MessageFuture[MessageType])(implicit val handler: ServiceRegistry[MessageType]) extends java.lang.ref.WeakReference(future, FutureReference.staleMessages) with MessageReceiver[MessageType] {
+  val remoteService = handler.registerService(this)
 
-  def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit = synchronized {
-    val future = get()
+  def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = synchronized {
+    val future = get().asInstanceOf[MessageFuture[MessageType]]
     if(future != null)
       future.receiveMessage(src, msg)
     else
       FutureReference.logger.debug("Message for garbage collected future received: %s", src)
   }
+
+  def unregister = handler.unregisterService(remoteService)
 }
 
 object MessageFuture {
-  implicit def toFutureCollection(futures: Seq[MessageFuture]): FutureCollection = new FutureCollection(futures)
+  implicit def toFutureCollection[MessageType <: IndexedRecord](futures: Seq[MessageFuture[MessageType]]) = new FutureCollection[MessageType](futures)
 }
 
-class MessageFuture extends Future[MessageBody] {
-  protected[comm] val sender = new SyncVar[Option[RemoteActorProxy]]
-  protected val message = new SyncVar[MessageBody]
-  protected var forwardList: List[Queue[MessageFuture]] = List()
+class MessageFuture[MessageType <: IndexedRecord](implicit val registry: ServiceRegistry[MessageType]) extends Future[MessageType] {
+  protected[comm] val sender = new SyncVar[Option[RemoteServiceProxy[MessageType]]]
+  protected val message = new SyncVar[MessageType]
+  protected var forwardList: List[Queue[MessageFuture[MessageType]]] = List()
 
-  def remoteActor = (new FutureReference(this)).remoteActor
+  def remoteService = (new FutureReference(this)).remoteService
 
   /* Note: doesn't really implement interface correctly */
-  def inputChannel = new InputChannel[MessageBody] {
-    def ?(): MessageBody = message.get
+  def inputChannel = new InputChannel[MessageType] {
+    def ?(): MessageType = message.get
     def reactWithin(msec: Long)(pf: PartialFunction[Any, Unit]): Nothing = throw new RuntimeException("Unimplemented")
-    def react(f: PartialFunction[MessageBody, Unit]): Nothing = throw new RuntimeException("Unimplemented")
-    def receive[R](f: PartialFunction[MessageBody, R]): R = f(message.get)
+    def react(f: PartialFunction[MessageType, Unit]): Nothing = throw new RuntimeException("Unimplemented")
+    def receive[R](f: PartialFunction[MessageType, R]): R = f(message.get)
     def receiveWithin[R](msec: Long)(f: PartialFunction[Any, R]): R = f(message.get(msec).getOrElse(ProcessingException("timeout", "")))
   }
 
@@ -108,42 +111,36 @@ class MessageFuture extends Future[MessageBody] {
   //The actual sender of a message
   def source =  sender.get
 
-  var respondFunctions: List[MessageBody => Unit] = Nil
-  def respond(r: MessageBody => Unit): Unit = synchronized {
+  protected var respondFunctions: List[MessageType => Unit] = Nil
+  def respond(r: MessageType => Unit): Unit = synchronized {
     if(message.isSet)
       r(message.get)
     else
       respondFunctions ::= r
   }
 
-  def get(): MessageBody = message.get
+  def get(): MessageType = message.get
 
-  def get(timeout: Long): Option[MessageBody] =
+  def get(timeout: Long): Option[MessageType] =
     get(timeout, TimeUnit.MILLISECONDS)
 
-  def get(timeout: Long, unit: TimeUnit): Option[MessageBody] = 
+  def get(timeout: Long, unit: TimeUnit): Option[MessageType] =
     message.get(unit.toMillis(timeout))
 
   def isSet: Boolean = message.isSet
 
   /**
-   * Cancel this request by unregistering with the message handler.
-   * Note no action is taken to cancel processing initiating message server-side.
-   */
-  def cancel: Unit = MessageHandler.unregisterActor(remoteActor)
-
-  /**
    * Either forward the result to the following queue, or request that it be forwarded upon arrival.
    */
-  def forward(dest: Queue[MessageFuture]): Unit = synchronized {
+  def forward(dest: Queue[MessageFuture[MessageType]]): Unit = synchronized {
     if(message.isSet)
       dest.offer(this)
     else
       forwardList ::= dest
   }
 
-  def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit = synchronized {
-    MessageHandler.unregisterActor(remoteActor)
+  def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = synchronized {
+    registry.unregisterService(remoteService)
     message.set(msg)
     sender.set(src)
     forwardList.foreach(_.offer(this))
@@ -151,13 +148,13 @@ class MessageFuture extends Future[MessageBody] {
   }
 }
 
-class FutureCollection(val futures: Seq[MessageFuture]) {
-  val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
+class FutureCollection[MessageType <: IndexedRecord](val futures: Seq[MessageFuture[MessageType]]) {
+  val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture[MessageType]]
   futures.foreach(_.forward(responses))
 
-  def blockFor(count: Int): Seq[MessageFuture] = (1 to count).map(_ => responses.take())
+  def blockFor(count: Int): Seq[MessageFuture[MessageType]] = (1 to count).map(_ => responses.take())
 
-  def blockFor(count: Int, timeout: Long, unit: TimeUnit): Seq[MessageFuture] = {
+  def blockFor(count: Int, timeout: Long, unit: TimeUnit): Seq[MessageFuture[MessageType]] = {
     (1 to count).map(_ => Option(responses.poll(timeout, unit)).getOrElse(throw new RuntimeException("TIMEOUT")))
   }
 }

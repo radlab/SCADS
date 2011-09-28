@@ -6,13 +6,14 @@ import java.net.InetSocketAddress
 
 import org.apache.avro.io._
 import org.apache.avro.specific._
+import org.apache.avro.generic.IndexedRecord
 
 case class RemoteNode(hostname:String, port: Int) {
     private val socketAddress = new InetSocketAddress(hostname, port)
     def getInetSocketAddress:InetSocketAddress = socketAddress
 }
 
-trait AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: SpecificRecord] {
+trait AvroChannelManager[SendMsgType <: IndexedRecord, RecvMsgType <: IndexedRecord] {
   /**
    * Send message to dest immediately.  Probably by calling sendMessageBulk and flush.
    * A new connection should be opened if one doesn't exist.
@@ -42,6 +43,7 @@ trait AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: SpecificR
   def receiveMessage(src: RemoteNode, msg: RecvMsgType):Unit
 }
 
+/*
 class PrintAvroChannelManager[SendMsg <: SpecificRecord, RecvMsg <: SpecificRecord]
 (implicit sendManifest: scala.reflect.Manifest[SendMsg],
 recvManifest: scala.reflect.Manifest[RecvMsg])
@@ -70,3 +72,4 @@ extends NioAvroChannelManagerBase[SendMsg, RecvMsg] {
         // no op
     }
 }
+*/

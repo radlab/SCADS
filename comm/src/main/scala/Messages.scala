@@ -7,12 +7,6 @@ import avro.marker.{ AvroRecord, AvroUnion, AvroPair }
 /* Base message type for all scads messages */
 sealed trait MessageBody extends AvroUnion
 
-/* General message types */
-sealed trait ActorId extends AvroUnion
-case class ActorNumber(var num: Long) extends AvroRecord with ActorId
-case class ActorName(var name: String) extends AvroRecord with ActorId
-
-case class Message(var src: Option[ActorId], var dest: ActorId, var id: Option[Long], var body: MessageBody) extends AvroRecord
 case class Record(var key: Array[Byte], var value: Option[Array[Byte]]) extends AvroRecord with MessageBody
 
 /* Exceptions */

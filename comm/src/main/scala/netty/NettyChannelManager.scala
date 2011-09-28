@@ -12,25 +12,13 @@ import socket.nio._
 
 import net.lag.logging.Logger
 
-import org.apache.avro.specific.SpecificRecord
-
-import scala.reflect.Manifest.classType
 import scala.collection.JavaConversions._
 import edu.berkeley.cs.scads.config._
+import edu.berkeley.cs.avro.runtime.TypedSchema
+import org.apache.avro.generic.IndexedRecord
 
-/**
- * Easier to instantiate via reflection
- */
-class DefaultNettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
-    recvMsg: (AvroChannelManager[S, R], RemoteNode, R) => Unit, sendClz: Class[S], recvClz: Class[R]) 
-  extends NettyChannelManager[S, R]()(classType(sendClz), classType(recvClz)) {
-  override def receiveMessage(remoteNode: RemoteNode, msg: R) {
-    recvMsg(this, remoteNode, msg)
-  }
-}
-
-abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
-    implicit sendManifest: Manifest[S], recvManifest: Manifest[R])
+abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
+  (implicit sendSchema: TypedSchema[S], receiveSchema: TypedSchema[R])
   extends AvroChannelManager[S, R] {
 
   protected val log = Logger()

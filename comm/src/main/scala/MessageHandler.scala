@@ -1,6 +1,6 @@
 package edu.berkeley.cs.scads.comm
 
-import java.util.concurrent.{ ConcurrentHashMap, CopyOnWriteArrayList, Executors, TimeUnit }
+import java.util.concurrent.{ConcurrentHashMap, CopyOnWriteArrayList, Executors, TimeUnit}
 import scala.actors._
 
 import net.lag.logging.Logger
@@ -11,24 +11,40 @@ import org.apache.commons.httpclient._
 import org.apache.commons.httpclient.methods._
 import org.apache.commons.httpclient.params._
 import java.util.concurrent.atomic.AtomicLong
+import org.apache.avro.generic.{GenericData, IndexedRecord}
+import org.apache.avro.Schema
+import edu.berkeley.cs.avro.marker.{AvroRecord, AvroUnion}
+
+import remote.RemoteActor
+import scala.collection.JavaConversions._
+import edu.berkeley.cs.avro.runtime.TypedSchema
+
+/* General message types */
+sealed trait ServiceId extends AvroUnion
+
+case class ServiceNumber(var num: Long) extends AvroRecord with ServiceId
+
+case class ServiceName(var name: String) extends AvroRecord with ServiceId
 
 /**
- * The message handler for all scads communication.  It maintains a list of all active services
+ * The message handler for avro message passing.  It maintains a list of all active services
  * in a given JVM and multiplexes the underlying network connections.  Services should be
  * careful to unregister themselves to avoid memory leaks.
  */
-object MessageHandler extends AvroChannelManager[Message, Message] {
+class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema[MessageType]) {
 
   private val config = Config.config
   private val logger = Logger()
 
-  private val curActorId      = new AtomicLong
-  private val serviceRegistry = new ConcurrentHashMap[ActorId, MessageReceiver]
+  private val curActorId = new AtomicLong
+  private val serviceRegistry = new ConcurrentHashMap[ServiceId, MessageReceiver[MessageType]]
+
   def registrySize = serviceRegistry.size()
+
   def futureCount = curActorId.get()
 
-  private val hostname = 
-    if(System.getProperty("scads.comm.externalip") == null)
+  private val hostname =
+    if (System.getProperty("scads.comm.externalip") == null)
       java.net.InetAddress.getLocalHost.getCanonicalHostName()
     else {
       val httpClient = new HttpClient()
@@ -37,48 +53,55 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
       getMethod.getResponseBodyAsString
     }
 
-  private val listeners = new CopyOnWriteArrayList[MessageHandlerListener[Message, Message]]
+  private val listeners = new CopyOnWriteArrayList[MessageHandlerListener[MessageEnvelope, MessageEnvelope]]
 
   private lazy val delayExecutor = Executors.newScheduledThreadPool(0) /* Don't keep any core threads alive */
 
-  private lazy val impl = 
+  private val recvMsgCallback = (_: AvroChannelManager[MessageEnvelope, MessageEnvelope], src: RemoteNode, msg: MessageEnvelope) => {
+    doReceiveMessage(src, msg)
+  }
+
+   type MessageEnvelope = org.apache.avro.generic.IndexedRecord
+  /**
+   * Manually created schema for
+   * case class MessageEnvelope[MessageType](var src: Option[ActorId], var dest: ActorId, var id: Option[Long], var body: MessageType) extends AvroRecord
+   */
+  protected val envelopeSchema = new TypedSchema[MessageEnvelope](Schema.createRecord(
+    new Schema.Field("src", classOf[ServiceId].newInstance.asInstanceOf[IndexedRecord].getSchema, null, null) :: Nil
+  ))
+
+  private lazy val impl =
     try getImpl
     catch {
       case e: Exception =>
         logger.error("Could not initialize handler implementation, using default impl", e)
-        val recvMsgCallback = (_: AvroChannelManager[Message, Message], src: RemoteNode, msg: Message) => {
-          doReceiveMessage(src, msg)
-        }
-        new DefaultNioChannelManager[Message, Message](recvMsgCallback, classOf[Message], classOf[Message])
+        new DefaultNioChannelManager(recvMsgCallback, envelopeSchema, envelopeSchema)
     }
 
   private def getImpl = {
-    val clzName = 
-      config.getString("scads.comm.handlerClass", classOf[netty.DefaultNettyChannelManager[_,_]].getName)
+    val clzName = config.getString(
+      "scads.comm.handlerClass",
+      classOf[netty.NettyChannelManager[_, _]].getName)
     logger.info("Using handler impl class: %s".format(clzName))
 
-    val recvMsgCallback = (_: AvroChannelManager[Message, Message], src: RemoteNode, msg: Message) => {
-      doReceiveMessage(src, msg)
-    }
-
     // TODO: custom class loader
-    val clz  = Class.forName(clzName).asInstanceOf[Class[AvroChannelManager[Message, Message]]]
+    val clz = Class.forName(clzName).asInstanceOf[Class[AvroChannelManager[MessageEnvelope, MessageEnvelope]]]
     val ctor = clz.getConstructor(classOf[Function3[_, _, _, _]], classOf[Class[_]], classOf[Class[_]])
-    ctor.newInstance(recvMsgCallback, classOf[Message], classOf[Message])
+    ctor.newInstance(recvMsgCallback, envelopeSchema, envelopeSchema)
   }
 
   /**
    * Implemented in Java style for efficiency concerns
    */
-  @inline private def foldLeftListeners(evt: MessageHandlerEvent[Message, Message]): MessageHandlerResponse = {
+  @inline private def foldLeftListeners(evt: MessageHandlerEvent[MessageEnvelope, MessageEnvelope]): MessageHandlerResponse = {
     if (listeners.isEmpty) RelayMessage
     else {
-      val iter     = listeners.iterator
+      val iter = listeners.iterator
       var continue = iter.hasNext
       var result: MessageHandlerResponse = RelayMessage
       while (continue) {
         val listener = iter.next()
-        result = 
+        result =
           try {
             val res = listener.handleEvent(evt)
             if (res eq null) {
@@ -102,116 +125,109 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
   }
 
   @inline private def toRunnable(f: => Unit) = new Runnable {
-    def run() { f }
+    def run() {
+      f
+    }
   }
 
-  // Delegation overrides
-
-  override def sendMessage(dest: RemoteNode, msg: Message) {
+  def sendMessage(src: Option[RemoteServiceProxy[MessageType]], dest: RemoteServiceProxy[MessageType], msg: MessageType) {
     logger.trace("Sending %s to %s", msg, dest)
-    val evt = MessagePending[Message, Message](dest, Left(msg))
+
+    val packaged = new GenericData.Record(envelopeSchema.impl)
+    src.foreach(s => packaged.put(0, s.id))
+    packaged.put(1, dest.id)
+    packaged.put(2, msg)
+
+    val evt = MessagePending[MessageEnvelope, MessageEnvelope](dest, Left(packaged))
     foldLeftListeners(evt) match {
-      case RelayMessage => impl.sendMessage(dest, msg)
-      case DropMessage  => /* Drop the message */
+      case RelayMessage => impl.sendMessage(dest.remoteNode, packaged)
+      case DropMessage => /* Drop the message */
       case DelayMessage(delay, units) =>
-        delayExecutor.schedule(toRunnable(impl.sendMessage(dest, msg)), delay, units)        
+        delayExecutor.schedule(toRunnable(impl.sendMessage(dest.remoteNode, msg)), delay, units)
     }
   }
 
-  override def sendMessageBulk(dest: RemoteNode, msg: Message) {
-    val evt = MessagePending[Message, Message](dest, Left(msg))
-    foldLeftListeners(evt) match {
-      case RelayMessage => impl.sendMessageBulk(dest, msg)
-      case DropMessage  => /* Drop the message */
-      case DelayMessage(delay, units) =>
-        delayExecutor.schedule(toRunnable(impl.sendMessageBulk(dest, msg)), delay, units)        
-    }
+  def startListener(port: Int) {
+    impl.startListener(port)
   }
 
-  override def flush { impl.flush }
-
-  override def startListener(port: Int) { impl.startListener(port) }
-
-  override def receiveMessage(src: RemoteNode, msg: Message) {
+  @deprecated("shouldn't be called", "v2.1.2")
+  def receiveMessage(src: RemoteNode, msg: MessageType) {
     throw new AssertionError("Should not be called- doReceiveMessage should be called instead")
   }
 
-  private def doReceiveMessage(src: RemoteNode, msg: Message) {
+  private def doReceiveMessage(src: RemoteNode, msg: MessageEnvelope) {
     logger.trace("Received message %s from %s", msg, src)
-    val evt = MessagePending[Message, Message](src, Right(msg))
+    val evt = MessagePending[MessageEnvelope, MessageEnvelope](src, Right(msg))
     foldLeftListeners(evt) match {
       case RelayMessage => doReceiveMessage0(src, msg)
-      case DropMessage  => /* Drop the message */
+      case DropMessage => /* Drop the message */
       case DelayMessage(delay, units) =>
-        delayExecutor.schedule(toRunnable(doReceiveMessage0(src, msg)), delay, units)        
+        delayExecutor.schedule(toRunnable(doReceiveMessage0(src, msg)), delay, units)
     }
   }
 
   val invalidMessageCount = new java.util.concurrent.atomic.AtomicLong
-  private def doReceiveMessage0(src: RemoteNode, msg: Message) {
-    val service = serviceRegistry.get(msg.dest)
+
+  private def doReceiveMessage0(src: RemoteNode, msg: MessageEnvelope) {
+    val service = serviceRegistry.get(msg.get(0).asInstanceOf[ServiceId])
 
     logger.trace("Received Message: %s from %s", msg, src)
 
-    if(service != null) {
-      service.receiveMessage(msg.src.map(RemoteActor(src.hostname, src.port, _)), msg.body)
+    if (service != null) {
+      val srcProxy = if(msg.get(0) == null) None else Some(RemoteService(src.hostname, src.port, msg.get(0).asInstanceOf[ServiceId])(this))
+      service.receiveMessage(srcProxy, msg.get(2).asInstanceOf[MessageType])
     }
     else {
-      logger.debug("Got message from %s for an unknown service: %s", src, msg.dest)
+      logger.debug("Got message from %s for an unknown service: %s", src, service)
       invalidMessageCount.incrementAndGet()
     }
   }
 
-  /** Immediately start listener on instantiation */ 
-  private val localPort = initListener() 
+  /**Immediately start listener on instantiation */
+  private val localPort = initListener()
 
-  /** Naively increments port until a valid one is found */
+  /**Naively increments port until a valid one is found */
   private def initListener() = {
     var port = config.getInt("scads.comm.listen", 9000)
     var numTries = 0
-    var found    = false
+    var found = false
     while (!found && numTries < 500) {
       try {
         startListener(port)
         found = true
       } catch {
-        case ex: Exception => 
+        case ex: Exception =>
           logger.warning("Could not listen on port %d, trying %d".format(port, port + 1))
           port += 1
-      } finally { numTries += 1 }
+      } finally {
+        numTries += 1
+      }
     }
     if (found)
       port
     else throw new RuntimeException("Could not initialize listening port in 50 tries")
   }
 
-  // Methods for registering/unregistering proxies
-
-  def registerActor(a: Actor): RemoteActorProxy = {
-    val id = curActorId.getAndIncrement
-    serviceRegistry.put(ActorNumber(id), ActorService(a))
-    RemoteActor(hostname, localPort, ActorNumber(id))
+  def unregisterService(service: RemoteServiceProxy[MessageType]) = {
+    serviceRegistry.remove(service.id)
   }
 
-  def unregisterActor(ra: RemoteActorProxy) { 
-    serviceRegistry.remove(ra.id)
-  }
-
-  def registerService(service: MessageReceiver): RemoteActor = {
-    val id = ActorNumber(curActorId.getAndIncrement)
+  def registerService(service: MessageReceiver[MessageType]): RemoteServiceProxy[MessageType] = {
+    val id = ServiceNumber(curActorId.getAndIncrement)
     serviceRegistry.put(id, service)
-    RemoteActor(hostname, localPort, id)
+    RemoteService(hostname, localPort, id)(this)
   }
 
-  def registerService(id: String, service: MessageReceiver): RemoteActorProxy = {
-    val key = ActorName(id)
+  def registerService(id: String, service: MessageReceiver[MessageType]): RemoteServiceProxy[MessageType] = {
+    val key = ServiceName(id)
     val value0 = serviceRegistry.putIfAbsent(key, service)
     if (value0 ne null)
       throw new IllegalArgumentException("Service with %s already registered: %s".format(id, service))
-    RemoteActor(hostname, localPort, key)
+    RemoteService(hostname, localPort, key)(this)
   }
 
-  def getService(id: String): MessageReceiver = 
+  def getService(id: String): MessageReceiver[MessageType] =
     serviceRegistry.get(id)
 
   /**
@@ -226,8 +242,8 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
    * (and unregistering) is a fairly expensive operation, since the backing
    * list is implemented as a COW list, so it is recommended that listeners
    * are added as part of an initialization sequence, and not touched then.
-   */ 
-  def registerListener(listener: MessageHandlerListener[Message, Message]) {
+   */
+  def registerListener(listener: MessageHandlerListener[MessageEnvelope, MessageEnvelope]) {
     listeners.addIfAbsent(listener)
   }
 
@@ -236,7 +252,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
    *
    * Note: Is a no-op if listener is not already registered
    */
-  def unregisterListener(listener: MessageHandlerListener[Message, Message]) {
+  def unregisterListener(listener: MessageHandlerListener[MessageEnvelope, MessageEnvelope]) {
     listeners.remove(listener)
   }
 
@@ -249,7 +265,7 @@ sealed abstract class MessageHandlerEvent[SendType, RecvType]
  * to be received. A LeftProjection of message indicates the former, a
  * RightProjection indicates the latter
  */
-case class MessagePending[SendType, RecvType](remote: RemoteNode, msg: Either[SendType, RecvType])
+case class MessagePending[SendType, RecvType](remote: Any, msg: Either[SendType, RecvType])
   extends MessageHandlerEvent[SendType, RecvType]
 
 sealed abstract class MessageHandlerResponse

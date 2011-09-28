@@ -1,52 +1,42 @@
 package edu.berkeley.cs.scads.comm
 
-import scala.actors._
-import scala.actors.Actor._
-
 import net.lag.logging.Logger
 
 import edu.berkeley.cs.avro.marker.AvroRecord
-import edu.berkeley.cs.avro.marker.AvroUnion
-import collection.mutable.ArrayBuffer
-import concurrent.{Lock, SyncVar}
-
-object Actors {
-  import scala.actors._
-  import scala.actors.Actor._
-
-  /* TODO: link to the created actor and unregister on exit */
-  def remoteActor(body: (RemoteActorProxy) => Unit): Actor = {
-    val a = new Actor() {
-      def act(): Unit = {
-        val ra = MessageHandler.registerActor(self)
-        body(ra)
-        MessageHandler.unregisterActor(ra)
-      }
-    }
-    a.start
-    return a
-  }
-}
+import org.apache.avro.generic.IndexedRecord
 
 /* Generic Remote Actor Handle */
-case class RemoteActor(var host: String, var port: Int, var id: ActorId) extends RemoteActorProxy with AvroRecord
+case class RemoteService[MessageType <: IndexedRecord](var host: String,
+                       var port: Int,
+                       var id: ServiceId)
+                      (implicit val registry: ServiceRegistry[MessageType])
+  extends RemoteServiceProxy[MessageType]
 
 /* Specific types for different services. Note: these types are mostly for readability as typesafety isn't enforced when serialized individualy*/
-case class StorageService(var host: String, var port: Int, var id: ActorId) extends RemoteActorProxy with AvroRecord
-case class PartitionService(var host: String, var port: Int, var id: ActorId, var partitionId: String, var storageService:StorageService) extends RemoteActorProxy with AvroRecord
+case class StorageService(var host: String,
+                          var port: Int,
+                          var id: ServiceId) extends AvroRecord
 
-case class TimeoutException(msg: MessageBody) extends Exception
+case class PartitionService(var host: String,
+                            var port: Int,
+                            var id: ServiceId,
+                            var partitionId: String,
+                            var storageService: StorageService) extends AvroRecord
 
-object RemoteActorProxy {
+case class TimeoutException(msg: IndexedRecord) extends Exception
+
+object RemoteServiceProxy {
   val logger = Logger()
 }
 
-trait RemoteActorProxy {
+trait RemoteServiceProxy[MessageType <: IndexedRecord] {
   var host: String
   var port: Int
-  var id: ActorId
+  var id: ServiceId
 
-  import RemoteActorProxy._
+  import RemoteServiceProxy._
+
+  implicit val registry: ServiceRegistry[MessageType]
 
   def remoteNode = RemoteNode(host, port)
 
@@ -55,70 +45,70 @@ trait RemoteActorProxy {
   /**
    * Returns an ouput proxy that forwards any messages to the remote actor with and empty sender.
    */
-  def outputChannel = new OutputChannel[Any] {
+  /*def outputChannel = new OutputChannel[Any] {
     def !(msg: Any):Unit = msg match {
-      case msgBody: MessageBody => MessageHandler.sendMessage(remoteNode, Message(None, id, None, msgBody))
+      case msgBody: MessageType => MessageHandler.sendMessage(remoteNode, Message(None, id, None, msgBody))
       case otherMessage => throw new RuntimeException("Invalid remote message type:" + otherMessage + " Must extend MessageBody.")
     }
     def forward(msg: Any):Unit = throw new RuntimeException("Unimplemented")
     def send(msg: Any, sender: OutputChannel[Any]):Unit = throw new RuntimeException("Unimplemented")
     def receiver: Actor = throw new RuntimeException("Unimplemented")
-  }
+  }*/
 
   /**
    * Send a message asynchronously.
    */
-  def !(body: MessageBody)(implicit sender: RemoteActorProxy): Unit = {
-    MessageHandler.sendMessage(remoteNode, Message(Some(sender.id), id, None, body))
+  def !(msg: MessageType)(implicit sender: RemoteServiceProxy[MessageType]): Unit = {
+    registry.sendMessage(Some(sender), this, msg)
   }
 
   /**
    * Send a message and synchronously wait for a response.
    */
-  def !?(body: MessageBody, timeout: Int = 10 * 1000): MessageBody = {
-      val future = new MessageFuture
-      this.!(body)(future.remoteActor)
-      future.get(timeout) match {
-        case Some(exp: RemoteException) => throw new RuntimeException(exp.toString)
-        case Some(msg: MessageBody) => msg
-        case None => {
-          future.cancel
-          throw TimeoutException(body)
-        }
+  def !?(msg: MessageType, timeout: Int = 10 * 1000): MessageType = {
+    val future = new MessageFuture[MessageType]
+    this.!(msg)(future.remoteService)
+    future.get(timeout) match {
+      //TODO: fix exception throwing: case Some(exp: RemoteException) => throw new RuntimeException(exp.toString)
+      case Some(msg) => msg.asInstanceOf[MessageType]
+      case None => {
+        throw TimeoutException(msg)
       }
+    }
   }
 
   /**
    * Sends a message and returns a future for the response.
    */
-  def !!(body: MessageBody): MessageFuture = {
-    val future = new MessageFuture
-    this.!(body)(future.remoteActor)
+  def !!(body: MessageType): MessageFuture[MessageType] = {
+    val future = new MessageFuture[MessageType]
+    this.!(body)(future.remoteService)
     future
   }
 
-  private var msgSet = List[(MessageBody, MessageFuture)]()
+  private var msgSet = List[(MessageType, MessageFuture[MessageType])]()
 
   /**
    * Collects messages for bulk-send
    */
-  def !!!(body : MessageBody) : MessageFuture = {
-    val future = new MessageFuture
-    synchronized{
+  def !!!(body: MessageType): MessageFuture[MessageType] = {
+    val future = new MessageFuture[MessageType]
+    synchronized {
       msgSet ::= Tuple2(body, future)
     }
     return future
   }
 
-  def commit() : Unit = synchronized {
+  /*
+  def commit(): Unit = synchronized {
     val currentSet = msgSet
     msgSet = Nil
 
-    if(currentSet.length == 1) {
+    if (currentSet.length == 1) {
       logger.debug("Falling back to normal send for commit size 1")
-      this.!(currentSet.head._1)(currentSet.head._2.remoteActor)
+      this.!(currentSet.head._1)(currentSet.head._2.remoteService)
     }
-    else if(currentSet.length > 1) {
+    else if (currentSet.length > 1) {
       val batchFuture = !!(new BatchRequest(currentSet.map(_._1)))
       batchFuture.respond {
         case BatchResponse(ranges) => {
@@ -134,9 +124,6 @@ trait RemoteActorProxy {
       }
     }
   }
-
-  /* Handle type conversion methods.  Note: Not typesafe obviously */
-  def toPartitionService(partitionId : String, storageService : StorageService): PartitionService = new PartitionService(host, port, id, partitionId, storageService)
-  def toStorageService: StorageService = new StorageService(host, port, id)
+  */
 }
 

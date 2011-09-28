@@ -12,18 +12,18 @@ import codec.frame._
 import codec.oneone._
 
 import org.apache.avro._
+import generic.IndexedRecord
 import io._
 import specific._
 
 import net.lag.logging.Logger
+import edu.berkeley.cs.avro.runtime._
 
-class AvroSpecificEncoder[M <: SpecificRecord](implicit m: Manifest[M])
+class AvroSpecificEncoder[M <: IndexedRecord](implicit schema: TypedSchema[M])
   extends OneToOneEncoder {
 
-  private val msgClass = m.erasure.asInstanceOf[Class[M]]
-
   private val msgWriter = 
-    new SpecificDatumWriter[M](msgClass.newInstance.getSchema)
+    new SpecificDatumWriter[M](schema)
   
   private val logger = Logger()
 
