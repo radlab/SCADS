@@ -74,13 +74,13 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     factory.getNewDB[Array[Byte], ArrayBuffer[CStructCommand]](db.getName + ".pendingcstructs")
 
   // Detects conflicts for new updates.
-  private var conflictResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs)
+  private var newUpdateResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs)
 
   private var valueICs: FieldICList = null
 
   def setICs(ics: FieldICList) = {
     valueICs = ics
-    conflictResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs)
+    newUpdateResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs)
     println("ics: " + valueICs)
   }
 
@@ -106,7 +106,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
           }
 
           // Add the updates to the pending list, if compatible.
-          if (conflictResolver.isCompatible(commands, storedMDCCRec, r)) {
+          if (newUpdateResolver.isCompatible(commands, storedMDCCRec, r)) {
             // No conflict
             commands.append(CStructCommand(xid, r, true))
             pendingCStructs.put(pendingCommandsTxn, r.key, commands)
@@ -315,7 +315,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
 
 object LogicalRecordUpdater {
   // base is the (optional) byte array of the serialized AvroRecord.
-  // deltal is the (optional) byte array of the serialized delta AvroRecord.
+  // delta is the (optional) byte array of the serialized delta AvroRecord.
   // A byte array of the serialized resulting record is returned.
   def applyDeltaBytes(schema: Schema, baseBytes: Option[Array[Byte]], deltaBytes: Option[Array[Byte]]): Array[Byte] = {
     if (deltaBytes.isEmpty) {
