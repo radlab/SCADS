@@ -18,24 +18,7 @@ import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.avro.runtime._
 import net.lag.logging.Logger
 
-object JvmTask {
-  val schema = TypedSchemas.schemaOf[JvmTask]
-  val reader = new SpecificDatumReader[JvmTask](schema)
-  val writer = new SpecificDatumWriter[JvmTask](schema)
 
-  def apply(bytes: Array[Byte]): JvmTask = {
-    val dec = DecoderFactory.get().directBinaryDecoder(new java.io.ByteArrayInputStream(bytes), null)
-    reader.read(null, dec)
-  }
-
-  def apply(task: JvmTask): Array[Byte] = {
-    val out = new ByteArrayOutputStream(1024)
-    val binEncoder  = EncoderFactory.get().binaryEncoder(out,null)
-    writer.write(task, binEncoder)
-    binEncoder.flush
-    out.toByteArray
-  }
-}
 
 class StreamTailer(stream: InputStream, size: Int = 100) extends Runnable {
   val logger = Logger()

@@ -9,17 +9,19 @@ import org.apache.mesos.Protos._
 
 import net.lag.logging.Logger
 
-case class RemoteServiceScheduler(var host: String, var port: Int, var id: ActorId) extends AvroRecord with ExperimentScheduler with RemoteActorProxy {
+class RemoteServiceScheduler(remoteService: RemoteService) extends RemoteServiceProxy[Message](remoteService) with ExperimentScheduler  {
   def scheduleExperiment(processes: Seq[JvmTask]): Unit = {
     this !? (RunExperimentRequest(processes.toList), 60 * 1000)
   }
 }
 
-class ServiceScheduler(mesosMaster: String, executor: String) extends LocalExperimentScheduler("Meta-Scheduler", mesosMaster, executor) with ServiceHandler[ExperimentOperation] {
+class ServiceScheduler(mesosMaster: String, executor: String) extends LocalExperimentScheduler("Meta-Scheduler", mesosMaster, executor) with ServiceHandler[Message] {
   def startup: Unit = null
   def shutdown: Unit = null
 
-  def process(src: Option[RemoteActorProxy], msg: ExperimentOperation) = msg match {
+  val registry = MsgHandler
+
+  def process(src: Option[RemoteServiceProxy[Message]], msg: Message) = msg match {
     case RunExperimentRequest(processes) => {
       /*
       val processDescription = processes.map{

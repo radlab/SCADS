@@ -2,6 +2,7 @@ package deploylib
 
 import ec2._
 import rcluster._
+import edu.berkeley.cs.avro.runtime._
 import edu.berkeley.cs.scads.comm._
 
 import java.io.File
@@ -19,4 +20,6 @@ package object mesos {
       ServerSideJar(cacheLocation.getCanonicalPath)
     }).toSeq
   }
+
+  implicit object MsgHandler extends edu.berkeley.cs.scads.comm.ServiceRegistry[Message]
 }
