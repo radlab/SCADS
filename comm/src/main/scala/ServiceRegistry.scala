@@ -183,7 +183,8 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     logger.trace("Received Message: %s from %s", msg, src)
 
     if (service != null) {
-      val srcProxy = if(msg.get(0) == null) None else Some(RemoteService(src.hostname, src.port, msg.get(0).asInstanceOf[ServiceId])(this))
+      val srcProxy = if(msg.get(0) == null) None else Some(new RemoteServiceProxy[MessageType](RemoteService(src.hostname, src.port, msg.get(0).asInstanceOf[ServiceId])))
+      srcProxy.foreach(_.registry = this)
       service.receiveMessage(srcProxy, msg.get(2).asInstanceOf[MessageType])
     }
     else {
@@ -224,7 +225,9 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
   def registerService(service: MessageReceiver[MessageType]): RemoteServiceProxy[MessageType] = {
     val id = ServiceNumber(curActorId.getAndIncrement)
     serviceRegistry.put(id, service)
-    RemoteService(hostname, localPort, id)(this)
+    val svc = new RemoteServiceProxy[MessageType](RemoteService(hostname, localPort, id))
+    svc.registry = this
+    svc
   }
 
   def registerService(id: String, service: MessageReceiver[MessageType]): RemoteServiceProxy[MessageType] = {
@@ -232,7 +235,9 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     val value0 = serviceRegistry.putIfAbsent(key, service)
     if (value0 ne null)
       throw new IllegalArgumentException("Service with %s already registered: %s".format(id, service))
-    RemoteService(hostname, localPort, key)(this)
+    val svc = new RemoteServiceProxy[MessageType](RemoteService(hostname, localPort, key))
+    svc.registry = this
+    svc
   }
 
   def getService(id: String): MessageReceiver[MessageType] =

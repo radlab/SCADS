@@ -6,11 +6,9 @@ import edu.berkeley.cs.avro.marker.AvroRecord
 import org.apache.avro.generic.IndexedRecord
 
 /* Generic Remote Actor Handle */
-case class RemoteService[MessageType <: IndexedRecord](var host: String,
+case class RemoteService(var host: String,
                        var port: Int,
-                       var id: ServiceId)
-                      (implicit val registry: ServiceRegistry[MessageType])
-  extends RemoteServiceProxy[MessageType]
+                       var id: ServiceId) extends AvroRecord
 
 /* Specific types for different services. Note: these types are mostly for readability as typesafety isn't enforced when serialized individualy*/
 case class StorageService(var host: String,
@@ -29,14 +27,14 @@ object RemoteServiceProxy {
   val logger = Logger()
 }
 
-trait RemoteServiceProxy[MessageType <: IndexedRecord] {
-  var host: String
-  var port: Int
-  var id: ServiceId
+class RemoteServiceProxy[MessageType <: IndexedRecord](val remoteService: RemoteService) {
+  def host: String = remoteService.host
+  def port: Int = remoteService.port
+  def id: ServiceId = remoteService.id
 
   import RemoteServiceProxy._
 
-  implicit val registry: ServiceRegistry[MessageType]
+  implicit var registry: ServiceRegistry[MessageType] = null
 
   def remoteNode = RemoteNode(host, port)
 

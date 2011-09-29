@@ -8,6 +8,7 @@ import org.apache.avro.generic.IndexedRecord
 import java.util.concurrent.{ LinkedBlockingQueue, TimeUnit }
 import java.util.{LinkedList, Queue}
 import java.lang.ref.WeakReference
+import java.lang.RuntimeException
 
 /**
  * This is the base trait for any type of future in SCADS.
@@ -102,11 +103,10 @@ class MessageFuture[MessageType <: IndexedRecord](implicit val registry: Service
     def reactWithin(msec: Long)(pf: PartialFunction[Any, Unit]): Nothing = throw new RuntimeException("Unimplemented")
     def react(f: PartialFunction[MessageType, Unit]): Nothing = throw new RuntimeException("Unimplemented")
     def receive[R](f: PartialFunction[MessageType, R]): R = f(message.get)
-    def receiveWithin[R](msec: Long)(f: PartialFunction[Any, R]): R = f(message.get(msec).getOrElse(ProcessingException("timeout", "")))
+    def receiveWithin[R](msec: Long)(f: PartialFunction[Any, R]): R = f(message.get(msec).getOrElse(throw new RuntimeException("timeout")))
   }
 
   def apply() = message.get
-
 
   //The actual sender of a message
   def source =  sender.get
