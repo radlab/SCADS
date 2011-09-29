@@ -89,14 +89,13 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     logger.info("Using handler impl class: %s".format(clzName))
 
     logger.error("Using classloader %s", schema.classLoader)
-    val cl = schema.classLoader.loadClass("edu.berkeley.cs.scads.comm.test.messages.package$TestMessages$class")
-    val cl2 = schema.classLoader.loadClass("edu.berkeley.cs.scads.comm.test.messages.TestMsg1")
-    logger.error("Found class %s", cl)
+//    val cl = schema.classLoader.loadClass("edu.berkeley.cs.scads.comm.test.messages.package$TestMessages$class")
+//    val cl2 = schema.classLoader.loadClass("edu.berkeley.cs.scads.comm.test.messages.TestMsg1")
+    //logger.error("Found class %s", cl)
 
-    // TODO: custom class loader
     val clz = Class.forName(clzName).asInstanceOf[Class[AvroChannelManager[MessageEnvelope, MessageEnvelope]]]
     val ctor = clz.getConstructor(classOf[Function3[_, _, _, _]], classOf[ClassLoader], classOf[TypedSchema[_]], classOf[TypedSchema[_]])
-    ctor.newInstance(recvMsgCallback, schema.classLoader, envelopeSchema, envelopeSchema)
+    ctor.newInstance(recvMsgCallback, this.getClass.getClassLoader, envelopeSchema, envelopeSchema)
   }
 
   /**
@@ -206,8 +205,8 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
         startListener(port)
         found = true
       } catch {
-        case ex: java.net.BindException =>
-          logger.warning("Could not listen on port %d, trying %d".format(port, port + 1))
+        case ex: org.jboss.netty.channel.ChannelException =>
+          logger.debug("Could not listen on port %d, trying %d".format(port, port + 1))
           port += 1
       } finally {
         numTries += 1

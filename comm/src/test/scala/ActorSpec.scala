@@ -10,16 +10,14 @@ import org.scalatest.matchers.ShouldMatchers
 import avro.runtime._
 import avro.marker.{AvroUnion, AvroRecord}
 
-package object messages {
-  sealed trait TestMessages extends AvroUnion
-  case class TestMsg1(var f1: Int) extends TestMessages with AvroRecord
+sealed trait TestMessages extends AvroUnion
+case class TestMsg1(var f1: Int) extends TestMessages with AvroRecord
 
-  implicit object TestRegistry extends ServiceRegistry[TestMessages]
-}
 
 @RunWith(classOf[JUnitRunner])
 class RemoteServiceSpec extends Spec with ShouldMatchers {
-  import messages._
+  implicit object TestRegistry extends ServiceRegistry[TestMessages]
+
   val msg = TestMsg1(1)
 
   object EchoService extends ServiceHandler[TestMessages] {
