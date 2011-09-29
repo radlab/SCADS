@@ -28,7 +28,7 @@ class AvroSpecificEncoder[M <: IndexedRecord](implicit schema: TypedSchema[M])
   private val logger = Logger()
 
   override def encode(ctx: ChannelHandlerContext, chan: Channel, msg: AnyRef) = msg match {
-    case s: SpecificRecord =>
+    case s: IndexedRecord =>
       val os  = new ExposingByteArrayOutputStream(512)
       val enc = EncoderFactory.get().binaryEncoder(os,null)
       // TODO: fix unsafe cast here

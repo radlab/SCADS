@@ -19,10 +19,10 @@ import avro.runtime._
 
 import net.lag.logging.Logger
 
-class AvroSpecificDecoder[M <: IndexedRecord](implicit schema: TypedSchema[M])
+class AvroSpecificDecoder[M <: IndexedRecord](classLoader: ClassLoader)(implicit schema: TypedSchema[M])
   extends OneToOneDecoder {
 
-  private val msgReader = new SpecificDatumReader[M](schema, schema) //TODO: fix, new SpecificData(msgClass.getClassLoader))
+  private val msgReader = new SpecificDatumReader[M](schema, schema, new SpecificData(classLoader))
 
   private val logger = Logger()
 

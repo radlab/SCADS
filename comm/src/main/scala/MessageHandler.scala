@@ -19,6 +19,7 @@ import remote.RemoteActor
 import scala.collection.JavaConversions._
 import edu.berkeley.cs.avro.runtime._
 import org.apache.avro.Schema.Field
+import org.apache.avro.specific.SpecificRecord
 
 /* General message types */
 sealed trait ServiceId extends AvroUnion
@@ -70,27 +71,32 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
   protected val envelopeSchema = new TypedSchema[MessageEnvelope](Schema.createRecord(
     new Schema.Field("src", TypedSchemas.schemaOf[ServiceId], null, null) ::
     new Schema.Field("dest", TypedSchemas.schemaOf[ServiceId], null, null) ::
-    new Schema.Field("msg", schema, null, null) :: Nil
-  ))
+    new Schema.Field("msg", schema, null, null) :: Nil),
+    this.getClass.getClassLoader)
 
   private lazy val impl =
     try getImpl
     catch {
       case e: Exception =>
-        logger.error("Could not initialize handler implementation, using default impl", e)
-        new DefaultNioChannelManager(recvMsgCallback, envelopeSchema, envelopeSchema)
+        logger.error(e, "Could not initialize channel manager implementation")
+        throw e
     }
 
   private def getImpl = {
     val clzName = config.getString(
       "scads.comm.handlerClass",
-      classOf[netty.NettyChannelManager[_, _]].getName)
+      classOf[netty.DefaultNettyChannelManager[_, _]].getName)
     logger.info("Using handler impl class: %s".format(clzName))
+
+    logger.error("Using classloader %s", schema.classLoader)
+    val cl = schema.classLoader.loadClass("edu.berkeley.cs.scads.comm.test.messages.package$TestMessages$class")
+    val cl2 = schema.classLoader.loadClass("edu.berkeley.cs.scads.comm.test.messages.TestMsg1")
+    logger.error("Found class %s", cl)
 
     // TODO: custom class loader
     val clz = Class.forName(clzName).asInstanceOf[Class[AvroChannelManager[MessageEnvelope, MessageEnvelope]]]
-    val ctor = clz.getConstructor(classOf[Function3[_, _, _, _]], classOf[Class[_]], classOf[Class[_]])
-    ctor.newInstance(recvMsgCallback, envelopeSchema, envelopeSchema)
+    val ctor = clz.getConstructor(classOf[Function3[_, _, _, _]], classOf[ClassLoader], classOf[TypedSchema[_]], classOf[TypedSchema[_]])
+    ctor.newInstance(recvMsgCallback, schema.classLoader, envelopeSchema, envelopeSchema)
   }
 
   /**
@@ -136,7 +142,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
   def sendMessage(src: Option[RemoteServiceProxy[MessageType]], dest: RemoteServiceProxy[MessageType], msg: MessageType) {
     logger.trace("Sending %s to %s", msg, dest)
 
-    val packaged = new GenericData.Record(envelopeSchema.impl)
+    val packaged = new GenericData.Record(envelopeSchema)
     src.foreach(s => packaged.put(0, s.id))
     packaged.put(1, dest.id)
     packaged.put(2, msg)
@@ -200,7 +206,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
         startListener(port)
         found = true
       } catch {
-        case ex: Exception =>
+        case ex: java.net.BindException =>
           logger.warning("Could not listen on port %d, trying %d".format(port, port + 1))
           port += 1
       } finally {

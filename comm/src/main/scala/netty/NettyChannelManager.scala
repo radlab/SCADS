@@ -17,8 +17,21 @@ import edu.berkeley.cs.scads.config._
 import edu.berkeley.cs.avro.runtime.TypedSchema
 import org.apache.avro.generic.IndexedRecord
 
+/**
+ * Easier to instantiate via reflection
+ */
+class DefaultNettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
+(recvMsg: (AvroChannelManager[S, R], RemoteNode, R) => Unit, classLoader: ClassLoader)
+(implicit sendSchema: TypedSchema[S], receiveSchema: TypedSchema[R])
+  extends NettyChannelManager[S, R](classLoader) {
+  override def receiveMessage(remoteNode: RemoteNode, msg: R) {
+    recvMsg(this, remoteNode, msg)
+  }
+}
+
 abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
-  (implicit sendSchema: TypedSchema[S], receiveSchema: TypedSchema[R])
+(classLoader: ClassLoader)
+(implicit sendSchema: TypedSchema[S], receiveSchema: TypedSchema[R])
   extends AvroChannelManager[S, R] {
 
   protected val log = Logger()
@@ -30,12 +43,12 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
       new StaticChannelPipeline(
         new LengthFieldPrepender(4),
         new LengthFieldBasedFrameDecoder(0x0fffffff, 0, 4, 0, 4),
-        new AvroSpecificDecoder[R],
+        new AvroSpecificDecoder[R](classLoader),
         new AvroSpecificEncoder[S],
         handler)
   }
 
-  /** TODO: configure thread pools */
+  /**TODO: configure thread pools */
   private val serverBootstrap = new ServerBootstrap(
     new NioServerSocketChannelFactory(
       Executors.newCachedThreadPool(),
@@ -43,24 +56,27 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
 
   serverBootstrap.setParentHandler(new NettyServerParentHandler)
   serverBootstrap.setPipelineFactory(pipelineFactory(new NettyServerChildHandler))
-  serverBootstrap.setOption("child.tcpNoDelay", useTcpNoDelay) // disable nagle's algorithm
+  serverBootstrap.setOption("child.tcpNoDelay", useTcpNoDelay)
+  // disable nagle's algorithm
 
-  /** TODO: configure thread pools */
+  /**TODO: configure thread pools */
   private val clientBootstrap = new ClientBootstrap(
     new NioClientSocketChannelFactory(
       Executors.newCachedThreadPool(),
       Executors.newCachedThreadPool()))
 
   clientBootstrap.setPipelineFactory(pipelineFactory(new NettyClientHandler))
-  clientBootstrap.setOption("tcpNoDelay", useTcpNoDelay) // disable nagle's algorithm
+  clientBootstrap.setOption("tcpNoDelay", useTcpNoDelay)
+
+  // disable nagle's algorithm
 
   class NettyBaseHandler extends SimpleChannelHandler {
     override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
       val chan = e.getChannel
 
       e.getCause match {
-	case exp: java.net.BindException =>
-	case exp => log.warning(exp, "Exception in channel handler %s: %s", chan, e)
+        case exp: java.net.BindException =>
+        case exp => log.warning(exp, "Exception in channel handler %s: %s", chan, e)
       }
       nodeToConnections.entrySet.filter(_.getValue.getId == chan.getId).foreach(addr => {
         log.info("Removing channel %s to %s from connection pool".format(chan, addr.getKey))
@@ -74,7 +90,7 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
 
   class NettyChannelHandler extends NettyBaseHandler {
     override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
-      val msg  = e.getMessage.asInstanceOf[R]
+      val msg = e.getMessage.asInstanceOf[R]
       val node = e.getRemoteAddress.asInstanceOf[InetSocketAddress]
       receiveMessage(RemoteNode(node.getHostName, node.getPort), msg)
     }
@@ -126,11 +142,11 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
 
   // TODO: refactor commonality between this and OIO handler
 
-  /** Used to manage open connections */
-  private val nodeToConnections = 
+  /**Used to manage open connections */
+  private val nodeToConnections =
     new ConcurrentHashMap[InetSocketAddress, Channel]
 
-  /** Used to manage open ports */
+  /**Used to manage open ports */
   private val portToListeners =
     new ConcurrentHashMap[Int, Channel]
 
@@ -145,7 +161,7 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
   }
 
   private def getConnectionFor(dest: RemoteNode) = {
-    val addr  = dest.getInetSocketAddress
+    val addr = dest.getInetSocketAddress
     val conn0 = nodeToConnections.get(addr)
     if (conn0 ne null) conn0
     else {
@@ -170,7 +186,9 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
     clientBootstrap.connect(addr).awaitUninterruptibly.getChannel
   }
 
-  override def flush { /* No-op */ }
+  override def flush {
+    /* No-op */
+  }
 
   override def startListener(port: Int) {
     if (port < 0 || port > 65535)
