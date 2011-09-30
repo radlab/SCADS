@@ -108,7 +108,7 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
    * The default availability zone used when launching new instances.
    */
   val defaultZone =
-    if (region.endpoint contains "west") "us-west-1a" else "us-east-1b"
+    if (region.endpoint contains "west") "us-west-1b" else "us-east-1b"
 
   /**
    * The zookeeper node where the service scheduler registers itself
