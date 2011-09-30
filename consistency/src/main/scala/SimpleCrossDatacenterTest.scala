@@ -26,7 +26,7 @@ object Experiment extends ExperimentBase {
     cluster.restart
   }
 
-  lazy val results = resultCluster.getNamespace[Result]("singleNodeResult")
+  lazy val results = resultCluster.getNamespace[Result]("singleDataCenterTest")
   def goodResults = results.iterateOverRange(None,None)
 
 
@@ -75,7 +75,7 @@ case class Task(var replicationFactor: Int = 2)
     cluster.blockUntilReady(replicationFactor)
 
     val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
-    val results = resultCluster.getNamespace[Result]("singleNodeResult")
+    val results = resultCluster.getNamespace[Result]("singleDataCenterTest")
 
 
     val ns = new SpecificNamespace[KeyRec, ValueRec]("testns", cluster, cluster.namespaces) with Transactions[KeyRec, ValueRec] {
