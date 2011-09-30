@@ -331,6 +331,10 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
    * Restart masters, slaves, and the service scheduler.  Also kills any java procs running on slaves.
    */
   def restart(): Unit = {
+    masters.pforeach(_ ! "killall -9 mesos-master")
+    masters.pforeach(_ ! "killall -9 java")
+    slaves.pforeach(_ ! "killall -9 mesos-slave")
+
     restartMasters
     restartSlaves
     restartServiceScheduler
@@ -505,12 +509,15 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
    */
   def tailSlaveLogs: Unit = {
     val workDir = new File("/mnt/work")
-    slaves.pmap(s => {
-      val currentSlaveDir = new File(workDir, s.ls(workDir).sortBy(_.modDate).last.name)
-      val currentFrameworkDir = new File(currentSlaveDir, s.ls(currentSlaveDir).head.name)
-      (s, new File(currentFrameworkDir, "0/stdout"))
-    }).foreach {
-      case (s, l) => s.watch(l)
-    }
+    slaves.pforeach(s => {
+      try {
+        val currentSlaveDir = new File(workDir, s.ls(workDir).sortBy(_.modDate).last.name)
+        val currentFrameworkDir = new File(currentSlaveDir, s.ls(currentSlaveDir).head.name)
+        s.watch(new File(currentFrameworkDir, "0/stdout"))
+      }
+      catch {
+        case e => logger.warning("No frameworks on %s", s.publicDnsName)
+      }
+    })
   }
 }
