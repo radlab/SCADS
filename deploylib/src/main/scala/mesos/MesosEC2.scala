@@ -40,7 +40,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     if (EC2Instance.endpoint contains "west") "ami-2b6b386e" else "ami-2d60a144"
 
   val defaultZone =
-    if (EC2Instance.endpoint contains "west") "us-west-1a" else "us-east-1b"
+    if (region.endpoint contains "west") "us-west-1b" else "us-east-1b"
 
   def serviceSchedulerNode = zooKeeperRoot.getOrCreate("serviceScheduler")
 
