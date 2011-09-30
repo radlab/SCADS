@@ -211,6 +211,10 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   }
 
   def restart(): Unit = {
+    masters.pforeach(_ ! "killall -9 mesos-master")
+    masters.pforeach(_ ! "killall -9 java")
+    slaves.pforeach(_ ! "killall -9 mesos-slave")
+
     restartMasters
     restartSlaves
     restartServiceScheduler
@@ -353,13 +357,21 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     slaves.pforeach(_.appendFile(new File("/root/.ssh/authorized_keys"), key))
   }
 
+  @deprecated("use watchSlaveLogs", "v2.1.2")
+  def tailSlaveLogs = watchSlaveLogs
+
   //HACK to work around still broken webui
-  def tailSlaveLogs: Unit = {
+  def watchSlaveLogs: Unit = {
     val workDir = new File("/mnt/work")
-    slaves.pmap(s => {
-      val currentSlaveDir = new File(workDir, s.ls(workDir).sortBy(_.modDate).last.name)
-      val currentFrameworkDir = new File(currentSlaveDir, s.ls(currentSlaveDir).head.name)
-      (s, new File(currentFrameworkDir, "0/stdout"))
-    }).foreach {case (s,l) => s.watch(l)}
+    slaves.pforeach(s => {
+      try {
+        val currentSlaveDir = new File(workDir, s.ls(workDir).sortBy(_.modDate).last.name)
+        val currentFrameworkDir = new File(currentSlaveDir, s.ls(currentSlaveDir).head.name)
+        s.watch(new File(currentFrameworkDir, "0/stdout"))
+      }
+      catch {
+        case e => logger.warning("No frameworks on %s", s.publicDnsName)
+      }
+    })
   }
 }
