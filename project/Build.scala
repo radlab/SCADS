@@ -219,7 +219,7 @@ object DeployConsole extends BuildCommon {
     (thisProjectRef, thisProject, settings) flatMap {
       (projectRef: ProjectRef, project: ResolvedProject, data: Settings[Scope]) => {
         def visit(p: ProjectRef): Seq[Task[java.io.File]] = {
-          val depProject = thisProject in p get data getOrElse error("Invalid project: " + p)
+          val depProject = thisProject in p get data getOrElse sys.error("Invalid project: " + p)
           val jarFile = (Keys.`package` in (p, ConfigKey("runtime"))).get(data).get
           jarFile +: depProject.dependencies.map {
             case ResolvedClasspathDependency(dep, confMapping) => dep
