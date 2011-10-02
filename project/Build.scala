@@ -20,6 +20,12 @@ object ScadsBuild extends Build {
       (report, source) =>
         val pluginClasspath = report matching configurationFilter(Configurations.CompilerPlugin.name)
         pluginClasspath.map("-Xplugin:" + _.getAbsolutePath).toSeq :+ "-deprecation" :+ "-unchecked" :+ "-Yrepl-sync" :+ ("-P:sxr:base-directory:" + source.getAbsolutePath)
+    },
+    /* HACK to work around broken ~ in 0.11.0 */
+    watchTransitiveSources <<=
+      Defaults.inDependencies[Task[Seq[File]]](
+        watchSources.task, const(std.TaskExtra.constant(Nil)), aggregate = true, includeRoot = true) apply {
+      _.join.map(_.flatten)
     })
 
   val deploySettings = buildSettings ++ DeployConsole.deploySettings
