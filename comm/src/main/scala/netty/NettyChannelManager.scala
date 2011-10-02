@@ -29,6 +29,14 @@ class DefaultNettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
   }
 }
 
+object DaemonThreadFactory extends ThreadFactory {
+  def newThread(r: Runnable): Thread = {
+    val thread = new Thread(r)
+    thread.setDaemon(true)
+    thread
+  }
+}
+
 abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
     implicit sendManifest: Manifest[S], recvManifest: Manifest[R])
   extends AvroChannelManager[S, R] {
@@ -50,8 +58,8 @@ abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
   /** TODO: configure thread pools */
   private val serverBootstrap = new ServerBootstrap(
     new NioServerSocketChannelFactory(
-      Executors.newCachedThreadPool(),
-      Executors.newCachedThreadPool()))
+      Executors.newCachedThreadPool(DaemonThreadFactory),
+      Executors.newCachedThreadPool(DaemonThreadFactory)))
 
   serverBootstrap.setParentHandler(new NettyServerParentHandler)
   serverBootstrap.setPipelineFactory(pipelineFactory(new NettyServerChildHandler))
@@ -60,8 +68,8 @@ abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
   /** TODO: configure thread pools */
   private val clientBootstrap = new ClientBootstrap(
     new NioClientSocketChannelFactory(
-      Executors.newCachedThreadPool(),
-      Executors.newCachedThreadPool()))
+      Executors.newCachedThreadPool(DaemonThreadFactory),
+      Executors.newCachedThreadPool(DaemonThreadFactory)))
 
   clientBootstrap.setPipelineFactory(pipelineFactory(new NettyClientHandler))
   clientBootstrap.setOption("tcpNoDelay", useTcpNoDelay) // disable nagle's algorithm
