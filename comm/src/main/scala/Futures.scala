@@ -67,9 +67,8 @@ object FutureReference {
       }
     }
   }
+  cleanupThread.setDaemon(true)
   cleanupThread.start()
-
-
 }
 
 class FutureReference[MessageType <: IndexedRecord](future: MessageFuture[MessageType])(implicit val handler: ServiceRegistry[MessageType]) extends java.lang.ref.WeakReference(future, FutureReference.staleMessages) with MessageReceiver[MessageType] {
