@@ -121,6 +121,12 @@ object ScadsBuild extends Build {
     settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
   ) dependsOn (config, comm, scalaEngine)
 
+  lazy val consistency = Project(
+    "consistency",
+    file("consistency"),
+    settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
+  ) dependsOn (config, comm, scalaEngine)
+
   /**
    * Dependencies
    */

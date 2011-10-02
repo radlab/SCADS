@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.Arrays
 
 import scala.collection.mutable.Buffer
+import scala.collection.mutable.ListBuffer
 import scala.collection.JavaConversions._
 
 import java.io._
@@ -28,28 +29,23 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
       true
     } else {
       val commandsList = cstructs.map(x => x.commands)
-      val head = commandsList.head
+      // TODO: only pending?
+      val head = reduceCommandList(commandsList.head.filter(_.pending))
       val tail = commandsList.tail
-      tail.foldLeft[Boolean](true)(foldCommands(head))
+      tail.foldLeft[Boolean](true)(foldCommandList(head))
     }
   }
 
-  private def compareCommands(c1: Seq[CStructCommand],
-                              c2: Seq[CStructCommand]) = {
-    val zipped = c1.zipAll(c2, null, null)
+  private def compareCommandList(c1: Seq[Seq[CStructCommand]],
+                                 c2: Seq[Seq[CStructCommand]]) = {
+    val zipped = c1.zipAll(c2, List(), List())
     var success = true
 
-    // TODO: take care of more complicated situations, like logical updates,
-    //       and multiple physical updates.
     zipped.foreach(t => {
       if (success) {
         t match {
-          case (CStructCommand(id1, up1: PhysicalUpdate, _),
-                CStructCommand(id2, up2: PhysicalUpdate, _)) =>
-                  success = id1 == id2
-          case (CStructCommand(id1, up1: LogicalUpdate, _),
-                CStructCommand(id2, up2: LogicalUpdate, _)) =>
-                  success = true
+          case (l1: Seq[CStructCommand], l2: Seq[CStructCommand]) =>
+            success = compareCommands(l1, l2)
           case (_, _) => success = false
         }
       }
@@ -57,13 +53,57 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
     success
   }
 
-  private def foldCommands(head: Seq[CStructCommand])(valid: Boolean, commands: Seq[CStructCommand]) = {
+  private def compareCommands(c1: Seq[CStructCommand],
+                              c2: Seq[CStructCommand]) = {
+    if (c1.size != c2.size) {
+      false
+    } else {
+      // Match xids for now.
+      val map1 = c1.map(x => (x.xid, 1)).toMap
+      var success = true
+      c2.foreach(x => {
+        if (!map1.contains(x.xid)) {
+          success = false
+        }
+      })
+      success
+    }
+  }
+
+  // Reduces a sequence of logical updates into a single sequence.
+  private def reduceCommandList(c: Seq[CStructCommand]) = {
+    val reduced = new ListBuffer[ListBuffer[CStructCommand]]()
+    var isLogical = false
+    c.foreach(x => {
+      x.command match {
+        case up: LogicalUpdate => {
+          if (isLogical) {
+            reduced.last.append(x)
+          } else {
+            val newIds = new ListBuffer[CStructCommand]()
+            newIds.append(x)
+            reduced.append(newIds)
+          }
+          isLogical = true
+        }
+        case up: PhysicalUpdate => {
+          val newIds = new ListBuffer[CStructCommand]()
+          newIds.append(x)
+          reduced.append(newIds)
+          isLogical = false
+        }
+        case _ =>
+      }
+    })
+    reduced
+  }
+
+  private def foldCommandList(head: Seq[Seq[CStructCommand]])(valid: Boolean, commands: Seq[CStructCommand]) = {
     if (!valid) {
       !valid
     } else {
-      val pendingHead = head.filter(_.pending)
-      val pendingCommands = commands.filter(_.pending)
-      compareCommands(pendingHead, pendingCommands)
+      val pendingCommands = reduceCommandList(commands.filter(_.pending))
+      compareCommandList(head, pendingCommands)
     }
   }
 }

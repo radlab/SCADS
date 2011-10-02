@@ -45,6 +45,37 @@ trait Taggable {
 
 }
 
+trait Sudo extends RemoteMachine {
+  protected override def prepareCommand(cmd: String) = "sudo bash -c '%s'".format(cmd)
+}
+
+trait ServiceManager extends RemoteMachine {
+  self =>
+
+  val serviceDir = new File("$HOME/deploylib/services")
+  val logDir = new File("$HOME/deploylib/logs")
+
+  case class RemoteService(name: String) {
+    val runScript = new java.io.File(serviceDir, name + ".sh")
+    val pidFile = new java.io.File(serviceDir, name + ".pid")
+    val logFile = new java.io.File(logDir, name + ".log")
+
+    def setCmd(cmd: String): this.type = {
+      mkdir(serviceDir)
+      mkdir(logDir)
+      val serviceScript = "#!/bin/bash\n" + cmd
+      createFile(runScript, serviceScript)
+      self ! ("chmod 755 " + runScript)
+      this
+    }
+
+    def start = self ! "start-stop-daemon --make-pidfile --start --background --pidfile %s --exec %s >> %s 2>&1".format(pidFile, runScript, logFile)
+    def stop = self.executeCommand("start-stop-daemon --stop --pidfile %s".format(pidFile))
+    def restart = {stop; start}
+  }
+  def getService(name: String, cmd: String) = RemoteService(name).setCmd(cmd)
+}
+
 /**
  * Provides a framework for interacting (running commands, uploading/downloading files, etc) with a generic remote machine.
  */
@@ -101,20 +132,17 @@ abstract class RemoteMachine {
    */
   protected var assignedServices: Set[Service] = Set()
 
+  @deprecated("use getService", "v2.1.2")
   def addService(service: Service): Unit = {
     assignedServices += service
   }
 
-  val runitBinaryPath: File
-  lazy val runsvdirCmd: File = new File(runitBinaryPath, "runsvdir")
-  lazy val svCmd: File = new File(runitBinaryPath, "sv")
-  lazy val svlogdCmd: File = new File(runitBinaryPath, "svlogd")
-  lazy val serviceRoot = new File(rootDirectory, "services")
-
   val logger = Logger()
   private var connection: Connection = null
 
-  implicit def toOption[A](a: A) = Option(a)
+  protected implicit def toOption[A](a: A) = Option(a)
+
+  protected def prepareCommand(cmd: String) = cmd
 
   /**
    * Provide an ssh connection to the server.  If one is not already available or has been disconnected, create one.
@@ -167,18 +195,10 @@ abstract class RemoteMachine {
   }
 
   /**
-   * Execute a command sync and return the result as an ExecuteResponse
-   */
-  def executeCommand(cmd: String): ExecuteResponse = {
-    // Pass a timeout of 0, which means "no timeout"
-    executeCommand(cmd, 0)
-  }
-
-  /**
    * Execute a command sync with a maximum timeout to wait for result
    * and return the result as an ExecuteResponse
    */
-  def executeCommand(cmd: String, timeout: Long): ExecuteResponse = {
+  def executeCommand(cmd: String, timeout: Long = 0): ExecuteResponse = {
     useConnection((c) => {
       val stdout = new StringBuilder
       val stderr = new StringBuilder
@@ -188,7 +208,7 @@ abstract class RemoteMachine {
       val errReader = new BufferedReader(new InputStreamReader(session.getStderr()))
 
       logger.debug("Executing: " + cmd)
-      session.execCommand(cmd)
+      session.execCommand(prepareCommand(cmd))
 
       var continue = true
       var exitStatus: java.lang.Integer = null
@@ -252,8 +272,9 @@ abstract class RemoteMachine {
    */
   def createFile(file: File, contents: String): Unit = {
     useConnection((c) => {
+      logger.debug("Creating file %s: %s %s", file, contents, prepareCommand("cat > " + file))
       val session = connection.openSession
-      session.execCommand("cat > " + file)
+      session.execCommand(prepareCommand("cat > " + file))
       session.getStdin().write(contents.getBytes)
       session.getStdin().close()
       session.close()
@@ -268,7 +289,7 @@ abstract class RemoteMachine {
   def appendFile(file: File, contents: String): Unit = {
     useConnection((c) => {
       val session = connection.openSession
-      session.execCommand("cat >> " + file)
+      session.execCommand(prepareCommand("cat >> " + file))
       session.getStdin().write(contents.getBytes)
       session.getStdin().close()
       session.close()
@@ -367,7 +388,7 @@ abstract class RemoteMachine {
       val session = connection.openSession
       val outReader = new BufferedReader(new InputStreamReader(session.getStdout()))
 
-      session.execCommand("tail -F " + remoteFile)
+      session.execCommand(prepareCommand("tail -F " + remoteFile))
 
       val thread = new Thread("FileWatcher-" + hostname) {
         override def run() = {

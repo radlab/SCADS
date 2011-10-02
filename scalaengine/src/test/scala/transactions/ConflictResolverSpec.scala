@@ -44,6 +44,21 @@ with BeforeAndAfterEach {
     val v = ConflictValueRec(value.toString, value)
     valueBuilder.toBytes(m, v)
   }
+  // Returns single Version update list
+  private def singleVersionUpdate(key: Int, value: Int, version: Long) = {
+    val k = ConflictKeyRec(key, key.toString)
+    val m = MDCCMetadata(version, List())
+    val v = ConflictValueRec(value.toString, value)
+    VersionUpdate(keyBuilder.toBytes(k), valueBuilder.toBytes(m, v))
+  }
+  // Returns single Logical update list
+  private def singleLogicalUpdate(key: Int, value: Int, version: Long) = {
+    val k = ConflictKeyRec(key, key.toString)
+    val m = MDCCMetadata(version, List())
+    val v = ConflictValueRec(value.toString, value)
+    LogicalUpdate(keyBuilder.toBytes(k), valueBuilder.toBytes(m, v))
+  }
+
 
   // returns Version update lists
   private def insertVersionUpdates(numKeys: Int) = {
@@ -53,13 +68,6 @@ with BeforeAndAfterEach {
       val v = ConflictValueRec(i.toString, i)
       VersionUpdate(keyBuilder.toBytes(k), valueBuilder.toBytes(m, v))
     })
-  }
-  // Returns single Version update list
-  private def singleVersionUpdate(key: Int, value: Int, version: Long) = {
-    val k = ConflictKeyRec(key, key.toString)
-    val m = MDCCMetadata(version, List())
-    val v = ConflictValueRec(value.toString, value)
-    VersionUpdate(keyBuilder.toBytes(k), valueBuilder.toBytes(m, v))
   }
   // returns Value update lists
   private def insertValueUpdates(numKeys: Int) = {
@@ -116,6 +124,168 @@ with BeforeAndAfterEach {
       val c2 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(2, 2),
                                            singleVersionUpdate(1, 2, 2),
+                                           true)))
+      resolver.isCompatible(List(c1, c2)) should be (false)
+    }
+
+    "be compatible for cstructs with multiple physical updates" in {
+      val c1 = CStruct(Option(singleValueRecord(1, 1)),
+                       List(CStructCommand(ScadsXid(1, 1),
+                                           singleVersionUpdate(1, 2, 2),
+                                           true),
+                            CStructCommand(ScadsXid(2, 2),
+                                           singleVersionUpdate(1, 3, 2),
+                                           true)))
+      resolver.isCompatible(List(c1, c1)) should be (true)
+    }
+
+    "be incompatible for cstructs with multiple out-of-order physical updates" in {
+      val c1 = CStruct(Option(singleValueRecord(1, 1)),
+                       List(CStructCommand(ScadsXid(1, 1),
+                                           singleVersionUpdate(1, 2, 2),
+                                           true),
+                            CStructCommand(ScadsXid(2, 2),
+                                           singleVersionUpdate(1, 3, 2),
+                                           true)))
+      val c2 = CStruct(Option(singleValueRecord(1, 1)),
+                       List(CStructCommand(ScadsXid(2, 2),
+                                           singleVersionUpdate(1, 3, 2),
+                                           true),
+                            CStructCommand(ScadsXid(1, 1),
+                                           singleVersionUpdate(1, 2, 2),
+                                           true)))
+      resolver.isCompatible(List(c1, c2)) should be (false)
+    }
+
+    "be compatible for cstructs with multiple in-order logical updates" in {
+      val c1 = CStruct(Option(singleValueRecord(1, 1)),
+                       List(CStructCommand(ScadsXid(1, 1),
+                                           singleLogicalUpdate(1, 2, 2),
+                                           true),
+                            CStructCommand(ScadsXid(2, 2),
+                                           singleLogicalUpdate(1, 3, 2),
+                                           true)))
+      resolver.isCompatible(List(c1, c1)) should be (true)
+    }
+
+    "be compatible for cstructs with multiple out-of-order logical updates" in {
+      val c1 = CStruct(Option(singleValueRecord(1, 1)),
+                       List(CStructCommand(ScadsXid(1, 1),
+                                           singleLogicalUpdate(1, 2, 2),
+                                           true),
+                            CStructCommand(ScadsXid(2, 2),
+                                           singleLogicalUpdate(1, 3, 2),
+                                           true)))
+      val c2 = CStruct(Option(singleValueRecord(1, 1)),
+                       List(CStructCommand(ScadsXid(2, 2),
+                                           singleLogicalUpdate(1, 3, 2),
+                                           true),
+                            CStructCommand(ScadsXid(1, 1),
+                                           singleLogicalUpdate(1, 2, 2),
+                                           true)))
+      resolver.isCompatible(List(c1, c2)) should be (true)
+    }
+
+    "be compatible for cstructs with in-order mixed updates" in {
+      val c1 = CStruct(Option(singleValueRecord(1, 1)),
+                       List(CStructCommand(ScadsXid(1, 1),
+                                           singleVersionUpdate(1, 2, 2),
+                                           true),
+                            CStructCommand(ScadsXid(2, 2),
+                                           singleLogicalUpdate(1, 3, 2),
+                                           true),
+                            CStructCommand(ScadsXid(3, 3),
+                                           singleLogicalUpdate(1, 4, 2),
+                                           true),
+                            CStructCommand(ScadsXid(4, 4),
+                                           singleLogicalUpdate(1, 5, 2),
+                                           true),
+                            CStructCommand(ScadsXid(5, 5),
+                                           singleVersionUpdate(1, 6, 2),
+                                           true),
+                            CStructCommand(ScadsXid(6, 6),
+                                           singleLogicalUpdate(1, 7, 2),
+                                           true)))
+      resolver.isCompatible(List(c1, c1)) should be (true)
+    }
+
+    "be compatible for cstructs with out-of-order mixed updates" in {
+      val c1 = CStruct(Option(singleValueRecord(1, 1)),
+                       List(CStructCommand(ScadsXid(1, 1),
+                                           singleVersionUpdate(1, 2, 2),
+                                           true),
+                            CStructCommand(ScadsXid(2, 2),
+                                           singleLogicalUpdate(1, 3, 2),
+                                           true),
+                            CStructCommand(ScadsXid(3, 3),
+                                           singleLogicalUpdate(1, 4, 2),
+                                           true),
+                            CStructCommand(ScadsXid(4, 4),
+                                           singleLogicalUpdate(1, 5, 2),
+                                           true),
+                            CStructCommand(ScadsXid(5, 5),
+                                           singleVersionUpdate(1, 6, 2),
+                                           true),
+                            CStructCommand(ScadsXid(6, 6),
+                                           singleLogicalUpdate(1, 7, 2),
+                                           true)))
+      val c2 = CStruct(Option(singleValueRecord(1, 1)),
+                       List(CStructCommand(ScadsXid(1, 1),
+                                           singleVersionUpdate(1, 2, 2),
+                                           true),
+                            CStructCommand(ScadsXid(4, 4),
+                                           singleLogicalUpdate(1, 5, 2),
+                                           true),
+                            CStructCommand(ScadsXid(3, 3),
+                                           singleLogicalUpdate(1, 4, 2),
+                                           true),
+                            CStructCommand(ScadsXid(2, 2),
+                                           singleLogicalUpdate(1, 3, 2),
+                                           true),
+                            CStructCommand(ScadsXid(5, 5),
+                                           singleVersionUpdate(1, 6, 2),
+                                           true),
+                            CStructCommand(ScadsXid(6, 6),
+                                           singleLogicalUpdate(1, 7, 2),
+                                           true)))
+      resolver.isCompatible(List(c1, c2)) should be (true)
+    }
+
+    "be incompatible for cstructs with mixed updates" in {
+      val c1 = CStruct(Option(singleValueRecord(1, 1)),
+                       List(CStructCommand(ScadsXid(1, 1),
+                                           singleVersionUpdate(1, 2, 2),
+                                           true),
+                            CStructCommand(ScadsXid(2, 2),
+                                           singleLogicalUpdate(1, 3, 2),
+                                           true),
+                            CStructCommand(ScadsXid(3, 3),
+                                           singleLogicalUpdate(1, 4, 2),
+                                           true),
+                            CStructCommand(ScadsXid(4, 4),
+                                           singleLogicalUpdate(1, 5, 2),
+                                           true),
+                            CStructCommand(ScadsXid(5, 5),
+                                           singleVersionUpdate(1, 6, 2),
+                                           true),
+                            CStructCommand(ScadsXid(6, 6),
+                                           singleLogicalUpdate(1, 7, 2),
+                                           true)))
+      val c2 = CStruct(Option(singleValueRecord(1, 1)),
+                       List(CStructCommand(ScadsXid(1, 1),
+                                           singleVersionUpdate(1, 2, 2),
+                                           true),
+                            CStructCommand(ScadsXid(7, 7),
+                                           singleLogicalUpdate(1, 9, 2),
+                                           true),
+                            CStructCommand(ScadsXid(2, 2),
+                                           singleLogicalUpdate(1, 3, 2),
+                                           true),
+                            CStructCommand(ScadsXid(5, 5),
+                                           singleVersionUpdate(1, 6, 2),
+                                           true),
+                            CStructCommand(ScadsXid(6, 6),
+                                           singleLogicalUpdate(1, 7, 2),
                                            true)))
       resolver.isCompatible(List(c1, c2)) should be (false)
     }

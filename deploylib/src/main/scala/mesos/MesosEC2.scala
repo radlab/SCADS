@@ -7,10 +7,8 @@ import config._
 import edu.berkeley.cs.scads.comm._
 
 import java.io.File
-import java.net.InetAddress
 import collection.JavaConversions._
-import com.amazonaws.services.ec2.model._
-
+import net.lag.logging.Logger
 object ServiceSchedulerDaemon extends optional.Application {
   val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
 
@@ -25,34 +23,120 @@ object ServiceSchedulerDaemon extends optional.Application {
   }
 }
 
+/**
+ * Global state for setting and methods for running mesos on EC2.
+ */
 object MesosCluster {
+  val logger = Logger()
+
   //HACK
   var jarFiles: Seq[java.io.File] = _
+
+  /**
+   * Start a new plain ubuntu ami, install java/mesos on it, bundle it as a new AMI.
+   */
+  def buildNewAmi(region: EC2Region = EC2West): String = {
+    region.update()
+    val oldInst = region.client.describeTags().getTags()
+      .filter(_.getResourceType equals "instance")
+      .filter(_.getKey equals "mesos")
+      .filter(_.getValue equals "ami")
+      .map(t => region.getInstance(t.getResourceId))
+      .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
+
+    val inst =
+      if(oldInst.size == 0)
+        region.runInstances(1).head
+      else
+        oldInst.head
+
+    inst.tags += ("mesos", "ami")
+    inst.blockUntilRunning()
+
+    logger.info("updating apt...")
+    inst ! "add-apt-repository \"deb http://archive.canonical.com/ubuntu lucid partner\""
+    inst ! "echo sun-java6-jdk shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections"
+    inst ! "apt-get update"
+    logger.info("installing java...")
+    inst ! "yes | apt-get install -y sun-java6-jdk"
+    logger.info("installing build env...")
+    inst ! "apt-get install -y build-essential"
+    logger.info("installing git...")
+    inst ! "apt-get install -y git-core"
+    logger.info("installing python...")
+    inst ! "apt-get install -y python2.6-dev"
+    logger.info("installing swig...")
+    inst ! "apt-get install -y swig"
+    logger.info("installing autoconf...")
+    inst ! "apt-get install -y autoconf"
+    logger.info("cloning mesos")
+    inst ! "git clone https://github.com/mesos/mesos.git"
+    logger.info("building and installing mesos...")
+    inst ! "cd mesos; ./configure --with-python-headers=/usr/include/python2.6 --with-java-home=/usr/lib/jvm/java-6-sun --with-webui --with-included-zookeeper; make; make install"
+
+    val bucketName = (region.getClass.getName.dropRight(1) + System.currentTimeMillis).toLowerCase.replaceAll("\\.", "")
+    logger.info("bundling ami as %s...", bucketName)
+    val ami = inst.bundleNewAMI(bucketName)
+    //inst.halt
+    ami
+  }
 }
 
 /**
  * Functions to help maintain a mesos cluster on EC2.
  */
-class Cluster(useFT: Boolean = false) extends ConfigurationActions {
-  val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
+class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) extends ConfigurationActions {
+  /**
+   * The location of mesos on the remote machine
+   */
+  val mesosDir = new File("/usr/local/mesos")
 
+  /**
+   * Location of the deploylib framework on the remote instances
+   */
+  val frameworkDir = new File(mesosDir, "frameworks/deploylib")
+
+  val binDir = new File(mesosDir, "bin")
+
+  /**
+   * The ami used when launching new instances
+   */
   val mesosAmi =
-    if (EC2Instance.endpoint contains "west") "ami-2b6b386e" else "ami-2d60a144"
+    if (region.endpoint contains "west") "ami-1f08545a" else "ami-d373b1ba"
 
+  /**
+   * The default availability zone used when launching new instances.
+   */
   val defaultZone =
-    if (EC2Instance.endpoint contains "west") "us-west-1a" else "us-east-1b"
+    if (region.endpoint contains "west") "us-west-1b" else "us-east-1b"
 
+  /**
+   * The zookeeper node where the service scheduler registers itself
+   */
   def serviceSchedulerNode = zooKeeperRoot.getOrCreate("serviceScheduler")
 
+  /**
+   * A handle to the service scheduler for the cluster
+   */
   def serviceScheduler = classOf[RemoteServiceScheduler].newInstance.parse(serviceSchedulerNode.data)
-  def serviceSchedulerLog = firstMaster.catFile("/root/serviceScheduler.log")
 
+  /**
+   * Kills all instances running on EC2 for this mesos cluster cluster (masters, slaves, zookeepers)
+   */
   def stopAllInstances() = (masters ++ slaves ++ zooKeepers).pforeach(_.halt)
 
-  def setup(numSlaves: Int = 1) = (Future {setupMesosMaster()} ::
-                                   Future {setupZooKeeper()} ::
-                                   Future {if(slaves.size < numSlaves) addSlaves(numSlaves - slaves.size)} :: Nil).map(_())
-	
+  /**
+   * Start and configure the mesos master, at least numSlaves mesos slaves, and zookeeper in parallel.
+   */
+  def setup(numSlaves: Int = 1) = Seq(
+    Future(setupMesosMaster()),
+    Future(setupZooKeeper()),
+    Future(if (slaves.size < numSlaves) addSlaves(numSlaves - slaves.size))
+  ).map(_())
+
+  /**
+   * Update the jars and scripts for deploylib on the specified instances (default: all masters + slaves) using the current classSource
+   */
   def updateDeploylib(instances: Seq[EC2Instance] = (slaves ++ masters)): Unit = {
     instances.pforeach(inst => {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
@@ -62,12 +146,15 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
         case s => s
       }.mkString("\n")
 
-      createDirectory(inst, rootDir)
-      uploadFile(inst, new File("deploylib/src/main/resources/config"), rootDir)
-      createFile(inst, new File(rootDir, "java_executor"), executorScript, "755")
+      createDirectory(inst, frameworkDir)
+      uploadFile(inst, new File("deploylib/src/main/resources/config"), frameworkDir)
+      createFile(inst, new File(frameworkDir, "java_executor"), executorScript, "755")
     })
   }
 
+  /**
+   * Configure the mesos master, starting instances if needed.
+   */
   def setupMesosMaster(zone: String = defaultZone, numMasters: Int = 1, mesosAmi: Option[String] = None): Unit = {
     if (masters.size < numMasters) {
       mesosAmi match {
@@ -87,68 +174,91 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     restartServiceScheduler
   }
 
+  /**
+   * Restart the service scheduler daemon running on the mesos master.
+   * NOTE: this will kill any other java procs running on the master.
+   */
   def restartServiceScheduler: Unit = {
-
     zooKeepers.foreach(_.blockUntilRunning)
     masters.pforeach(_.executeCommand("killall java"))
-    val serviceSchedulerScript = (
-      "#!/bin/bash\n" +
-        "/root/jrun -Dscads.comm.externalip=true deploylib.mesos.ServiceSchedulerDaemon " +
+    val serviceSchedulerCmd =
+        "/$HOME/jrun -Dscads.comm.externalip=true deploylib.mesos.ServiceSchedulerDaemon " +
         "--mesosMaster " + clusterUrl + " " +
-        "--zooKeeperAddress " + serviceSchedulerNode.canonicalAddress +
-        " >> /root/serviceScheduler.log 2>&1")
+        "--zooKeeperAddress " + serviceSchedulerNode.canonicalAddress
 
-    // Start service scheduler on only the first master
-    firstMaster.createFile(new java.io.File("/root/serviceScheduler"), serviceSchedulerScript)
-    firstMaster ! "chmod 755 /root/serviceScheduler"
-    firstMaster ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/serviceScheduler.pid --exec /root/serviceScheduler"
+    firstMaster.getService("service-scheduler", serviceSchedulerCmd).restart
   }
 
+  protected def slaveService(inst: EC2Instance): ServiceManager#RemoteService = inst.getService("mesos-slave", new File(binDir, "mesos-slave").getCanonicalPath)
+  def slaveServices = slaves.map(slaveService)
+
+  /**
+   * Returns a list of EC2Instances for all the slaves in the cluster
+   */
   def slaves = {
-    EC2Instance.update()
-    EC2Instance.client.describeTags().getTags()
+    region.update()
+    region.client.describeTags().getTags()
       .filter(_.getResourceType equals "instance")
       .filter(_.getKey equals "mesos")
       .filter(_.getValue equals "slave")
-      .map(t => EC2Instance.getInstance(t.getResourceId))
+      .map(t => region.getInstance(t.getResourceId))
       .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
+  def masterServices = masters.map(_.getService("mesos-master", new File(binDir, "mesos-master").getCanonicalPath))
+
+  /**
+   * Returns a list of EC2Instances for all the masters in the cluster
+   */
   def masters = {
-    EC2Instance.update()
-    EC2Instance.client.describeTags().getTags()
+    region.update()
+    region.client.describeTags().getTags()
       .filter(_.getResourceType equals "instance")
       .filter(_.getKey equals "mesos")
       .filter(_.getValue equals "master")
-      .map(t => EC2Instance.getInstance(t.getResourceId))
+      .map(t => region.getInstance(t.getResourceId))
       .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
+  /**
+   * Returns a list of EC2Instances for all the zookeepers in the clsuter
+   */
   def zooKeepers = {
-    EC2Instance.update()
-    EC2Instance.client.describeTags().getTags()
+    region.update()
+    region.client.describeTags().getTags()
       .filter(_.getResourceType equals "instance")
       .filter(_.getKey equals "mesos")
       .filter(_.getValue equals "zoo")
-      .map(t => EC2Instance.getInstance(t.getResourceId))
+      .map(t => region.getInstance(t.getResourceId))
       .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
+  /**
+   * Returns he canonical address for the zookeeper quorum for this cluster
+   */
   def zooKeeperAddress = "zk://%s/".format(zooKeepers.map(_.publicDnsName + ":2181").mkString(","))
+
+  /**
+   * Returns a handle to the root of the the zookeeper quorum for this cluster
+   */
   def zooKeeperRoot = ZooKeeperNode(zooKeeperAddress)
 
+  /**
+   * Configure all zookepers running to operate in a quorum.
+   * Starts at at least numServers if they aren't already running.
+   */
   def setupZooKeeper(numServers: Int = 1): Unit = {
     val missingServers = numServers - zooKeepers.size
 
-    if(missingServers > 0) {
-    val ret = EC2Instance.runInstances(
-      mesosAmi,
-      missingServers,
-      missingServers,
-      EC2Instance.keyName,
-      "m1.large",
-      defaultZone,
-      None)
+    if (missingServers > 0) {
+      val ret = region.runInstances(
+        mesosAmi,
+        missingServers,
+        missingServers,
+        region.keyName,
+        "m1.large",
+        defaultZone,
+        None)
 
       ret.foreach(_.tags += ("mesos", "zoo"))
       ret.foreach(_.blockUntilRunning)
@@ -156,67 +266,85 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 
     val servers = zooKeepers.zipWithIndex
 
-    val serverList = servers.map {case (server, id: Int) => "server.%d=%s:3181:3182".format(id + 1, server.privateDnsName)}.toList
+    val serverList = servers.map {
+      case (server, id: Int) => "server.%d=%s:3181:3182".format(id + 1, server.privateDnsName)
+    }.toList
 
     val cnf =
       ("dataDir=/mnt/zookeeper" ::
-       "clientPort=2181" ::
-       "tickTime=1000" ::
-       "initLimit=60"::
-       "syncLimit=30" :: 
-       (if(servers.size > 1) serverList else Nil)).mkString("\n")
+        "clientPort=2181" ::
+        "tickTime=1000" ::
+        "initLimit=60" ::
+        "syncLimit=30" ::
+        (if (servers.size > 1) serverList else Nil)).mkString("\n")
 
-    val startScript =
-      ("#!/bin/bash" ::
-      "/root/jrun org.apache.zookeeper.server.quorum.QuorumPeerMain /mnt/zookeeper.cnf" :: Nil).mkString("\n")
+    val startCommand = "/$HOME/jrun org.apache.zookeeper.server.quorum.QuorumPeerMain /mnt/zookeeper.cnf"
 
     servers.pforeach {
       case (server, id: Int) =>
         server ! "mkdir -p /mnt/zookeeper"
         server.createFile(new File("/mnt/zookeeper.cnf"), cnf)
         server.createFile(new File("/mnt/zookeeper/myid"), (id + 1).toString)
-        server.createFile(new File("/mnt/startZookeeper"), startScript)
-        server ! "chmod 755 /mnt/startZookeeper"
+
+        val zooService = server.getService("zookeeper", startCommand)
 
         server.pushJars(MesosCluster.jarFiles)
         server.executeCommand("killall java")
-        server ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/zookeeper.pid --exec /mnt/startZookeeper"
+        zooService.start
     }
 
     println(cnf)
   }
 
+  /**
+   * Returns the EC2Instance for the first mesos master
+   */
   def firstMaster = masters.head
 
+  /**
+   * Copy the mesos binaries from the master to all slaves
+   */
   def updateMesos =
     slaves.pforeach(s =>
       firstMaster ! "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /usr/local/mesos root@%s:/usr/local/mesos".format(s.publicDnsName))
 
+  /**
+   * Returns the mesos cluster url
+   */
   def clusterUrl: String =
-    if(useFT)
+    if (useFT)
       "zoo://" + zooKeeperRoot.proxy.servers.mkString(",") + zooKeeperRoot.getOrCreate("mesos").path
     else
       "master@" + firstMaster.publicDnsName + ":5050"
 
-  def restartSlaves(): Unit = {
-    slaves.pforeach(i => {i ! "service mesos-slave stop"; i ! "service mesos-slave start"})
-  }
+  /**
+   * Restart the mesos-slave process for all slaves
+   */
+  def restartSlaves(): Unit = slaveServices.pforeach(_.restart)
 
-  def restartMasters(): Unit = {
-    masters.foreach {
-      master =>
-        master ! "service mesos-master stop"
-        master ! "service mesos-master start"
-    }
-  }
+  /**
+   * Restart the mesos-master process for all masters
+   */
+  def restartMasters(): Unit = masterServices.pforeach(_.restart)
 
+  /**
+   * Restart masters, slaves, and the service scheduler.  Also kills any java procs running on slaves.
+   */
   def restart(): Unit = {
+    masters.pforeach(_ ! "killall -9 mesos-master")
+    masters.pforeach(_ ! "killall -9 java")
+    slaves.pforeach(_ ! "killall -9 mesos-slave")
+
     restartMasters
     restartSlaves
     restartServiceScheduler
     slaves.pforeach(_.executeCommand("killall java"))
   }
 
+  /**
+   * Update the slaves file for the mesos scripts located in /root/mesos-ec2
+   */
+  @deprecated("don't use the mesos scripts anymore", "v2.1.2")
   def updateSlavesFile: Unit = {
     val location = new File("/root/mesos-ec2/slaves")
     val contents = slaves.map(_.privateDnsName).mkString("\n")
@@ -227,12 +355,15 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     }
   }
 
+  /**
+   * Start and configure the specified number of masters.
+   */
   def startMasters(zone: String = defaultZone, count: Int = 1, ami: String = mesosAmi): Seq[EC2Instance] = {
-    val ret = EC2Instance.runInstances(
+    val ret = region.runInstances(
       ami,
       count,
       count,
-      EC2Instance.keyName,
+      region.keyName,
       "m1.large",
       zone,
       None)
@@ -240,36 +371,39 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     ret.pforeach(i => {
       i.tags += ("mesos", "master")
       i.blockUntilRunning
-      updateConf(i :: Nil)
+      updateSlaveConf(i :: Nil)
     })
 
     restartMasters
     ret
   }
 
+  /**
+   * Add slaves to the cluster
+   */
   def addSlaves(count: Int, zone: String = defaultZone, ami: String = mesosAmi, updateDeploylibOnStart: Boolean = true): Seq[EC2Instance] = {
     val userData =
       if (updateDeploylibOnStart)
         None
       else
         try {
-	      masters.foreach(_.blockUntilRunning)
-          Some("url=" + clusterUrl) 
-		} catch {
+          masters.foreach(_.blockUntilRunning)
+          Some("url=" + clusterUrl)
+        } catch {
           case noMaster: java.util.NoSuchElementException =>
             logger.warning("No master found. Starting without userdata")
             None
         }
 
-    val instances = EC2Instance.runInstances(
+    val instances = region.runInstances(
       ami,
       count,
       count,
-      EC2Instance.keyName,
+      region.keyName,
       "m1.large",
       zone,
       userData)
-	instances.foreach(_.tags += ("mesos", "slave"))
+    instances.foreach(_.tags += ("mesos", "slave"))
 
     if (updateDeploylibOnStart) {
       //Hack to avoid race condition where there are no masters yet because they haven't been tagged.
@@ -280,8 +414,8 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       instances.pforeach(i => try {
         i.blockUntilRunning
         updateDeploylib(i :: Nil)
-        updateConf(i :: Nil)
-        i ! "service mesos-slave restart"
+        updateSlaveConf(i :: Nil)
+        slaveService(i).start
       } catch {
         case e => logger.error(e, "Failed to start slave on instance %s:%s", i.instanceId, i.publicDnsName)
       })
@@ -290,34 +424,50 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     instances
   }
 
-  val baseConf = (
-      "webui_port=8080" ::
+  protected val baseConf = (
+    "webui_port=8080" ::
       "work_dir=/mnt" ::
       "log_dir=/mnt" ::
       "switch_user=0" ::
       "shares_interval=30" :: Nil)
 
-  def confWithUrl = ("master=" + clusterUrl) :: baseConf
+  protected def confWithUrl = ("master=" + clusterUrl) :: baseConf
+
+  /**
+   * Returns the contents of the mesos slave configuration file.
+   */
   def slaveConf(instance: EC2Instance) = (("mem=" + (instance.free.total - 1024)) ::
-					  confWithUrl).mkString("\n")
+    confWithUrl).mkString("\n")
 
-  val conffile = new File("/usr/local/mesos/conf/mesos.conf")
+  /**
+   * the location of the configuration file for both masters and slaves on the remote machine
+   */
+  val confFile = new File("/usr/local/mesos/conf/mesos.conf")
 
-  def updateConf(instances: Seq[EC2Instance] = slaves): Unit = {
-    instances.pforeach(i => i.createFile(conffile, slaveConf(i)))
+
+  /**
+   * Updates the slave configuration file on the specified instances (default all slaves)
+   */
+  def updateSlaveConf(instances: Seq[EC2Instance] = slaves): Unit = {
+    instances.pforeach(i => i.createFile(confFile, slaveConf(i)))
   }
 
+  /**
+   * Updates the master configuration file on all masters.
+   */
   def updateMasterConf: Unit = {
     val masterConf =
-      if(useFT)
+      if (useFT)
         confWithUrl.mkString("\n")
       else
         baseConf.mkString("\n")
 
-    masters.pforeach(_.createFile(conffile, masterConf))
+    masters.pforeach(_.createFile(confFile, masterConf))
   }
 
-  //TODO: Doesn't handle non s3 cached jars
+  /**
+   * Returns S3 Cached jars for all jar files specified in MesosCluster.jarFiles.  This will upload any jar files that don't already exist
+   */
   def classSource: Seq[S3CachedJar] =
     if (System.getProperty("deploylib.classSource") == null)
       pushJars.map(_.getName)
@@ -342,24 +492,32 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
    * TODO: Dedup keys
    */
   def authorizeMaster: Unit = {
-    val getKeyCommand = "cat /root/.ssh/id_rsa.pub"
+    val getKeyCommand = "cat /$HOME/.ssh/id_rsa.pub"
     val key = try (firstMaster !? getKeyCommand) catch {
       case u: UnknownResponse => {
-        firstMaster ! "ssh-keygen -t rsa -f /root/.ssh/id_rsa -N \"\""
+        firstMaster ! "ssh-keygen -t rsa -f /$HOME/.ssh/id_rsa -N \"\""
         firstMaster !? getKeyCommand
       }
     }
 
-    slaves.pforeach(_.appendFile(new File("/root/.ssh/authorized_keys"), key))
+    slaves.pforeach(_.appendFile(new File("/$HOME/.ssh/authorized_keys"), key))
   }
 
-  //HACK to work around still broken webui
+  /**
+   * Tail stdout of the most recently started framework on all slaves and print the output to stdout of the local machine.
+   * Used for debugging.
+   */
   def tailSlaveLogs: Unit = {
     val workDir = new File("/mnt/work")
-    slaves.pmap(s => {
-      val currentSlaveDir = new File(workDir, s.ls(workDir).sortBy(_.modDate).last.name)
-      val currentFrameworkDir = new File(currentSlaveDir, s.ls(currentSlaveDir).head.name)
-      (s, new File(currentFrameworkDir, "0/stdout"))
-    }).foreach {case (s,l) => s.watch(l)}
+    slaves.pforeach(s => {
+      try {
+        val currentSlaveDir = new File(workDir, s.ls(workDir).sortBy(_.modDate).last.name)
+        val currentFrameworkDir = new File(currentSlaveDir, s.ls(currentSlaveDir).head.name)
+        s.watch(new File(currentFrameworkDir, "0/stdout"))
+      }
+      catch {
+        case e => logger.warning("No frameworks on %s", s.publicDnsName)
+      }
+    })
   }
 }
