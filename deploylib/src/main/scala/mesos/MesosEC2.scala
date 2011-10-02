@@ -506,7 +506,10 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
   @deprecated("use watchSlaveLogs", "v2.1.2")
   def tailSlaveLogs = watchSlaveLogs
 
-  //HACK to work around still broken webui
+  /**
+   * Watch stdout of the most recently started framework on all slaves and print the output to stdout of the local machine.
+   * Used for debugging.
+   */
   def watchSlaveLogs: Unit = {
     val workDir = new File("/mnt/work")
     slaves.pforeach(s => {
