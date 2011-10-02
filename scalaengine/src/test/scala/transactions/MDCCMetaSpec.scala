@@ -1,0 +1,78 @@
+package edu.berkeley.cs.scads.test.transactions
+
+import _root_.edu.berkeley.cs.scads.storage.transactions.MDCCMetaHelper
+import _root_.edu.berkeley.cs.scads.storage.transactions.MDCCMetaHelper._
+import org.scalatest.matchers.ShouldMatchers
+import edu.berkeley.cs.scads.comm._
+import org.scalatest.{WordSpec, BeforeAndAfterAll, Spec}
+
+/**
+ * Created by IntelliJ IDEA.
+ * User: tim
+ * Date: 10/1/11
+ * Time: 5:21 PM
+ * To change this template use File | Settings | File Templates.
+ */
+
+class MDCCMetaSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll{
+  "A MDCCMetaHelper" should {
+
+    "increase the vote" in {
+      val meta = MDCCMetadata(1, MDCCBallotRange(1, 2, 0, null, false) :: MDCCBallotRange(3, 10, 0, null, false) :: Nil)
+      var newRound = MDCCMetaHelper.increaseRound(meta)
+      meta.currentRound should be (1)
+      meta.ballots(0) should be (MDCCBallotRange(1, 2, 0, null, false))
+      meta.ballots(1) should be (MDCCBallotRange(3, 10, 0, null, false))
+      newRound.currentRound should be (2)
+      newRound.ballots.size should be (2)
+      newRound.ballots(0) should be (MDCCBallotRange(2, 2, 0, null, false))
+      newRound.ballots(1) should be (MDCCBallotRange(3, 10, 0, null, false))
+      newRound = MDCCMetaHelper.increaseRound(newRound)
+      newRound.currentRound should be (3)
+      newRound.ballots.size should be (1)
+      newRound.ballots(0) should be (MDCCBallotRange(3, 10, 0, null, false))
+    }
+
+    "replace a ballot range" in {
+      val metaRange = MDCCBallotRange(5, 10, 1, null, false) :: MDCCBallotRange(11, 20, 5, null, false) :: MDCCBallotRange(21, 25, 3, null, false) :: Nil
+      val beginning = MDCCMetaHelper.replace(metaRange, MDCCBallotRange(0, 7, 0, null, false))
+      beginning  should equal (MDCCBallotRange(0,7,2,null,false) :: MDCCBallotRange(8,10,1,null,false) :: MDCCBallotRange(11,20,5,null,false) :: MDCCBallotRange(21,25,3,null,false) :: Nil)
+      val middle = MDCCMetaHelper.replace(metaRange, MDCCBallotRange(7, 15, 0, null, false))
+      middle should equal  (List(MDCCBallotRange(5,6,1,null,false), MDCCBallotRange(7,15,6,null,false), MDCCBallotRange(16,20,5,null,false), MDCCBallotRange(21,25,3,null,false)))
+      val rCorner = MDCCMetaHelper.replace(metaRange, MDCCBallotRange(15, 20, 0, null, false))
+      rCorner should equal (List(MDCCBallotRange(5,10,1,null,false), MDCCBallotRange(11,14,5,null,false), MDCCBallotRange(15,20,6,null,false), MDCCBallotRange(21,25,3,null,false)))
+      val lCorner = MDCCMetaHelper.replace(metaRange, MDCCBallotRange(11, 15, 0, null, false))
+      lCorner should equal (List(MDCCBallotRange(5,10,1,null,false), MDCCBallotRange(11,15,6,null,false), MDCCBallotRange(16,20,5,null,false), MDCCBallotRange(21,25,3,null,false)))
+      val full = MDCCMetaHelper.replace(metaRange, MDCCBallotRange(11, 20, 0, null, false))
+      full should equal  (List(MDCCBallotRange(5,10,1,null,false), MDCCBallotRange(11,20,6,null,false), MDCCBallotRange(21,25,3,null,false)))
+    }
+
+    "make the next round fast" in {
+      val meta = MDCCMetadata(1,  MDCCBallotRange(1, 10, 3, null, false) :: MDCCBallotRange(11, 20, 0, null, false) :: Nil)
+      val newMeta = MDCCMetaHelper.makeNextRoundFast(meta)
+      newMeta.currentRound should be (2)
+      newMeta.ballots(0) should be (MDCCBallotRange(2,2,4,null,true))
+
+      newMeta.ballots(1) should be (MDCCBallotRange(3,10,3,null,false))
+      newMeta.ballots(2) should be (MDCCBallotRange(11, 20, 0, null, false))
+    }
+
+
+    "get ownership" in {
+     val foreign = StorageService("foreign", 1000, ActorName("foreign"))
+     val local = StorageService("local", 1000, ActorName("local"))
+     val meta = MDCCMetadata(1,  MDCCBallotRange(1, 10, 3, foreign, false) :: MDCCBallotRange(11, 20, 0, local, false) :: Nil)
+     val newMeta = getOwnership(meta)(local)
+     newMeta.ballots should equal (List(MDCCBallotRange(1,1,4,local,false), MDCCBallotRange(2,10,3,foreign,false), MDCCBallotRange(11,20,0,local,false)))
+
+    }
+
+    "test fast round " in {
+      val meta = MDCCMetadata(1,  MDCCBallotRange(1, 1, 3, null, true) :: MDCCBallotRange(2, 20, 0, null, false) :: Nil)
+      fastRound(meta) should be (true)
+      fastRound(MDCCMetadata(1,  MDCCBallotRange(1, 1, 3, null, false) :: MDCCBallotRange(2, 20, 0, null, false) :: Nil)) should be (false)
+    }
+
+
+  }
+}
