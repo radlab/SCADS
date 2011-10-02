@@ -87,11 +87,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
       "scads.comm.handlerClass",
       classOf[netty.DefaultNettyChannelManager[_, _]].getName)
     logger.info("Using handler impl class: %s".format(clzName))
-
-    logger.error("Using classloader %s", schema.classLoader)
-//    val cl = schema.classLoader.loadClass("edu.berkeley.cs.scads.comm.test.messages.package$TestMessages$class")
-//    val cl2 = schema.classLoader.loadClass("edu.berkeley.cs.scads.comm.test.messages.TestMsg1")
-    //logger.error("Found class %s", cl)
+    logger.debug("ServiceRegistry using classloader %s", schema.classLoader)
 
     val clz = Class.forName(clzName).asInstanceOf[Class[AvroChannelManager[MessageEnvelope, MessageEnvelope]]]
     val ctor = clz.getConstructor(classOf[Function3[_, _, _, _]], classOf[ClassLoader], classOf[TypedSchema[_]], classOf[TypedSchema[_]])

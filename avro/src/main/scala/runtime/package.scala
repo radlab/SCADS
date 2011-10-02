@@ -32,7 +32,6 @@ package object runtime {
       // yes, this is disturbing
       val implClassName = clz.getName + "$class"
       val unionClz = Class.forName(implClassName)
-      println("found class: " + unionClz)
       val schema = unionClz.getMethod("getSchema", clz).invoke(null, null).asInstanceOf[Schema]
       TypedSchema[C](schema, unionClz.getClassLoader)
     } else {
