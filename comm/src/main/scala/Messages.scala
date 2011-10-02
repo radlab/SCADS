@@ -4,6 +4,7 @@ package comm
 
 import avro.marker.{ AvroRecord, AvroUnion, AvroPair }
 import java.nio.ByteBuffer
+import java.util.UUID
 
 /* Base message type for all scads messages */
 sealed trait MessageBody extends AvroUnion
@@ -60,8 +61,8 @@ case class GroupedAgg(var group:Option[Array[Byte]], var groupVals:Seq[Array[Byt
 case class AggReply(var results:Seq[GroupedAgg]) extends AvroRecord with KeyValueStoreOperation
 
 /* Transaction KVStore Metadata */
-case class MDCCBallot(var round: Long, var vote: Int, var server: StorageService, var fast: Boolean) extends AvroRecord
-case class MDCCBallotRange(var startRound: Long, var endRound: Option[Long], var vote: Int, var server: StorageService, var fast: Boolean) extends AvroRecord
+case class MDCCBallot(var round: Long, var vote: Int, var server: SCADSService, var fast: Boolean) extends AvroRecord
+case class MDCCBallotRange(var startRound: Long, var endRound: Long, var vote: Int, var server: SCADSService, var fast: Boolean) extends AvroRecord
 case class MDCCMetadata(var currentRound: Long, var ballots: Seq[MDCCBallotRange]) extends AvroRecord
 // TODO: Does this also need a 'committed' flag in addition to 'pending'?
 case class CStructCommand(var xid: ScadsXid, var command: RecordUpdate, var pending: Boolean) extends AvroRecord
@@ -76,6 +77,7 @@ case class MDCCRecord(var value: Option[Array[Byte]], var metadata: MDCCMetadata
 sealed trait RecordUpdate extends AvroUnion {
   var key: Array[Byte]
 }
+
 case class LogicalUpdate(var key: Array[Byte], var delta: Array[Byte]) extends AvroRecord with RecordUpdate
 // The newValue is the avro serialized TxRecord type
 sealed trait PhysicalUpdate extends RecordUpdate {
@@ -87,7 +89,8 @@ sealed trait PhysicalUpdate extends RecordUpdate {
 // stored version.
 case class VersionUpdate(var key: Array[Byte], var newValue: Array[Byte]) extends AvroRecord with PhysicalUpdate
 // Update will check that the oldValue matches the stored value.  If oldValue
-// is None, it means there was no record, and the update is an insert.
+// is None, it means either there was no record, and the update is an insert,
+// or it is a blind write.
 case class ValueUpdate(var key: Array[Byte], var oldValue: Option[Array[Byte]], var newValue: Array[Byte]) extends AvroRecord with PhysicalUpdate
 
 // Simple integrity constraints
@@ -115,6 +118,14 @@ case class ScadsXid(var tid: Long, var bid: Long) extends AvroRecord {
   }
 }
 
+object  ScadsXid {
+  var count = 0
+  def createUniqueXid() : ScadsXid = {
+    val uuid = UUID.randomUUID()
+    new ScadsXid(uuid.getMostSignificantBits, uuid.getLeastSignificantBits)
+  }
+}
+
 case class Transaction(var xid: ScadsXid, var updates: Seq[RecordUpdate])  extends AvroRecord
 
 sealed trait TrxMessage extends KeyValueStoreOperation
@@ -122,7 +133,11 @@ sealed trait TrxMessage extends KeyValueStoreOperation
 /* Transaction MDCC Paxos */
 sealed trait MDCCProtocol extends TrxMessage
 
-case class Propose(var trx: Transaction) extends AvroRecord with MDCCProtocol
+case class BeMaster(var key: Array[Byte], var startRound: Long, var endRound: Long, var fast : Boolean) extends AvroRecord with MDCCProtocol
+
+case class ProposeTrx(var trx: Transaction) extends AvroRecord with MDCCProtocol
+
+case class Propose(var xid: ScadsXid, var update: RecordUpdate) extends AvroRecord with MDCCProtocol
 
 case class Phase1a(var key: Array[Byte], var ballot: MDCCBallotRange) extends AvroRecord with MDCCProtocol
 
@@ -132,9 +147,11 @@ case class Phase2a(var key: Array[Byte], var ballot: MDCCBallot, var value: CStr
 
 //case class Phase2aClassic(var key: Array[Byte], var ballot: MDCCBallot, var command: RecordUpdate) extends AvroRecord with MDCCProtocol
 
-case class Phase2bClassic(var ballot: MDCCBallot, var value: CStruct) extends AvroRecord with MDCCProtocol
+case class Phase2bClassic(var ballot: MDCCBallot, var value: Option[CStruct]) extends AvroRecord with MDCCProtocol
 
-case class Phase2bFast(var ballot: MDCCBallot, var value: CStruct) extends AvroRecord with MDCCProtocol
+case class Phase2bFast(var ballot: MDCCBallot, var value: Option[CStruct]) extends AvroRecord with MDCCProtocol
+
+case class Accept(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
 
 /* Transaction KVStore Operations */
 sealed trait TxProtocol2pc extends TrxMessage

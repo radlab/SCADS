@@ -1,5 +1,7 @@
-package edu.berkeley.cs.scads.storage
+package edu.berkeley.cs.scads.storage.transactions.prot2pc
 
+
+import _root_.edu.berkeley.cs.scads.storage.transactions._
 import edu.berkeley.cs.scads.comm._
 
 import net.lag.logging.Logger
@@ -7,7 +9,7 @@ import net.lag.logging.Logger
 import java.lang.Thread
 import java.util.Calendar
 
-import TxStatus._
+sealed case class RecordUpdateInfo(servers: Seq[PartitionService], update: RecordUpdate)
 
 object Protocol2pc extends ProtocolBase {
   def RunProtocol(tx: Tx) {
@@ -15,6 +17,25 @@ object Protocol2pc extends ProtocolBase {
     val tid = Calendar.getInstance().getTimeInMillis()
     val commitTest = PrepareTest(tx, tid)
     CommitTest(tx, tid, commitTest)
+  }
+
+  protected def transformUpdateList(updateList: UpdateList, readList: ReadList): Seq[RecordUpdateInfo] = {
+    updateList.getUpdateList.map(update => {
+      update match {
+        case ValueUpdateInfo(servers, key, value) => {
+          val md = readList.getRecord(key).map(r =>
+            MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))     //TODO: Do we really need the MDCCMetadata
+          val newBytes = MDCCRecordUtil.toBytes(value, md)
+          RecordUpdateInfo(servers, ValueUpdate(key, None, newBytes))
+        }
+        case LogicalUpdateInfo(servers, key, value) => {
+          val md = readList.getRecord(key).map(r =>
+            MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
+          val newBytes = MDCCRecordUtil.toBytes(value, md)
+          RecordUpdateInfo(servers, LogicalUpdate(key, newBytes))
+        }
+      }
+    })
   }
 
   def PrepareTest(tx: Tx, tid: Long) = {

@@ -2,7 +2,6 @@ package edu.berkeley.cs.scads.storage.transactions.conflict
 
 import edu.berkeley.cs.scads.comm._
 
-import edu.berkeley.cs.scads.storage.MDCCRecordUtil
 import edu.berkeley.cs.scads.storage.transactions._
 
 import actors.threadpool.ThreadPoolExecutor.AbortPolicy

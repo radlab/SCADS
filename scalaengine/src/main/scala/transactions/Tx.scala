@@ -1,17 +1,18 @@
-package edu.berkeley.cs.scads.storage
+package edu.berkeley.cs.scads.storage.transactions
 
-import edu.berkeley.cs.scads.comm._
-
+import mdcc.MDCCHandler
 import net.lag.logging.Logger
 
 import java.lang.Thread
 import java.util.Calendar
+import prot2pc.Protocol2pc
 
-object TxStatus extends Enumeration {
-  type TxStatus = Value
-  val SUCCESS, FAILURE = Value
-}
-import TxStatus._
+sealed trait TxStatus { def name: String }
+case object UNKNOWN extends TxStatus { val name = "UNKNOWN" }
+case object COMMIT extends TxStatus { val name = "COMMIT" }
+case object ABORT extends TxStatus { val name = "ABORT" }
+
+
 
 sealed trait TxProtocol
 case class TxProtocolNone() extends TxProtocol
@@ -56,7 +57,7 @@ class Tx(timeout: Int)(mainFn: => Unit) {
     protocolMap.getProtocol() match {
       case TxProtocolNone() =>
       case TxProtocol2pc() => Protocol2pc.RunProtocol(this)
-      case TxProtocolMDCC() => ProtocolMDCC.RunProtocol(this)
+      case TxProtocolMDCC() => MDCCHandler.RunProtocol(this)
       case null => throw new RuntimeException("All namespaces in the transaction must have the same protocol.")
     }
   }

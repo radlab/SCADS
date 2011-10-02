@@ -1,4 +1,5 @@
-package edu.berkeley.cs.scads.storage
+package edu.berkeley.cs.scads.storage.transactions
+
 
 import edu.berkeley.cs.scads.comm._
 
@@ -7,9 +8,6 @@ import scala.collection.mutable.ListBuffer
 import net.lag.logging.Logger
 
 sealed trait UpdateInfo
-case class VersionUpdateInfo(servers: Seq[PartitionService],
-                             key: Array[Byte],
-                             rec: Option[Array[Byte]]) extends UpdateInfo
 case class ValueUpdateInfo(servers: Seq[PartitionService],
                            key: Array[Byte],
                            rec: Option[Array[Byte]]) extends UpdateInfo
@@ -21,10 +19,10 @@ case class LogicalUpdateInfo(servers: Seq[PartitionService],
 class UpdateList {
   private val updateList = new ListBuffer[UpdateInfo]
 
-  def appendVersionUpdate(servers: Seq[PartitionService],
+  def appendValueUpdateInfo(servers: Seq[PartitionService],
                           key: Array[Byte],
                           rec: Option[Array[Byte]]) = {
-    updateList.append(VersionUpdateInfo(servers, key, rec))
+    updateList.append(ValueUpdateInfo(servers, key, rec))
   }
 
   def appendLogicalUpdate(servers: Seq[PartitionService],

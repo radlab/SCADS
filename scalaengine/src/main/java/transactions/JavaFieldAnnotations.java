@@ -1,4 +1,4 @@
-package edu.berkeley.cs.scads.storage;
+package edu.berkeley.cs.scads.storage.transactions;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

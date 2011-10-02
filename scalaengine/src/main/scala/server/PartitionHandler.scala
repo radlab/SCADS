@@ -5,6 +5,7 @@ import net.lag.logging.Logger
 import scala.collection.mutable.ArrayBuffer
 import java.io.{BufferedReader, ObjectInputStream, InputStream, InputStreamReader, ByteArrayInputStream}
 import java.util.concurrent.atomic.AtomicInteger
+import transactions.TrxManager
 
 
 // keep track of number of gets and puts

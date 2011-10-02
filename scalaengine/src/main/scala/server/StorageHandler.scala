@@ -19,6 +19,7 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable.{ Set => MSet, HashSet }
 
 import org.apache.zookeeper.KeeperException.NodeExistsException
+import transactions.{Protocol2PCManager, TrxManager}
 
 object StorageHandler {
   val idGen = new AtomicLong

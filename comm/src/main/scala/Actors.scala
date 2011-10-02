@@ -32,8 +32,8 @@ object Actors {
 case class RemoteActor(var host: String, var port: Int, var id: ActorId) extends RemoteActorProxy with AvroRecord
 
 /* Specific types for different services. Note: these types are mostly for readability as typesafety isn't enforced when serialized individualy*/
-case class StorageService(var host: String, var port: Int, var id: ActorId) extends RemoteActorProxy with AvroRecord
-case class PartitionService(var host: String, var port: Int, var id: ActorId, var partitionId: String, var storageService:StorageService) extends RemoteActorProxy with AvroRecord
+case class StorageService(var host: String, var port: Int, var id: ActorId) extends SCADSService with AvroRecord
+case class PartitionService(var host: String, var port: Int, var id: ActorId, var partitionId: String, var storageService:StorageService) extends SCADSService with AvroRecord
 
 case class TimeoutException(msg: MessageBody) extends Exception
 
@@ -41,7 +41,9 @@ object RemoteActorProxy {
   val logger = Logger()
 }
 
-trait RemoteActorProxy {
+sealed trait SCADSService extends AvroUnion with  RemoteActorProxy
+
+trait RemoteActorProxy  {
   var host: String
   var port: Int
   var id: ActorId

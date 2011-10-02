@@ -1,11 +1,11 @@
 package edu.berkeley.cs.scads.storage.examples
-
+import edu.berkeley.cs.scads.storage.transactions._
 import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.marker.AvroRecord
 
 import scala.actors.Actor._
 
-import edu.berkeley.cs.scads.storage.FieldAnnotations._
+import edu.berkeley.cs.scads.storage.transactions.FieldAnnotations._
 
 import java.lang.annotation.Documented
 import annotation.target.field

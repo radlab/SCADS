@@ -2,7 +2,6 @@ package edu.berkeley.cs.scads.storage.transactions.conflict
 
 import edu.berkeley.cs.scads.comm._
 
-import edu.berkeley.cs.scads.storage.MDCCRecordUtil
 import edu.berkeley.cs.scads.storage.transactions._
 
 import actors.threadpool.ThreadPoolExecutor.AbortPolicy
@@ -39,7 +38,9 @@ trait PendingUpdates extends DBRecords {
   // if all outstanding Cmd might be NullOps
   // If accepted, returns all the cstructs for all the keys.  Otherwise, None
   // is returned.
-  def accept(xid: ScadsXid, updates: Seq[RecordUpdate]): Option[Seq[(Array[Byte], CStruct)]]
+  def accept(xid: ScadsXid, updates: Seq[RecordUpdate]): Seq[(Array[Byte], CStruct)]
+
+  def accept(xid: ScadsXid, update: RecordUpdate): Option[(Array[Byte], CStruct)]
 
   // Value is chosen (reflected in the db) and confirms trx state.
   def commit(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean
@@ -47,6 +48,8 @@ trait PendingUpdates extends DBRecords {
   def abort(xid: ScadsXid)
 
   def getDecision(xid: ScadsXid): Status.Status
+
+  def  getMeta(key : Array[Byte]) : Option[MDCCMetadata]
 
   def getCStruct(key: Array[Byte]): Option[CStruct]
 
@@ -84,11 +87,19 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     println("ics: " + valueICs)
   }
 
-  override def accept(xid: ScadsXid, updates: Seq[RecordUpdate]) = {
+  override def getMeta(key : Array[Byte]) : Option[MDCCMetadata] = {
+    throw new RuntimeException("Not implemented")
+  }
+
+  override def accept(xid: ScadsXid, update: RecordUpdate): Option[(Array[Byte], CStruct)] = {
+    accept(xid, update :: Nil).headOption
+  }
+
+  override def accept(xid: ScadsXid, updates: Seq[RecordUpdate]) : Seq[(Array[Byte], CStruct)] = {
     var success = true
     val txn = db.txStart()
     val pendingCommandsTxn = pendingCStructs.txStart()
-    var cstructs: Seq[(Array[Byte], CStruct)] = null
+    var cstructs: Seq[(Array[Byte], CStruct)] = Nil
     try {
       cstructs = updates.map(r => {
         if (success) {
@@ -132,9 +143,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       pendingCStructs.txAbort(pendingCommandsTxn)
       // TODO: Handle the case when the commit arrives before the prepare.
       txStatus.putNoOverwrite(null, xid, TxStatusEntry(Status.Reject, updates))
-      cstructs = null
+      cstructs = Nil
     }
-    Option(cstructs)
+    cstructs
   }
 
   override def commit(xid: ScadsXid, updates: Seq[RecordUpdate]) = {

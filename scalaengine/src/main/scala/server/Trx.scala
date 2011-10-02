@@ -1,4 +1,4 @@
-package edu.berkeley.cs.scads.storage
+package edu.berkeley.cs.scads.storage.transactions
 
 import _root_.edu.berkeley.cs.scads.comm._
 import _root_.edu.berkeley.cs.scads.comm.CommitResponse._
@@ -30,6 +30,7 @@ class Protocol2PCManager(manager: StorageManager)  extends TrxManager(manager) {
          }
          reply(CommitResponse(success))
        }
+       case _ => reply(ProcessingException("Trx Message Not Implemented", ""))
      }
    }
 }

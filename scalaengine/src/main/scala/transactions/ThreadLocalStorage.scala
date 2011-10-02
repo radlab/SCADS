@@ -1,4 +1,4 @@
-package edu.berkeley.cs.scads.storage
+package edu.berkeley.cs.scads.storage.transactions
 
 import scala.util.DynamicVariable
 

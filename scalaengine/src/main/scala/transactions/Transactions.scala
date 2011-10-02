@@ -1,4 +1,5 @@
-package edu.berkeley.cs.scads.storage
+package edu.berkeley.cs.scads.storage.transactions
+import edu.berkeley.cs.scads.storage._
 
 import edu.berkeley.cs.avro.marker._
 
@@ -180,7 +181,7 @@ with TransactionRecordMetadata {
         responses.blockFor(servers.length, 500, TimeUnit.MILLISECONDS)
       }
       case Some(updateList) => {
-        updateList.appendVersionUpdate(servers, key, value)
+        updateList.appendValueUpdateInfo(servers, key, value)
       }
     }
   }
@@ -294,14 +295,7 @@ trait TransactionRecordMetadata extends SimpleRecordMetadata {
   }
 
   override def compareMetadata(lhs: Array[Byte], rhs: Array[Byte]): Int = {
-    val txRecL = MDCCRecordUtil.fromBytes(lhs)
-    val txRecR = MDCCRecordUtil.fromBytes(rhs)
-    if (txRecL.metadata.currentRound < txRecR.metadata.currentRound)
-      return -1
-    else if (txRecL.metadata.currentRound > txRecR.metadata.currentRound)
-      return 1
-    else
-      return 0
+    MDCCMetaHelper.compareMetadata(MDCCRecordUtil.fromBytes(lhs).metadata,  MDCCRecordUtil.fromBytes(rhs).metadata)
   }
 
   override def extractMetadataAndRecordFromValue(value: Array[Byte]): (Array[Byte], Array[Byte]) = {
