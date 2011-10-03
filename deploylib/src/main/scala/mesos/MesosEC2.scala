@@ -19,7 +19,8 @@ object ServiceSchedulerDaemon extends optional.Application {
       javaExecutorPath
     )
     val serviceSchedulerNode = ZooKeeperNode(zooKeeperAddress)
-    serviceSchedulerNode.data = scheduler.remoteHandle.remoteService.toBytes
+    val remoteService = scheduler.remoteHandle
+    serviceSchedulerNode.data = new RemoteServiceScheduler(remoteService.host, remoteService.port, remoteService.id).toBytes
   }
 }
 
@@ -118,7 +119,7 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
   /**
    * A handle to the service scheduler for the cluster
    */
-  def serviceScheduler = new RemoteServiceScheduler(classOf[RemoteService].newInstance.parse(serviceSchedulerNode.data))
+  def serviceScheduler = classOf[RemoteServiceScheduler].newInstance.parse(serviceSchedulerNode.data)
 
   /**
    * Kills all instances running on EC2 for this mesos cluster cluster (masters, slaves, zookeepers)

@@ -69,8 +69,8 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
    * case class MessageEnvelope[MessageType](var src: Option[ActorId], var dest: ActorId, var id: Option[Long], var body: MessageType) extends AvroRecord
    */
   protected val envelopeSchema = new TypedSchema[MessageEnvelope](Schema.createRecord(
-    new Schema.Field("src", TypedSchemas.schemaOf[ServiceId], null, null) ::
-    new Schema.Field("dest", TypedSchemas.schemaOf[ServiceId], null, null) ::
+    new Schema.Field("src", schemaOf[ServiceId], null, null) ::
+    new Schema.Field("dest", schemaOf[ServiceId], null, null) ::
     new Schema.Field("msg", schema, null, null) :: Nil),
     this.getClass.getClassLoader)
 
@@ -179,7 +179,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     logger.trace("Received Message: %s from %s", msg, src)
 
     if (service != null) {
-      val srcProxy = if(msg.get(0) == null) None else Some(new RemoteServiceProxy[MessageType](RemoteService(src.hostname, src.port, msg.get(0).asInstanceOf[ServiceId])))
+      val srcProxy = if(msg.get(0) == null) None else Some(RemoteService[MessageType](src.hostname, src.port, msg.get(0).asInstanceOf[ServiceId]))
       srcProxy.foreach(_.registry = this)
       service.receiveMessage(srcProxy, msg.get(2).asInstanceOf[MessageType])
     }
@@ -221,7 +221,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
   def registerService(service: MessageReceiver[MessageType]): RemoteServiceProxy[MessageType] = {
     val id = ServiceNumber(curActorId.getAndIncrement)
     serviceRegistry.put(id, service)
-    val svc = new RemoteServiceProxy[MessageType](RemoteService(hostname, localPort, id))
+    val svc = RemoteService[MessageType](hostname, localPort, id)
     svc.registry = this
     svc
   }
@@ -231,7 +231,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     val value0 = serviceRegistry.putIfAbsent(key, service)
     if (value0 ne null)
       throw new IllegalArgumentException("Service with %s already registered: %s".format(id, service))
-    val svc = new RemoteServiceProxy[MessageType](RemoteService(hostname, localPort, key))
+    val svc = RemoteService[MessageType](hostname, localPort, key)
     svc.registry = this
     svc
   }

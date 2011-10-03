@@ -2,24 +2,16 @@ package edu.berkeley.cs.scads.comm
 
 import net.lag.logging.Logger
 
-import edu.berkeley.cs.avro.marker.AvroRecord
 import org.apache.avro.generic.IndexedRecord
+import edu.berkeley.cs.avro.marker.{AvroUnion, AvroRecord}
+
+trait X[A]
 
 /* Generic Remote Actor Handle */
-case class RemoteService(var host: String,
+case class RemoteService[MessageType <: IndexedRecord](var host: String,
                        var port: Int,
-                       var id: ServiceId) extends AvroRecord
+                       var id: ServiceId) extends RemoteServiceProxy[MessageType]
 
-/* Specific types for different services. Note: these types are mostly for readability as typesafety isn't enforced when serialized individualy*/
-case class StorageService(var host: String,
-                          var port: Int,
-                          var id: ServiceId) extends AvroRecord
-
-case class PartitionService(var host: String,
-                            var port: Int,
-                            var id: ServiceId,
-                            var partitionId: String,
-                            var storageService: StorageService) extends AvroRecord
 
 case class TimeoutException(msg: IndexedRecord) extends Exception
 
@@ -27,10 +19,10 @@ object RemoteServiceProxy {
   val logger = Logger()
 }
 
-class RemoteServiceProxy[MessageType <: IndexedRecord](val remoteService: RemoteService) {
-  def host: String = remoteService.host
-  def port: Int = remoteService.port
-  def id: ServiceId = remoteService.id
+trait RemoteServiceProxy[MessageType <: IndexedRecord] {
+  var host: String
+  var port: Int
+  var id: ServiceId
 
   import RemoteServiceProxy._
 
@@ -84,6 +76,7 @@ class RemoteServiceProxy[MessageType <: IndexedRecord](val remoteService: Remote
     future
   }
 
+  /*
   private var msgSet = List[(MessageType, MessageFuture[MessageType])]()
 
   /**
@@ -122,6 +115,7 @@ class RemoteServiceProxy[MessageType <: IndexedRecord](val remoteService: Remote
       }
     }
   }
+  */
   */
 }
 
