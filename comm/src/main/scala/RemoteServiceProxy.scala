@@ -5,8 +5,6 @@ import net.lag.logging.Logger
 import org.apache.avro.generic.IndexedRecord
 import edu.berkeley.cs.avro.marker.{AvroUnion, AvroRecord}
 
-trait X[A]
-
 /* Generic Remote Actor Handle */
 case class RemoteService[MessageType <: IndexedRecord](var host: String,
                        var port: Int,

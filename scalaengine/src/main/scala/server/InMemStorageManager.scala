@@ -139,7 +139,7 @@ class InMemStorageManager
     })
     records
   }
-  def getBatch(ranges:Seq[MessageBody]):ArrayBuffer[GetRangeResponse]  = {
+  def getBatch(ranges:Seq[StorageMessage]):ArrayBuffer[GetRangeResponse]  = {
     throw new RuntimeException("InMemStorageManager does not support ranges")
   }
   def countRange(minKey:Option[Array[Byte]], maxKey:Option[Array[Byte]]):Int  = {

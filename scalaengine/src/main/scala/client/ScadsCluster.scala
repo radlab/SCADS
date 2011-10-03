@@ -43,13 +43,13 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) { self =>
   def getAvailableServers(): List[StorageService] = {
     val availableServers = root.getOrCreate("availableServers").children
     for (server <- availableServers)
-      yield new StorageService().parse(server.data)
+      yield classOf[StorageService].newInstance.parse(server.data)
   }
 
 	def getAvailableServers(prefix:String):List[StorageService] = {
 		val availableServers = root.getOrCreate("availableServers").children.filter( _.name.split("!").head.equals(prefix))
     for (server <- availableServers)
-      yield new StorageService().parse(server.data)
+      yield classOf[StorageService].newInstance.parse(server.data)
 	}
 
   def getRandomServers(nbServer: Int): List[StorageService] = {
@@ -58,7 +58,7 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) { self =>
     (1 to nbServer)
       .map(i => randomGen.nextInt(availableServers.size))
       .map(i => availableServers(i))
-      .map(n => new StorageService().parse(n.data)).toList
+      .map(n => classOf[StorageService].newInstance.parse(n.data)).toList
   }
 
   def shutdown: Unit = {
@@ -160,12 +160,12 @@ class ManagedScadsCluster(_root: ZooKeeperProxy#ZooKeeperNode) extends ScadsClus
   /** The storage nodes managed by this cluster */
   private val managedStorageNodes = new ArrayBuffer[StorageHandler]
 
-  @inline private def toStorageService(ra: RemoteActor): StorageService = 
-    StorageService(ra.host, ra.port, ra.id)
+//  @inline private def toStorageService(ra: RemoteActor): StorageService =
+//    StorageService(ra.host, ra.port, ra.id)
 
   /** Get a list of all the managed storage nodes, as services */
   def managedServices: Seq[StorageService] =
-    managedStorageNodes.map(sh => toStorageService(sh.remoteHandle)).toSeq
+    managedStorageNodes.map(sh => StorageService(sh.remoteHandle)).toSeq
 
   /** Get a list of all the managed storage nodes, as storage handlers */
   def managedNodes: Seq[StorageHandler] =

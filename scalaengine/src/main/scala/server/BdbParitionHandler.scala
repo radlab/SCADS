@@ -45,8 +45,6 @@ class BdbStorageManager(val db: Database,
         new CursorBasedPartitionIterator(ps, minKey, maxKey, copyRecsPerMessage))
       case "actorfree" => Some((ps: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]]) =>
         new ActorlessPartitionIterator(ps, minKey, maxKey, copyRecsPerMessage))
-      case "actorbased" => Some((ps: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]]) =>
-        new PartitionIterator(ps, minKey, maxKey, copyRecsPerMessage))
       case invalid => 
         logger.info("copy iterator type %s is invalid", invalid)
         None
@@ -269,7 +267,7 @@ class BdbStorageManager(val db: Database,
     records
   }
 
-  def getBatch(ranges:Seq[MessageBody]):ArrayBuffer[GetRangeResponse] = {
+  def getBatch(ranges:Seq[StorageMessage]):ArrayBuffer[GetRangeResponse] = {
     val results = new ArrayBuffer[GetRangeResponse]
     results.sizeHint(ranges.size)
     ranges.foreach {

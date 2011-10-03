@@ -174,7 +174,7 @@ trait QuorumProtocol
 
   protected val serverBuffers = new HashMap[PartitionService, ArrayBuffer[PutRequest]]
 
-  protected case class OutstandingPut(timestamp: Long, server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], future: MessageFuture, tries: Int = 0)
+  protected case class OutstandingPut(timestamp: Long, server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], future: MessageFuture[StorageMessage], tries: Int = 0)
 
   protected val outstandingPuts = new collection.mutable.Queue[OutstandingPut]
 
@@ -236,7 +236,7 @@ trait QuorumProtocol
     if (isNew) doCreate()
     else getMetadata(ZK_QUORUM_CONFIG) match {
       case Some(bytes) => 
-        val config = new QuorumProtocolConfig
+        val config = classOf[QuorumProtocolConfig].newInstance
         config.parse(bytes)
         readQuorum  = config.readQuorum
         writeQuorum = config.writeQuorum
@@ -288,11 +288,11 @@ trait QuorumProtocol
     }
   }
 
-  class GetHandler(val key: Array[Byte], val futures: Seq[MessageFuture], val timeout: Long = 5000) extends RequestHandler{
-    private val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
+  class GetHandler(val key: Array[Byte], val futures: Seq[MessageFuture[StorageMessage]], val timeout: Long = 5000) extends RequestHandler{
+    private val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture[StorageMessage]]
     futures.foreach(_.forward(responses))
-    val losers = new ArrayBuffer[RemoteActorProxy] 
-    val winners = new ArrayBuffer[RemoteActorProxy]
+    val losers = new ArrayBuffer[RemoteServiceProxy[StorageMessage]]
+    val winners = new ArrayBuffer[RemoteServiceProxy[StorageMessage]]
     var winnerValue: Option[Array[Byte]] = None
     private var ctr = 0
     val timeoutCounter = new TimeoutCounter(timeout)
@@ -357,7 +357,7 @@ trait QuorumRangeProtocol
   with KeyRangeRoutable {
 
   /** assumes start/end key prepopulated w/ sentinel min/max values */
-  private def startGetRangeRequest(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], limit: Option[Int], offset: Option[Int], ascending: Boolean): (Seq[RangeDesc], Seq[Seq[MessageFuture]]) = {
+  private def startGetRangeRequest(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], limit: Option[Int], offset: Option[Int], ascending: Boolean): (Seq[RangeDesc], Seq[Seq[MessageFuture[StorageMessage]]]) = {
     val partitions = if (ascending) serversForKeyRange(startKey, endKey) else serversForKeyRange(startKey, endKey).reverse
 
     limit match {
@@ -378,9 +378,9 @@ trait QuorumRangeProtocol
    * already been sent out, and partitions are the available servers to pull
    * data from 
    */
-  private def finishGetRangeRequest(partitions: Seq[RangeDesc], ftchs: Seq[Seq[MessageFuture]], limit: Option[Int], offset: Option[Int], ascending: Boolean, timeout: Option[Long]): Seq[(Array[Byte], Array[Byte])] = {
+  private def finishGetRangeRequest(partitions: Seq[RangeDesc], ftchs: Seq[Seq[MessageFuture[StorageMessage]]], limit: Option[Int], offset: Option[Int], ascending: Boolean, timeout: Option[Long]): Seq[(Array[Byte], Array[Byte])] = {
 
-    def newRangeHandle(ftchs: Seq[MessageFuture]) = 
+    def newRangeHandle(ftchs: Seq[MessageFuture[StorageMessage]]) =
       timeout.map(t => new RangeHandle(ftchs, t)).getOrElse(new RangeHandle(ftchs))
 
     var handlers = ftchs.map(x => newRangeHandle(x)).toBuffer
@@ -438,18 +438,18 @@ trait QuorumRangeProtocol
    * Tests the range for conflicts and marks all violations for future resolution.
    * This class is optimized for none/few violations.
    */
-  class RangeHandle(val futures: Seq[MessageFuture], val timeout: Long = 10 * 1000) extends RequestHandler {
+  class RangeHandle(val futures: Seq[MessageFuture[StorageMessage]], val timeout: Long = 10 * 1000) extends RequestHandler {
     val timeoutCounter = new TimeoutCounter(timeout)
-    val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
+    val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture[StorageMessage]]
     futures.foreach(_.forward(responses))
 
     // TODO: hashing on byte array like this is no good. this should be redone
-    val losers = new HashMap[Array[Byte], (Array[Byte], List[RemoteActorProxy])]
+    val losers = new HashMap[Array[Byte], (Array[Byte], List[RemoteServiceProxy[StorageMessage]])]
     val winners = new ArrayBuffer[Record]
 
-    var baseServer: RemoteActorProxy = null //The whole comparison is based on the first response
+    var baseServer: RemoteServiceProxy[StorageMessage] = null //The whole comparison is based on the first response
 
-    val winnerExceptions = new HashMap[Array[Byte], RemoteActorProxy]
+    val winnerExceptions = new HashMap[Array[Byte], RemoteServiceProxy[StorageMessage]]
 
     val startTime = System.currentTimeMillis
     var failed = false
@@ -487,7 +487,7 @@ trait QuorumRangeProtocol
       }
     }
 
-    private def merge(newRecords: Seq[Record], newServer: RemoteActorProxy): Unit = {
+    private def merge(newRecords: Seq[Record], newServer: RemoteServiceProxy[StorageMessage]): Unit = {
       var recordPtr = newRecords
       var i = 0
       while (i < winners.length && !recordPtr.isEmpty) {
