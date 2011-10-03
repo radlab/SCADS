@@ -153,7 +153,7 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
         try {
           p1 !? GetRequest(IntRec(10).toBytes) match {
             case u @ GetResponse(_) => fail("10 is outside of p1's range - should return error: " + u)
-            case u => fail("Unexpected message: " + u)
+            case u => fail("Unexpected StorageMessage: " + u)
           }
         } catch {
           case e: RuntimeException =>

@@ -49,7 +49,7 @@ class HashKeyValueStoreSpec extends AbstractKeyValueStoreSpec {
                 keyStr.parse(a.key)
                 keyStr
               })
-            case _ => throw new RuntimeException("Unexpected Message")
+            case _ => throw new RuntimeException("Unexpected StorageMessage")
           }
           result = (partition, values) +: result
         }
