@@ -41,9 +41,10 @@ object ZooKeeperHelper {
 
     val serverPort = new SyncVar[Int]
 
-    val zooThread = new Thread {
+    val zooThread = new Thread("Local ZooKeeper") {
       override def run() {
-        while (true) {
+        var continue = true
+        while (continue) {
           val tryingPort = currentPort.getAndIncrement()
           logger.info("Trying to start zookeeper instance on port %d", tryingPort)
           try {
@@ -73,12 +74,16 @@ object ZooKeeperHelper {
           } catch {
             case portInUse: java.net.BindException => 
               logger.warning("Port %d is already in use, trying next port", tryingPort)
+            case i: java.lang.InterruptedException =>
+              logger.info("Zookeeper dying due to InterrupedException")
+              continue = false
             case otherError => 
               logger.critical("Unexpected error when creating test zookeeper: " + otherError + ". Attempting again")
           }
         }
       }
     }
+    zooThread.setDaemon(true)
     zooThread.start()
 
     val successPort = serverPort.get // blocks until server is ready
