@@ -55,7 +55,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
       getMethod.getResponseBodyAsString
     }
 
-  private val listeners = new CopyOnWriteArrayList[MessageHandlerListener[MessageEnvelope, MessageEnvelope]]
+  private val listeners = new CopyOnWriteArrayList[MessageHandlerListener]
 
   private lazy val delayExecutor = Executors.newScheduledThreadPool(0) /* Don't keep any core threads alive */
 
@@ -63,7 +63,6 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     doReceiveMessage(src, msg)
   }
 
-   type MessageEnvelope = org.apache.avro.generic.IndexedRecord
   /**
    * Manually created schema for
    * case class MessageEnvelope[MessageType](var src: Option[ActorId], var dest: ActorId, var id: Option[Long], var body: MessageType) extends AvroRecord
@@ -97,7 +96,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
   /**
    * Implemented in Java style for efficiency concerns
    */
-  @inline private def foldLeftListeners(evt: MessageHandlerEvent[MessageEnvelope, MessageEnvelope]): MessageHandlerResponse = {
+  @inline private def foldLeftListeners(evt: MessageHandlerEvent): MessageHandlerResponse = {
     if (listeners.isEmpty) RelayMessage
     else {
       val iter = listeners.iterator
@@ -142,7 +141,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     packaged.put(1, dest.id)
     packaged.put(2, msg)
 
-    val evt = MessagePending[MessageEnvelope, MessageEnvelope](dest, Left(packaged))
+    val evt = MessagePending(dest, Left(packaged))
     foldLeftListeners(evt) match {
       case RelayMessage => impl.sendMessage(dest.remoteNode, packaged)
       case DropMessage => /* Drop the message */
@@ -162,7 +161,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
 
   private def doReceiveMessage(src: RemoteNode, msg: MessageEnvelope) {
     logger.trace("Received message %s from %s", msg, src)
-    val evt = MessagePending[MessageEnvelope, MessageEnvelope](src, Right(msg))
+    val evt = MessagePending(src, Right(msg))
     foldLeftListeners(evt) match {
       case RelayMessage => doReceiveMessage0(src, msg)
       case DropMessage => /* Drop the message */
@@ -252,7 +251,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
    * list is implemented as a COW list, so it is recommended that listeners
    * are added as part of an initialization sequence, and not touched then.
    */
-  def registerListener(listener: MessageHandlerListener[MessageEnvelope, MessageEnvelope]) {
+  def registerListener(listener: MessageHandlerListener) {
     listeners.addIfAbsent(listener)
   }
 
@@ -261,21 +260,21 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
    *
    * Note: Is a no-op if listener is not already registered
    */
-  def unregisterListener(listener: MessageHandlerListener[MessageEnvelope, MessageEnvelope]) {
+  def unregisterListener(listener: MessageHandlerListener) {
     listeners.remove(listener)
   }
 
 }
 
-sealed abstract class MessageHandlerEvent[SendType, RecvType]
+sealed abstract class MessageHandlerEvent
 
 /**
  * Indicates that either a message is about to be sent, or a message is about
  * to be received. A LeftProjection of message indicates the former, a
  * RightProjection indicates the latter
  */
-case class MessagePending[SendType, RecvType](remote: Any, msg: Either[SendType, RecvType])
-  extends MessageHandlerEvent[SendType, RecvType]
+case class MessagePending(remote: Any, msg: Either[MessageEnvelope, MessageEnvelope])
+  extends MessageHandlerEvent
 
 sealed abstract class MessageHandlerResponse
 
@@ -301,11 +300,10 @@ case object RelayMessage extends MessageHandlerResponse
 /**
  * Base trait for a MessageHandler event listener
  */
-trait MessageHandlerListener[SendType, RecvType] {
+trait MessageHandlerListener {
 
   /**
    * Main method for listeners to supply.
    */
-  def handleEvent(evt: MessageHandlerEvent[SendType, RecvType]): MessageHandlerResponse
-
+  def handleEvent(evt: MessageHandlerEvent): MessageHandlerResponse
 }
