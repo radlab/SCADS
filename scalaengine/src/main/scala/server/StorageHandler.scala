@@ -34,7 +34,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
 
   val counterId = StorageHandler.idGen.getAndIncrement()
 
-  val registry = StorageRegistry
+  def registry = StorageRegistry
 
   override def toString = 
     "<CounterID: %d, EnvDir: %s, Handle: %s>".format(counterId, env.getHome.getCanonicalPath, remoteHandle)

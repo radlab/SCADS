@@ -53,7 +53,7 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
   protected def startup():Unit = manager.startup()
   protected def shutdown():Unit = manager.shutdown()
 
-  val registry = StorageRegistry
+  def registry = StorageRegistry
 
   // workload stats code
   protected var currentStats = PartitionWorkloadStats(0,0)

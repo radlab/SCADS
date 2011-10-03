@@ -27,9 +27,8 @@ trait MessageReceiver[MessageType <: IndexedRecord] {
  * TODO: fix this problem
  */
 abstract trait ServiceHandler[MessageType <: IndexedRecord] extends MessageReceiver[MessageType] {
-
   protected val logger: Logger
-  val registry: ServiceRegistry[MessageType]
+  def registry: ServiceRegistry[MessageType]
 
   /* Threadpool for execution of incoming requests */
   protected val outstandingRequests = new ArrayBlockingQueue[Runnable](1024) // TODO: read from config
