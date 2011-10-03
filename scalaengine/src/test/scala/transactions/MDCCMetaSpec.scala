@@ -73,6 +73,23 @@ class MDCCMetaSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll{
       fastRound(MDCCMetadata(1,  MDCCBallotRange(1, 1, 3, null, false) :: MDCCBallotRange(2, 20, 0, null, false) :: Nil)) should be (false)
     }
 
+    "combine MDCC" in {
+      val s1 = StorageService("s1", 1000, ActorName("s1"))
+      val s2 = StorageService("s2", 1000, ActorName("s2"))
+      val s3 = StorageService("s3", 1000, ActorName("s3"))
+      val meta1 = MDCCMetadata(3,  MDCCBallotRange(1, 10, 5, s1, false) :: MDCCBallotRange(11, 20, 5, s1, false) :: MDCCBallotRange(21, 30, 5, s1, false) :: Nil)
+      val meta2 = MDCCMetadata(5,  MDCCBallotRange(1, 10, 5, s2, false) :: MDCCBallotRange(11, 15, 6, s1, false) :: MDCCBallotRange(16, 18, 6, s2, false) :: MDCCBallotRange(19, 20, 6, s2, false) :: MDCCBallotRange(21, 40, 5, s1, false) :: Nil)
+      val meta3 = MDCCMetadata(6,  MDCCBallotRange(6, 6, 6, s3, true) :: MDCCBallotRange(7, 10, 5, s2, false) :: MDCCBallotRange(14, 18, 7, s1, false) :: MDCCBallotRange(23, 23, 5, s1, false) :: Nil)
+      val metaC1 = combine(meta1, meta2)
+      val metaC2 = combine(meta2, meta3)
+      println(metaC2)
+      meta1.ballots should equal (List(MDCCBallotRange(1, 10, 5, s1, false), MDCCBallotRange(11, 20, 5, s1, false), MDCCBallotRange(21, 30, 5, s1, false) ))
+      metaC1.currentRound should equal (5)
+      metaC1.ballots should equal (List(MDCCBallotRange(5,10,5,s2,false), MDCCBallotRange(11,15,6,s1,false), MDCCBallotRange(16,20,6,s2,false), MDCCBallotRange(21,40,5,s1,false)))
+      metaC2.currentRound should equal  (6)
+      metaC2.ballots should equal  (List(MDCCBallotRange(6,6,6,s3,true), MDCCBallotRange(7,10,5,s2,false), MDCCBallotRange(11,13,6,s1,false), MDCCBallotRange(14,18,7,s1,false), MDCCBallotRange(19,20,6,s2,false), MDCCBallotRange(21,40,5,s1,false)))
+    }
+
 
   }
 }

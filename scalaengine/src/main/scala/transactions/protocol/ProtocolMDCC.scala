@@ -99,11 +99,13 @@ class MCCCTrxHandler(tx: Tx) extends Actor {
 
   def act() {
     updates.foreach(_.start())
+    val proposeMsg = ProposeTrx()
+    updates.foreach(_ ! proposeMsg)
     loop {
       react {
         case FINISHED_RECORD => {
-          determined()
-          exit()
+          if (determined())
+            exit()
         }
         case _ =>
           throw new RuntimeException("Unknown message")
@@ -113,14 +115,25 @@ class MCCCTrxHandler(tx: Tx) extends Actor {
   }
 }
 
+object DefaultMetaData {
+
+  //TODO We should store the default in ZooKeeper, otherwise
+  //the protocol is incorrect
+  def getDefault(servers: Seq[PartitionService]) : MDCCMetadata = {
+    val minServer = servers.minBy(_.toString)
+    MDCCMetadata(0, MDCCBallotRange(0,0,0,minServer, false) :: Nil)
+  }
+
+}
+
 class MCCCRecordHandler (
         val update: RecordUpdate,
         val servers: Seq[PartitionService],
-        var metaOption: Option[MDCCMetadata],
+        metaOption: Option[MDCCMetadata],
         val Xid: ScadsXid) extends Actor {
   var futures: List[MessageFuture] = Nil
   var status: RecordStatus = FRESH
-  var meta = metaOption.get
+  var meta = if(metaOption.isEmpty) DefaultMetaData.getDefault(servers) else metaOption.get
 
   implicit val localAddress = null
 
@@ -138,10 +151,11 @@ class MCCCRecordHandler (
 
 
   def act() {
-    SendProposal()
+
     loop {
       react {
-        case BeMaster(key: Array[Byte], startRound: Long, endRound: Long, fast : Boolean) => Phase1a(key, startRound, endRound, fast)
+        case BeMaster(key: Array[Byte], startRound: Long, endRound: Long, fast : Boolean) => startPhase1a(key, startRound, endRound, fast)
+        case ProposeTrx() => SendProposal()
         case Phase1b(ballot: MDCCBallot, value: CStruct) =>
         case Phase2bClassic(ballot: MDCCBallot, value: CStruct) =>
         case Phase2bFast(ballot: MDCCBallot, value: CStruct) =>
@@ -152,13 +166,15 @@ class MCCCRecordHandler (
   }
 
 
-
   def selfNotification(body : MessageBody) = this.!(body)
 
 
-  def Phase1a(key: Array[Byte], startRound: Long, endRound: Long, fast : Boolean) : Unit =  {
+  def startPhase1a(key: Array[Byte], startRound: Long, endRound: Long, fast : Boolean) : Unit =  {
     if(isMaster(meta)) return  //I am already master
-
+    val newRange = getOwnership(meta, startRound, endRound, fast)
+    val phase1aMsg = Phase1a(update.key, newRange)
+    val futures : List[MessageFuture] = servers.map(_ !! phase1aMsg)
+    futures.foreach(_.respond(selfNotification ))
   }
 
   def SendProposal() = {
@@ -170,7 +186,7 @@ class MCCCRecordHandler (
       }else{
         val master = getMaster(meta)
         if(isMaster(meta)){
-           Phase2Start()
+           startPhase2()
         }else{
           (master !! propose) :: Nil
         }
@@ -180,7 +196,7 @@ class MCCCRecordHandler (
 
 
 
-  def Phase2Start() : List[MessageFuture] = {
+  def startPhase2() : List[MessageFuture] = {
     //Enabled if maxTried = [None]
     //leader received "1b" for balnom m from every acceptor in quorum
     // v = w add sigma, where sigma is element of Seq(propCmd ),
@@ -191,7 +207,7 @@ class MCCCRecordHandler (
     Nil
   }
 
-  def Accept() = {
+  def processAccept() = {
 
   }
 

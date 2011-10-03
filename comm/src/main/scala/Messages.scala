@@ -135,13 +135,13 @@ sealed trait MDCCProtocol extends TrxMessage
 
 case class BeMaster(var key: Array[Byte], var startRound: Long, var endRound: Long, var fast : Boolean) extends AvroRecord with MDCCProtocol
 
-case class ProposeTrx(var trx: Transaction) extends AvroRecord with MDCCProtocol
+case class ProposeTrx() extends AvroRecord with MDCCProtocol //This is a dummy message
 
 case class Propose(var xid: ScadsXid, var update: RecordUpdate) extends AvroRecord with MDCCProtocol
 
-case class Phase1a(var key: Array[Byte], var ballot: MDCCBallotRange) extends AvroRecord with MDCCProtocol
+case class Phase1a(var key: Array[Byte], var ballots: MDCCMetadata) extends AvroRecord with MDCCProtocol
 
-case class Phase1b(var ballot: MDCCBallot, var value: CStruct) extends AvroRecord with MDCCProtocol
+case class Phase1b(var ballots: MDCCMetadata, var value: CStruct) extends AvroRecord with MDCCProtocol
 
 case class Phase2a(var key: Array[Byte], var ballot: MDCCBallot, var value: CStruct) extends AvroRecord with MDCCProtocol
 

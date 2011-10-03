@@ -23,19 +23,13 @@ class ProtocolMDCCServer(manager: StorageManager, pendingUpdates: PendingUpdates
   def getMeta: MDCCMetadata  = null
 
   def processPropose(src: Option[RemoteActorProxy], xid: ScadsXid, update: RecordUpdate)(implicit sender: RemoteActorProxy)  = {
-    pendingUpdates.getMeta(update.key) match {
-      case None => src.map(_ ! ProcessingException("Inserts are not yet implemented", ""))
-      case Some(meta) => {
-        val master = getMaster(meta)
-        val result = pendingUpdates.accept(xid, update)
-        throw new RuntimeException("check implementation")
-        //src.map(_ !! Phase2bFast(meta.currentRound, result.map(_._2)))
-      }
-    }
+    val meta = pendingUpdates.getMeta(update.key)
+    val master = getMaster(meta)
+    val result = pendingUpdates.accept(xid, update)
   }
 
-  def processPhase1a(src: Option[RemoteActorProxy], key: Array[Byte], ballot: MDCCBallotRange) = {
-
+  def processPhase1a(src: Option[RemoteActorProxy], key: Array[Byte], ballot: MDCCMetadata) = {
+    val meta = pendingUpdates.getMeta(key)
 
 
   }

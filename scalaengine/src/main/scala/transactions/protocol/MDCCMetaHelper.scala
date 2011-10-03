@@ -1,6 +1,8 @@
 package edu.berkeley.cs.scads.storage.transactions
 
 import _root_.edu.berkeley.cs.scads.comm.{SCADSService, MDCCBallotRange, MDCCMetadata}
+import scala.math.{min, max}
+import collection.mutable.{ArrayBuffer, ArraySeq}
 
 /**
  * Created by IntelliJ IDEA.
@@ -116,11 +118,19 @@ object MDCCMetaHelper {
 
   }
 
-  @inline def min(a : Long, b : Long) : Long = if (a < b) a else b
-  @inline def max(a : Long, b : Long) : Long = if (a > b) a else b
-  @inline def max(a : Int, b : Int) : Int = if (a > b) a else b
+   def getOwnershipRange(meta : MDCCMetadata, startRound : Long, endRound :Long, fast : Boolean)(implicit r: SCADSService) : MDCCBallotRange = {
+    var ballots = meta.ballots
+    val newRange = MDCCBallotRange(startRound, endRound, 0, r, fast)
+    ballots = replace(ballots, newRange)
+    newRange
+   }
 
-  def getOwnership(meta : MDCCMetadata, startRound: Long, endRound: Long, r: SCADSService, fast : Boolean) : MDCCMetadata = {
+   def getOwnershipRange(meta : MDCCMetadata)(implicit r: SCADSService) : MDCCBallotRange = {
+    assert(validateMeta(meta))
+    MDCCBallotRange(meta.currentRound, meta.currentRound, meta.ballots.head.vote + 1, r, meta.ballots.head.fast)
+   }
+
+  def getOwnership(meta : MDCCMetadata, startRound: Long, endRound: Long, fast : Boolean)(implicit r: SCADSService) : MDCCMetadata = {
     assert(!fast || endRound - startRound == 1)  //it is not possible to have more than one fast round assigned
     assert(!(startRound == meta.currentRound) || fast == meta.ballots.head.fast) //you are not allowed to change the current type
     var ballots = meta.ballots
@@ -130,8 +140,69 @@ object MDCCMetaHelper {
     MDCCMetadata(meta.currentRound, ballots)
   }
 
+
+  def combine(lMeta : MDCCMetadata, rMeta : MDCCMetadata) : MDCCMetadata  = {
+
+    var left= lMeta.ballots
+    var right = rMeta.ballots
+    val result  = ArrayBuffer[MDCCBallotRange]()
+    var curRange : MDCCBallotRange = null
+    var firstRound =  max(lMeta.currentRound, rMeta.currentRound)
+    var curRound : Long =  firstRound
+    var nextRound : Long = 0
+
+    while(!(left.isEmpty && right.isEmpty)){
+      if (!left.isEmpty && left.head.endRound < curRound) {
+        left = left.tail
+      }else if (!right.isEmpty && right.head.endRound < curRound){
+        right = right.tail
+      }else{
+        val dominant =
+          if (left.isEmpty) {
+            nextRound = right.head.endRound + 1
+            right.head
+          }else if(right.isEmpty) {
+            nextRound = left.head.endRound + 1
+            left.head
+          } else if (curRound < left.head.startRound){ //Right is dominant
+            nextRound = min(left.head.startRound, right.head.endRound + 1)
+            right.head
+          }else if (curRound < right.head.startRound){  //Left is dominant
+            nextRound = min(right.head.startRound, left.head.endRound + 1)
+            left.head
+          }else{
+            nextRound = min(left.head.endRound + 1, right.head.endRound + 1)
+            if (compareMetadataRound(left.head, right.head) < 0){
+              right.head
+            }else{
+              left.head
+            }
+          }
+        if (curRange == null){
+          curRange = dominant.copy()
+          curRange.startRound = curRound
+          curRound = nextRound
+        }else{
+          if(compareMetadataRound(curRange,dominant) != 0 ){
+            val copy = curRange.copy()
+            copy.endRound = curRound - 1
+            result += copy
+            curRange = dominant.copy()
+            curRange.startRound = curRound
+          }
+          curRound = nextRound
+        }
+      }
+    }
+    curRange.endRound = curRound - 1
+    result += curRange
+    result.head.startRound = max(firstRound, result.head.startRound)
+    MDCCMetadata(firstRound, result)
+
+  }
+
   def getOwnership(meta : MDCCMetadata)(implicit r: SCADSService) : MDCCMetadata  = {
-    getOwnership(meta, meta.currentRound, meta.currentRound, r, meta.ballots.head.fast)
+    getOwnership(meta, meta.currentRound, meta.currentRound, meta.ballots.head.fast)(r)
   }
 
   private def buildRange(ranges : Seq[MDCCBallotRange], startRound: Long, endRound: Long, r: SCADSService, fast : Boolean) : MDCCBallotRange = {
@@ -166,6 +237,19 @@ object MDCCMetaHelper {
     meta.ballots.head.server
   }
 
+  def compareMetadataRound(lRange : MDCCBallotRange, rRange : MDCCBallotRange) : Int = {
+    if (lRange.fast && !rRange.fast)
+      return 1
+    else if (!lRange.fast && rRange.fast)
+      return -1
+    else if(lRange.vote < rRange.vote)
+      return -1
+    else if (lRange.vote > rRange.vote)
+      return 1
+    else
+      return lRange.server.toString.compare(rRange.server.toString())
+  }
+
   def compareMetadata(metaL : MDCCMetadata, metaR : MDCCMetadata): Int = {
     assert(validateMeta(metaL))
     assert(validateMeta(metaR))
@@ -174,16 +258,7 @@ object MDCCMetaHelper {
     else if (metaL.currentRound > metaR.currentRound)
       return 1
     else
-    {
-      val rangeL = metaL.ballots(0)
-      val rangeR = metaR.ballots(0)
-      if(rangeL.vote < rangeR.vote)
-        return -1
-      else if (rangeL.vote > rangeR.vote)
-        return 1
-      else
-        rangeL.server.toString.compare(rangeR.server.toString())
-    }
+      compareMetadataRound(metaL.ballots.head, metaR.ballots.head)
   }
 
 }
