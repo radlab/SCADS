@@ -7,12 +7,17 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Spec
 import org.scalatest.matchers.{Matcher, MatchResult, ShouldMatchers}
-import storage._
+
+import opt._
+import plans._
+import language._
+
+import storage.client.index._
 
 class OptimizerSpec extends Spec with ShouldMatchers {
   import Relations._
 
-  implicit def opt(logicalPlan: Queryable) = new {
+  implicit def opt(logicalPlan: LogicalPlan) = new {
     def opt = Optimizer(logicalPlan).physicalPlan
   }
 

@@ -2,9 +2,11 @@ package edu.berkeley.cs
 package scads
 package piql
 package scadr
+package test
 
 import storage.TestScalaEngine
-import piql._
+import piql.exec._
+import piql.debug._
 import piql.test._
 
 import scala.collection.JavaConversions._
