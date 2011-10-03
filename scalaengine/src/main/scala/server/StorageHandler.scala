@@ -85,6 +85,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     private val period = 20 // seconds
     private val intervalsToSave = 3
     protected lazy val statsThread = new Thread(new StatsManager(period), "workload statistic clearing thread")
+    statsThread.setDaemon(true)
     statsThread.start()
     
     class StatsManager(periodInSeconds:Int) extends Runnable {
