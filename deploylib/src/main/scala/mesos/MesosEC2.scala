@@ -87,7 +87,9 @@ object MesosCluster {
 /**
  * Functions to help maintain a mesos cluster on EC2.
  */
-class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) extends ConfigurationActions {
+class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) {
+  val logger = Logger()
+
   /**
    * The location of mesos on the remote machine
    */
@@ -161,9 +163,9 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
         case s => s
       }.mkString("\n")
 
-      createDirectory(inst, frameworkDir)
-      uploadFile(inst, new File("deploylib/src/main/resources/config"), frameworkDir)
-      createFile(inst, new File(frameworkDir, "java_executor"), executorScript, "755")
+      inst.mkdir(frameworkDir)
+      inst.upload(new File("deploylib/src/main/resources/config"), frameworkDir)
+      inst.createFile(new File(frameworkDir, "java_executor"), executorScript, "755")
     })
   }
 
@@ -363,7 +365,7 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
     masters.pforeach {
       master =>
         master.mkdir("/root/mesos-ec2")
-        createFile(master, location, contents, "644")
+        master.createFile(location, contents, "644")
     }
   }
 
