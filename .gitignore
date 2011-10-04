@@ -1,4 +1,5 @@
 assembly/
+results/
 project/boot/
 gen-*
 tags

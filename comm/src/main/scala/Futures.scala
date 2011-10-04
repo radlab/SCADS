@@ -65,9 +65,8 @@ object FutureReference {
       }
     }
   }
+  cleanupThread.setDaemon(true)
   cleanupThread.start()
-
-
 }
 
 class FutureReference(future: MessageFuture) extends java.lang.ref.WeakReference(future, FutureReference.staleMessages) with MessageReceiver {

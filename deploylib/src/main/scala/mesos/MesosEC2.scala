@@ -503,11 +503,14 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
     slaves.pforeach(_.appendFile(new File("/$HOME/.ssh/authorized_keys"), key))
   }
 
+  @deprecated("use watchSlaveLogs", "v2.1.2")
+  def tailSlaveLogs = watchSlaveLogs
+
   /**
-   * Tail stdout of the most recently started framework on all slaves and print the output to stdout of the local machine.
+   * Watch stdout of the most recently started framework on all slaves and print the output to stdout of the local machine.
    * Used for debugging.
    */
-  def tailSlaveLogs: Unit = {
+  def watchSlaveLogs: Unit = {
     val workDir = new File("/mnt/work")
     slaves.pforeach(s => {
       try {

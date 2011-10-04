@@ -20,6 +20,12 @@ object ScadsBuild extends Build {
       (report, source) =>
         val pluginClasspath = report matching configurationFilter(Configurations.CompilerPlugin.name)
         pluginClasspath.map("-Xplugin:" + _.getAbsolutePath).toSeq :+ "-deprecation" :+ "-unchecked" :+ "-Yrepl-sync" :+ ("-P:sxr:base-directory:" + source.getAbsolutePath)
+    },
+    /* HACK to work around broken ~ in 0.11.0 */
+    watchTransitiveSources <<=
+      Defaults.inDependencies[Task[Seq[File]]](
+        watchSources.task, const(std.TaskExtra.constant(Nil)), aggregate = true, includeRoot = true) apply {
+      _.join.map(_.flatten)
     })
 
   val deploySettings = buildSettings ++ DeployConsole.deploySettings
@@ -115,9 +121,9 @@ object ScadsBuild extends Build {
     file("axer"),
     settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin))
 
-  lazy val matheron = Project(
-    "matheron",
-    file("matheron"),
+  lazy val matheon = Project(
+    "matheon",
+    file("matheon"),
     settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
   ) dependsOn (config, comm, scalaEngine)
 
@@ -225,7 +231,7 @@ object DeployConsole extends BuildCommon {
     (thisProjectRef, thisProject, settings) flatMap {
       (projectRef: ProjectRef, project: ResolvedProject, data: Settings[Scope]) => {
         def visit(p: ProjectRef): Seq[Task[java.io.File]] = {
-          val depProject = thisProject in p get data getOrElse error("Invalid project: " + p)
+          val depProject = thisProject in p get data getOrElse sys.error("Invalid project: " + p)
           val jarFile = (Keys.`package` in (p, ConfigKey("runtime"))).get(data).get
           jarFile +: depProject.dependencies.map {
             case ResolvedClasspathDependency(dep, confMapping) => dep

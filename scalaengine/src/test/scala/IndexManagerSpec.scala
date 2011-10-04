@@ -9,8 +9,8 @@ import org.scalatest.matchers.ShouldMatchers
 
 import org.junit.runner.RunWith
 
-import comm._
 import avro.marker._
+import client.index._
 
 case class IndexedRecord(var f1: Int) extends AvroPair {
   var f2: String = _

@@ -86,6 +86,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     private val period = 20 // seconds
     private val intervalsToSave = 3
     protected lazy val statsThread = new Thread(new StatsManager(period), "workload statistic clearing thread")
+    statsThread.setDaemon(true)
     statsThread.start()
     
     class StatsManager(periodInSeconds:Int) extends Runnable {
@@ -274,8 +275,9 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
    *   Closes the bdb environment
    */
   protected def shutdown(): Unit = {
-    if (serverNode ne null) serverNode.delete()
-    else logger.warning("No server node for this storage handler %s", this)
+    try serverNode.delete() catch {
+      case e => logger.warning("failed to delete server node from zookeeper")
+    }
     partitions.values.foreach(_.stop)
     partitions.clear()
     namespaces.clear()
