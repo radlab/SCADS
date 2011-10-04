@@ -270,7 +270,7 @@ abstract class RemoteMachine {
    * @param file - The desired path of the file. If the given path is relative, the file will be created in the rootDirectory
    * @param contents - A string with the desired contents of the file
    */
-  def createFile(file: File, contents: String): Unit = {
+  def createFile(file: File, contents: String, mode: String = "644"): Unit = {
     useConnection((c) => {
       logger.debug("Creating file %s: %s %s", file, contents, prepareCommand("cat > " + file))
       val session = connection.openSession
@@ -279,6 +279,7 @@ abstract class RemoteMachine {
       session.getStdin().close()
       session.close()
     })
+    this ! "chmod %s %s".format(mode, file)
   }
 
   /**
