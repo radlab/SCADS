@@ -130,8 +130,12 @@ object ScadsBuild extends Build {
   lazy val consistency = Project(
     "consistency",
     file("consistency"),
-    settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
-  ) dependsOn (config, comm, scalaEngine)
+    settings = deploySettings ++ Seq(
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands in console += (
+        "import edu.berkeley.cs.scads.consistency._")
+    )
+  ) dependsOn (config, comm, perf, scalaEngine)
 
   /**
    * Dependencies

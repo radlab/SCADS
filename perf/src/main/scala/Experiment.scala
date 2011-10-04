@@ -48,4 +48,18 @@ trait TaskBase {
     cluster.serviceScheduler.scheduleExperiment(serverProcs)
     new ScadsCluster(clusterRoot)
   }
+
+  def newMDCCScadsCluster(size: Int, cluster1: Cluster, cluster2: Cluster): ScadsCluster = {
+    val clusterRoot = cluster1.zooKeeperRoot.getOrCreate("scads").createChild("experimentCluster", mode = CreateMode.PERSISTENT_SEQUENTIAL)
+
+    val serverProcs1 = Array.fill(size)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress).toJvmTask(cluster1.classSource))
+    val serverProcs2 = Array.fill(size)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress).toJvmTask(cluster2.classSource))
+
+    (serverProcs1 ++ serverProcs2).foreach(_.props += "scads.comm.externalip" -> "true")
+
+    cluster1.serviceScheduler.scheduleExperiment(serverProcs1)
+    cluster2.serviceScheduler.scheduleExperiment(serverProcs2)
+
+    new ScadsCluster(clusterRoot)
+  }
 }

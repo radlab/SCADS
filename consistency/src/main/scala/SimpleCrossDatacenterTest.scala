@@ -11,7 +11,9 @@ import storage._
 
 import net.lag.logging.Logger
 
-import edu.berkeley.cs.scads.storage.FieldAnnotations._
+import edu.berkeley.cs.scads.storage.transactions._
+import edu.berkeley.cs.scads.storage.transactions.FieldAnnotations._
+import edu.berkeley.cs.scads.perf._
 
 case class Result(var hostname: String,
 		  var timestamp: Long) extends AvroPair {
@@ -19,23 +21,9 @@ case class Result(var hostname: String,
 }
 
 object Experiment extends ExperimentBase {
-
-  def reset(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]) = {
-    results.delete()
-    results.open()
-    cluster.restart
-  }
-
-  lazy val results = resultCluster.getNamespace[Result]("singleDataCenterTest")
-  def goodResults = results.iterateOverRange(None,None)
-
-
-  def main(args: Array[String]): Unit = {
-//     val cluster = TestScalaEngine.newScadsCluster(2)
-//     val task = new Task(cluster.root.canonicalAddress,
-//			  cluster.root.canonicalAddress).run()
-
-//    graphPoints.toSeq.sortBy(r => (r._2, r._1)).foreach(println)
+  def run(cluster1: deploylib.mesos.Cluster,
+          cluster2: deploylib.mesos.Cluster): Unit = {
+    Task().schedule(resultClusterAddress, cluster1, cluster2)
   }
 }
 
@@ -60,28 +48,36 @@ case class Task(var replicationFactor: Int = 2)
   
   var resultClusterAddress: String = _
   var clusterAddress: String = _
+  var numDC: Int = _
 
-  def schedule(resultClusterAddress: String)(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
-    val scadsCluster = newScadsCluster(2)
-    clusterAddress = scadsCluster.root.canonicalAddress
+  def schedule(resultClusterAddress: String, cluster1: deploylib.mesos.Cluster,
+               cluster2: deploylib.mesos.Cluster): Unit = {
     this.resultClusterAddress = resultClusterAddress
-    val task = this.toJvmTask
-    cluster.serviceScheduler.scheduleExperiment(task :: Nil)
+    this.numDC = 2
+
+    val scadsCluster = newMDCCScadsCluster(2, cluster1, cluster2)
+
+    clusterAddress = scadsCluster.root.canonicalAddress
+
+    val task1 = this.toJvmTask(cluster1.classSource)
+    cluster1.serviceScheduler.scheduleExperiment(task1 :: Nil)
   }
 
   def run(): Unit = {
     val logger = Logger()
     val cluster = new ExperimentalScadsCluster(ZooKeeperNode(clusterAddress))
-    cluster.blockUntilReady(replicationFactor)
+    cluster.blockUntilReady(replicationFactor * numDC)
 
-    val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
-    val results = resultCluster.getNamespace[Result]("singleDataCenterTest")
+    println("cluster.getAvailableServers: " + cluster.getAvailableServers)
 
+//    val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
+//    val results = resultCluster.getNamespace[Result]("singleDataCenterTest")
 
     val ns = new SpecificNamespace[KeyRec, ValueRec]("testns", cluster, cluster.namespaces) with Transactions[KeyRec, ValueRec] {
       override val protocolType = TxProtocol2pc()
     }
     ns.open()
+    ns.setPartitionScheme(List((None, cluster.getAvailableServers)))
 
     ns.put(KeyRec(1), ValueRec("A", 1, 1, 1.0.floatValue, 1.0))
     ns.put(KeyRec(2), ValueRec("B", 1, 1, 1.0.floatValue, 1.0))
@@ -121,9 +117,9 @@ case class Task(var replicationFactor: Int = 2)
     tx5.Execute()
     ns.getRange(None, None).foreach(x => println(x))
 
-    val hostname = java.net.InetAddress.getLocalHost.getHostName
-    val result = Result(hostname, System.currentTimeMillis)
-    result.rows = ns.getRange(None, None).size
-    results.put(result)
+//    val hostname = java.net.InetAddress.getLocalHost.getHostName
+//    val result = Result(hostname, System.currentTimeMillis)
+//    result.rows = ns.getRange(None, None).size
+//    results.put(result)
   }
 }
