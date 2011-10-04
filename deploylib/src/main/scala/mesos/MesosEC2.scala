@@ -9,6 +9,8 @@ import edu.berkeley.cs.scads.comm._
 import java.io.File
 import collection.JavaConversions._
 import net.lag.logging.Logger
+import java.lang.RuntimeException
+
 object ServiceSchedulerDaemon extends optional.Application {
   val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
 
@@ -45,7 +47,7 @@ object MesosCluster {
       .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
 
     val inst =
-      if(oldInst.size == 0)
+      if (oldInst.size == 0)
         region.runInstances(1).head
       else
         oldInst.head
@@ -107,8 +109,17 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
   /**
    * The default availability zone used when launching new instances.
    */
-  val defaultZone =
-    if (region.endpoint contains "west") "us-west-1b" else "us-east-1b"
+  def availabilityZone: Option[String] = synchronized {
+    val activeZones = (masters ++ slaves ++ zooKeepers).map(_.availabilityZone).toSeq
+    if (activeZones.size == 1)
+      Some(activeZones.head)
+    else if (activeZones.size == 0) {
+      logger.info("Starting a master to determine a good zone to run in.")
+      startMasterInstances(1)
+      Some(masters.head.availabilityZone)
+    } else
+      throw new RuntimeException("Cluster is split across zones: " + activeZones)
+  }
 
   /**
    * The zookeeper node where the service scheduler registers itself
@@ -155,13 +166,9 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
   /**
    * Configure the mesos master, starting instances if needed.
    */
-  def setupMesosMaster(zone: String = defaultZone, numMasters: Int = 1, mesosAmi: Option[String] = None): Unit = {
-    if (masters.size < numMasters) {
-      mesosAmi match {
-        case Some(ami) => startMasters(zone, numMasters - masters.size, ami)
-        case None => startMasters(zone, numMasters - masters.size)
-      }
-    }
+  def setupMesosMaster(numMasters: Int = 1): Unit = {
+    if (masters.size < numMasters)
+      startMasters(numMasters - masters.size)
 
     masters.foreach(_.blockUntilRunning)
     masters.pforeach(_.pushJars(MesosCluster.jarFiles))
@@ -182,7 +189,7 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
     zooKeepers.foreach(_.blockUntilRunning)
     masters.pforeach(_.executeCommand("killall java"))
     val serviceSchedulerCmd =
-        "/$HOME/jrun -Dscads.comm.externalip=true deploylib.mesos.ServiceSchedulerDaemon " +
+      "/$HOME/jrun -Dscads.comm.externalip=true deploylib.mesos.ServiceSchedulerDaemon " +
         "--mesosMaster " + clusterUrl + " " +
         "--zooKeeperAddress " + serviceSchedulerNode.canonicalAddress
 
@@ -190,6 +197,7 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
   }
 
   protected def slaveService(inst: EC2Instance): ServiceManager#RemoteService = inst.getService("mesos-slave", new File(binDir, "mesos-slave").getCanonicalPath)
+
   def slaveServices = slaves.map(slaveService)
 
   /**
@@ -257,7 +265,7 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
         missingServers,
         region.keyName,
         "m1.large",
-        defaultZone,
+        availabilityZone,
         None)
 
       ret.foreach(_.tags += ("mesos", "zoo"))
@@ -355,33 +363,39 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
     }
   }
 
-  /**
-   * Start and configure the specified number of masters.
-   */
-  def startMasters(zone: String = defaultZone, count: Int = 1, ami: String = mesosAmi): Seq[EC2Instance] = {
-    val ret = region.runInstances(
-      ami,
+  protected def startMasterInstances(count: Int, zone: Option[String] = None): Seq[EC2Instance] = {
+    val instances = region.runInstances(
+      mesosAmi,
       count,
       count,
       region.keyName,
       "m1.large",
       zone,
       None)
+    instances.foreach(_.tags += ("mesos", "master"))
+    region.update()
+    instances
+  }
 
-    ret.pforeach(i => {
-      i.tags += ("mesos", "master")
+  /**
+   * Start and configure the specified number of masters.
+   */
+  def startMasters(count: Int = 1, ami: String = mesosAmi): Seq[EC2Instance] = {
+    val instances = startMasterInstances(count, availabilityZone)
+
+    instances.pforeach(i => {
       i.blockUntilRunning
       updateSlaveConf(i :: Nil)
     })
 
     restartMasters
-    ret
+    instances
   }
 
   /**
    * Add slaves to the cluster
    */
-  def addSlaves(count: Int, zone: String = defaultZone, ami: String = mesosAmi, updateDeploylibOnStart: Boolean = true): Seq[EC2Instance] = {
+  def addSlaves(count: Int, updateDeploylibOnStart: Boolean = true): Seq[EC2Instance] = {
     val userData =
       if (updateDeploylibOnStart)
         None
@@ -396,12 +410,12 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
         }
 
     val instances = region.runInstances(
-      ami,
+      mesosAmi,
       count,
       count,
       region.keyName,
       "m1.large",
-      zone,
+      availabilityZone,
       userData)
     instances.foreach(_.tags += ("mesos", "slave"))
 

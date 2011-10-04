@@ -100,35 +100,31 @@ class EC2Region(val endpoint: String) extends AWSConnection {
   def runInstance(): EC2Instance =
     runInstances(1)(0)
 
-  protected def defaultAMI =
+  /**
+   * An unconfigured instance store ubuntu ami
+   */
+  def defaultAMI =
     if (endpoint contains "west")
       "ami-89c694cc"
     else
       "ami-fbbf7892"
 
-  protected def defaultZone =
-    if (endpoint contains "west")
-      "us-west-1a"
-    else
-      "us-east-1a"
-
-
   /**
    * Launches the specified number of golden image instances with the default configuration.
    */
   def runInstances(num: Int): Seq[EC2Instance] =
-    runInstances(defaultAMI, num, num, keyName, "m1.large", defaultZone)
+    runInstances(defaultAMI, num, num, keyName, "m1.large", None)
 
   /**
    * Launches a set of instances with the given parameters
    */
-  def runInstances(imageId: String, min: Int, max: Int, keyName: String, instanceType: String, location: String, userData: Option[String] = None): Seq[EC2Instance] = {
+  def runInstances(imageId: String, min: Int, max: Int, keyName: String, instanceType: String, location: Option[String], userData: Option[String] = None): Seq[EC2Instance] = {
     val encoder = new sun.misc.BASE64Encoder
     val request = new RunInstancesRequest(imageId, min, max)
       .withKeyName(keyName)
       .withUserData(userData.map(s => encoder.encode(s.getBytes)).orNull)
       .withInstanceType(instanceType)
-      .withPlacement(new Placement(location))
+      .withPlacement(location.map(new Placement(_)).orNull)
 
     val result = client.runInstances(request)
 
