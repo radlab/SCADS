@@ -18,12 +18,18 @@ case class TestMsg1(var f1: Int) extends TestMessages with AvroRecord
 class RemoteServiceSpec extends Spec with ShouldMatchers {
   implicit object TestRegistry extends ServiceRegistry[TestMessages]
 
-  val msg = TestMsg1(1)
+  val req = TestMsg1(1)
+  val resp = TestMsg1(2)
 
-  object EchoService extends ServiceHandler[TestMessages] {
+
+
+  object TestService extends ServiceHandler[TestMessages] {
     val logger = net.lag.logging.Logger()
     val registry = TestRegistry
-    protected def process(src: Option[RemoteServiceProxy[TestMessages]], msg: TestMessages) = src.foreach(_ ! msg)
+    protected def process(src: Option[RemoteServiceProxy[TestMessages]], msg: TestMessages) = {
+      assert(msg == req)
+      src.foreach(_ ! resp)
+    }
     protected def startup() = null
     protected def shutdown() = null
   }
@@ -32,16 +38,16 @@ class RemoteServiceSpec extends Spec with ShouldMatchers {
     it("should send message asynchronously") {
       val mailbox = new MessageFuture[TestMessages]
       implicit val sender = mailbox.remoteService
-      mailbox.remoteService ! msg
-      mailbox.get(1000) should equal(Some(msg))
+      TestService.remoteHandle ! req
+      mailbox.get(1000) should equal(Some(resp))
     }
 
     it("should send messages synchronously") {
-      (EchoService.remoteHandle !? msg) should equal(msg)
+      (TestService.remoteHandle !? req) should equal(resp)
     }
 
     it("should send messages and return a future") {
-      (EchoService.remoteHandle !! msg).get(1000) should equal(Some(msg))
+      (TestService.remoteHandle !! req).get(1000) should equal(Some(resp))
     }
   }
 }

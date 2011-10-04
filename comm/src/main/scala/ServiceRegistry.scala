@@ -36,7 +36,7 @@ case class ServiceName(var name: String) extends AvroRecord with ServiceId
 class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema[MessageType]) {
 
   private val config = Config.config
-  private val logger = Logger()
+  val logger = Logger()
 
   private val curActorId = new AtomicLong
   private val serviceRegistry = new ConcurrentHashMap[ServiceId, MessageReceiver[MessageType]]
@@ -173,7 +173,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
   val invalidMessageCount = new java.util.concurrent.atomic.AtomicLong
 
   private def doReceiveMessage0(src: RemoteNode, msg: MessageEnvelope) {
-    val service = serviceRegistry.get(msg.get(0).asInstanceOf[ServiceId])
+    val service = serviceRegistry.get(msg.get(1).asInstanceOf[ServiceId])
 
     logger.trace("Received Message: %s from %s", msg, src)
 
