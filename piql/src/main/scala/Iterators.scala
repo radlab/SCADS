@@ -8,9 +8,9 @@ import net.lag.logging.Logger
 import org.apache.avro.util.Utf8
 import org.apache.avro.generic._
 
-import comm.{ScadsFuture, StringRec}
+import comm.ScadsFuture
 
-import java.{ util => ju }
+import java.{util => ju}
 import scala.collection.mutable.Queue
 import scala.collection.mutable.ArrayBuffer
 
@@ -23,7 +23,9 @@ case class Context(parameters: IndexedSeq[Any], state: Option[List[Any]])
 
 abstract class QueryIterator extends Iterator[Tuple] {
   val name: String
+
   def open: Unit
+
   def close: Unit
 }
 
@@ -35,6 +37,7 @@ trait QueryExecutor {
   protected val logger = Logger("edu.berkeley.cs.scads.piql.QueryExecutor")
 
   def apply(plan: QueryPlan, args: Any*): QueryIterator = apply(plan)(Context(args.toIndexedSeq, None))
+
   def apply(plan: QueryPlan)(implicit ctx: Context): QueryIterator
 
   final protected def bindValue(value: Value, currentTuple: Tuple)(implicit ctx: Context): Any = {
@@ -73,7 +76,7 @@ trait QueryExecutor {
     case InPredicate(v1, v2) => {
       val valueList = bindValue(v2, tuple).asInstanceOf[Seq[Any]]
       val boundValue = bindValue(v1, tuple)
-      valueList.foreach(v => if(compareAny(v,boundValue) == 0) return true)
+      valueList.foreach(v => if (compareAny(v, boundValue) == 0) return true)
       return false
     }
   }
@@ -83,7 +86,7 @@ trait QueryExecutor {
       val leftValue = bindValue(a, left)
       val rightValue = bindValue(a, right)
       val comparison = compareAny(leftValue, rightValue)
-      if(comparison != 0)
+      if (comparison != 0)
         return comparison
     })
     return 0
@@ -116,10 +119,12 @@ class SimpleExecutor extends QueryExecutor {
 
         def open: Unit =
           result = namespace.getRecord(boundKey)
+
         def close: Unit =
           result = None
 
         def hasNext = result.isDefined
+
         def next = {
           val tuple = ArrayBuffer(result.getOrElse(throw new ju.NoSuchElementException("Next on empty iterator")))
           result = None
@@ -128,48 +133,48 @@ class SimpleExecutor extends QueryExecutor {
       }
     }
     case IndexScan(namespace, keyPrefix, limit, ascending) => {
-        new QueryIterator {
-          val name = "SimpleIndexScan"
-          private val boundKeyPrefix = bindKey(namespace, keyPrefix)
-          private var result: Seq[Record] = Nil
-          private var pos = 0
-          private var offset = 0
-          private var limitReached = false
-          private val boundLimit = bindLimit(limit)
+      new QueryIterator {
+        val name = "SimpleIndexScan"
+        private val boundKeyPrefix = bindKey(namespace, keyPrefix)
+        private var result: Seq[Record] = Nil
+        private var pos = 0
+        private var offset = 0
+        private var limitReached = false
+        private val boundLimit = bindLimit(limit)
 
-          @inline private def doFetch() {
-            logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
-            result = namespace.getRange(boundKeyPrefix, boundKeyPrefix, offset=offset, limit=boundLimit, ascending=ascending)
-            logger.debug("IndexScan Prefetch Returned %s, with offset %d, limit %d", result, offset, boundLimit)
-            offset += result.size
-            pos = 0
-            if (result.size < boundLimit)
-              limitReached = true
-          }
-
-          def open: Unit = doFetch()
-
-          def close: Unit =
-            result = Nil
-
-          def hasNext =
-            if (pos < result.size) true
-            else if (limitReached) false
-            else {
-              // need to fetch more from KV store to see if we really have more
-              doFetch()
-              hasNext
-            }
-
-          def next = {
-            if (!hasNext)
-              throw new ju.NoSuchElementException("Next on empty iterator")
-
-            val tuple = ArrayBuffer(result(pos))
-            pos += 1
-            tuple
-          }
+        @inline private def doFetch() {
+          logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
+          result = namespace.getRange(boundKeyPrefix, boundKeyPrefix, offset = offset, limit = boundLimit, ascending = ascending)
+          logger.debug("IndexScan Prefetch Returned %s, with offset %d, limit %d", result, offset, boundLimit)
+          offset += result.size
+          pos = 0
+          if (result.size < boundLimit)
+            limitReached = true
         }
+
+        def open: Unit = doFetch()
+
+        def close: Unit =
+          result = Nil
+
+        def hasNext =
+          if (pos < result.size) true
+          else if (limitReached) false
+          else {
+            // need to fetch more from KV store to see if we really have more
+            doFetch()
+            hasNext
+          }
+
+        def next = {
+          if (!hasNext)
+            throw new ju.NoSuchElementException("Next on empty iterator")
+
+          val tuple = ArrayBuffer(result(pos))
+          pos += 1
+          tuple
+        }
+      }
     }
     case IndexLookupJoin(namespace, key, child) => {
       new QueryIterator {
@@ -177,10 +182,14 @@ class SimpleExecutor extends QueryExecutor {
         private val childIterator = apply(child)
         private var nextTuple: Tuple = null
 
-        def open = {childIterator.open; getNext}
+        def open = {
+          childIterator.open; getNext
+        }
+
         def close = childIterator.close
 
         def hasNext = (nextTuple != null)
+
         def next = {
           val ret = nextTuple
           getNext
@@ -188,13 +197,13 @@ class SimpleExecutor extends QueryExecutor {
         }
 
         private def getNext: Unit = {
-          while(childIterator.hasNext) {
+          while (childIterator.hasNext) {
             val childTuple = childIterator.next
             val boundKey = bindKey(namespace, key, childTuple)
             val value = namespace.getRecord(boundKey)
 
-            if(value.isDefined) {
-              nextTuple = childTuple ++ Array[Record](value.get)    //TODO: Why does it return the boundKey???
+            if (value.isDefined) {
+              nextTuple = childTuple ++ Array[Record](value.get) //TODO: Why does it return the boundKey???
               return
             }
           }
@@ -210,7 +219,7 @@ class SimpleExecutor extends QueryExecutor {
         private val childIterator = apply(child)
         private val boundLimit = bindLimit(limit)
 
-        /** (key, child tup, offset, limit reached?) */
+        /**(key, child tup, offset, limit reached?) */
         var tupleData: Array[(Record, Tuple, Int, Boolean)] = null
 
         var tupleBuffers: Array[IndexedSeq[Tuple]] = null
@@ -224,7 +233,7 @@ class SimpleExecutor extends QueryExecutor {
 
           val tupleDatum = childIterator.map(childValue => {
             val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
-            val records = namespace.getRange(boundKeyPrefix, boundKeyPrefix, limit=boundLimit, ascending=ascending)
+            val records = namespace.getRange(boundKeyPrefix, boundKeyPrefix, limit = boundLimit, ascending = ascending)
             logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", boundKeyPrefix, records)
 
             val recIdxSeq = records.map(r => childValue :+ r).toIndexedSeq
@@ -254,7 +263,7 @@ class SimpleExecutor extends QueryExecutor {
         private def fillBuffer(i: Int) {
           val (key, tup, offset, limitReached) = tupleData(i)
           assert(!limitReached)
-          val records = namespace.getRange(key, key, offset=offset, limit=boundLimit, ascending=ascending)
+          val records = namespace.getRange(key, key, offset = offset, limit = boundLimit, ascending = ascending)
           logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", key, records)
           tupleBuffers(i) ++= records.map(r => tup :+ r).toIndexedSeq
           tupleData(i) = ((key, tup, offset + records.size, records.size < boundLimit))
@@ -284,13 +293,13 @@ class SimpleExecutor extends QueryExecutor {
 
           if (minIdx == -1) nextTuple = null
           else {
-            for(i <- ((minIdx + 1) to (tupleBuffers.size - 1))) {
+            for (i <- ((minIdx + 1) to (tupleBuffers.size - 1))) {
               if (bufferPos(i) == tupleBuffers(i).size && !bufferLimitReached(i)) {
                 fillBuffer(i)
               }
 
               if (bufferPos(i) < tupleBuffers(i).size) {
-                if((ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) < 0)) ||
+                if ((ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) < 0)) ||
                   (!ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) > 0))) {
                   minIdx = i
                 }
@@ -312,10 +321,14 @@ class SimpleExecutor extends QueryExecutor {
         private val childIterator = apply(child)
         private var nextTuple: Tuple = null
 
-        def open = {childIterator.open; getNext}
+        def open = {
+          childIterator.open; getNext
+        }
+
         def close = childIterator.close
 
         def hasNext = (nextTuple != null)
+
         def next = {
           val ret = nextTuple
           getNext
@@ -323,9 +336,9 @@ class SimpleExecutor extends QueryExecutor {
         }
 
         private def getNext: Unit = {
-          while(childIterator.hasNext) {
+          while (childIterator.hasNext) {
             val childValue = childIterator.next
-            if(evalPredicate(predicate, childValue)) {
+            if (evalPredicate(predicate, childValue)) {
               nextTuple = childValue
               return
             }
@@ -341,30 +354,42 @@ class SimpleExecutor extends QueryExecutor {
         private val limit = bindLimit(k)
         private var taken = 0
 
-        def open = {taken = 0; childIterator.open}
-        def close = {childIterator.close}
+        def open = {
+          taken = 0; childIterator.open
+        }
+
+        def close = {
+          childIterator.close
+        }
 
         def hasNext = childIterator.hasNext && (limit > taken)
-        def next = {taken += 1; childIterator.next}
+
+        def next = {
+          taken += 1; childIterator.next
+        }
       }
     }
     case LocalIterator(ordinal, wrap) => {
       new QueryIterator {
-	val name = "LocalIterator"
-	private var delegate: Iterator[Tuple] = null
-	def open: Unit = {
-	  delegate = 
-	    if(wrap) //This is kinda gross... I'm sorry.
-	      ctx.parameters(ordinal).asInstanceOf[Seq[Any]].map(i => Vector(StringRec(i.asInstanceOf[String]))).toIterator
-	    else
-	      ctx.parameters(ordinal).asInstanceOf[Seq[Tuple]].toIterator
-	}
-	def close: Unit = delegate = null
-	def hasNext = delegate.hasNext
-	def next = delegate.next
+        val name = "LocalIterator"
+        private var delegate: Iterator[Tuple] = null
+
+        def open: Unit = {
+          delegate =
+            if (wrap) //This is kinda gross... I'm sorry.
+              ctx.parameters(ordinal).asInstanceOf[Seq[Any]].map(i => Vector(storage.StringRec(i.asInstanceOf[String]))).toIterator
+            else
+              ctx.parameters(ordinal).asInstanceOf[Seq[Tuple]].toIterator
+        }
+
+        def close: Unit = delegate = null
+
+        def hasNext = delegate.hasNext
+
+        def next = delegate.next
       }
     }
-    case Union(chil1, child2, eqField)  =>{
+    case Union(chil1, child2, eqField) => {
       throw new RuntimeException("Not yet implemented")
     }
   }
@@ -385,6 +410,7 @@ class ParallelExecutor extends SimpleExecutor {
 
         def open: Unit =
           ftch = Some(namespace.asyncGetRecord(boundKey))
+
         def close: Unit =
           ftch = None
 
@@ -399,65 +425,66 @@ class ParallelExecutor extends SimpleExecutor {
       }
     }
     case IndexScan(namespace, keyPrefix, limit, ascending) => {
-        new QueryIterator {
-          val name = "ParallelIndexScan"
-          private val boundKeyPrefix = bindKey(namespace, keyPrefix)
+      new QueryIterator {
+        val name = "ParallelIndexScan"
+        private val boundKeyPrefix = bindKey(namespace, keyPrefix)
 
-          private var result: Seq[Record] = Nil
-          private var ftch: ScadsFuture[Seq[Record]] = _
+        private var result: Seq[Record] = Nil
+        private var ftch: ScadsFuture[Seq[Record]] = _
 
-          private var pos = 0
-          private var offset = 0
-          private var limitReached = false
-          private val boundLimit = bindLimit(limit) + 1 // should get rid of 2nd getRange
-          private var ftchInvoked = false
+        private var pos = 0
+        private var offset = 0
+        private var limitReached = false
+        private val boundLimit = bindLimit(limit) + 1 // should get rid of 2nd getRange
+        private var ftchInvoked = false
 
-          @inline private def doFetch() {
-            logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
-            ftch = namespace.asyncGetRange(boundKeyPrefix, boundKeyPrefix, offset=offset, limit=boundLimit, ascending=ascending)
-            ftchInvoked = false
-          }
+        @inline private def doFetch() {
+          logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
+          ftch = namespace.asyncGetRange(boundKeyPrefix, boundKeyPrefix, offset = offset, limit = boundLimit, ascending = ascending)
+          ftchInvoked = false
+        }
 
-          @inline private def updateFuture() {
-            result = ftch.get
-            logger.debug("IndexScan Prefetch Returned %s, with offset %d, limit %d", result, offset, boundLimit)
-            offset += result.size
-            pos = 0
-            if (result.size < boundLimit)
-              limitReached = true
-            ftchInvoked = true
-          }
+        @inline private def updateFuture() {
+          result = ftch.get
+          logger.debug("IndexScan Prefetch Returned %s, with offset %d, limit %d", result, offset, boundLimit)
+          offset += result.size
+          pos = 0
+          if (result.size < boundLimit)
+            limitReached = true
+          ftchInvoked = true
+        }
 
-          def open: Unit = doFetch()
+        def open: Unit = doFetch()
 
-          def close: Unit = {
-            result = Nil
-            ftch = null
-          }
+        def close: Unit = {
+          result = Nil
+          ftch = null
+        }
 
-          def hasNext =
-            if (ftchInvoked) { // have we already blocked on ftch and stored the result in result?
-              if (pos < result.size) true
-              else if (limitReached) false
-              else {
-                // need to fetch more from KV store to see if we really have more
-                doFetch()
-                hasNext
-              }
-            } else {
-              updateFuture()
+        def hasNext =
+          if (ftchInvoked) {
+            // have we already blocked on ftch and stored the result in result?
+            if (pos < result.size) true
+            else if (limitReached) false
+            else {
+              // need to fetch more from KV store to see if we really have more
+              doFetch()
               hasNext
             }
-
-          def next = {
-            if (!hasNext)
-              throw new ju.NoSuchElementException("Next on empty iterator")
-
-            val tuple = ArrayBuffer(result(pos))
-            pos += 1
-            tuple
+          } else {
+            updateFuture()
+            hasNext
           }
+
+        def next = {
+          if (!hasNext)
+            throw new ju.NoSuchElementException("Next on empty iterator")
+
+          val tuple = ArrayBuffer(result(pos))
+          pos += 1
+          tuple
         }
+      }
     }
     case IndexLookupJoin(namespace, key, child) => {
       new QueryIterator {
@@ -467,7 +494,10 @@ class ParallelExecutor extends SimpleExecutor {
         private val ftchs = new Queue[(Tuple, Record, ScadsFuture[Option[Record]])]
         private val windowSize = 10 // keep 10 outstanding ftchs at a time
 
-        def open = {childIterator.open; fillFutures()}
+        def open = {
+          childIterator.open; fillFutures()
+        }
+
         def close = childIterator.close
 
         def hasNext = (nextTuple != null) || ({
@@ -524,7 +554,7 @@ class ParallelExecutor extends SimpleExecutor {
 
           tupleData = childIterator.map(childValue => {
             val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
-            val ftch = namespace.asyncGetRange(boundKeyPrefix, boundKeyPrefix, limit=boundLimit, ascending=ascending)
+            val ftch = namespace.asyncGetRange(boundKeyPrefix, boundKeyPrefix, limit = boundLimit, ascending = ascending)
             (boundKeyPrefix, childValue, 0, false, ftch)
           }).toArray
 
@@ -555,13 +585,13 @@ class ParallelExecutor extends SimpleExecutor {
 
           if (minIdx == -1) false
           else {
-            for(i <- ((minIdx + 1) to (tupleBuffers.size - 1))) {
+            for (i <- ((minIdx + 1) to (tupleBuffers.size - 1))) {
               if (bufferPos(i) == tupleBuffers(i).size && !bufferLimitReached(i)) {
                 fillBuffer(i)
               }
 
               if (bufferPos(i) < tupleBuffers(i).size) {
-                if((ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) < 0)) ||
+                if ((ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) < 0)) ||
                   (!ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) > 0))) {
                   minIdx = i
                 }
@@ -593,9 +623,11 @@ class ParallelExecutor extends SimpleExecutor {
           // TODO: is it slow to ++= append to an IndexedSeq??
           tupleBuffers(i) ++= records.map(tup :+ _)
 
-          if (records.size < boundLimit) { // end of records in KV store
+          if (records.size < boundLimit) {
+            // end of records in KV store
             tupleData(i) = ((null, null, -1, true, null)) // sentinel values
-          } else { // still can ask for more records
+          } else {
+            // still can ask for more records
             //val newOffset = records.size + offset
             //val newFtch = namespace.asyncGetRange(key, key, offset=newOffset, limit=boundLimit, ascending=ascending)
             //tupleData(i) = ((key, tup, newOffset, limitReached, newFtch))
@@ -637,11 +669,14 @@ class LazyExecutor extends SimpleExecutor {
         private lazy val result = namespace.getRecord(boundKey)
 
         def open {}
-        def close { accessed = true }
+
+        def close {
+          accessed = true
+        }
 
         def hasNext = accessed match {
           case false => result.isDefined
-          case true  => false
+          case true => false
         }
 
         def next = {
@@ -652,53 +687,54 @@ class LazyExecutor extends SimpleExecutor {
         }
       }
     }
-    case IndexScan(namespace, keyPrefix, _, ascending) => { // we don't care about limit here
-        new QueryIterator {
-          val name = "LazyIndexScan"
+    case IndexScan(namespace, keyPrefix, _, ascending) => {
+      // we don't care about limit here
+      new QueryIterator {
+        val name = "LazyIndexScan"
 
-          private val boundKeyPrefix = bindKey(namespace, keyPrefix)
+        private val boundKeyPrefix = bindKey(namespace, keyPrefix)
 
-          private var result: Record = null
+        private var result: Record = null
 
-          private var offset = 0
-          private var limitReached = false
+        private var offset = 0
+        private var limitReached = false
 
-          @inline private def doFetch() {
-            logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
-            val res = namespace.getRange(boundKeyPrefix, boundKeyPrefix, offset=offset, limit=1, ascending=ascending)
-            logger.debug("IndexScan Fetch Returned %s, with offset %d, limit %d", res, offset, 1)
-            offset += res.size
-            if (res.isEmpty) {
-              limitReached = true
-              result = null
-            } else {
-              result = res.head
-            }
-            assert(limitReached || (result ne null))
-          }
-
-          def open {}
-
-          def close {
-            result = null
+        @inline private def doFetch() {
+          logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
+          val res = namespace.getRange(boundKeyPrefix, boundKeyPrefix, offset = offset, limit = 1, ascending = ascending)
+          logger.debug("IndexScan Fetch Returned %s, with offset %d, limit %d", res, offset, 1)
+          offset += res.size
+          if (res.isEmpty) {
             limitReached = true
-          }
-
-          def hasNext =
-            if (result ne null) true
-            else if (!limitReached) {
-              doFetch()
-              hasNext
-            } else false
-
-          def next = {
-            if (!hasNext)
-              throw new ju.NoSuchElementException("Next on empty iterator")
-            val ret = ArrayBuffer(result)
             result = null
-            ret
+          } else {
+            result = res.head
           }
+          assert(limitReached || (result ne null))
         }
+
+        def open {}
+
+        def close {
+          result = null
+          limitReached = true
+        }
+
+        def hasNext =
+          if (result ne null) true
+          else if (!limitReached) {
+            doFetch()
+            hasNext
+          } else false
+
+        def next = {
+          if (!hasNext)
+            throw new ju.NoSuchElementException("Next on empty iterator")
+          val ret = ArrayBuffer(result)
+          result = null
+          ret
+        }
+      }
     }
     case IndexLookupJoin(namespace, key, child) => {
       new QueryIterator {
@@ -710,6 +746,7 @@ class LazyExecutor extends SimpleExecutor {
         private var needsInit = true
 
         def open {}
+
         def close {
           if (needsInit) needsInit = false
           else childIterator.close
@@ -730,12 +767,12 @@ class LazyExecutor extends SimpleExecutor {
         }
 
         private def getNext: Unit = {
-          while(childIterator.hasNext) {
+          while (childIterator.hasNext) {
             val childTuple = childIterator.next
             val boundKey = bindKey(namespace, key, childTuple)
             val value = namespace.getRecord(boundKey)
 
-            if(value.isDefined) {
+            if (value.isDefined) {
               nextTuple = childTuple ++ Array[Record](value.get)
               return
             }
@@ -750,7 +787,7 @@ class LazyExecutor extends SimpleExecutor {
 
         private val childIterator = apply(child)
 
-        /** (key, child tup, offset, limit reached?) */
+        /**(key, child tup, offset, limit reached?) */
         private var tupleData: Array[(Record, Tuple, Int, Boolean)] = null
 
         private var tupleBuffers: Array[IndexedSeq[Tuple]] = null
@@ -766,7 +803,7 @@ class LazyExecutor extends SimpleExecutor {
 
           val tupleDatum = childIterator.map(childValue => {
             val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
-            val records = namespace.getRange(boundKeyPrefix, boundKeyPrefix, limit=1, ascending=ascending)
+            val records = namespace.getRange(boundKeyPrefix, boundKeyPrefix, limit = 1, ascending = ascending)
             logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", boundKeyPrefix, records)
 
             val recIdxSeq = records.map(childValue :+ _).toIndexedSeq
@@ -807,7 +844,7 @@ class LazyExecutor extends SimpleExecutor {
         private def fillBuffer(i: Int) {
           val (key, tup, offset, limitReached) = tupleData(i)
           assert(!limitReached)
-          val records = namespace.getRange(key, key, offset=offset, limit=1, ascending=ascending)
+          val records = namespace.getRange(key, key, offset = offset, limit = 1, ascending = ascending)
           logger.debug("IndexMergeJoin Fetch Using Key %s: %s", key, records)
           tupleBuffers(i) ++= records.map(tup :+ _).toIndexedSeq
           tupleData(i) = ((key, tup, offset + records.size, records.size < 1))
@@ -837,13 +874,13 @@ class LazyExecutor extends SimpleExecutor {
 
           if (minIdx == -1) nextTuple = null
           else {
-            for(i <- ((minIdx + 1) to (tupleBuffers.size - 1))) {
+            for (i <- ((minIdx + 1) to (tupleBuffers.size - 1))) {
               if (bufferPos(i) == tupleBuffers(i).size && !bufferLimitReached(i)) {
                 fillBuffer(i)
               }
 
               if (bufferPos(i) < tupleBuffers(i).size) {
-                if((ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) < 0)) ||
+                if ((ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) < 0)) ||
                   (!ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) > 0))) {
                   minIdx = i
                 }
