@@ -44,6 +44,17 @@ class EC2Region(val endpoint: String) extends AWSConnection {
   protected val instances = new scala.collection.mutable.HashMap[String, EC2Instance]
   protected var lastUpdate = 0L
 
+  def forceUpdate(): Unit = {
+    val result = client.describeInstances(new DescribeInstancesRequest())
+    instanceData = Map(result.getReservations.flatMap((r) => {
+      r.getInstances.map((i) => {
+        (i.getInstanceId, i)
+      })
+    }): _*)
+    lastUpdate = System.currentTimeMillis()
+    logger.info("Updated EC2 instances state")
+  }
+
   /**
    * Update the metadata for all ec2 instances.
    * Safe to call repetedly, but will only actually update once ever 10 seconds.
@@ -53,14 +64,7 @@ class EC2Region(val endpoint: String) extends AWSConnection {
       if (System.currentTimeMillis() - lastUpdate < 10000)
         logger.debug("Skipping ec2 update since it was done less than 10 seconds ago")
       else {
-        val result = client.describeInstances(new DescribeInstancesRequest())
-        instanceData = Map(result.getReservations.flatMap((r) => {
-          r.getInstances.map((i) => {
-            (i.getInstanceId, i)
-          })
-        }): _*)
-        lastUpdate = System.currentTimeMillis()
-        logger.info("Updated EC2 instances state")
+        forceUpdate()
       }
     }
   }
@@ -100,35 +104,31 @@ class EC2Region(val endpoint: String) extends AWSConnection {
   def runInstance(): EC2Instance =
     runInstances(1)(0)
 
-  protected def defaultAMI =
+  /**
+   * An unconfigured instance store ubuntu ami
+   */
+  def defaultAMI =
     if (endpoint contains "west")
       "ami-89c694cc"
     else
       "ami-fbbf7892"
 
-  protected def defaultZone =
-    if (endpoint contains "west")
-      "us-west-1a"
-    else
-      "us-east-1a"
-
-
   /**
    * Launches the specified number of golden image instances with the default configuration.
    */
   def runInstances(num: Int): Seq[EC2Instance] =
-    runInstances(defaultAMI, num, num, keyName, "m1.large", defaultZone)
+    runInstances(defaultAMI, num, num, keyName, "m1.large", None)
 
   /**
    * Launches a set of instances with the given parameters
    */
-  def runInstances(imageId: String, min: Int, max: Int, keyName: String, instanceType: String, location: String, userData: Option[String] = None): Seq[EC2Instance] = {
+  def runInstances(imageId: String, min: Int, max: Int, keyName: String, instanceType: String, location: Option[String], userData: Option[String] = None): Seq[EC2Instance] = {
     val encoder = new sun.misc.BASE64Encoder
     val request = new RunInstancesRequest(imageId, min, max)
       .withKeyName(keyName)
       .withUserData(userData.map(s => encoder.encode(s.getBytes)).orNull)
       .withInstanceType(instanceType)
-      .withPlacement(new Placement(location))
+      .withPlacement(location.map(new Placement(_)).orNull)
 
     val result = client.runInstances(request)
 
