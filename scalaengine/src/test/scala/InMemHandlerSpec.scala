@@ -1,4 +1,6 @@
-package edu.berkeley.cs.scads.test
+package edu.berkeley.cs.scads
+package storage
+package test
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner

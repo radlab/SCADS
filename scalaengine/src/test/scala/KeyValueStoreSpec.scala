@@ -1,4 +1,6 @@
-package edu.berkeley.cs.scads.test
+package edu.berkeley.cs.scads
+package storage
+package test
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -6,7 +8,6 @@ import org.scalatest.{BeforeAndAfterAll, Spec}
 import org.scalatest.matchers.ShouldMatchers
 
 import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.marker.AvroRecord
 import org.apache.avro.generic._
 import org.apache.avro.Schema
