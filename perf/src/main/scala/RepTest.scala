@@ -19,8 +19,8 @@ case class RepResultValue(var startTime: Long, var endTime: Long) extends AvroRe
 trait StorageServiceSorter {
   def orderStorageServices(x: Seq[StorageService]): Seq[StorageService] = {
     x.sortBy(s => (s.host, s.port, s.id match {
-      case ActorNumber(x) => x.toString
-      case ActorName(x) => x
+      case ServiceNumber(x) => x.toString
+      case ServiceName(x) => x
     }))
   }
 }
