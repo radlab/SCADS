@@ -110,12 +110,16 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
    * The default availability zone used when launching new instances.
    */
   def availabilityZone: Option[String] = synchronized {
-    val activeZones = (masters ++ slaves ++ zooKeepers).map(_.availabilityZone).toSeq
+    val activeZones = (masters ++ slaves ++ zooKeepers).map(_.availabilityZone).toSet
     if (activeZones.size == 1)
       Some(activeZones.head)
     else if (activeZones.size == 0) {
       logger.info("Starting a master to determine a good zone to run in.")
       startMasterInstances(1)
+      while(masters.size == 0) {
+        Thread.sleep(1000)
+        region.forceUpdate()
+      }
       Some(masters.head.availabilityZone)
     } else
       throw new RuntimeException("Cluster is split across zones: " + activeZones)
@@ -373,7 +377,6 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
       zone,
       None)
     instances.foreach(_.tags += ("mesos", "master"))
-    region.update()
     instances
   }
 
