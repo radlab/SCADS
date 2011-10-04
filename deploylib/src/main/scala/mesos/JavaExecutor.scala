@@ -173,10 +173,9 @@ class JavaExecutor extends Executor {
       "-verbosegc",
       "-XX:+UseConcMarkSweepGC",
       "-XX:MaxGCPauseMillis=200",
-      "-Djava.library.path=" + new File("/usr/local/mesos/lib/java"),
-      properties.map(kv => "-D%s=%s".format(kv._1, kv._2)).mkString(" "),
-      "-cp", classpath,
-      mainClass) ++ args
+      "-Djava.library.path=" + new File("/usr/local/mesos/lib/java")) ++
+      properties.map(kv => "-D%s=%s".format(kv._1, kv._2)) ++
+      Seq("-cp", classpath, mainClass) ++ args
 
     logger.info("Execing: " + cmdLine.mkString(" "))
     val tempDir = newTempDir()
