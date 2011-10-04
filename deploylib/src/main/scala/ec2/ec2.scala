@@ -44,6 +44,17 @@ class EC2Region(val endpoint: String) extends AWSConnection {
   protected val instances = new scala.collection.mutable.HashMap[String, EC2Instance]
   protected var lastUpdate = 0L
 
+  def forceUpdate(): Unit = {
+    val result = client.describeInstances(new DescribeInstancesRequest())
+    instanceData = Map(result.getReservations.flatMap((r) => {
+      r.getInstances.map((i) => {
+        (i.getInstanceId, i)
+      })
+    }): _*)
+    lastUpdate = System.currentTimeMillis()
+    logger.info("Updated EC2 instances state")
+  }
+
   /**
    * Update the metadata for all ec2 instances.
    * Safe to call repetedly, but will only actually update once ever 10 seconds.
@@ -53,14 +64,7 @@ class EC2Region(val endpoint: String) extends AWSConnection {
       if (System.currentTimeMillis() - lastUpdate < 10000)
         logger.debug("Skipping ec2 update since it was done less than 10 seconds ago")
       else {
-        val result = client.describeInstances(new DescribeInstancesRequest())
-        instanceData = Map(result.getReservations.flatMap((r) => {
-          r.getInstances.map((i) => {
-            (i.getInstanceId, i)
-          })
-        }): _*)
-        lastUpdate = System.currentTimeMillis()
-        logger.info("Updated EC2 instances state")
+        forceUpdate()
       }
     }
   }
