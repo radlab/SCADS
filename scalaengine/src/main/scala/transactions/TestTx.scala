@@ -7,9 +7,6 @@ import scala.actors.Actor._
 
 import edu.berkeley.cs.scads.storage.transactions.FieldAnnotations._
 
-import java.lang.annotation.Documented
-import annotation.target.field
-
 case class KeyRec(var x: Int) extends AvroRecord
 
 case class ValueRec(var s: String,
@@ -28,12 +25,13 @@ case class ValueRec(var s: String,
 
 class TestTx {
   def run() {
-    val cluster = TestScalaEngine.newScadsCluster()
+    val cluster = TestScalaEngine.newScadsCluster(4)
 
     val ns = new SpecificNamespace[KeyRec, ValueRec]("testns", cluster, cluster.namespaces) with Transactions[KeyRec, ValueRec] {
       override val protocolType = TxProtocol2pc()
     }
     ns.open()
+    ns.setPartitionScheme(List((None, cluster.getAvailableServers)))
 
     ns.put(KeyRec(1), ValueRec("A", 1, 1, 1.0.floatValue, 1.0))
     ns.put(KeyRec(2), ValueRec("B", 1, 1, 1.0.floatValue, 1.0))
