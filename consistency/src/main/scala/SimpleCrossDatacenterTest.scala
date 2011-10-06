@@ -3,6 +3,7 @@ package scads
 package consistency
 
 import deploylib._
+import deploylib.ec2._
 import deploylib.mesos._
 import avro.marker._
 import comm._
@@ -21,9 +22,26 @@ case class Result(var hostname: String,
 }
 
 object Experiment extends ExperimentBase {
-  def run(cluster1: deploylib.mesos.Cluster,
-          cluster2: deploylib.mesos.Cluster): Unit = {
-    Task().schedule(resultClusterAddress, cluster1, cluster2)
+  val logger = Logger()
+  val clusters = getClusters()
+
+  def getClusters() = {
+    val regions = List(EC2East, EC2West)
+    regions.map(new mesos.Cluster(_))
+  }
+
+  def restartClusters(c: Seq[deploylib.mesos.Cluster] = clusters) = {
+    c.foreach(_.restart)
+  }
+
+  def run(c: Seq[deploylib.mesos.Cluster] = clusters): Unit = {
+    if (c.size < 1) {
+      logger.error("cluster list must not be empty")
+    } else if (c.head.slaves.size < 2) {
+      logger.error("first cluster must have at least 2 slaves")
+    } else {
+      Task().schedule(resultClusterAddress, c)
+    }
   }
 }
 
@@ -43,32 +61,36 @@ case class ValueRec(var s: String,
                     var b: Float,
                     var c: Double) extends AvroRecord
 
-case class Task(var replicationFactor: Int = 2)
+case class Task()
      extends AvroTask with AvroRecord with TaskBase {
   
   var resultClusterAddress: String = _
   var clusterAddress: String = _
-  var numDC: Int = _
+  var numPartitions: Int = _
+  var numClusters: Int = _
 
-  def schedule(resultClusterAddress: String, cluster1: deploylib.mesos.Cluster,
-               cluster2: deploylib.mesos.Cluster): Unit = {
+  def schedule(resultClusterAddress: String, clusters: Seq[deploylib.mesos.Cluster]): Unit = {
     this.resultClusterAddress = resultClusterAddress
-    this.numDC = 2
 
-    val scadsCluster = newMDCCScadsCluster(2, cluster1, cluster2)
+    val firstSize = clusters.head.slaves.size - 1
+    numPartitions = (clusters.tail.map(_.slaves.size) ++ List(firstSize)).min
+    numClusters = clusters.size
 
+    val scadsCluster = newMDCCScadsCluster(numPartitions, clusters)
     clusterAddress = scadsCluster.root.canonicalAddress
 
-    val task1 = this.toJvmTask(cluster1.classSource)
-    cluster1.serviceScheduler.scheduleExperiment(task1 :: Nil)
+    val task1 = this.toJvmTask(clusters.head.classSource)
+    clusters.head.serviceScheduler.scheduleExperiment(task1 :: Nil)
   }
 
   def run(): Unit = {
     val logger = Logger()
     val cluster = new ExperimentalScadsCluster(ZooKeeperNode(clusterAddress))
-    cluster.blockUntilReady(replicationFactor * numDC)
+    cluster.blockUntilReady(numPartitions * numClusters)
 
-    println("cluster.getAvailableServers: " + cluster.getAvailableServers)
+    val serversByCluster = (0 until numClusters).map(i => cluster.getAvailableServers("cluster-" + i))
+
+    val serversByPartition = (0 until numPartitions).map(i => serversByCluster.map(_(i)))
 
 //    val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
 //    val results = resultCluster.getNamespace[Result]("singleDataCenterTest")
@@ -79,10 +101,13 @@ case class Task(var replicationFactor: Int = 2)
     ns.open()
     ns.setPartitionScheme(List((None, cluster.getAvailableServers)))
 
-    ns.put(KeyRec(1), ValueRec("A", 1, 1, 1.0.floatValue, 1.0))
-    ns.put(KeyRec(2), ValueRec("B", 1, 1, 1.0.floatValue, 1.0))
-    ns.put(KeyRec(3), ValueRec("C", 1, 1, 1.0.floatValue, 1.0))
-    ns.put(KeyRec(4), ValueRec("D", 1, 1, 1.0.floatValue, 1.0))
+    // Load data in a tx to get default metadata.
+    new Tx(100) ({
+      ns.put(KeyRec(1), ValueRec("A", 1, 1, 1.0.floatValue, 1.0))
+      ns.put(KeyRec(2), ValueRec("B", 1, 1, 1.0.floatValue, 1.0))
+      ns.put(KeyRec(3), ValueRec("C", 1, 1, 1.0.floatValue, 1.0))
+      ns.put(KeyRec(4), ValueRec("D", 1, 1, 1.0.floatValue, 1.0))
+    }).Execute()
 
     val tx1 = new Tx(100) ({
       List.range(5, 5 + 4).foreach(x => ns.put(KeyRec(x),
@@ -121,5 +146,7 @@ case class Task(var replicationFactor: Int = 2)
 //    val result = Result(hostname, System.currentTimeMillis)
 //    result.rows = ns.getRange(None, None).size
 //    results.put(result)
+
+    cluster.shutdown
   }
 }
