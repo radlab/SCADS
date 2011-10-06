@@ -54,12 +54,16 @@ trait RemoteServiceProxy[MessageType <: IndexedRecord] {
    * Send a message and synchronously wait for a response.
    */
   def !?(msg: MessageType, timeout: Int = 10 * 1000): MessageType = {
-    val future = new MessageFuture[MessageType]
+    val future = new MessageFuture[MessageType](this, msg)
     this.!(msg)(future.remoteService)
+    logger.debug("Wating for SyncSend %s", future.remoteService)
     future.get(timeout) match {
       //TODO: fix exception throwing: case Some(exp: RemoteException) => throw new RuntimeException(exp.toString)
-      case Some(msg) => msg.asInstanceOf[MessageType]
+      case Some(msg) =>
+        logger.debug("SyncSend %s complete ", future.remoteService)
+        msg.asInstanceOf[MessageType]
       case None => {
+        logger.debug("SyncSend %s timeout", future.remoteService)
         throw TimeoutException(msg)
       }
     }
@@ -69,7 +73,7 @@ trait RemoteServiceProxy[MessageType <: IndexedRecord] {
    * Sends a message and returns a future for the response.
    */
   def !!(body: MessageType): MessageFuture[MessageType] = {
-    val future = new MessageFuture[MessageType]
+    val future = new MessageFuture[MessageType](this, body)
     this.!(body)(future.remoteService)
     future
   }

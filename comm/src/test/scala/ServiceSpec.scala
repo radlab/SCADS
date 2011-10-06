@@ -36,7 +36,7 @@ class RemoteServiceSpec extends Spec with ShouldMatchers {
 
   describe("RemoteActors") {
     it("should send message asynchronously") {
-      val mailbox = new MessageFuture[TestMessages]
+      val mailbox = new MessageFuture[TestMessages](TestService.remoteHandle, req)
       implicit val sender = mailbox.remoteService
       TestService.remoteHandle ! req
       mailbox.get(1000) should equal(Some(resp))

@@ -62,7 +62,7 @@ object FutureReference {
     override def run(): Unit = {
       while(true) {
         val futureRef = staleMessages.remove.asInstanceOf[FutureReference[_]]
-        logger.debug("Removing gced future from message regsistry.")
+        logger.debug("Removing gced future from message regsistry: %s %s %s", futureRef.remoteService, futureRef.dest,futureRef.request)
         futureRef.unregister
       }
     }
@@ -73,23 +73,28 @@ object FutureReference {
 
 class FutureReference[MessageType <: IndexedRecord](future: MessageFuture[MessageType])(implicit val handler: ServiceRegistry[MessageType]) extends java.lang.ref.WeakReference(future, FutureReference.staleMessages) with MessageReceiver[MessageType] {
   val remoteService = handler.registerService(this)
+  val request = future.request
+  val dest = future.dest
 
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = synchronized {
+    MessageFuture.logger.debug("Attempting delivery to %s", remoteService)
     val future = get().asInstanceOf[MessageFuture[MessageType]]
+    clear()
     if(future != null)
       future.receiveMessage(src, msg)
     else
-      FutureReference.logger.debug("Message for garbage collected future received: %s", src)
+      FutureReference.logger.debug("Message for garbage collected future received: %s %s from %s", remoteService, msg, src)
   }
 
   def unregister = handler.unregisterService(remoteService)
 }
 
 object MessageFuture {
+  val logger = Logger()
   implicit def toFutureCollection[MessageType <: IndexedRecord](futures: Seq[MessageFuture[MessageType]]) = new FutureCollection[MessageType](futures)
 }
 
-class MessageFuture[MessageType <: IndexedRecord](implicit val registry: ServiceRegistry[MessageType]) extends Future[MessageType] {
+case class MessageFuture[MessageType <: IndexedRecord](val dest: RemoteServiceProxy[MessageType], val request: MessageType)(implicit val registry: ServiceRegistry[MessageType]) extends Future[MessageType] {
   protected[comm] val sender = new SyncVar[Option[RemoteServiceProxy[MessageType]]]
   protected val message = new SyncVar[MessageType]
   protected var forwardList: List[Queue[MessageFuture[MessageType]]] = List()

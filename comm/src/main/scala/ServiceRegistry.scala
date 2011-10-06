@@ -173,7 +173,8 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
   val invalidMessageCount = new java.util.concurrent.atomic.AtomicLong
 
   private def doReceiveMessage0(src: RemoteNode, msg: MessageEnvelope) {
-    val service = serviceRegistry.get(msg.get(1).asInstanceOf[ServiceId])
+    val dest = msg.get(1).asInstanceOf[ServiceId]
+    val service = serviceRegistry.get(dest)
 
     logger.trace("Received Message: %s from %s", msg, src)
 
@@ -183,7 +184,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
       service.receiveMessage(srcProxy, msg.get(2).asInstanceOf[MessageType])
     }
     else {
-      logger.debug("Got message from %s for an unknown service: %s", src, service)
+      logger.debug("Got message for an unknown service: %s %s %s", src, dest, msg)
       invalidMessageCount.incrementAndGet()
     }
   }
