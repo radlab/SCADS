@@ -36,7 +36,7 @@ class BdbStorageManager(val db: Database,
                         val keySchema: Schema, valueSchema: Schema) 
                        extends StorageManager
                        with    AvroComparator {
-  protected val logger = Logger("BdbStorageManager")
+  protected val logger = Logger()
   protected val config = Config.config
 
   protected lazy val copyIteratorCtor = 
@@ -200,8 +200,9 @@ class BdbStorageManager(val db: Database,
 
    def get(key:Array[Byte]):Option[Array[Byte]] = {
      val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
-     //try { db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED) } catch { case e:com.sleepycat.je.LockTimeoutException => logger.warning("lock timeout during GetRequest") }
+     logger.debug("Running get %s %s", dbeKey, dbeValue)
      db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+     logger.debug("get operation complete %s %s", dbeKey, dbeValue)
      Option(dbeValue.getData())
    }
 
