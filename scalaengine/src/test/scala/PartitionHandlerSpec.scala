@@ -4,12 +4,14 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{ BeforeAndAfterAll, Spec }
 import org.scalatest.matchers.ShouldMatchers
+import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.storage._
 
 @RunWith(classOf[JUnitRunner])
 class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterAll {
+  val logger = Logger()
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
   val cluster = TestScalaEngine.newScadsCluster(0)
@@ -91,6 +93,7 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
     }
 
     it("should copy data overwriting existing data") {
+      logger.info("begin copy data overwriting existing data")
       withPartitionService(None, None) { p1 =>
         withPartitionService(None, None) { p2 =>
           p1 !? BulkPutRequest((1 to 10000).map(i => PutRequest(IntRec(i).toBytes, IntRec(i).toBytes)).toSeq)
@@ -98,12 +101,17 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
 
           p2 !? CopyDataRequest(p1, true)
 
+          logger.info("Copy data complete")
+
           (1 to 10000).foreach(i => p2 !? GetRequest(IntRec(i).toBytes) match {
-            case GetResponse(Some(bytes)) => new IntRec().parse(bytes) should equal(IntRec(i))
+            case GetResponse(Some(bytes)) =>
+              new IntRec().parse(bytes) should equal(IntRec(i))
             case u => fail("P2 doesn't contain " + i + " instead got: " + u)
           })
         }
       }
+
+      logger.info("end copy data overwriting existing data")
     }
 
     it("should copy data without overwriting existing data") {
