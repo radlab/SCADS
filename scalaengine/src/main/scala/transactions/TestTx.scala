@@ -33,10 +33,12 @@ class TestTx {
     ns.open()
     ns.setPartitionScheme(List((None, cluster.getAvailableServers)))
 
-    ns.put(KeyRec(1), ValueRec("A", 1, 1, 1.0.floatValue, 1.0))
-    ns.put(KeyRec(2), ValueRec("B", 1, 1, 1.0.floatValue, 1.0))
-    ns.put(KeyRec(3), ValueRec("C", 1, 1, 1.0.floatValue, 1.0))
-    ns.put(KeyRec(4), ValueRec("D", 1, 1, 1.0.floatValue, 1.0))
+    new Tx(100) ({
+      ns.put(KeyRec(1), ValueRec("A", 1, 1, 1.0.floatValue, 1.0))
+      ns.put(KeyRec(2), ValueRec("B", 1, 1, 1.0.floatValue, 1.0))
+      ns.put(KeyRec(3), ValueRec("C", 1, 1, 1.0.floatValue, 1.0))
+      ns.put(KeyRec(4), ValueRec("D", 1, 1, 1.0.floatValue, 1.0))
+    }).Execute()
 
     val tx1 = new Tx(100) ({
       List.range(5, 5 + 4).foreach(x => ns.put(KeyRec(x),

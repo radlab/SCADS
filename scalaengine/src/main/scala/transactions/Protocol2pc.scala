@@ -3,6 +3,7 @@ package edu.berkeley.cs.scads.storage.transactions.prot2pc
 
 import _root_.edu.berkeley.cs.scads.storage.transactions._
 import edu.berkeley.cs.scads.comm._
+import edu.berkeley.cs.scads.storage.transactions.mdcc.DefaultMetaData
 
 import net.lag.logging.Logger
 
@@ -24,13 +25,20 @@ object Protocol2pc extends ProtocolBase {
       update match {
         case ValueUpdateInfo(servers, key, value) => {
           val md = readList.getRecord(key).map(r =>
-            MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))     //TODO: Do we really need the MDCCMetadata
+            MDCCMetadata(r.metadata.currentRound, r.metadata.ballots)) match {
+              case None => Some(DefaultMetaData.getDefault(servers))
+              case x => x
+            }
+          //TODO: Do we really need the MDCCMetadata
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           RecordUpdateInfo(servers, ValueUpdate(key, None, newBytes))
         }
         case LogicalUpdateInfo(servers, key, value) => {
           val md = readList.getRecord(key).map(r =>
-            MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
+            MDCCMetadata(r.metadata.currentRound, r.metadata.ballots)) match {
+              case None => Some(DefaultMetaData.getDefault(servers))
+              case x => x
+            }
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           RecordUpdateInfo(servers, LogicalUpdate(key, newBytes))
         }
