@@ -160,7 +160,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
   }
 
   private def doReceiveMessage(src: RemoteNode, msg: MessageEnvelope) {
-    logger.trace("Received message %s from %s", msg, src)
+    logger.trace("Received message: %s from %s", msg, src)
     val evt = MessagePending(src, Right(msg))
     foldLeftListeners(evt) match {
       case RelayMessage => doReceiveMessage0(src, msg)
@@ -176,7 +176,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     val dest = msg.get(1).asInstanceOf[ServiceId]
     val service = serviceRegistry.get(dest)
 
-    logger.trace("Received Message: %s from %s", msg, src)
+    logger.trace("Delivering Message: %s from %s", msg, src)
 
     if (service != null) {
       val srcProxy = if(msg.get(0) == null) None else Some(RemoteService[MessageType](src.hostname, src.port, msg.get(0).asInstanceOf[ServiceId]))

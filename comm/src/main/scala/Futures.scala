@@ -62,8 +62,8 @@ object FutureReference {
     override def run(): Unit = {
       while(true) {
         val futureRef = staleMessages.remove.asInstanceOf[FutureReference[_]]
-        logger.debug("Removing gced future from message regsistry: %s %s %s", futureRef.remoteService, futureRef.dest,futureRef.request)
-        futureRef.unregister
+        if(futureRef.unregister)
+          logger.warning("Removing unsatisfied gced future from message regsistry: %s %s %s", futureRef.remoteService, futureRef.dest,futureRef.request)
       }
     }
   }
@@ -75,10 +75,13 @@ class FutureReference[MessageType <: IndexedRecord](future: MessageFuture[Messag
   val remoteService = handler.registerService(this)
   val request = future.request
   val dest = future.dest
+  MessageFuture.logger.debug("Future registered: %s %s to %s", remoteService, request, dest)
+  private var registered = true
 
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = synchronized {
     MessageFuture.logger.debug("Attempting delivery to %s", remoteService)
     val future = get().asInstanceOf[MessageFuture[MessageType]]
+    if(!unregister) FutureReference.logger.warning("GCed future %s", remoteService)
     clear()
     if(future != null)
       future.receiveMessage(src, msg)
@@ -86,7 +89,13 @@ class FutureReference[MessageType <: IndexedRecord](future: MessageFuture[Messag
       FutureReference.logger.debug("Message for garbage collected future received: %s %s from %s", remoteService, msg, src)
   }
 
-  def unregister = handler.unregisterService(remoteService)
+  def unregister = synchronized {
+    if(registered) {
+      registered = false
+      handler.unregisterService(remoteService)
+      true
+    } else false
+  }
 }
 
 object MessageFuture {
@@ -99,7 +108,7 @@ case class MessageFuture[MessageType <: IndexedRecord](val dest: RemoteServicePr
   protected val message = new SyncVar[MessageType]
   protected var forwardList: List[Queue[MessageFuture[MessageType]]] = List()
 
-  def remoteService = (new FutureReference(this)).remoteService
+  val remoteService = (new FutureReference(this)).remoteService
 
   /* Note: doesn't really implement interface correctly */
   def inputChannel = new InputChannel[MessageType] {
@@ -144,7 +153,6 @@ case class MessageFuture[MessageType <: IndexedRecord](val dest: RemoteServicePr
   }
 
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = synchronized {
-    registry.unregisterService(remoteService)
     message.set(msg)
     sender.set(src)
     forwardList.foreach(_.offer(this))
