@@ -167,7 +167,7 @@ class FutureCollection[MessageType <: IndexedRecord](val futures: Seq[MessageFut
   def blockFor(count: Int): Seq[MessageFuture[MessageType]] = (1 to count).map(_ => responses.take())
 
   def blockFor(count: Int, timeout: Long, unit: TimeUnit): Seq[MessageFuture[MessageType]] = {
-    (1 to count).map(_ => Option(responses.poll(timeout, unit)).getOrElse(throw new RuntimeException("TIMEOUT")))
+    (1 to count).map(_ => Option(responses.poll(timeout, unit)).getOrElse(throw new RuntimeException("TIMEOUT "+ timeout)))
   }
 }
 
