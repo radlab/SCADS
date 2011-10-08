@@ -543,4 +543,22 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) {
       }
     })
   }
+
+  /**
+   * Watch stderr of the most recently started framework on all slaves and print the output to stdout of the local machine.
+   * Used for debugging.
+   */
+  def watchExecLogs: Unit = {
+    val workDir = new File("/mnt/work")
+    slaves.pforeach(s => {
+      try {
+        val currentSlaveDir = new File(workDir, s.ls(workDir).sortBy(_.modDate).last.name)
+        val currentFrameworkDir = new File(currentSlaveDir, s.ls(currentSlaveDir).head.name)
+        s.watch(new File(currentFrameworkDir, "0/stderr"))
+      }
+      catch {
+        case e => logger.warning("No frameworks on %s", s.publicDnsName)
+      }
+    })
+  }
 }

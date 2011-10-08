@@ -45,14 +45,18 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
 
   def futureCount = curActorId.get()
 
-  private val hostname =
-    if (System.getProperty("scads.comm.externalip") == null)
+  private val hostname = 
+    if(System.getProperty("scads.comm.externalip") == null) {
+      logger.debug("Using ip address from java.net.InetAddress.getLocalHost")
       java.net.InetAddress.getLocalHost.getCanonicalHostName()
+    }
     else {
       val httpClient = new HttpClient()
       val getMethod = new GetMethod("http://instance-data/latest/meta-data/public-hostname")
       httpClient.executeMethod(getMethod)
-      getMethod.getResponseBodyAsString
+      val externalIP = getMethod.getResponseBodyAsString
+      logger.info("Using external ip address on EC2: %s", externalIP)
+      externalIP
     }
 
   private val listeners = new CopyOnWriteArrayList[MessageHandlerListener]

@@ -240,13 +240,11 @@ class EC2Region(val endpoint: String) extends AWSConnection {
 
       createFile(
         new File("$HOME/console"),
-        (headers :+ "$JAVA $CLASSPATH $MESOS scala.tools.nsc.MainGenericRunner $CLASSPATH -i jars/classsource.scala $@").mkString("\n"))
-      this ! "chmod 755 $HOME/console"
+        (headers :+ "$JAVA $CLASSPATH $MESOS scala.tools.nsc.MainGenericRunner $CLASSPATH -i jars/classsource.scala $@").mkString("\n"), "755")
 
       createFile(
         new File("$HOME/jrun"),
-        (headers :+ "$JAVA $CLASSPATH $MESOS $@").mkString("\n"))
-      this ! "chmod 755 $HOME/jrun"
+        (headers :+ "$JAVA $CLASSPATH $MESOS $@").mkString("\n"), "755")
 
       cachedJars
     }
