@@ -346,9 +346,9 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) {
    * Restart masters, slaves, and the service scheduler.  Also kills any java procs running on slaves.
    */
   def restart(): Unit = {
-    masters.pforeach(_ ! "killall -9 mesos-master")
-    masters.pforeach(_ ! "killall -9 java")
-    slaves.pforeach(_ ! "killall -9 mesos-slave")
+    masters.pforeach(_ executeCommand "killall -9 mesos-master")
+    masters.pforeach(_ executeCommand "killall -9 java")
+    slaves.pforeach(_ executeCommand "killall -9 mesos-slave")
 
     restartMasters
     restartSlaves

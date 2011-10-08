@@ -127,6 +127,16 @@ object ScadsBuild extends Build {
     settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
   ) dependsOn (config, comm, scalaEngine)
 
+  lazy val consistency = Project(
+    "consistency",
+    file("consistency"),
+    settings = deploySettings ++ Seq(
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands in console += (
+        "import edu.berkeley.cs.scads.consistency._")
+    )
+  ) dependsOn (config, comm, perf, scalaEngine)
+
   /**
    * Dependencies
    */
@@ -246,7 +256,8 @@ object DeployConsole extends BuildCommon {
           "import deploylib.mesos._",
           "val allJars = " + allJars.map(f => "new java.io.File(\"%s\")".format(f.getCanonicalPath)).mkString("Seq(", ",", ")"),
           "deploylib.mesos.MesosCluster.jarFiles = allJars",
-          "implicit val cluster = new Cluster()",
+          "implicit val cluster = new Cluster(EC2East)",
+          "val clusterWest = new Cluster(EC2West)",
           "implicit def zooKeeperRoot = cluster.zooKeeperRoot",
           "implicit def classSource = cluster.classSource",
           "implicit def serviceScheduler = cluster.serviceScheduler"
