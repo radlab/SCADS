@@ -6,12 +6,14 @@ import _root_.edu.berkeley.cs.scads.comm.PrepareResponse._
 import _root_.edu.berkeley.cs.scads.storage.StorageManager
 
 
-abstract class TrxManager(manager: StorageManager) {
+abstract class TrxManager() {
   def process(src: Option[RemoteActorProxy], msg : TrxMessage) (implicit sender: RemoteActorProxy)
+
 
 }
 
-class Protocol2PCManager(manager: StorageManager)  extends TrxManager(manager) {
+//TODO factor 2PC prot
+class Protocol2PCManager(manager: StorageManager)  extends TrxManager {
 
    def process(src: Option[RemoteActorProxy], msg : TrxMessage)(implicit sender: RemoteActorProxy) = {
      def reply(body: MessageBody) = src.foreach(_ ! body)

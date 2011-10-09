@@ -8,10 +8,12 @@ import scala.collection.mutable.ListBuffer
 import net.lag.logging.Logger
 
 sealed trait UpdateInfo
-case class ValueUpdateInfo(servers: Seq[PartitionService],
+case class ValueUpdateInfo(ns : TransactionDefaultMetadata,
+                           servers: Seq[PartitionService],
                            key: Array[Byte],
                            rec: Option[Array[Byte]]) extends UpdateInfo
-case class LogicalUpdateInfo(servers: Seq[PartitionService],
+case class LogicalUpdateInfo(ns : TransactionDefaultMetadata,
+                             servers: Seq[PartitionService],
                              key: Array[Byte],
                              rec: Option[Array[Byte]]) extends UpdateInfo
 
@@ -19,16 +21,18 @@ case class LogicalUpdateInfo(servers: Seq[PartitionService],
 class UpdateList {
   private val updateList = new ListBuffer[UpdateInfo]
 
-  def appendValueUpdateInfo(servers: Seq[PartitionService],
-                          key: Array[Byte],
-                          rec: Option[Array[Byte]]) = {
-    updateList.append(ValueUpdateInfo(servers, key, rec))
+  def appendValueUpdateInfo(ns : TransactionDefaultMetadata,
+                            servers: Seq[PartitionService],
+                            key: Array[Byte],
+                            rec: Option[Array[Byte]]) = {
+    updateList.append(ValueUpdateInfo(ns, servers, key, rec))
   }
 
-  def appendLogicalUpdate(servers: Seq[PartitionService],
+  def appendLogicalUpdate(ns : TransactionDefaultMetadata,
+                          servers: Seq[PartitionService],
                           key: Array[Byte],
                           rec: Option[Array[Byte]]) = {
-    updateList.append(LogicalUpdateInfo(servers, key, rec))
+    updateList.append(LogicalUpdateInfo(ns, servers, key, rec))
   }
 
   def getUpdateList() = {

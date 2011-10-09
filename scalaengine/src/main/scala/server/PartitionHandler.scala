@@ -27,6 +27,8 @@ class RequestRejectedException(e: String) extends Exception(e)
  * will also go out as Avro messages.  Converting these bytes to an internal
  * representation, or using them as is, is left to the StorageManager */
 abstract trait StorageManager {
+  def nsRoot (): ZooKeeperProxy#ZooKeeperNode
+
   def get(key: Array[Byte]): Option[Array[Byte]]
 
   def put(key: Array[Byte], value: Option[Array[Byte]]): Unit
@@ -68,13 +70,15 @@ abstract trait StorageManager {
   def shutdown(): Unit
 }
 
-case class PartitionHandler(manager: StorageManager, trxManager : TrxManager) extends ServiceHandler[PartitionServiceOperation] {
+case class PartitionHandler(manager: StorageManager) extends ServiceHandler[PartitionServiceOperation] {
 
   protected val logger = Logger("PartitionHandler")
 
   protected def startup(): Unit = manager.startup()
 
   protected def shutdown(): Unit = manager.shutdown()
+
+  protected[storage] var trxManager : TrxManager = null
 
   // workload stats code
   protected var currentStats = PartitionWorkloadStats(0, 0)

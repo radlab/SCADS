@@ -1,6 +1,6 @@
 package edu.berkeley.cs.scads.storage.transactions
 
-import _root_.edu.berkeley.cs.scads.comm.{SCADSService, MDCCBallotRange, MDCCMetadata}
+import _root_.edu.berkeley.cs.scads.comm.{MDCCBallot, SCADSService, MDCCBallotRange, MDCCMetadata}
 import scala.math.{min, max}
 import collection.mutable.{ArrayBuffer, ArraySeq}
 
@@ -30,6 +30,12 @@ object MDCCMetaHelper {
       restRange = restRange.tail
     }
     return true
+  }
+
+  def currentBallot(meta : MDCCMetadata ) : MDCCBallot = {
+    validateMeta(meta)
+    val range = meta.ballots.head
+    MDCCBallot(meta.currentRound, range.vote, range.server, range.fast)
   }
 
   def makeNextRoundFast(meta : MDCCMetadata): MDCCMetadata = {

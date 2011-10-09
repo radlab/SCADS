@@ -39,12 +39,13 @@ class InMemStorageManager
   (val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, 
    val startKey:Option[Array[Byte]],
    val endKey:Option[Array[Byte]],
-   val root: ZooKeeperProxy#ZooKeeperNode, 
+   val newNSRoot: ZooKeeperProxy#ZooKeeperNode,
    val keySchema: Schema, 
    valueSchema: Schema,
    valueType:String)
   extends StorageManager with AvroComparator with SimpleRecordMetadataExtractor
 {
+  override def nsRoot = newNSRoot
   private implicit def bytes2eqarray(bytes:Array[Byte]):EQArray = new EQArray(bytes)
   private val iterateValsBreakable = new Breaks
   private val valueClass = Class.forName(valueType)

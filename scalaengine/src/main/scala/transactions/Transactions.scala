@@ -8,6 +8,7 @@ import edu.berkeley.cs.scads.util._
 
 import collection.mutable.ArrayBuffer
 
+import mdcc.MDCCMetaDefault
 import org.apache.avro._
 import generic._
 import io._
@@ -25,7 +26,12 @@ trait Transactions[K <: SpecificRecord, V <: SpecificRecord]
 extends RangeKeyValueStore[K, V]
 with KeyRoutable
 with ZooKeeperGlobalMetadata
-with TransactionRecordMetadata {
+with TransactionRecordMetadata
+with TransactionDefaultMetadata {
+
+  lazy val defaultMeta = MDCCMetaDefault.getDefault(nsRoot)
+
+  def getDefaultMeta = defaultMeta.defaultMetaData
 
   implicit protected def valueManifest: Manifest[V]
 
@@ -181,7 +187,7 @@ with TransactionRecordMetadata {
         responses.blockFor(servers.length, 500, TimeUnit.MILLISECONDS)
       }
       case Some(updateList) => {
-        updateList.appendValueUpdateInfo(servers, key, value)
+        updateList.appendValueUpdateInfo(this, servers, key, value)
       }
     }
   }
@@ -196,7 +202,7 @@ with TransactionRecordMetadata {
         throw new RuntimeException("")
       }
       case Some(updateList) => {
-        updateList.appendLogicalUpdate(servers, key, Some(value))
+        updateList.appendLogicalUpdate(this, servers, key, Some(value))
       }
     }
   }
@@ -287,6 +293,11 @@ object MDCCRecordUtil {
   def fromBytes(bytes: Array[Byte]): MDCCRecord = {
     recordReaderWriter.deserialize(bytes)
   }  
+}
+
+trait TransactionDefaultMetadata {
+  def getDefaultMeta() : MDCCMetadata
+  def namespace: String
 }
 
 trait TransactionRecordMetadata extends SimpleRecordMetadata {

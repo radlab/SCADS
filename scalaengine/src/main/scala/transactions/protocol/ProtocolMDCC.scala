@@ -35,7 +35,6 @@ sealed case class MDCCUpdateInfo(
 
 object MDCCHandler extends ProtocolBase {
   def RunProtocol(tx: Tx) = {
-    //TODO make it thread-less
     val trxHandler = new MCCCTrxHandler(tx)
     trxHandler.start()
   }
@@ -54,18 +53,20 @@ class MCCCTrxHandler(tx: Tx) extends Actor {
   protected def transformUpdateList(updateList: UpdateList, readList: ReadList): Seq[MCCCRecordHandler] = {
     updateList.getUpdateList.map(update => {
       update match {
-        case ValueUpdateInfo(servers, key, value) => {
-          val oldRecord = readList.getRecord(key)
-          val md = oldRecord.map(r => MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
-          val oldValue : Option[Array[Byte]] = oldRecord.flatMap(_.value)
-          assert(value.isDefined) //We still need to change that
-          new MCCCRecordHandler(ValueUpdate(key, oldValue, value.get), servers, md, Xid)
-
+        case ValueUpdateInfo(ns, servers, key, value) => {
+          val oldRrecord = readList.getRecord(key)
+          val md : MDCCMetadata= oldRrecord
+                                  .map(r => MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
+                                  .getOrElse(ns.getDefaultMeta())
+          //TODO: Do we really need the MDCCMetadata
+          val newBytes = MDCCRecordUtil.toBytes(value, md)
+           new MCCCRecordHandler(ValueUpdate(key, oldRrecord.flatMap(_.value), value.get), servers, md, Xid)
         }
-        case LogicalUpdateInfo(servers, key, value) => {
-          val md = readList.getRecord(key).map(r =>
-            MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
-          assert(value.isDefined) //We still need to change that
+        case LogicalUpdateInfo(ns, servers, key, value) => {
+          val md = readList.getRecord(key)
+                              .map(r => MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
+                              .getOrElse(ns.getDefaultMeta())
+          val newBytes = MDCCRecordUtil.toBytes(value, md)
           new MCCCRecordHandler(LogicalUpdate(key, value.get), servers, md, Xid)
         }
       }
@@ -115,25 +116,15 @@ class MCCCTrxHandler(tx: Tx) extends Actor {
   }
 }
 
-object DefaultMetaData {
 
-  //TODO We should store the default in ZooKeeper, otherwise
-  //the protocol is incorrect
-  def getDefault(servers: Seq[PartitionService]) : MDCCMetadata = {
-    val minServer = servers.minBy(_.toString)
-    MDCCMetadata(0, MDCCBallotRange(0,0,0,minServer, false) :: Nil)
-  }
-
-}
 
 class MCCCRecordHandler (
         val update: RecordUpdate,
         val servers: Seq[PartitionService],
-        metaOption: Option[MDCCMetadata],
+        meta: MDCCMetadata,
         val Xid: ScadsXid) extends Actor {
   var futures: List[MessageFuture] = Nil
   var status: RecordStatus = FRESH
-  var meta = if(metaOption.isEmpty) DefaultMetaData.getDefault(servers) else metaOption.get
 
   implicit val localAddress = null
 
@@ -156,7 +147,7 @@ class MCCCRecordHandler (
       react {
         case BeMaster(key: Array[Byte], startRound: Long, endRound: Long, fast : Boolean) => startPhase1a(key, startRound, endRound, fast)
         case ProposeTrx() => SendProposal()
-        case Phase1b(ballot: MDCCBallot, value: CStruct) =>
+        case Phase1b(ballot: MDCCMetadata, value: CStruct) => processPhase1b(ballot, value)
         case Phase2bClassic(ballot: MDCCBallot, value: CStruct) =>
         case Phase2bFast(ballot: MDCCBallot, value: CStruct) =>
         case Accept(xid: ScadsXid) =>
@@ -167,6 +158,10 @@ class MCCCRecordHandler (
 
 
   def selfNotification(body : MessageBody) = this.!(body)
+
+  def processPhase1b(ballot: MDCCMetadata, value: CStruct) = {
+
+  }
 
 
   def startPhase1a(key: Array[Byte], startRound: Long, endRound: Long, fast : Boolean) : Unit =  {
@@ -180,8 +175,7 @@ class MCCCRecordHandler (
   def SendProposal() = {
     val propose = Propose(Xid, update)
     val futures : List[MessageFuture] =
-      if (metaOption.isEmpty || //Without having the meta data we assume somebody else is responsible
-        fastRound(meta)){  //If we have a fast round, we can propose directly
+      if (fastRound(meta)){  //If we have a fast round, we can propose directly
         servers.map(_ !! propose)
       }else{
         val master = getMaster(meta)

@@ -33,12 +33,14 @@ class BdbStorageManager(val db: Database,
                         val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, 
                         val startKey: Option[Array[Byte]], 
                         val endKey: Option[Array[Byte]], 
-                        val nsRoot: ZooKeeperProxy#ZooKeeperNode, 
+                        newNSRoot: ZooKeeperProxy#ZooKeeperNode,
                         val keySchema: Schema, valueSchema: Schema) 
                        extends StorageManager
                        with    AvroComparator {
   protected val logger = Logger("BdbStorageManager")
   protected val config = Config.config
+
+  override def nsRoot() = newNSRoot
 
   protected lazy val copyIteratorCtor = 
     config.getString("scads.storage.copy.iteratorType").flatMap(tpe => tpe.toLowerCase match {
@@ -108,6 +110,7 @@ class BdbStorageManager(val db: Database,
     cursorTimeoutThread.execute(runnable)
   }
 
+  //TODO All the Trx protocol should be factored out like done for MDCC
   private lazy val pendingUpdates = new PendingUpdatesController(
     new BDBTxDB[Array[Byte], Array[Byte]](db)
        with ByteArrayKeySerializer[Array[Byte]]

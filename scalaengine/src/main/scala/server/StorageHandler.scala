@@ -19,8 +19,8 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable.{ Set => MSet, HashSet }
 
 import org.apache.zookeeper.KeeperException.NodeExistsException
-import transactions.{Protocol2PCManager, TrxManager}
-
+import transactions._
+import transactions.mdcc._
 object StorageHandler {
   val idGen = new AtomicLong
 }
@@ -142,7 +142,15 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
       startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], trxMgrType : String) = {
     val schemasvc = schemasAndValueClassFor(namespace)
     val storageMgr = new BdbStorageManager(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), schemasvc._1, schemasvc._2)
-    new PartitionHandler(storageMgr, makeTrxMgr(trxMgrType, storageMgr))
+    val handler = new PartitionHandler(storageMgr)
+    handler.trxManager =  makeTrxMgr(namespace, partitionIdLock,
+      new BDBTxDB[Array[Byte], Array[Byte]](database) with ByteArrayKeySerializer[Array[Byte]] with ByteArrayValueSerializer[Array[Byte]],
+      new BDBTxDBFactory(database.getEnvironment),
+      trxMgrType,
+      handler,
+      storageMgr
+    )
+    handler
   }
 
 
@@ -151,13 +159,35 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
      startKey:Option[Array[Byte]], endKey:Option[Array[Byte]], trxMgrType : String) = {
     val schemasvc = schemasAndValueClassFor(namespace)
     val storageMgr = new InMemStorageManager(partitionIdLock, startKey, endKey, getNamespaceRoot(namespace),schemasvc._1, schemasvc._2, schemasvc._3)
-    new PartitionHandler(storageMgr, makeTrxMgr(trxMgrType, storageMgr) )
+    val handler = new PartitionHandler(storageMgr)
+    handler.trxManager = makeTrxMgr(namespace, partitionIdLock, null, null, trxMgrType, null, storageMgr)  //TODO create TxDB and factory
+    handler
   }
 
-    private def makeTrxMgr(trxMgrType : String, storageMgr : StorageManager) : TrxManager = {
+  private def makeTrxMgr(namespace:String,
+                         partitionIdLock:ZooKeeperProxy#ZooKeeperNode,
+                         db: TxDB[Array[Byte], Array[Byte]],
+                         factory: TxDBFactory,
+                         trxMgrType : String,
+                         handler : PartitionHandler,
+                         storageMgr : StorageManager) : TrxManager = {
       //TODO The protocol should be a singleton per namespace not partitonHandler
+    val schemasvc = schemasAndValueClassFor(namespace)
+    val nsRoot = getNamespaceRoot(namespace)
     trxMgrType match {
       case "2PC" => new Protocol2PCManager(storageMgr)
+      case "MDCC" => {
+        assert(db != null)
+        assert(factory != null)
+        ProtocolMDCCServer.createMDCCProtocol(
+          namespace,
+          nsRoot,
+          db,
+          factory,
+          handler.remoteHandle.toPartitionService(partitionIdLock.name, remoteHandle.toStorageService),
+          schemasvc._1,
+          schemasvc._2)
+      }
       case _ => throw new RuntimeException("Found Unsupported Transaction Support")
     }
   }
