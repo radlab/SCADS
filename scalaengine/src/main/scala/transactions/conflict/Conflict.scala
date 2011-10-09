@@ -12,12 +12,15 @@ import java.util.Arrays
 
 import scala.collection.mutable.Buffer
 import scala.collection.JavaConversions._
+import scala.collection.mutable.HashMap
 
 import java.io._
 import org.apache.avro._
 import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDecoder, EncoderFactory}
 import org.apache.avro.specific.{SpecificDatumWriter, SpecificDatumReader, SpecificRecordBase, SpecificRecord}
 import org.apache.avro.Schema
+
+import edu.berkeley.cs.avro.marker._
 
 // TODO: Make thread-safe.  It might already be, by using TxDB
 
@@ -58,9 +61,79 @@ trait PendingUpdates extends DBRecords {
   def setICs(ics: FieldICList)
 }
 
+// TODO: Enumerations do not work with AvroRecords. Must be changed if we want
+//       to use AvroRecords for serialization.
 // Status of a transaction.  Stores all the updates in the transaction.
 case class TxStatusEntry(var status: Status.Status,
                          var updates: Seq[RecordUpdate]) extends Serializable
+
+case class PendingStateInfo(var state: Array[Byte],
+                            var xids: List[List[ScadsXid]]) extends Serializable with AvroRecord
+case class PendingCommandsInfo(var commands: ArrayBuffer[CStructCommand],
+                               var states: Seq[PendingStateInfo]) extends Serializable with AvroRecord {
+  def appendCommand(command: CStructCommand) = {
+    commands.append(command)
+  }
+
+  def commitCommand(command: CStructCommand, logicalUpdater: LogicalRecordUpdater) = {
+    // TODO: Linear search for xid.  Store hash for performance?
+    val index = commands.indexWhere(x => x.xid == command.xid)
+    if (index == -1) {
+      // This commmand was not pending.
+      commands.append(command)
+      // Update all the states to include this command.  Only the states
+      // have to change.
+      val deltaBytes = command.command match {
+        case LogicalUpdate(_, delta) => MDCCRecordUtil.fromBytes(delta).value
+        case _ => None
+      }
+
+      if (deltaBytes.isDefined) {
+        states = states.map(x => {
+          x.state = logicalUpdater.applyDeltaBytes(Option(x.state), deltaBytes)
+          x})
+      }
+    } else {
+      commands.update(index, command)
+      // Update all the states and the xid lists.
+      val deltaBytes = command.command match {
+        case LogicalUpdate(_, delta) => MDCCRecordUtil.fromBytes(delta).value
+        case _ => None
+      }
+
+      if (deltaBytes.isDefined) {
+        if (states.size == 1) {
+          states = new ArrayBuffer[PendingStateInfo]
+        } else if (states.size > 1) {
+          states = states.filter(x => x.xids.exists(y => !y.contains(command.xid))).map(x => {
+            x.xids = x.xids.filterNot(y => y.contains(command.xid))
+            x.state = logicalUpdater.applyDeltaBytes(Option(x.state), deltaBytes)
+            x})
+        }
+      }
+    }
+  }
+
+  def abortCommand(command: CStructCommand) = {
+    // TODO: Linear search for xid.  Store hash for performance?
+    val index = commands.indexWhere(x => x.xid == command.xid)
+    if (index != -1) {
+      commands.remove(index)
+      // Update the states and the xid lists to reflect this abort.
+      if (states.size == 1) {
+        states = new ArrayBuffer[PendingStateInfo]
+      } else if (states.size > 1) {
+        states = states.filter(x => x.xids.exists(y => !y.contains(command.xid))).map(x => {
+          x.xids = x.xids.filterNot(y => y.contains(command.xid))
+          x})
+      }
+    }
+  }
+
+  def updateStates(newStates: Seq[PendingStateInfo]) = {
+    states = newStates
+  }
+}
 
 class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                                override val factory: TxDBFactory,
@@ -72,10 +145,12 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     factory.getNewDB[ScadsXid, TxStatusEntry](db.getName + ".txstatus")
   // CStructs per key.
   private val pendingCStructs =
-    factory.getNewDB[Array[Byte], ArrayBuffer[CStructCommand]](db.getName + ".pendingcstructs")
+    factory.getNewDB[Array[Byte], PendingCommandsInfo](db.getName + ".pendingcstructs")
 
   // Detects conflicts for new updates.
   private var newUpdateResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs)
+
+  private val logicalRecordUpdater = new LogicalRecordUpdater(valueSchema)
 
   private var valueICs: FieldICList = null
 
@@ -106,20 +181,21 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
               case None => None
             }
 
-          val commands = pendingCStructs.get(pendingCommandsTxn, r.key) match {
-            case None => new ArrayBuffer[CStructCommand]
+          val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key) match {
+            case None => PendingCommandsInfo(new ArrayBuffer[CStructCommand],
+                                             new ArrayBuffer[PendingStateInfo])
             case Some(c) => c
           }
 
           // Add the updates to the pending list, if compatible.
-          if (newUpdateResolver.isCompatible(commands, storedMDCCRec, r)) {
+          if (newUpdateResolver.isCompatible(xid, commandsInfo, storedMDCCRec, r)) {
             // No conflict
-            commands.append(CStructCommand(xid, r, true))
-            pendingCStructs.put(pendingCommandsTxn, r.key, commands)
+            commandsInfo.appendCommand(CStructCommand(xid, r, true))
+            pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
           } else {
             success = false
           }
-          (r.key, CStruct(storedRecValue, commands))
+          (r.key, CStruct(storedRecValue, commandsInfo.commands))
         } else {
           (null, null)
         }
@@ -159,7 +235,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
               case Some(recBytes) => {
                 val deltaRec = MDCCRecordUtil.fromBytes(delta)
                 val dbRec = MDCCRecordUtil.fromBytes(recBytes)
-                val newBytes = LogicalRecordUpdater.applyDeltaBytes(valueSchema, dbRec.value, deltaRec.value)
+                val newBytes = logicalRecordUpdater.applyDeltaBytes(dbRec.value, deltaRec.value)
                 val newRec = MDCCRecordUtil.toBytes(MDCCRecord(Some(newBytes), dbRec.metadata))
                 db.put(txn, key, newRec)
               }
@@ -174,26 +250,10 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
         }
 
         // Commit the updates in the pending list.
-        val commands = pendingCStructs.get(pendingCommandsTxn, r.key) match {
-          case None => {
-            val c = new ArrayBuffer[CStructCommand]
-            c.append(CStructCommand(xid, r, false))
-            c
-          }
-          case Some(c) => {
-            // TODO: For now, linear search for xid.  Hash for performance?
-            val index = c.indexWhere(x => x.xid == xid)
-            if (index == -1) {
-              // Update does not exist.
-              c.append(CStructCommand(xid, r, false))
-            } else {
-              // Mark the update committed.
-              c.update(index, CStructCommand(xid, r, false))
-            }
-            c
-          }
-        }
-        pendingCStructs.put(pendingCommandsTxn, r.key, commands)
+        val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key).getOrElse(PendingCommandsInfo(new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
+        commandsInfo.commitCommand(CStructCommand(xid, r, false), logicalRecordUpdater)
+
+        pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
       })
       db.txCommit(txn)
       pendingCStructs.txCommit(pendingCommandsTxn)
@@ -216,21 +276,12 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
           txStatus.put(null, xid, TxStatusEntry(Status.Abort, List[RecordUpdate]()))
         }
         case Some(status) => {
-          status.updates foreach(r => {
+          status.updates.foreach(r => {
             // Remove the updates in the pending list.
-            val commands = pendingCStructs.get(pendingCommandsTxn, r.key) match {
-              case None => new ArrayBuffer[CStructCommand]
-              case Some(c) => {
-                // TODO: For now, linear search for xid.  Hash for performance?
-                val index = c.indexWhere(x => x.xid == xid)
-                if (index != -1) {
-                  // Remove the update committed.
-                  c.remove(index)
-                }
-                c
-              }
-            }
-            pendingCStructs.put(pendingCommandsTxn, r.key, commands)
+            val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key).getOrElse(PendingCommandsInfo(new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
+            commandsInfo.abortCommand(CStructCommand(xid, r, false))
+
+            pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
           })
           txStatus.put(null, xid, TxStatusEntry(Status.Abort, status.updates))
         }
@@ -261,17 +312,61 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
 class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
                         val ics: FieldICList) {
-  def isCompatible(commands: Seq[CStructCommand],
+  val util = new SpecificRecordUtil(valueSchema)
+  val logicalRecordUpdater = new LogicalRecordUpdater(valueSchema)
+
+  def isCompatible(xid: ScadsXid,
+                   commandsInfo: PendingCommandsInfo,
                    dbValue: Option[MDCCRecord],
                    newUpdate: RecordUpdate): Boolean = {
     newUpdate match {
       case LogicalUpdate(key, delta) => {
-        // TODO: do IC
-        true
+        // TODO: what about deleted/non-existent records???
+        if (!dbValue.isDefined) {
+          throw new RuntimeException("base record should exist for logical updates")
+        }
+        val deltaRec = MDCCRecordUtil.fromBytes(delta)
+
+        var oldStates = new HashMap[List[Byte], List[List[ScadsXid]]]()
+        oldStates ++= commandsInfo.states.map(s => (s.state.toList, s.xids))
+        var newStates = new HashMap[List[Byte], List[List[ScadsXid]]]()
+
+        // Apply to base record first
+        val newStateBytes = logicalRecordUpdater.applyDeltaBytes(dbValue.get.value, deltaRec.value)
+        val newState = newStateBytes.toList
+        val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ List(List(xid))
+
+        var valid = newStates.put(newState, newXidList) match {
+          case None => ICChecker.check(util.fromBytes(newState.toArray), ics)
+          case Some(_) => true
+        }
+
+        if (!valid) {
+          commandsInfo.updateStates(newStates.toList.map(x => PendingStateInfo(x._1.toArray, x._2)))
+          false
+        } else {
+
+          // TODO: what if current old state is NOT currently in new states?
+          commandsInfo.states.foreach(s => {
+            if (valid) {
+              val newState = logicalRecordUpdater.applyDeltaBytes(Option(s.state), deltaRec.value).toList
+              val baseXidList = oldStates.get(s.state.toList).get.map(_ ++ List(xid))
+              val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ baseXidList
+              newStates.put(newState, newXidList)
+              valid = newStates.put(newState, newXidList) match {
+                case None => ICChecker.check(util.fromBytes(newState.toArray), ics)
+                case Some(_) => true
+              }
+            }
+          })
+
+          commandsInfo.updateStates(newStates.toList.map(x => PendingStateInfo(x._1.toArray, x._2)))
+          valid
+        }
       }
       case ValueUpdate(key, oldValue, newValue) => {
         // Value updates conflict with all pending updates
-        if (commands.indexWhere(x => x.pending) == -1) {
+        if (commandsInfo.commands.indexWhere(x => x.pending) == -1) {
           // No pending commands.
           val newRec = MDCCRecordUtil.fromBytes(newValue)
           (oldValue, dbValue) match {
@@ -300,7 +395,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
       }
       case VersionUpdate(key, newValue) => {
         // Version updates conflict with all pending updates
-        if (commands.indexWhere(x => x.pending) == -1) {
+        if (commandsInfo.commands.indexWhere(x => x.pending) == -1) {
           // No pending commands.
           val newRec = MDCCRecordUtil.fromBytes(newValue)
           dbValue match {
@@ -319,27 +414,41 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
   } // isCompatible
 }
 
-object LogicalRecordUpdater {
+class SpecificRecordUtil(val schema: Schema) {
+  val reader = new SpecificDatumReader[SpecificRecord](schema)
+  val writer = new SpecificDatumWriter[SpecificRecord](schema)
+  val out = new java.io.ByteArrayOutputStream(128)
+  val encoder = EncoderFactory.get().binaryEncoder(out, null)
+
+  def fromBytes(bytes: Array[Byte]): SpecificRecord = {
+    reader.read(null, DecoderFactory.get().directBinaryDecoder(new ByteArrayInputStream(bytes), null)).asInstanceOf[SpecificRecord]
+  }
+
+  def toBytes(record: SpecificRecord): Array[Byte] = {
+    out.reset()
+    writer.write(record, encoder)
+    encoder.flush
+    out.toByteArray
+  }
+}
+
+class LogicalRecordUpdater(val schema: Schema) {
+  val util = new SpecificRecordUtil(schema)
+
   // base is the (optional) byte array of the serialized AvroRecord.
   // delta is the (optional) byte array of the serialized delta AvroRecord.
   // A byte array of the serialized resulting record is returned.
-  def applyDeltaBytes(schema: Schema, baseBytes: Option[Array[Byte]], deltaBytes: Option[Array[Byte]]): Array[Byte] = {
+  def applyDeltaBytes(baseBytes: Option[Array[Byte]], deltaBytes: Option[Array[Byte]]): Array[Byte] = {
     if (deltaBytes.isEmpty) {
       throw new RuntimeException("Delta records should always exist.")
     }
     baseBytes match {
       case None => deltaBytes.get
       case Some(avroBytes) => {
-        val reader = new SpecificDatumReader[SpecificRecord](schema)
-        val avro = reader.read(null, DecoderFactory.get().directBinaryDecoder(new ByteArrayInputStream(avroBytes), null)).asInstanceOf[SpecificRecord]
-        val avroDelta = reader.read(null, DecoderFactory.get().directBinaryDecoder(new ByteArrayInputStream(deltaBytes.get), null)).asInstanceOf[SpecificRecord]
+        val avro = util.fromBytes(avroBytes)
+        val avroDelta = util.fromBytes(deltaBytes.get)
         val avroNew = applyDeltaRecord(avro, avroDelta)
-        val writer = new SpecificDatumWriter[SpecificRecord](schema)
-        val out = new java.io.ByteArrayOutputStream(128)
-        val encoder = EncoderFactory.get().binaryEncoder(out, null)
-        writer.write(avroNew, encoder)
-        encoder.flush
-        out.toByteArray
+        util.toBytes(avroNew)
       }
     }
   }
@@ -419,25 +528,29 @@ object ICChecker {
 
   def check(rec: SpecificRecord, ics: FieldICList): Boolean = {
     var valid = true
-    ics.ics.foreach(ic => {
-      if (valid) {
-        val doubleField = convertFieldToDouble(rec.get(ic.fieldPos))
+    if (ics == null) {
+      true
+    } else {
+      ics.ics.foreach(ic => {
+        if (valid) {
+          val doubleField = convertFieldToDouble(rec.get(ic.fieldPos))
 
-        val lowerValid = ic.lower match {
-          case None => true
-          case Some(FieldRestrictionGT(x)) => doubleField > x
-          case Some(FieldRestrictionGE(x)) => doubleField >= x
-          case _ => false
+          val lowerValid = ic.lower match {
+            case None => true
+            case Some(FieldRestrictionGT(x)) => doubleField > x
+            case Some(FieldRestrictionGE(x)) => doubleField >= x
+            case _ => false
+          }
+
+          valid = lowerValid && (ic.upper match {
+            case None => true
+            case Some(FieldRestrictionLT(x)) => doubleField < x
+            case Some(FieldRestrictionLE(x)) => doubleField <= x
+            case _ => false
+          })
         }
-
-        valid = lowerValid && (ic.upper match {
-          case None => true
-          case Some(FieldRestrictionLT(x)) => doubleField < x
-          case Some(FieldRestrictionLE(x)) => doubleField <= x
-          case _ => false
-        })
-      }
-    })
-    valid
+      })
+      valid
+    }
   }
 }
