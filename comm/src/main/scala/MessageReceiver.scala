@@ -1,23 +1,34 @@
 package edu.berkeley.cs.scads.comm
 
 import scala.actors.Actor
-import scala.concurrent.SyncVar
 
-import java.util.concurrent.{BlockingQueue, ArrayBlockingQueue,
-CountDownLatch, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{BlockingQueue, ArrayBlockingQueue, CountDownLatch, ThreadPoolExecutor, TimeUnit}
 
 import net.lag.logging.Logger
 import org.apache.avro.generic.IndexedRecord
-import java.awt.TrayIcon.MessageType
+import org.fusesource.hawtdispatch.Dispatch
 
 trait MessageReceiver[MessageType <: IndexedRecord] {
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit
 }
 
+//TODO: remove extra envelope object creation
 case class Envelope[MessageType <: IndexedRecord](src: Option[RemoteService[MessageType]], msg: MessageType)
 class ActorReceiver[MessageType <: IndexedRecord](actor: Actor) extends MessageReceiver[MessageType] {
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
     actor ! Envelope(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
+  }
+}
+
+class DispatchReceiver[MessageType <: IndexedRecord](f: (Envelope[MessageType]) => Unit) extends MessageReceiver[MessageType] {
+  val queue = Dispatch.createQueue()
+
+  class MessageReceive(msg: Envelope[MessageType]) extends Runnable{
+    def run(): Unit = f(msg)
+  }
+
+  def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
+    queue.execute(new MessageReceive(Envelope(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)))
   }
 }
 

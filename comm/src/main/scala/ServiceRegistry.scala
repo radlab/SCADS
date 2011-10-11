@@ -248,6 +248,10 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     registerService(receiver)
   }
 
+  def registerActor(f: (Envelope[MessageType]) => Unit): RemoteServiceProxy[MessageType] = {
+    registerService(new DispatchReceiver[MessageType](f))
+  }
+
   def getService(id: String): MessageReceiver[MessageType] =
     serviceRegistry.get(id)
 
