@@ -240,6 +240,14 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     svc
   }
 
+  /**
+   * Register an actor so that it can receive external messages
+   */
+  def registerActor(actor: actors.Actor): RemoteServiceProxy[MessageType] = {
+    val receiver = new ActorReceiver[MessageType](actor)
+    registerService(receiver)
+  }
+
   def getService(id: String): MessageReceiver[MessageType] =
     serviceRegistry.get(id)
 

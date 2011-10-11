@@ -1,6 +1,6 @@
 package edu.berkeley.cs.scads.comm
 
-import scala.actors._
+import scala.actors.Actor
 import scala.concurrent.SyncVar
 
 import java.util.concurrent.{BlockingQueue, ArrayBlockingQueue,
@@ -8,9 +8,17 @@ CountDownLatch, ThreadPoolExecutor, TimeUnit}
 
 import net.lag.logging.Logger
 import org.apache.avro.generic.IndexedRecord
+import java.awt.TrayIcon.MessageType
 
 trait MessageReceiver[MessageType <: IndexedRecord] {
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit
+}
+
+case class Envelope[MessageType <: IndexedRecord](src: Option[RemoteService[MessageType]], msg: MessageType)
+class ActorReceiver[MessageType <: IndexedRecord](actor: Actor) extends MessageReceiver[MessageType] {
+  def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
+    actor ! Envelope(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
+  }
 }
 
 /**
