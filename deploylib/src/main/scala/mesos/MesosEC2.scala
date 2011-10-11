@@ -38,7 +38,7 @@ object MesosCluster {
   /**
    * Start a new plain ubuntu ami, install java/mesos on it, bundle it as a new AMI.
    */
-  def buildNewAmi(region: EC2Region = EC2West): String = {
+  def buildNewAmi(region: EC2Region): String = {
     region.update()
     val oldInst = region.client.describeTags().getTags()
       .filter(_.getResourceType equals "instance")
@@ -80,7 +80,7 @@ object MesosCluster {
     val bucketName = (region.getClass.getName.dropRight(1) + System.currentTimeMillis).toLowerCase.replaceAll("\\.", "")
     logger.info("bundling ami as %s...", bucketName)
     val ami = inst.bundleNewAMI(bucketName)
-    //inst.halt
+    inst.halt
     ami
   }
 }
@@ -88,7 +88,7 @@ object MesosCluster {
 /**
  * Functions to help maintain a mesos cluster on EC2.
  */
-class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) {
+class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
   val logger = Logger()
 
   /**
@@ -106,8 +106,15 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) {
   /**
    * The ami used when launching new instances
    */
-  val mesosAmi =
-    if (region.endpoint contains "west") "ami-1f08545a" else "ami-d373b1ba"
+  val mesosAmi = region match {
+    case EC2East => "ami-d373b1ba"
+    case EC2West => "ami-1f08545a"
+    case USEast1 => "ami-d373b1ba"
+    case USWest1 => "ami-1f08545a"
+    case EUWest1 => "ami-43b38137"
+    case APNortheast1 => "ami-04912505"
+    case APSoutheast1 => "ami-92057fc0"
+  }
 
   /**
    * The default availability zone used when launching new instances.

@@ -4,24 +4,31 @@ import deploylib._
 import deploylib.runit._
 
 import com.amazonaws.services.ec2._
-import com.amazonaws.services.ec2.model._
+import model._
 import net.lag.logging.Logger
 import java.io.File
 import java.net.URL
 
 import scala.collection.JavaConversions._
 
-case object EC2East extends EC2Region("https://ec2.us-east-1.amazonaws.com")
+@deprecated("Use USEast1", "v2.1.3")
+case object EC2East extends EC2Region("https://ec2.us-east-1.amazonaws.com", "US", "ami-fbbf7892")
+@deprecated("Use USWest1", "v2.1.3")
+case object EC2West extends EC2Region("https://ec2.us-west-1.amazonaws.com", "us-west-1", "ami-89c694cc")
 
-case object EC2West extends EC2Region("https://ec2.us-west-1.amazonaws.com")
+case object USEast1 extends EC2Region("https://ec2.us-east-1.amazonaws.com", "US", "ami-fbbf7892")
+case object USWest1 extends EC2Region("https://ec2.us-west-1.amazonaws.com", "us-west-1", "ami-89c694cc")
+case object EUWest1 extends EC2Region("https://ec2.eu-west-1.amazonaws.com", "EU", "ami-ee0e3c9a")
+case object APNortheast1 extends EC2Region("https://ec2.ap-northeast-1.amazonaws.com", "ap-northeast-1", "ami-58b40059")
+case object APSoutheast1 extends EC2Region("https://ec2.ap-southeast-1.amazonaws.com", "ap-southeast-1", "ami-e0205ab2")
 
 /**
  * Provides methods for interacting with nodes in a given ec2 region.
- * It caches all data received from the EC2 api and updates it only when accessing a volitile field (such as instanceState) or when an update is manually requested.
+ * It caches all data received from the EC2 api and updates it only when accessing a volatile field (such as instanceState) or when an update is manually requested.
  * Additionally, it will only make an update call to EC2 no more often than every 10 seconds.
  * This means it is safe to make many concurrent calls to the static methods or instance methods of a specific EC2Instance concurrently from many threads with out fear of overloading amazons api.
  */
-class EC2Region(val endpoint: String) extends AWSConnection {
+class EC2Region(val endpoint: String, val location: String, val defaultAMI: String) extends AWSConnection {
   protected val logger = Logger()
 
   var keyName = System.getenv("AWS_KEY_NAME")
@@ -31,11 +38,6 @@ class EC2Region(val endpoint: String) extends AWSConnection {
   protected val nameRegEx = """.*ec2\.([^\.]+)\.amazon.*""".r
   val name = endpoint match {
     case nameRegEx(name) => name
-  }
-
-  val location = name match {
-    case "us-east-1" => "US"
-    case "us-west-1" => "us-west-1"
   }
 
   val ubuntuRepo = "http://%s.ec2.archive.ubuntu.com/ubuntu/".format(name)
@@ -53,6 +55,18 @@ class EC2Region(val endpoint: String) extends AWSConnection {
     }): _*)
     lastUpdate = System.currentTimeMillis()
     logger.info("Updated EC2 instances state")
+  }
+
+  /**
+   * Upload the current public key to ec2 as AWS_KEY_NAME
+   */
+  def importKeyPair: Unit = {
+    client.importKeyPair(new ImportKeyPairRequest(keyName, Util.readFile(RemoteMachine.findPublicKey)))
+  }
+
+  def openPorts: Unit = {
+    val ports = Seq(22, 2181, 5050, 8080, 8081, 9000).map(p => new IpPermission().withIpProtocol("tcp").withFromPort(p).withToPort(p).withIpRanges("0.0.0.0/0"))
+    client.authorizeSecurityGroupIngress(new AuthorizeSecurityGroupIngressRequest("default", ports))
   }
 
   /**
@@ -105,15 +119,6 @@ class EC2Region(val endpoint: String) extends AWSConnection {
     runInstances(1)(0)
 
   /**
-   * An unconfigured instance store ubuntu ami
-   */
-  def defaultAMI =
-    if (endpoint contains "west")
-      "ami-89c694cc"
-    else
-      "ami-fbbf7892"
-
-  /**
    * Launches the specified number of golden image instances with the default configuration.
    */
   def runInstances(num: Int): Seq[EC2Instance] =
@@ -145,12 +150,14 @@ class EC2Region(val endpoint: String) extends AWSConnection {
    * Instances of this class can be obtained by instanceId from the static method getInstance
    */
   class EC2Instance(val instanceId: String) extends RemoteMachine with RunitManager with Sudo with ServiceManager {
+    import RemoteMachine._
+
     lazy val hostname: String = getHostname()
     val username: String = "ubuntu"
     val rootDirectory: File = new File("/mnt/")
     val runitBinaryPath: File = new File("/usr/bin")
     val javaCmd: File = new File("/usr/bin/java")
-    override val privateKey = if (System.getenv("AWS_KEY_PATH") != null) new File(System.getenv("AWS_KEY_PATH")) else super.findPrivateKey
+    override val privateKey = if (System.getenv("AWS_KEY_PATH") != null) new File(System.getenv("AWS_KEY_PATH")) else findPrivateKey
     val fileCache: File = new File(rootDirectory, "deploylibFileCache")
 
     object tags extends collection.generic.SeqForwarder[TagDescription] {
