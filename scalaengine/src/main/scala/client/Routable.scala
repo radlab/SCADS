@@ -123,7 +123,7 @@ trait DefaultKeyRoutableLike
   }
 
   private def loadRoutingTable(): Unit = {
-    val rangeSeq = new RoutingTableMessage
+    val rangeSeq = classOf[RoutingTableMessage].newInstance
     rangeSeq.parse(watchMetadata(ZOOKEEPER_ROUTING_TABLE, loadRoutingTable))
     val partition = rangeSeq.partitions.map(a => new RangeType(a.startKey, a.servers))
     createRoutingTable(partition.toArray)

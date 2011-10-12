@@ -1,8 +1,6 @@
-package edu.berkeley.cs.scads.storage.transactions.conflict
-
-import edu.berkeley.cs.scads.comm._
-
-import edu.berkeley.cs.scads.storage.transactions._
+package edu.berkeley.cs.scads.storage
+package transactions
+package conflict
 
 import actors.threadpool.ThreadPoolExecutor.AbortPolicy
 import scala.collection.mutable.ArrayBuffer

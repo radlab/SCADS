@@ -1,7 +1,9 @@
-package edu.berkeley.cs.scads.storage.transactions.mdcc
+package edu.berkeley.cs.scads
+package storage
+package transactions
+package mdcc
 
-import _root_.edu.berkeley.cs.scads.storage.transactions._
-import edu.berkeley.cs.scads.comm._
+import comm._
 import MDCCMetaHelper._
 
 import net.lag.logging.Logger
@@ -28,7 +30,7 @@ sealed case class MDCCUpdateInfo(
                                     var update: RecordUpdate,
                                     var servers: Seq[PartitionService],
                                     var meta: Option[MDCCMetadata],
-                                    var futures: List[MessageFuture],
+                                    var futures: List[MessageFuture[StorageMessage]],
                                     var status: RecordStatus) {
   override def hashCode() = update.key.hashCode()
 }
@@ -131,7 +133,7 @@ class MCCCRecordHandler (
         val servers: Seq[PartitionService],
         metaOption: Option[MDCCMetadata],
         val Xid: ScadsXid) extends Actor {
-  var futures: List[MessageFuture] = Nil
+  var futures: List[MessageFuture[StorageMessage]] = Nil
   var status: RecordStatus = FRESH
   var meta = if(metaOption.isEmpty) DefaultMetaData.getDefault(servers) else metaOption.get
 
@@ -166,20 +168,20 @@ class MCCCRecordHandler (
   }
 
 
-  def selfNotification(body : MessageBody) = this.!(body)
+  def selfNotification(body : StorageMessage) = this.!(body)
 
 
   def startPhase1a(key: Array[Byte], startRound: Long, endRound: Long, fast : Boolean) : Unit =  {
     if(isMaster(meta)) return  //I am already master
     val newRange = getOwnership(meta, startRound, endRound, fast)
     val phase1aMsg = Phase1a(update.key, newRange)
-    val futures : List[MessageFuture] = servers.map(_ !! phase1aMsg)
+    val futures : List[MessageFuture[StorageMessage]] = servers.map(_ !! phase1aMsg)
     futures.foreach(_.respond(selfNotification ))
   }
 
   def SendProposal() = {
     val propose = Propose(Xid, update)
-    val futures : List[MessageFuture] =
+    val futures : List[MessageFuture[StorageMessage]] =
       if (metaOption.isEmpty || //Without having the meta data we assume somebody else is responsible
         fastRound(meta)){  //If we have a fast round, we can propose directly
         servers.map(_ !! propose)
@@ -196,7 +198,7 @@ class MCCCRecordHandler (
 
 
 
-  def startPhase2() : List[MessageFuture] = {
+  def startPhase2() : List[MessageFuture[StorageMessage]] = {
     //Enabled if maxTried = [None]
     //leader received "1b" for balnom m from every acceptor in quorum
     // v = w add sigma, where sigma is element of Seq(propCmd ),

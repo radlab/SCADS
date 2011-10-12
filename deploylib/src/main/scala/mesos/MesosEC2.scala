@@ -21,7 +21,8 @@ object ServiceSchedulerDaemon extends optional.Application {
       javaExecutorPath
     )
     val serviceSchedulerNode = ZooKeeperNode(zooKeeperAddress)
-    serviceSchedulerNode.data = scheduler.remoteHandle.toBytes
+    val remoteService = scheduler.remoteHandle
+    serviceSchedulerNode.data = new RemoteServiceScheduler(remoteService.host, remoteService.port, remoteService.id).toBytes
   }
 }
 

@@ -1,9 +1,7 @@
-package edu.berkeley.cs.scads.storage.transactions
-
-import edu.berkeley.cs.scads.comm._
+package edu.berkeley.cs.scads.storage
+package transactions
 
 import scala.collection.mutable.HashMap
-
 import net.lag.logging.Logger
 
 // TODO: Worry about thread safety?

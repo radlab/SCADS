@@ -54,7 +54,7 @@ trait AnalyticsProtocol
 
 
   class AggHandler
-    (val futures:Seq[Seq[MessageFuture]],
+    (val futures:Seq[Seq[MessageFuture[StorageMessage]]],
      val partitionMap:HashMap[String,String],
      val numParts:Int,
      val aggs:Seq[(LocalAggregate[_,_],Int)],
@@ -62,7 +62,7 @@ trait AnalyticsProtocol
      val numRanges:Int,
      val timeout:Long = 60000) {
 
-      private val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
+      private val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture[StorageMessage]]
       private val partitionReplies = new HashMap[String,AggReply]
       private val timeoutCounter = new TimeoutCounter(timeout)
       

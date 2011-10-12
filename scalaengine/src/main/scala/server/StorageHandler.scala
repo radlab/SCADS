@@ -1,7 +1,8 @@
 package edu.berkeley.cs.scads.storage
 
 import net.lag.logging.Logger
-import com.sleepycat.je.{Cursor,Database, DatabaseConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
+import com.sleepycat.je
+import je.{Cursor,Database, DatabaseConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability}
 
 import edu.berkeley.cs.scads.comm._
 
@@ -29,11 +30,13 @@ object StorageHandler {
  * Basic implementation of a storage handler using BDB as a backend.
  */
 class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, val name:Option[String] = None) 
-  extends ServiceHandler[StorageServiceOperation] {
+  extends ServiceHandler[StorageMessage] {
 
   @volatile private var serverNode: ZooKeeperProxy#ZooKeeperNode = _
 
   val counterId = StorageHandler.idGen.getAndIncrement()
+
+  def registry = StorageRegistry
 
   override def toString = 
     "<CounterID: %d, EnvDir: %s, Handle: %s>".format(counterId, env.getHome.getCanonicalPath, remoteHandle)
@@ -101,13 +104,13 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
       def stop() = running = false
     }
 
-  private def makeDatabase(databaseName: String, keySchema: Schema, txn: Option[Transaction]): Database =
+  private def makeDatabase(databaseName: String, keySchema: Schema, txn: Option[je.Transaction]): Database =
     makeDatabase(databaseName, Some(new AvroBdbComparator(keySchema)), txn)
 
-  private def makeDatabase(databaseName: String, keySchema: String, txn: Option[Transaction]): Database =
+  private def makeDatabase(databaseName: String, keySchema: String, txn: Option[je.Transaction]): Database =
     makeDatabase(databaseName, Some(new AvroBdbComparator(keySchema)), txn)
 
-  private def makeDatabase(databaseName: String, comparator: Option[Comparator[Array[Byte]]], txn: Option[Transaction]): Database = {
+  private def makeDatabase(databaseName: String, comparator: Option[Comparator[Array[Byte]]], txn: Option[je.Transaction]): Database = {
     val dbConfig = new DatabaseConfig
     dbConfig.setAllowCreate(true)
     comparator.foreach(comp => dbConfig.setBtreeComparator(comp))
@@ -192,12 +195,12 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     /* Register with the zookeper as an available server */
     val availServs = root.getOrCreate("availableServers")
     logger.debug("Created StorageHandler" + name.getOrElse(remoteHandle.toString))
-    serverNode = availServs.createChild(name.getOrElse(remoteHandle.toString), remoteHandle.toBytes, if (!name.isEmpty) CreateMode.EPHEMERAL else CreateMode.EPHEMERAL_SEQUENTIAL)
+    serverNode = availServs.createChild(name.getOrElse(remoteHandle.toString), StorageService(remoteHandle).toBytes, if (!name.isEmpty) CreateMode.EPHEMERAL else CreateMode.EPHEMERAL_SEQUENTIAL)
 
     /* Reopen partitions */
     val cursor = partitionDb.openCursor(null, null)
     cursor.map { case (key, value) =>
-      (new String(key.getData), (new CreatePartitionRequest).parse(value.getData))
+      (new String(key.getData), (classOf[CreatePartitionRequest].newInstance).parse(value.getData))
     } foreach { case (partitionId, request) =>
 
       logger.info("Recreating partition %s from request %s".format(partitionId, request))
@@ -290,8 +293,8 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
       .get(namespace)
       .getOrElse(throw new RuntimeException("Attempted to open namespace that doesn't exist in zookeeper: " + namespace))
 
-  protected def process(src: Option[RemoteActorProxy], msg: StorageServiceOperation): Unit = {
-    def reply(msg: MessageBody) = src.foreach(_ ! msg)
+  protected def process(src: Option[RemoteServiceProxy[StorageMessage]], msg: StorageMessage): Unit = {
+    def reply(msg: StorageMessage) = src.foreach(_ ! msg)
 
     msg match {
       case createRequest @ CreatePartitionRequest(namespace, partitionType, startKey, endKey, trxProtocol) => {
@@ -363,7 +366,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
         }
 
         logger.info("Partition %s in namespace %s created".format(partitionId, namespace))
-        reply(CreatePartitionResponse( handler.remoteHandle.toPartitionService(partitionId, remoteHandle.toStorageService)))
+        reply(CreatePartitionResponse(PartitionService(handler.remoteHandle, partitionId, StorageService(remoteHandle))))
       }
       case DeletePartitionRequest(partitionId) => {
         logger.info("Deleting partition " + partitionId)
@@ -448,7 +451,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
         reply(DeletePartitionResponse())
       }
       case GetPartitionsRequest() => {
-        reply(GetPartitionsResponse(partitions.toList.map( a => a._2.remoteHandle.toPartitionService(a._1, remoteHandle.toStorageService))))
+        reply(GetPartitionsResponse(partitions.toList.map( a => PartitionService(a._2.remoteHandle,a._1, StorageService(remoteHandle)))))
 
       }
       case DeleteNamespaceRequest(namespace) => {

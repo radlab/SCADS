@@ -282,8 +282,8 @@ abstract class RemoteMachine {
 
     // HACK: For some reason, this sleep() avoids the bug of not finding
     //       /user/ubuntu/console file in the west region.
-    Thread.sleep(10 * 1000)
 
+    Thread.sleep(10 * 1000)
     this ! "chmod %s %s".format(mode, file)
   }
 

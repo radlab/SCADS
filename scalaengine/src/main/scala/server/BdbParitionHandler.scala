@@ -1,6 +1,7 @@
 package edu.berkeley.cs.scads.storage
 
-import com.sleepycat.je.{Cursor,Database, DatabaseConfig, CursorConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
+import com.sleepycat.je
+import je.{Cursor,Database, DatabaseConfig, CursorConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability}
 import org.apache.avro.Schema
 import net.lag.logging.Logger
 
@@ -37,7 +38,7 @@ class BdbStorageManager(val db: Database,
                         val keySchema: Schema, valueSchema: Schema) 
                        extends StorageManager
                        with    AvroComparator {
-  protected val logger = Logger("BdbStorageManager")
+  protected val logger = Logger()
   protected val config = Config.config
 
   protected lazy val copyIteratorCtor = 
@@ -46,8 +47,6 @@ class BdbStorageManager(val db: Database,
         new CursorBasedPartitionIterator(ps, minKey, maxKey, copyRecsPerMessage))
       case "actorfree" => Some((ps: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]]) =>
         new ActorlessPartitionIterator(ps, minKey, maxKey, copyRecsPerMessage))
-      case "actorbased" => Some((ps: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]]) =>
-        new PartitionIterator(ps, minKey, maxKey, copyRecsPerMessage))
       case invalid => 
         logger.info("copy iterator type %s is invalid", invalid)
         None
@@ -63,7 +62,7 @@ class BdbStorageManager(val db: Database,
 
   protected val cursorTimeout = 3 * 60 * 1000 // 3 minutes (in ms)
 
-  case class CursorContext(cursorId: Int, cursor: Cursor, txn: Transaction) {
+  case class CursorContext(cursorId: Int, cursor: Cursor, txn: je.Transaction) {
     private var lastActivity = System.currentTimeMillis
     private var valid = true
     def updateActivity(): Unit =
@@ -220,8 +219,9 @@ class BdbStorageManager(val db: Database,
 
    def get(key:Array[Byte]):Option[Array[Byte]] = {
      val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
-     //try { db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED) } catch { case e:com.sleepycat.je.LockTimeoutException => logger.warning("lock timeout during GetRequest") }
+     logger.debug("Running get %s %s", dbeKey, dbeValue)
      db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+     logger.debug("get operation complete %s %s", dbeKey, dbeValue)
      Option(dbeValue.getData())
    }
 
@@ -287,7 +287,7 @@ class BdbStorageManager(val db: Database,
     records
   }
 
-  def getBatch(ranges:Seq[MessageBody]):ArrayBuffer[GetRangeResponse] = {
+  def getBatch(ranges:Seq[StorageMessage]):ArrayBuffer[GetRangeResponse] = {
     val results = new ArrayBuffer[GetRangeResponse]
     results.sizeHint(ranges.size)
     ranges.foreach {
@@ -492,12 +492,12 @@ class BdbStorageManager(val db: Database,
   /**
    * Delete [startKey, endKey)
    */
-  def deleteEntireRange(txn: Option[Transaction]) { deleteRange(startKey, endKey, txn) }
+  def deleteEntireRange(txn: Option[je.Transaction]) { deleteRange(startKey, endKey, txn) }
 
   /**
    * Delete [lowerKey, upperKey)
    */
-  def deleteRange(lowerKey: Option[Array[Byte]], upperKey: Option[Array[Byte]], txn: Option[Transaction]) {
+  def deleteRange(lowerKey: Option[Array[Byte]], upperKey: Option[Array[Byte]], txn: Option[je.Transaction]) {
     assert(isStartKeyLEQ(lowerKey) && isEndKeyGEQ(upperKey), "startKey <= lowerKey && endKey >= upperKey required")
     iterateOverRange(lowerKey, upperKey, txn = txn)((_, _, cursor) => {
       cursor.delete()
@@ -551,7 +551,7 @@ class BdbStorageManager(val db: Database,
                                limit: Option[Int] = None, 
                                offset: Option[Int] = None, 
                                ascending: Boolean = true, 
-                               txn: Option[Transaction] = None)
+                               txn: Option[je.Transaction] = None)
       (func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit): Unit = {
     val (dbeKey, dbeValue) = (new DatabaseEntry, new DatabaseEntry)
     val cur = db.openCursor(txn.orNull, CursorConfig.READ_UNCOMMITTED)

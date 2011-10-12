@@ -1,16 +1,8 @@
-package edu.berkeley.cs.scads.storage.transactions
+package edu.berkeley.cs.scads.storage
+package transactions
 
-import _root_.edu.berkeley.cs.scads.comm.{SCADSService, MDCCBallotRange, MDCCMetadata}
 import scala.math.{min, max}
 import collection.mutable.{ArrayBuffer, ArraySeq}
-
-/**
- * Created by IntelliJ IDEA.
- * User: tim
- * Date: 9/25/11
- * Time: 5:05 PM
- * To change this template use File | Settings | File Templates.
- */
 
 object MDCCMetaHelper {
   def validateMeta(meta : MDCCMetadata) : Boolean = {

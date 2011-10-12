@@ -88,7 +88,7 @@ case class QueryRunnerTask(var numClients: Int,
     if(traceMessages) {
       logger.info("registering listener...")
       val messageTracer = new MessagePassingTracer(traceSink)
-      MessageHandler.registerListener(messageTracer)
+      StorageRegistry.registerListener(messageTracer)
     }
 
     val querySpecs = Class.forName(queryProvider).newInstance.asInstanceOf[QueryProvider].getQueryList(cluster, executor)
@@ -99,8 +99,8 @@ case class QueryRunnerTask(var numClients: Int,
       val responseTimes = new ConcurrentHashMap[QueryDescription, Histogram]
       val failedQueries = new ConcurrentHashMap[QueryDescription, AtomicInteger]
 
-      logger.warning("Registered Actor Count: %d", MessageHandler.registrySize)
-      logger.warning("Late messages %d", MessageHandler.invalidMessageCount.getAndSet(0))
+      logger.warning("Registered Actor Count: %d", StorageRegistry.registrySize)
+      logger.warning("Late messages %d", StorageRegistry.invalidMessageCount.getAndSet(0))
       logger.info("Beginning iteration %d", iteration)
       (1 to threads).pmap(threadId => {
 	      val seed = java.net.InetAddress.getLocalHost.getHostName + System.currentTimeMillis + threadId

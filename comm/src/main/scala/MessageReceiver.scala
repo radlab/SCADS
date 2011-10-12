@@ -3,22 +3,14 @@ package edu.berkeley.cs.scads.comm
 import scala.actors._
 import scala.concurrent.SyncVar
 
-import java.util.concurrent.{ BlockingQueue, ArrayBlockingQueue, 
-                              CountDownLatch, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{BlockingQueue, ArrayBlockingQueue,
+CountDownLatch, ThreadPoolExecutor, TimeUnit}
 
 import net.lag.logging.Logger
+import org.apache.avro.generic.IndexedRecord
 
-trait MessageReceiver {
-  def receiveMessage(src: Option[RemoteActorProxy], msg:MessageBody): Unit
-}
-
-case class ActorService(a: Actor) extends MessageReceiver {
-  def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit =  {
-    src match {
-      case Some(ra) => a.send(msg, ra.outputChannel)
-      case None => a ! msg
-    }
-  }
+trait MessageReceiver[MessageType <: IndexedRecord] {
+  def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit
 }
 
 /**
@@ -34,9 +26,9 @@ case class ActorService(a: Actor) extends MessageReceiver {
  *
  * TODO: fix this problem
  */
-abstract trait ServiceHandler[MessageType <: MessageBody] extends MessageReceiver {
-
+abstract trait ServiceHandler[MessageType <: IndexedRecord] extends MessageReceiver[MessageType] {
   protected val logger: Logger
+  def registry: ServiceRegistry[MessageType]
 
   /* Threadpool for execution of incoming requests */
   protected val outstandingRequests = new ArrayBlockingQueue[Runnable](1024) // TODO: read from config
@@ -49,19 +41,22 @@ abstract trait ServiceHandler[MessageType <: MessageBody] extends MessageReceive
    * initialization statements above. otherwise, NPE will ensue if a message
    * arrives immediately (since the thread pool has not been initialized yet,
    * etc) */
-  implicit val remoteHandle = MessageHandler.registerService(this)
+  implicit lazy val remoteHandle = registry.registerService(this)
 
   // TODO: use an explicit startup pattern - see warning message above
   startup()
-  startupGuard.countDown() /* signals startup completion */
+  startupGuard.countDown()
+
+  /* signals startup completion */
 
   /* Guaranteed that no invocations to process will occur during method */
   protected def startup(): Unit
+
   /* Guaranteed that no invocations to process will occur during method */
   protected def shutdown(): Unit
 
   /* Callback for when a message is received */
-  protected def process(src: Option[RemoteActorProxy], msg: MessageType): Unit
+  protected def process(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit
 
   def stop {
     stopListening
@@ -72,40 +67,40 @@ abstract trait ServiceHandler[MessageType <: MessageBody] extends MessageReceive
   /**
    * Un-registers this ServiceHandler from the MessageHandler. After calling
    * stopListening, this ServiceHandler will no longer receive new requests.
-   * However, its resources will open until stop is called explicitly
+   * However, its resources will remain open until stop is called explicitly
    */
   def stopListening {
     startupGuard.await() /* Let the service start up properly first, before shutting down */
-    MessageHandler.unregisterActor(remoteHandle)
+    registry.unregisterService(remoteHandle)
   }
 
   /* Request handler class to be executed on this StorageHandlers threadpool */
-  class Request(src: Option[RemoteActorProxy], req: MessageBody) extends Runnable {
-    def run():Unit = (req: @unchecked) match {
-      case op: MessageType =>
-        try { startupGuard.await(); process(src, op) } catch {
-          case e: Throwable => {
-            /* Get the stack trace */
-            val stackTrace = e.getStackTrace().mkString("\n")
-            /* Log and report the error */
-            logger.warning(e, "Exception processing storage request")
-            src.foreach(_ ! ProcessingException(e.toString, stackTrace))
-          }
+  class Request(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType) extends Runnable {
+    def run(): Unit = {
+      try {
+        startupGuard.await(); process(src, msg)
+      } catch {
+        case e: Throwable => {
+          /* Get the stack trace */
+          val stackTrace = e.getStackTrace().mkString("\n")
+          /* Log and report the error */
+          logger.warning(e, "Exception processing storage request")
+          //TODO: fix me! src.foreach(_ ! ProcessingException(e.toString, stackTrace))
         }
-      case otherMessage: MessageBody => src.foreach(_ ! RequestRejected("Unexpected message type to a storage service.", req))
+      }
     }
   }
 
   /* Enque a recieve message on the threadpool executor */
-  def receiveMessage(src: Option[RemoteActorProxy], msg:MessageBody): Unit = {
+  final def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
     try executor.execute(new Request(src, msg)) catch {
-      case ree: java.util.concurrent.RejectedExecutionException => src.foreach(_ ! RequestRejected("Thread Pool Full", msg))
+      case ree: java.util.concurrent.RejectedExecutionException => //TODO: Fix me: src.foreach(_ ! RequestRejected("Thread Pool Full", msg))
       case e: Throwable => {
         /* Get the stack trace */
         var stackTrace = e.getStackTrace().mkString("\n")
         /* Log and report the error */
         logger.warning(e, "Exception enquing storage request for execution")
-        src.foreach(_ ! ProcessingException(e.toString(), stackTrace))
+        //TODO Fixme: src.foreach(_ ! ProcessingException(e.toString(), stackTrace))
       }
     }
   }

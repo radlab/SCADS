@@ -229,8 +229,8 @@ with TransactionRecordMetadata {
 
 
   // This is just modified from the quorum protocol...
-  class GetHandlerTmp(val key: Array[Byte], val futures: Seq[MessageFuture], val timeout: Long = 5000) {
-    private val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
+  class GetHandlerTmp(val key: Array[Byte], val futures: Seq[MessageFuture[StorageMessage]], val timeout: Long = 5000) {
+    private val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture[StorageMessage]]
     futures.foreach(_.forward(responses))
     var winnerValue: Option[Array[Byte]] = None
     private var ctr = 0

@@ -179,7 +179,7 @@ case class PlanCompareTask(var clusterAddress: String,
 	  logger.info("Running %s %d times", query.name, numExecutions)
 	  val responseTimes = Histogram(1,1000)
 
-	  val startMessages = MessageHandler.futureCount
+	  val startMessages = StorageRegistry.futureCount
 	  (1 to numExecutions).foreach(i => {
 	    val users = randomUserList(maxUser, numFollowers)
 
@@ -191,7 +191,7 @@ case class PlanCompareTask(var clusterAddress: String,
 
 	    responseTimes.add(endTime - startTime)
 	  })
-	  val endMessages = MessageHandler.futureCount
+	  val endMessages = StorageRegistry.futureCount
 	  logger.info("Messages sent: %d", endMessages - startMessages)
 
 	  val result = PlanCompareResult(

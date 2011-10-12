@@ -1,4 +1,5 @@
-package edu.berkeley.cs.scads.storage.transactions
+package edu.berkeley.cs.scads.storage
+package transactions
 
 
 import edu.berkeley.cs.scads.comm._

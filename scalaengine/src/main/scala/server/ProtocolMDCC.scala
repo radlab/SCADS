@@ -1,49 +1,38 @@
-package edu.berkeley.cs.scads.storage.transactions
+package edu.berkeley.cs.scads
+package storage
+package transactions
 
-import _root_.edu.berkeley.cs.scads.comm._
-import _root_.edu.berkeley.cs.scads.comm.CommitResponse._
-import _root_.edu.berkeley.cs.scads.comm.PrepareResponse._
-import _root_.edu.berkeley.cs.scads.comm.ProcessingException._
-import _root_.edu.berkeley.cs.scads.storage.StorageManager
-import _root_.edu.berkeley.cs.scads.storage.transactions.conflict.PendingUpdates
-import _root_.edu.berkeley.cs.scads.storage.transactions.MDCCMetaHelper._
+import comm._
+import conflict._
+import MDCCMetaHelper._
 
-
-/**
- * Created by IntelliJ IDEA.
- * User: tim
- * Date: 9/21/11
- * Time: 4:29 PM
- * To change this template use File | Settings | File Templates.
- */
-
-class ProtocolMDCCServer(manager: StorageManager, pendingUpdates: PendingUpdates, serverAddress: RemoteActorProxy) extends TrxManager(manager) {
+class ProtocolMDCCServer(manager: StorageManager, pendingUpdates: PendingUpdates, serverAddress: RemoteServiceProxy[StorageMessage]) extends TrxManager(manager) {
 
 
   def getMeta: MDCCMetadata  = null
 
-  def processPropose(src: Option[RemoteActorProxy], xid: ScadsXid, update: RecordUpdate)(implicit sender: RemoteActorProxy)  = {
+  def processPropose(src: Option[RemoteServiceProxy[StorageMessage]], xid: ScadsXid, update: RecordUpdate)(implicit sender: RemoteServiceProxy[StorageMessage])  = {
     val meta = pendingUpdates.getMeta(update.key)
     val master = getMaster(meta)
     val result = pendingUpdates.accept(xid, update)
   }
 
-  def processPhase1a(src: Option[RemoteActorProxy], key: Array[Byte], ballot: MDCCMetadata) = {
+  def processPhase1a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], ballot: MDCCMetadata) = {
     val meta = pendingUpdates.getMeta(key)
 
 
   }
 
-  def processPhase2a(src: Option[RemoteActorProxy], key: Array[Byte], ballot: MDCCBallot, value: CStruct) = {
+  def processPhase2a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], ballot: MDCCBallot, value: CStruct) = {
 
   }
 
-  def processAccept(src: Option[RemoteActorProxy], xid: ScadsXid) = {
+  def processAccept(src: Option[RemoteServiceProxy[StorageMessage]], xid: ScadsXid) = {
 
   }
 
 
-  def process(src: Option[RemoteActorProxy], msg: TrxMessage)(implicit sender: RemoteActorProxy) = {
+  def process(src: Option[RemoteServiceProxy[StorageMessage]], msg: TrxMessage)(implicit sender: RemoteServiceProxy[StorageMessage]) = {
     msg match {
       case Propose(xid: ScadsXid, update: RecordUpdate) => processPropose(src, xid, update)
       case Phase1a(key: Array[Byte], ballot: MDCCBallotRange) => processPhase1a(src, key, ballot)

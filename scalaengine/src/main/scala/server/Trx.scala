@@ -1,20 +1,18 @@
-package edu.berkeley.cs.scads.storage.transactions
+package edu.berkeley.cs.scads
+package storage
+package transactions
 
-import _root_.edu.berkeley.cs.scads.comm._
-import _root_.edu.berkeley.cs.scads.comm.CommitResponse._
-import _root_.edu.berkeley.cs.scads.comm.PrepareResponse._
-import _root_.edu.berkeley.cs.scads.storage.StorageManager
-
+import comm._
 
 abstract class TrxManager(manager: StorageManager) {
-  def process(src: Option[RemoteActorProxy], msg : TrxMessage) (implicit sender: RemoteActorProxy)
+  def process(src: Option[RemoteServiceProxy[StorageMessage]], msg : TrxMessage) (implicit sender: RemoteServiceProxy[StorageMessage])
 
 }
 
 class Protocol2PCManager(manager: StorageManager)  extends TrxManager(manager) {
 
-   def process(src: Option[RemoteActorProxy], msg : TrxMessage)(implicit sender: RemoteActorProxy) = {
-     def reply(body: MessageBody) = src.foreach(_ ! body)
+   def process(src: Option[RemoteServiceProxy[StorageMessage]], msg : TrxMessage)(implicit sender: RemoteServiceProxy[StorageMessage]) = {
+     def reply(body: StorageMessage) = src.foreach(_ ! body)
      msg match {
        case PrepareRequest(xid, updates) => {
          val success = manager.accept(xid, updates).isDefined

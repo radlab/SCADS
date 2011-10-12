@@ -1,13 +1,11 @@
-package edu.berkeley.cs.scads.storage.transactions.prot2pc
+package edu.berkeley.cs.scads.storage
+package transactions
+package prot2pc
 
-
-import _root_.edu.berkeley.cs.scads.storage.transactions._
-import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.scads.storage.transactions.mdcc.DefaultMetaData
+import mdcc.DefaultMetaData
 
 import net.lag.logging.Logger
 
-import java.lang.Thread
 import java.util.Calendar
 
 sealed case class RecordUpdateInfo(servers: Seq[PartitionService], update: RecordUpdate)

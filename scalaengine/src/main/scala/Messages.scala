@@ -1,26 +1,45 @@
 package edu.berkeley.cs
 package scads
-package comm
+package storage
 
-import avro.marker.{ AvroRecord, AvroUnion, AvroPair }
+import avro.marker.{AvroPair, AvroRecord, AvroUnion}
+import comm._
 import java.nio.ByteBuffer
 import java.util.UUID
 
-/* Base message type for all scads messages */
-sealed trait MessageBody extends AvroUnion
+sealed trait StorageMessage extends AvroUnion
 
-/* General message types */
-sealed trait ActorId extends AvroUnion
-case class ActorNumber(var num: Long) extends AvroRecord with ActorId
-case class ActorName(var name: String) extends AvroRecord with ActorId
+sealed trait SCADSService extends AvroUnion with RemoteServiceProxy[StorageMessage] {
+  registry = StorageRegistry
+}
 
-case class Message(var src: Option[ActorId], var dest: ActorId, var id: Option[Long], var body: MessageBody) extends AvroRecord
-case class Record(var key: Array[Byte], var value: Option[Array[Byte]]) extends AvroRecord with MessageBody
+object StorageService {
+  def apply(s: RemoteServiceProxy[StorageMessage]):StorageService =
+    StorageService(s.host, s.port, s.id)
+}
+
+/* Specific types for different services. Note: these types are mostly for readability as typesafety isn't enforced when serialized individualy*/
+case class StorageService(var host: String,
+                          var port: Int,
+                          var id: ServiceId) extends AvroRecord with SCADSService
+
+object PartitionService {
+  def apply(s: RemoteServiceProxy[StorageMessage], partitionId: String, storageService: StorageService): PartitionService =
+    PartitionService(s.host, s.port, s.id, partitionId, storageService)
+}
+
+case class PartitionService(var host: String,
+                            var port: Int,
+                            var id: ServiceId,
+                            var partitionId: String,
+                            var storageService: StorageService) extends AvroRecord with SCADSService
+
+case class Record(var key: Array[Byte], var value: Option[Array[Byte]]) extends AvroRecord with StorageMessage
 
 /* Exceptions */
-sealed trait RemoteException extends MessageBody
+sealed trait RemoteException extends StorageMessage
 case class ProcessingException(var cause: String, var stacktrace: String) extends RemoteException with AvroRecord
-case class RequestRejected(var reason: String, var req: MessageBody) extends RemoteException with AvroRecord
+case class RequestRejected(var reason: String, var req: StorageMessage) extends RemoteException with AvroRecord
 case class InvalidPartition(var partitionId: String) extends RemoteException with AvroRecord
 case class InvalidNamespace(var namespace: String) extends RemoteException with AvroRecord
 
@@ -42,8 +61,8 @@ case class GetRangeResponse(var records: Seq[Record]) extends AvroRecord with Ke
 case class CursorScanRequest(var cursorId: Option[Int], var recsPerRequest: Int) extends AvroRecord with KeyValueStoreOperation
 case class CursorScanResponse(var cursorId: Option[Int], var records: IndexedSeq[Record]) extends AvroRecord with KeyValueStoreOperation
 
-case class BatchRequest(var ranges : Seq[MessageBody]) extends AvroRecord with KeyValueStoreOperation
-case class BatchResponse(var ranges : Seq[MessageBody]) extends AvroRecord with KeyValueStoreOperation
+case class BatchRequest(var ranges : Seq[StorageMessage]) extends AvroRecord with KeyValueStoreOperation
+case class BatchResponse(var ranges : Seq[StorageMessage]) extends AvroRecord with KeyValueStoreOperation
 
 case class CountRangeRequest(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation
 case class CountRangeResponse(var count: Int) extends AvroRecord with KeyValueStoreOperation
@@ -60,6 +79,51 @@ case class AggRequest(var groups: Seq[String], var keyType:String, var valueType
 case class GroupedAgg(var group:Option[Array[Byte]], var groupVals:Seq[Array[Byte]]) extends AvroRecord
 case class AggReply(var results:Seq[GroupedAgg]) extends AvroRecord with KeyValueStoreOperation
 
+/* Storage Handler Operations */
+sealed trait StorageServiceOperation extends StorageMessage
+case class CreatePartitionRequest(var namespace: String, var partitionType:String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None, var trxProtocol : String = "2PC") extends AvroRecord with StorageServiceOperation
+case class CreatePartitionResponse(var partitionActor: PartitionService) extends AvroRecord with StorageServiceOperation
+
+case class DeletePartitionRequest(var partitionId: String) extends AvroRecord with StorageServiceOperation
+case class DeletePartitionResponse() extends AvroRecord with StorageServiceOperation
+
+case class GetPartitionsRequest() extends AvroRecord with StorageServiceOperation
+case class GetPartitionsResponse(var partitions: List[PartitionService]) extends AvroRecord with StorageServiceOperation
+
+case class DeleteNamespaceRequest(var namespace: String) extends AvroRecord with StorageServiceOperation
+case class DeleteNamespaceResponse() extends AvroRecord with StorageServiceOperation
+
+case class ShutdownStorageHandler() extends AvroRecord with StorageServiceOperation
+
+/* Partition Handler Operations */
+sealed trait PartitionServiceOperation extends StorageMessage
+case class CopyDataRequest(var src: PartitionService, var overwrite: Boolean) extends AvroRecord with PartitionServiceOperation
+case class CopyDataResponse() extends AvroRecord with PartitionServiceOperation
+
+case class GetResponsibilityRequest() extends AvroRecord with PartitionServiceOperation
+case class GetResponsibilityResponse(var startKey: Option[Array[Byte]], var endKey: Option[Array[Byte]]) extends AvroRecord with PartitionServiceOperation
+
+/* Test Record Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
+case class IntRec(var f1: Int) extends AvroRecord
+case class IntRec2(var f1: Int, var f2: Int) extends AvroRecord
+case class IntRec3(var f1: Int, var f2: Int, var f3: Int) extends AvroRecord
+case class StringRec(var f1: String) extends AvroRecord
+case class StringRec2(var f1: String, var f2: String) extends AvroRecord
+case class StringRec3(var f1: String, var f2: String, var f3: String) extends AvroRecord
+case class CompIntStringRec(var intRec: IntRec, var stringRec: StringRec) extends AvroRecord
+case class PairRec(var username: String) extends AvroPair {
+  var password: String = _
+  var hometown: String = _
+}
+
+case class QuorumProtocolConfig(var readQuorum : Double, var writeQuorum : Double) extends AvroRecord
+
+/* Routing Table Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
+
+case class KeyRange(var startKey: Option[Array[Byte]], var servers : Seq[PartitionService]) extends AvroRecord
+case class RoutingTableMessage(var partitions: Seq[KeyRange]) extends AvroRecord
+
+
 /* Transaction KVStore Metadata */
 case class MDCCBallot(var round: Long, var vote: Int, var server: SCADSService, var fast: Boolean) extends AvroRecord
 case class MDCCBallotRange(var startRound: Long, var endRound: Long, var vote: Int, var server: SCADSService, var fast: Boolean) extends AvroRecord
@@ -70,7 +134,7 @@ case class CStructCommand(var xid: ScadsXid, var command: RecordUpdate, var pend
 case class CStruct(var value: Option[Array[Byte]], var commands: Seq[CStructCommand]) extends AvroRecord
 // TODO: For now, split out the cstructs from the actual record.
 // The value is the serialized version of the namespace's value type.
-case class MDCCRecord(var value: Option[Array[Byte]], var metadata: MDCCMetadata) extends AvroRecord with MessageBody
+case class MDCCRecord(var value: Option[Array[Byte]], var metadata: MDCCMetadata) extends AvroRecord with StorageMessage
 
 /* Transaction KVStore Updates */
 // key is the avro serialized key type
@@ -161,64 +225,3 @@ case class PrepareResponse(var success: Boolean) extends AvroRecord with TxProto
 case class CommitRequest(var xid: ScadsXid, var updates: Seq[RecordUpdate], var commit: Boolean) extends AvroRecord with TxProtocol2pc
 //case class CommitRequest(var xid: ScadsXid, var commit: Boolean) extends AvroRecord with TxProtocol2pc
 case class CommitResponse(var success: Boolean) extends AvroRecord with TxProtocol2pc
-
-/* Storage Handler Operations */
-sealed trait StorageServiceOperation extends MessageBody
-case class CreatePartitionRequest(var namespace: String, var partitionType:String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None, var trxProtocol : String = "2PC") extends AvroRecord with StorageServiceOperation
-case class CreatePartitionResponse(var partitionActor: PartitionService) extends AvroRecord with StorageServiceOperation
-
-case class DeletePartitionRequest(var partitionId: String) extends AvroRecord with StorageServiceOperation
-case class DeletePartitionResponse() extends AvroRecord with StorageServiceOperation
-
-case class GetPartitionsRequest() extends AvroRecord with StorageServiceOperation
-case class GetPartitionsResponse(var partitions: List[PartitionService]) extends AvroRecord with StorageServiceOperation
-
-case class DeleteNamespaceRequest(var namespace: String) extends AvroRecord with StorageServiceOperation
-case class DeleteNamespaceResponse() extends AvroRecord with StorageServiceOperation
-
-case class ShutdownStorageHandler() extends AvroRecord with StorageServiceOperation
-
-/* Partition Handler Operations */
-sealed trait PartitionServiceOperation extends MessageBody
-case class CopyDataRequest(var src: PartitionService, var overwrite: Boolean) extends AvroRecord with PartitionServiceOperation
-case class CopyDataResponse() extends AvroRecord with PartitionServiceOperation
-
-case class GetResponsibilityRequest() extends AvroRecord with PartitionServiceOperation
-case class GetResponsibilityResponse(var startKey: Option[Array[Byte]], var endKey: Option[Array[Byte]]) extends AvroRecord with PartitionServiceOperation
-
-/* Messages for the Remote Experiment Running Daemon. Located here due to limitations in MessageHandler */
-sealed trait ClassSource extends AvroUnion
-case class ServerSideJar(var path: String) extends AvroRecord with ClassSource
-case class S3CachedJar(var url: String) extends AvroRecord with ClassSource
-
-sealed trait JvmTask extends AvroUnion
-case class JvmWebAppTask(var warFile: ClassSource, var properties: Map[String, String]) extends AvroRecord with JvmTask
-case class JvmMainTask(var classpath: Seq[ClassSource], var mainclass: String, var args: Seq[String], var props: Map[String, String] = Map.empty, var env: Map[String, String] = Map.empty) extends AvroRecord with JvmTask
-
-sealed trait ExperimentOperation extends MessageBody
-case class RunExperimentRequest(var processes: Seq[JvmTask]) extends AvroRecord with ExperimentOperation
-case class RunExperimentResponse() extends AvroRecord with ExperimentOperation
-
-case class KillTaskRequest(var taskId: String) extends AvroRecord with ExperimentOperation
-case class KillTaskResponse() extends AvroRecord with ExperimentOperation
-
-/* Test Record Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
-case class IntRec(var f1: Int) extends AvroRecord
-case class IntRec2(var f1: Int, var f2: Int) extends AvroRecord
-case class IntRec3(var f1: Int, var f2: Int, var f3: Int) extends AvroRecord
-case class StringRec(var f1: String) extends AvroRecord
-case class StringRec2(var f1: String, var f2: String) extends AvroRecord
-case class StringRec3(var f1: String, var f2: String, var f3: String) extends AvroRecord
-case class CompIntStringRec(var intRec: IntRec, var stringRec: StringRec) extends AvroRecord
-case class PairRec(var username: String) extends AvroPair {
-  var password: String = _
-  var hometown: String = _
-}
-
-case class QuorumProtocolConfig(var readQuorum : Double, var writeQuorum : Double) extends AvroRecord
-
-/* Routing Table Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
-
-case class KeyRange(var startKey: Option[Array[Byte]], var servers : Seq[PartitionService]) extends AvroRecord
-case class RoutingTableMessage(var partitions: Seq[KeyRange]) extends AvroRecord
-

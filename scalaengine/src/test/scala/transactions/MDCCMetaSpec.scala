@@ -1,18 +1,13 @@
-package edu.berkeley.cs.scads.test.transactions
+package edu.berkeley.cs.scads
+package storage
+package transactions
+package test
 
-import _root_.edu.berkeley.cs.scads.storage.transactions.MDCCMetaHelper
-import _root_.edu.berkeley.cs.scads.storage.transactions.MDCCMetaHelper._
+import MDCCMetaHelper._
+
 import org.scalatest.matchers.ShouldMatchers
 import edu.berkeley.cs.scads.comm._
 import org.scalatest.{WordSpec, BeforeAndAfterAll, Spec}
-
-/**
- * Created by IntelliJ IDEA.
- * User: tim
- * Date: 10/1/11
- * Time: 5:21 PM
- * To change this template use File | Settings | File Templates.
- */
 
 class MDCCMetaSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll{
   "A MDCCMetaHelper" should {
@@ -59,8 +54,8 @@ class MDCCMetaSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll{
 
 
     "get ownership" in {
-     val foreign = StorageService("foreign", 1000, ActorName("foreign"))
-     val local = StorageService("local", 1000, ActorName("local"))
+     val foreign = StorageService("foreign", 1000, ServiceName("foreign"))
+     val local = StorageService("local", 1000, ServiceName("local"))
      val meta = MDCCMetadata(1,  MDCCBallotRange(1, 10, 3, foreign, false) :: MDCCBallotRange(11, 20, 0, local, false) :: Nil)
      val newMeta = getOwnership(meta)(local)
      newMeta.ballots should equal (List(MDCCBallotRange(1,1,4,local,false), MDCCBallotRange(2,10,3,foreign,false), MDCCBallotRange(11,20,0,local,false)))
@@ -74,9 +69,9 @@ class MDCCMetaSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll{
     }
 
     "combine MDCC" in {
-      val s1 = StorageService("s1", 1000, ActorName("s1"))
-      val s2 = StorageService("s2", 1000, ActorName("s2"))
-      val s3 = StorageService("s3", 1000, ActorName("s3"))
+      val s1 = StorageService("s1", 1000, ServiceName("s1"))
+      val s2 = StorageService("s2", 1000, ServiceName("s2"))
+      val s3 = StorageService("s3", 1000, ServiceName("s3"))
       val meta1 = MDCCMetadata(3,  MDCCBallotRange(1, 10, 5, s1, false) :: MDCCBallotRange(11, 20, 5, s1, false) :: MDCCBallotRange(21, 30, 5, s1, false) :: Nil)
       val meta2 = MDCCMetadata(5,  MDCCBallotRange(1, 10, 5, s2, false) :: MDCCBallotRange(11, 15, 6, s1, false) :: MDCCBallotRange(16, 18, 6, s2, false) :: MDCCBallotRange(19, 20, 6, s2, false) :: MDCCBallotRange(21, 40, 5, s1, false) :: Nil)
       val meta3 = MDCCMetadata(6,  MDCCBallotRange(6, 6, 6, s3, true) :: MDCCBallotRange(7, 10, 5, s2, false) :: MDCCBallotRange(14, 18, 7, s1, false) :: MDCCBallotRange(23, 23, 5, s1, false) :: Nil)

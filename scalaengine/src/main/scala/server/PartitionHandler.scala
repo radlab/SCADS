@@ -39,9 +39,10 @@ abstract trait StorageManager {
   def bulkPut(records: Seq[PutRequest])
 
   // cursorscanrequest?
+
   def getRange(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], limit: Option[Int], offset: Option[Int], ascending: Boolean): Seq[Record]
 
-  def getBatch(ranges: Seq[MessageBody]): ArrayBuffer[GetRangeResponse]
+  def getBatch(ranges: Seq[StorageMessage]): ArrayBuffer[GetRangeResponse]
 
   def countRange(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]]): Int
 
@@ -68,13 +69,16 @@ abstract trait StorageManager {
   def shutdown(): Unit
 }
 
-case class PartitionHandler(manager: StorageManager, trxManager : TrxManager) extends ServiceHandler[PartitionServiceOperation] {
+case class PartitionHandler(manager: StorageManager, trxManager : TrxManager) extends ServiceHandler[StorageMessage] {
 
   protected val logger = Logger("PartitionHandler")
 
   protected def startup(): Unit = manager.startup()
 
   protected def shutdown(): Unit = manager.shutdown()
+
+
+  def registry = StorageRegistry
 
   // workload stats code
   protected var currentStats = PartitionWorkloadStats(0, 0)
@@ -111,8 +115,8 @@ case class PartitionHandler(manager: StorageManager, trxManager : TrxManager) ex
 
   // end workload stats stuff
 
-  protected def process(src: Option[RemoteActorProxy], msg: PartitionServiceOperation): Unit = {
-    def reply(msg: MessageBody) = src.foreach(_ ! msg)
+  protected def process(src: Option[RemoteServiceProxy[StorageMessage]], msg: StorageMessage): Unit = {
+    def reply(msg: StorageMessage) = src.foreach(_ ! msg)
     try {
       msg match {
         case GetRequest(key) => {

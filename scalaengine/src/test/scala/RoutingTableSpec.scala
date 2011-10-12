@@ -24,7 +24,7 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers with BeforeAndAfterA
 
   implicit def toIntFromIntRec(a : IntRec) : Int = a.f1
 
-  implicit def toStorageService(ra: RemoteActor): StorageService = 
+  implicit def toStorageService(ra: RemoteService[StorageMessage]): StorageService =
     StorageService(ra.host, ra.port, ra.id)
 
   override def afterAll(): Unit = {
