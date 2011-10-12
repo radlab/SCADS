@@ -50,8 +50,6 @@ trait PendingUpdates extends DBRecords {
 
   def getDecision(xid: ScadsXid): Status.Status
 
-  def getMeta(key : Array[Byte]) : MDCCMetadata
-
   def getCStruct(key: Array[Byte]): Option[CStruct]
 
   def startup() = {}
@@ -160,9 +158,6 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     println("ics: " + valueICs)
   }
 
-  override def getMeta(key : Array[Byte]) : MDCCMetadata = {
-    throw new RuntimeException("Not implemented")
-  }
 
   override def accept(xid: ScadsXid, update: RecordUpdate): Option[(Array[Byte], CStruct)] = {
     accept(xid, update :: Nil).headOption

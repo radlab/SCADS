@@ -4,12 +4,12 @@ package transactions
 
 import comm._
 
-abstract class TrxManager(manager: StorageManager) {
-  def process(src: Option[RemoteServiceProxy[StorageMessage]], msg : TrxMessage) (implicit sender: RemoteServiceProxy[StorageMessage])
-
+abstract class TrxManager() {
+  def process(src: Option[RemoteActorProxy], msg : TrxMessage) (implicit sender: RemoteActorProxy)
 }
 
-class Protocol2PCManager(manager: StorageManager)  extends TrxManager(manager) {
+//TODO factor 2PC prot
+class Protocol2PCManager(manager: StorageManager)  extends TrxManager {
 
    def process(src: Option[RemoteServiceProxy[StorageMessage]], msg : TrxMessage)(implicit sender: RemoteServiceProxy[StorageMessage]) = {
      def reply(body: StorageMessage) = src.foreach(_ ! body)

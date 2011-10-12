@@ -4,6 +4,10 @@ package prot2pc
 
 import mdcc.DefaultMetaData
 
+import _root_.edu.berkeley.cs.scads.storage.transactions._
+import edu.berkeley.cs.scads.comm._
+
+import mdcc.MDCCMetaDefault
 import net.lag.logging.Logger
 
 import java.util.Calendar
@@ -21,20 +25,20 @@ object Protocol2pc extends ProtocolBase {
   protected def transformUpdateList(updateList: UpdateList, readList: ReadList): Seq[RecordUpdateInfo] = {
     updateList.getUpdateList.map(update => {
       update match {
-        case ValueUpdateInfo(servers, key, value) => {
+        case ValueUpdateInfo(ns, servers, key, value) => {
           val md = readList.getRecord(key).map(r =>
             MDCCMetadata(r.metadata.currentRound, r.metadata.ballots)) match {
-              case None => Some(DefaultMetaData.getDefault(servers))
+              case None => Some(ns.getDefaultMeta())
               case x => x
             }
           //TODO: Do we really need the MDCCMetadata
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           RecordUpdateInfo(servers, ValueUpdate(key, None, newBytes))
         }
-        case LogicalUpdateInfo(servers, key, value) => {
+        case LogicalUpdateInfo(ns, servers, key, value) => {
           val md = readList.getRecord(key).map(r =>
             MDCCMetadata(r.metadata.currentRound, r.metadata.ballots)) match {
-              case None => Some(DefaultMetaData.getDefault(servers))
+              case None => Some(ns.getDefaultMeta())
               case x => x
             }
           val newBytes = MDCCRecordUtil.toBytes(value, md)
