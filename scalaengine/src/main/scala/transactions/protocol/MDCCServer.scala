@@ -39,7 +39,6 @@ class MDCCServer(namespace : String,
       return storedMDCCRec.get.metadata
   }
 
-  def getMeta: MDCCMetadata  = null
 
   def processPropose(src: Option[RemoteActorProxy], xid: ScadsXid, update: RecordUpdate)(implicit sender: RemoteActorProxy)  = {
     val trx = startTrx()

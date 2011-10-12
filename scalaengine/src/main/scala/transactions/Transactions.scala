@@ -297,7 +297,8 @@ object MDCCRecordUtil {
 
 trait TransactionDefaultMetadata {
   def getDefaultMeta() : MDCCMetadata
-  def namespace: String
+  def keySchema: Schema
+  def valueSchema: Schema
 }
 
 trait TransactionRecordMetadata extends SimpleRecordMetadata {

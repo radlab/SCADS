@@ -243,6 +243,33 @@ object MDCCMetaHelper {
     meta.ballots.head.server
   }
 
+  /**
+   * Returns 0 if both are equal
+   * -1 if metaL is smaller
+   * 1  if metaL is bigger
+   * -2 if it is undefined
+   */
+  def compareMetadata(metaL : MDCCMetadata, metaR : MDCCMetadata) : Int = {
+    var status : Int = 0
+    if (metaL.currentRound < metaR.currentRound)
+      status =  -1
+    else if (metaL.currentRound > metaR.currentRound)
+      status =  1
+
+    val validationPairs = metaL.ballots.zip(metaR.ballots)
+    validationPairs.foreach( p =>  {
+        if (p._1.startRound != p._2.startRound  || p._1.endRound != p._2.endRound)
+          return -2
+        val cmp = compareMetadataRound(p._1, p._2)
+        if (status == 0)
+          status = cmp
+        else if (status != cmp) {
+          return -2
+        }
+    })
+    return status
+  }
+
   def compareMetadataRound(lRange : MDCCBallotRange, rRange : MDCCBallotRange) : Int = {
     if (lRange.fast && !rRange.fast)
       return 1
@@ -256,7 +283,7 @@ object MDCCMetaHelper {
       return lRange.server.toString.compare(rRange.server.toString())
   }
 
-  def compareMetadata(metaL : MDCCMetadata, metaR : MDCCMetadata): Int = {
+  def compareCurrentRound(metaL : MDCCMetadata, metaR : MDCCMetadata): Int = {
     assert(validateMeta(metaL))
     assert(validateMeta(metaR))
     if (metaL.currentRound < metaR.currentRound)
