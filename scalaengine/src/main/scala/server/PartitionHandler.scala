@@ -71,7 +71,7 @@ abstract trait StorageManager {
   def shutdown(): Unit
 }
 
-case class PartitionHandler(manager: StorageManager) extends ServiceHandler[PartitionServiceOperation] {
+case class PartitionHandler(manager: StorageManager) extends ServiceHandler[StorageMessage] {
 
   protected val logger = Logger("PartitionHandler")
 

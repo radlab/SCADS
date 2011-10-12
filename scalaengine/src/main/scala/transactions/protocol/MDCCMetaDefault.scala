@@ -1,9 +1,10 @@
-package edu.berkeley.cs.scads.storage.transactions.mdcc
+package edu.berkeley.cs.scads
+package storage
+package transactions
+package mdcc
 
-import _root_.edu.berkeley.cs.scads.comm._
-import _root_.edu.berkeley.cs.scads.storage.PartitionHandler
-import _root_.edu.berkeley.cs.scads.storage.transactions.conflict.PendingUpdates
-import _root_.edu.berkeley.cs.scads.storage.transactions.MDCCMetaHelper
+import comm._
+
 import net.lag.logging.Logger
 import org.apache.zookeeper._
 import collection.mutable.HashMap

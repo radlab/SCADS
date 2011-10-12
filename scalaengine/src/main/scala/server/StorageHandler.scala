@@ -187,7 +187,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
           nsRoot,
           db,
           factory,
-          handler.remoteHandle.toPartitionService(partitionIdLock.name, remoteHandle.toStorageService),
+          PartitionService(handler.remoteHandle, partitionIdLock.name, StorageService(remoteHandle)),
           schemasvc._1,
           schemasvc._2)
       }

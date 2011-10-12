@@ -5,7 +5,7 @@ package transactions
 import comm._
 
 abstract class TrxManager() {
-  def process(src: Option[RemoteActorProxy], msg : TrxMessage) (implicit sender: RemoteActorProxy)
+  def process(src: Option[RemoteServiceProxy[StorageMessage]], msg : TrxMessage) (implicit sender: RemoteServiceProxy[StorageMessage])
 }
 
 //TODO factor 2PC prot

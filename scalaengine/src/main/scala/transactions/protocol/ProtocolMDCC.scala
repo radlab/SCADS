@@ -214,7 +214,7 @@ class MCCCRecordHandler (
      //I am already master
     meta = getOwnership(meta, startRound, endRound, fast)
     val phase1aMsg = Phase1a(update.key, meta)
-    val futures : Seq[MessageFuture] = servers.map(_ !! phase1aMsg)
+    val futures : Seq[MessageFuture[StorageMessage]] = servers.map(_ !! phase1aMsg)
     quorum = 0
     maxValue = null
     futures.foreach(_.respond(selfNotification ))
@@ -222,7 +222,7 @@ class MCCCRecordHandler (
 
   def SendProposal() = {
     val propose = Propose(Xid, update)
-    val futures : List[MessageFuture] =
+    val futures : List[MessageFuture[StorageMessage]] =
       if (fastRound(meta)){  //If we have a fast round, we can propose directly
         status = FAST_PROPOSED
         servers.map(_ !! propose)
@@ -242,7 +242,7 @@ class MCCCRecordHandler (
 
 
 
-  def startPhase2a() : List[MessageFuture] = {
+  def startPhase2a() : List[MessageFuture[StorageMessage]] = {
     assert(isMaster(meta))
 
     //Enabled if maxTried = [None]

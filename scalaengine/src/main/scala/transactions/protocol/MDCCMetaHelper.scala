@@ -1,7 +1,6 @@
 package edu.berkeley.cs.scads.storage
 package transactions
 
-import _root_.edu.berkeley.cs.scads.comm.{MDCCBallot, SCADSService, MDCCBallotRange, MDCCMetadata}
 import scala.math.{min, max}
 import collection.mutable.{ArrayBuffer, ArraySeq}
 

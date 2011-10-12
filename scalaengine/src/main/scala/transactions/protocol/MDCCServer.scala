@@ -1,8 +1,9 @@
-package edu.berkeley.cs.scads.storage.transactions.mdcc
+package edu.berkeley.cs.scads
+package storage
+package transactions
+package mdcc
 
-import _root_.edu.berkeley.cs.scads.comm._
-import _root_.edu.berkeley.cs.scads.storage.transactions._
-import _root_.edu.berkeley.cs.scads.storage.{PartitionHandler, StorageManager}
+import comm._
 import conflict._
 import org.apache.avro.Schema
 import java.util.concurrent.ConcurrentHashMap
@@ -40,7 +41,7 @@ class MDCCServer(namespace : String,
   }
 
 
-  def processPropose(src: Option[RemoteActorProxy], xid: ScadsXid, update: RecordUpdate)(implicit sender: RemoteActorProxy)  = {
+  def processPropose(src: Option[RemoteServiceProxy[StorageMessage]], xid: ScadsXid, update: RecordUpdate)(implicit sender: RemoteServiceProxy[StorageMessage])  = {
     val trx = startTrx()
     val meta = getMeta(trx, update.key)
     //val master = getMaster(meta)
@@ -48,23 +49,23 @@ class MDCCServer(namespace : String,
     commitTrx(trx, null)
   }
 
-  def processPhase1a(src: Option[RemoteActorProxy], key: Array[Byte], newMeta: MDCCMetadata) = {
+  def processPhase1a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], newMeta: MDCCMetadata) = {
     val trx = startTrx()
     val oldMeta = getMeta(trx, key)
     commitTrx(trx, null)
     //pendingUpdates.setMeta(combine(oldMeta, newMeta))
   }
 
-  def processPhase2a(src: Option[RemoteActorProxy], key: Array[Byte], ballot: MDCCBallot, value: CStruct) = {
+  def processPhase2a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], ballot: MDCCBallot, value: CStruct) = {
 
   }
 
-  def processAccept(src: Option[RemoteActorProxy], xid: ScadsXid) = {
+  def processAccept(src: Option[RemoteServiceProxy[StorageMessage]], xid: ScadsXid) = {
 
   }
 
 
-  def process(src: Option[RemoteActorProxy], msg: TrxMessage)(implicit sender: RemoteActorProxy) = {
+  def process(src: Option[RemoteServiceProxy[StorageMessage]], msg: TrxMessage)(implicit sender: RemoteServiceProxy[StorageMessage]) = {
     msg match {
       case Propose(xid: ScadsXid, update: RecordUpdate) => processPropose(src, xid, update)
       case Phase1a(key: Array[Byte], ballot: MDCCBallotRange) => processPhase1a(src, key, ballot)
