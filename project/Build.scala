@@ -256,8 +256,8 @@ object DeployConsole extends BuildCommon {
           "import deploylib.mesos._",
           "val allJars = " + allJars.map(f => "new java.io.File(\"%s\")".format(f.getCanonicalPath)).mkString("Seq(", ",", ")"),
           "deploylib.mesos.MesosCluster.jarFiles = allJars",
-          "implicit val cluster = new Cluster(EC2East)",
-          "val clusterWest = new Cluster(EC2West)",
+          "implicit val cluster = new Cluster(USEast1)",
+          "val clusterWest = new Cluster(USWest1)",
           "implicit def zooKeeperRoot = cluster.zooKeeperRoot",
           "implicit def classSource = cluster.classSource",
           "implicit def serviceScheduler = cluster.serviceScheduler"
