@@ -181,6 +181,9 @@ class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
    * Configure the mesos master, starting instances if needed.
    */
   def setupMesosMaster(numMasters: Int = 1): Unit = {
+    //figure out the zone to prevent double master start
+    val zone = availabilityZone
+
     if (masters.size < numMasters)
       startMasters(numMasters - masters.size)
 
