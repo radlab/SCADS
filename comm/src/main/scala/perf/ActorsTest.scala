@@ -39,15 +39,12 @@ object ActorPerfTest {
     actor.remoteHandle !? Ping(1)
   }
 
-  def handleDispatchMessage(msg: Envelope[PerfMessage]): Unit = {
-    msg.src.foreach(_ !! Pong(1))
-  }
-
   def dispatchMessage: Unit = {
     val actor = PerfRegistry.registerActorFunc {
       case Envelope(src, Ping(x)) => src.foreach(_ !! Pong(x))
     }
     actor !? Ping(1)
+    PerfRegistry.unregisterService(actor)
   }
 
   val destFuture = new MessageFuture[PerfMessage](null, null)

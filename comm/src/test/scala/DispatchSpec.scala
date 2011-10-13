@@ -26,6 +26,7 @@ class DispatchSpec extends Spec with ShouldMatchers {
         case Envelope(src, DispatchMessage1(x)) => src.foreach(_ !! DispatchMessage2(x))
       }
       (actor !! DispatchMessage1(1)).get(1000) should equal(Some(DispatchMessage2(1)))
+      DispatchRegistry.unregisterService(actor)
     }
   }
 }
