@@ -10,6 +10,7 @@ import org.fusesource.hawtdispatch.Dispatch
 
 trait MessageReceiver[MessageType <: IndexedRecord] {
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit
+  def unregistered: Unit
 }
 
 //TODO: remove extra envelope object creation
@@ -18,6 +19,8 @@ class ActorReceiver[MessageType <: IndexedRecord](actor: Actor) extends MessageR
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
     actor ! Envelope(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
   }
+
+  def unregistered = null
 }
 
 class DispatchReceiver[MessageType <: IndexedRecord](f: (Envelope[MessageType]) => Unit) extends MessageReceiver[MessageType] {
@@ -30,6 +33,8 @@ class DispatchReceiver[MessageType <: IndexedRecord](f: (Envelope[MessageType]) 
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
     queue.execute(new MessageReceive(Envelope(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)))
   }
+
+  def unregistered = queue.suspend()
 }
 
 /**
@@ -48,6 +53,8 @@ class DispatchReceiver[MessageType <: IndexedRecord](f: (Envelope[MessageType]) 
 abstract trait ServiceHandler[MessageType <: IndexedRecord] extends MessageReceiver[MessageType] {
   protected val logger: Logger
   def registry: ServiceRegistry[MessageType]
+
+  def unregistered = null
 
   /* Threadpool for execution of incoming requests */
   protected val outstandingRequests = new ArrayBlockingQueue[Runnable](1024) // TODO: read from config

@@ -78,6 +78,8 @@ class FutureReference[MessageType <: IndexedRecord](future: MessageFuture[Messag
   MessageFuture.logger.debug("Future registered: %s %s to %s", remoteService, request, dest)
   private var registered = true
 
+  def unregistered = null
+
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = synchronized {
     MessageFuture.logger.debug("Attempting delivery to %s", remoteService)
     val future = get().asInstanceOf[MessageFuture[MessageType]]
