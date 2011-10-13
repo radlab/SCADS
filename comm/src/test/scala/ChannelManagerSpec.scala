@@ -25,8 +25,6 @@ class ChannelManagerSpec extends Spec with ShouldMatchers {
       /* msg -> time received */
     private val received = new ConcurrentHashMap[String,Long]
 
-    startListener()
-
     override def receiveMessage(src: RemoteNode, msg: TestMsg): Unit = {
       logger.debug("message " + msg + " received from " + src)
       received.put(msg.payload, System.currentTimeMillis)

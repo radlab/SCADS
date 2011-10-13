@@ -1,7 +1,7 @@
 package edu.berkeley.cs
 package scads
 package comm
-package perf
+package performance
 
 import avro.runtime._
 import avro.marker.{AvroRecord, AvroUnion}

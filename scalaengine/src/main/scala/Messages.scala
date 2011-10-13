@@ -9,23 +9,21 @@ sealed trait StorageMessage extends AvroUnion
 
 object StorageService {
   def apply(s: RemoteServiceProxy[StorageMessage]):StorageService =
-    StorageService(s.host, s.port, s.id)
+    StorageService(s.remoteNode, s.id)
 }
 
 /* Specific types for different services. Note: these types are mostly for readability as typesafety isn't enforced when serialized individualy*/
-case class StorageService(var host: String,
-                          var port: Int,
+case class StorageService(var remoteNode: RemoteNode,
                           var id: ServiceId) extends AvroRecord with RemoteServiceProxy[StorageMessage] {
   registry = StorageRegistry
 }
 
 object PartitionService {
   def apply(s: RemoteServiceProxy[StorageMessage], partitionId: String, storageService: StorageService): PartitionService =
-    PartitionService(s.host, s.port, s.id, partitionId, storageService)
+    PartitionService(s.remoteNode, s.id, partitionId, storageService)
 }
 
-case class PartitionService(var host: String,
-                            var port: Int,
+case class PartitionService(var remoteNode: RemoteNode,
                             var id: ServiceId,
                             var partitionId: String,
                             var storageService: StorageService) extends AvroRecord with RemoteServiceProxy[StorageMessage] {

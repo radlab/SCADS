@@ -55,6 +55,9 @@ trait AvroChannelManager[SendMsgType <: IndexedRecord, RecvMsgType <: IndexedRec
         startListener(port)
         found = true
       } catch {
+        case e: java.net.BindException =>
+          logger.debug("Could not listen on port %d, trying %d".format(port, port + 1))
+          port += 1
         case ex: org.jboss.netty.channel.ChannelException =>
           logger.debug("Could not listen on port %d, trying %d".format(port, port + 1))
           port += 1
