@@ -128,8 +128,4 @@ abstract class NioAvroChannelManagerBase[SendMsgType <: IndexedRecord, RecvMsgTy
   def getLocalAddress: InetAddress = endpoint.getListeningAddr
 
   def getLocalPort: Int = endpoint.getListeningPort
-
-  def remoteNode = {
-    RemoteNode(getLocalAddress.getCanonicalHostName(), getLocalPort)
-  }
 }

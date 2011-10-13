@@ -6,10 +6,8 @@ import org.apache.avro.generic.IndexedRecord
 import edu.berkeley.cs.avro.marker.{AvroUnion, AvroRecord}
 
 /* Generic Remote Actor Handle */
-case class RemoteService[MessageType <: IndexedRecord](var host: String,
-                       var port: Int,
+case class RemoteService[MessageType <: IndexedRecord](var remoteNode: RemoteNode,
                        var id: ServiceId) extends RemoteServiceProxy[MessageType]
-
 
 case class TimeoutException(msg: IndexedRecord) extends Exception
 
@@ -18,15 +16,15 @@ object RemoteServiceProxy {
 }
 
 trait RemoteServiceProxy[MessageType <: IndexedRecord] {
-  var host: String
-  var port: Int
+  var remoteNode: RemoteNode
   var id: ServiceId
+
+  def host = remoteNode.hostname
+  def port = remoteNode.port
 
   import RemoteServiceProxy._
 
   implicit var registry: ServiceRegistry[MessageType] = null
-
-  def remoteNode = RemoteNode(host, port)
 
   override def toString(): String = id + "@" + host + ":" + port
 

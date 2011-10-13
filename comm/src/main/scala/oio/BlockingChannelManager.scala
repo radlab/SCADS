@@ -30,7 +30,7 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
     implicit sendManifest: Manifest[S], recvManifest: Manifest[R])
   extends AvroChannelManager[S, R] {
 
-  protected val log = Logger()
+  protected val logger = Logger()
 
   private lazy val useTcpNoDelay = Config.config.getBool("scads.comm.tcpNoDelay", true)
 
@@ -127,7 +127,7 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
   }
 
   private def listen(port: Int) = {
-    log.info("starting listener on port %d".format(port))
+    logger.info("starting listener on port %d".format(port))
     // open the socket in the current thread
     val serverSocket = new ServerSocket(port)
     new Listener(serverSocket)
@@ -136,7 +136,7 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
   private def connect(addr: InetSocketAddress) = {
     require(addr ne null)
 
-    log.info("opening new connection to address: %s".format(addr))
+    logger.info("opening new connection to address: %s".format(addr))
     // open the connection in the current thread
     val socket = new Socket
     socket.setTcpNoDelay(useTcpNoDelay)  // disable Nagle's algorithm
@@ -203,9 +203,9 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
             last.future.await(5000)
           } catch {
             case _: FutureTimeoutException =>
-              log.error("Could not drain send queue: took more than 5 seconds")
+              logger.error("Could not drain send queue: took more than 5 seconds")
             case ex: FutureException =>
-              log.error("Could not drain send queue: caught exception", ex)
+              logger.error("Could not drain send queue: caught exception", ex)
           }
         }
       }
@@ -232,7 +232,7 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
             task.future.finish()
           } catch {
             case e: IOException =>
-              log.error("Could not write send task", e)
+              logger.error("Could not write send task", e)
               task.future.finishWithError(e)
               stop()
           }
@@ -246,7 +246,7 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
           try {
             val len = dataInputStream.readInt()
             if (len < 0) {
-              log.error("Read bad input length: %d".format(len))
+              logger.error("Read bad input length: %d".format(len))
               stop()
             } else {
               val bytes = new Array[Byte](len)
@@ -258,7 +258,7 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
             }
           } catch {
             case e: IOException =>
-              log.error("Caught error in reading", e)
+              logger.error("Caught error in reading", e)
               stop()
           }
         }
@@ -314,7 +314,7 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
         super.doAfterStop()
         val test = connectionsSet.remove(this)
         if (test eq null) 
-          log.error("ephemeral connection was not in connection set: %s".format(this))
+          logger.error("ephemeral connection was not in connection set: %s".format(this))
       }
     }
 
@@ -336,7 +336,7 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
             val conn = new EphemeralConnection(client)
             val prev = nodeToConnections.putIfAbsent(client.remoteInetSocketAddress, conn)
             if (prev ne null) {
-              log.error("Unable to enter new remote connection into connection map: refusing connection")
+              logger.error("Unable to enter new remote connection into connection map: refusing connection")
               conn.stop()
             }
             connectionsSet.put(conn, V)
@@ -344,7 +344,7 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
           }
         } catch {
           case e: IOException =>
-            log.error("Caught error in accepting", e)
+            logger.error("Caught error in accepting", e)
             stop()
         }
       }

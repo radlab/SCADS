@@ -16,6 +16,7 @@ import scala.collection.JavaConversions._
 import edu.berkeley.cs.scads.config._
 import edu.berkeley.cs.avro.runtime.TypedSchema
 import org.apache.avro.generic.IndexedRecord
+import javax.swing.UIDefaults.LazyInputMap
 
 /**
  * Easier to instantiate via reflection
@@ -42,7 +43,7 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
 (implicit sendSchema: TypedSchema[S], receiveSchema: TypedSchema[R])
   extends AvroChannelManager[S, R] {
 
-  protected val log = Logger()
+  private val logger = Logger()
 
   private lazy val useTcpNoDelay = Config.config.getBool("scads.comm.tcpNoDelay", true)
 
@@ -57,7 +58,7 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
   }
 
   /**TODO: configure thread pools */
-  private val serverBootstrap = new ServerBootstrap(
+  private lazy val serverBootstrap = new ServerBootstrap(
     new NioServerSocketChannelFactory(
       Executors.newCachedThreadPool(DaemonThreadFactory),
       Executors.newCachedThreadPool(DaemonThreadFactory)))
@@ -84,10 +85,10 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
 
       e.getCause match {
         case exp: java.net.BindException =>
-        case exp => log.warning(exp, "Exception in channel handler %s: %s", chan, e)
+        case exp => logger.warning(exp, "Exception in channel handler %s: %s", chan, e)
       }
       nodeToConnections.entrySet.filter(_.getValue.getId == chan.getId).foreach(addr => {
-        log.info("Removing channel %s to %s from connection pool".format(chan, addr.getKey))
+        logger.info("Removing channel %s to %s from connection pool".format(chan, addr.getKey))
         nodeToConnections.remove(addr.getKey)
       })
 
@@ -108,7 +109,7 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
     override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
       val chan = e.getChannel
       nodeToConnections.entrySet.filter(_.getValue.getId == chan.getId).foreach(addr => {
-        log.info("Channel closed: %s, removing %s from connection pool".format(chan, addr.getKey))
+        logger.info("Channel closed: %s, removing %s from connection pool".format(chan, addr.getKey))
         nodeToConnections.remove(addr.getKey)
       })
 
@@ -119,7 +120,7 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
   class NettyServerChildHandler extends NettyChannelHandler {
     override def channelOpen(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
       val chan = e.getChannel
-      log.info("Received new connection from %s".format(chan))
+      logger.info("Received new connection from %s".format(chan))
       if (chan.getRemoteAddress ne null)
         nodeToConnections.put(chan.getRemoteAddress.asInstanceOf[InetSocketAddress], chan)
       ctx.sendUpstream(e)
@@ -128,7 +129,7 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
     override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
       val chan = e.getChannel
       nodeToConnections.entrySet.filter(_.getValue.getId == chan.getId).foreach(addr => {
-        log.info("Channel closed: %s, removing %s from connection pool".format(chan, addr.getKey))
+        logger.info("Channel closed: %s, removing %s from connection pool".format(chan, addr.getKey))
         nodeToConnections.remove(addr.getKey)
       })
 
@@ -140,7 +141,7 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
     override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
       val chan = e.getChannel
       nodeToConnections.entrySet.filter(_.getValue.getId == chan.getId).foreach(addr => {
-        log.info("Channel closed: %s, removing %s from connection pool".format(chan, addr.getKey))
+        logger.info("Channel closed: %s, removing %s from connection pool".format(chan, addr.getKey))
         nodeToConnections.remove(addr.getKey)
       })
 
@@ -155,12 +156,14 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
     new ConcurrentHashMap[InetSocketAddress, Channel]
 
   /**Used to manage open ports */
-  private val portToListeners =
+  private lazy val portToListeners =
     new ConcurrentHashMap[Int, Channel]
 
   override def sendMessage(dest: RemoteNode, msg: S) {
-    val conn = getConnectionFor(dest)
-    conn.write(msg) // encoding done in channel handlers
+    if(dest == remoteNode)
+      receiveMessage(remoteNode, msg.asInstanceOf[R])
+    else
+      getConnectionFor(dest).write(msg) // encoding done in channel handlers
   }
 
   override def sendMessageBulk(dest: RemoteNode, msg: S) {
@@ -189,7 +192,7 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
   private def connect(addr: InetSocketAddress) = {
     require(addr ne null)
 
-    log.info("opening new connection to address: %s".format(addr))
+    logger.info("opening new connection to address: %s".format(addr))
     // open the connection in the current thread
     clientBootstrap.connect(addr).awaitUninterruptibly.getChannel
   }
@@ -219,7 +222,6 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
   }
 
   private def listen(port: Int) = {
-    log.info("starting listener on port %d".format(port))
     serverBootstrap.bind(new InetSocketAddress(port))
   }
 
