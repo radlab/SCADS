@@ -208,7 +208,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     registerService(receiver)
   }
 
-  def registerActor(f: (Envelope[MessageType]) => Unit): RemoteServiceProxy[MessageType] = {
+  def registerActorFunc(f: PartialFunction[Envelope[MessageType],Unit]): RemoteServiceProxy[MessageType] = {
     registerService(new DispatchReceiver[MessageType](f))
   }
 

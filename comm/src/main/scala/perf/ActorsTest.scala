@@ -9,6 +9,7 @@ import actors.Actor
 import com.sun.xml.internal.ws.developer.MemberSubmissionAddressing.Validation
 import java.awt.image.PixelInterleavedSampleModel
 import java.lang.RuntimeException
+import javax.management.remote.rmi._RMIConnection_Stub
 
 sealed trait PerfMessage extends AvroUnion
 case class Ping(var x: Int) extends PerfMessage with AvroRecord
@@ -43,7 +44,9 @@ object ActorPerfTest {
   }
 
   def dispatchMessage: Unit = {
-    val actor = PerfRegistry.registerActor(handleDispatchMessage _)
+    val actor = PerfRegistry.registerActorFunc {
+      case Envelope(src, Ping(x)) => src.foreach(_ !! Pong(x))
+    }
     actor !? Ping(1)
   }
 

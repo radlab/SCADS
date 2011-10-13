@@ -9,7 +9,7 @@ import org.scalatest.matchers.ShouldMatchers
 
 import avro.runtime._
 import avro.marker.{AvroUnion, AvroRecord}
-import edu.berkeley.cs.scads.comm.Envelope
+
 
 //TODO: unify across tests?
 sealed trait DispatchMessage extends AvroUnion
@@ -22,11 +22,10 @@ class DispatchSpec extends Spec with ShouldMatchers {
 
   describe("HawtDispatch") {
     it("should receive external messages") {
-      def msgHandler(msg: Envelope[DispatchMessage]): Unit =
-        msg.src.foreach(_ !! DispatchMessage2(1))
-
-      val actor = DispatchRegistry.registerActor(msgHandler _)
-      (actor !! DispatchMessage2(1)).get(1000) should equal(Some(DispatchMessage2(1)))
+      val actor = DispatchRegistry.registerActorFunc {
+        case Envelope(src, DispatchMessage1(x)) => src.foreach(_ !! DispatchMessage2(x))
+      }
+      (actor !! DispatchMessage1(1)).get(1000) should equal(Some(DispatchMessage2(1)))
     }
   }
 }
