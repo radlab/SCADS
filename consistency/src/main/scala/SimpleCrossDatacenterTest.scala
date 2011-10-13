@@ -26,7 +26,7 @@ object Experiment extends ExperimentBase {
   val clusters = getClusters()
 
   def getClusters() = {
-    val regions = List(USEast1, USWest1)
+    val regions = List(USEast1, USWest1, EUWest1, APNortheast1, APSoutheast1)
     regions.map(new mesos.Cluster(_))
   }
 
