@@ -15,8 +15,22 @@ case class ServerSideJar(var path: String) extends AvroRecord with ClassSource
 case class S3CachedJar(var url: String) extends AvroRecord with ClassSource
 
 object JvmTask {
-  def apply(bytes: Array[Byte]): JvmTask = classOf[JvmTask].newInstance.parse(bytes)
-  def apply(task: JvmTask): Array[Byte] = task.toBytes
+  val schema = schemaOf[JvmTask]
+  protected val reader = new SpecificDatumReader[JvmTask](schema)
+  protected val writer = new SpecificDatumWriter[JvmTask](schema)
+
+  def apply(bytes: Array[Byte]): JvmTask = {
+    val dec = DecoderFactory.get().directBinaryDecoder(new java.io.ByteArrayInputStream(bytes), null)
+    reader.read(null, dec)
+  }
+
+  def apply(task: JvmTask): Array[Byte] = {
+    val out = new ByteArrayOutputStream(1024)
+    val binEncoder  = EncoderFactory.get().binaryEncoder(out,null)
+    writer.write(task, binEncoder)
+    binEncoder.flush
+    out.toByteArray
+  }
 }
 
 sealed trait JvmTask extends AvroUnion
