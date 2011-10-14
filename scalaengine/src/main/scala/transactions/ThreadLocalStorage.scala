@@ -13,4 +13,6 @@ object ThreadLocalStorage {
 
   // Holds all protocols for all namespaces in the tx.
   val protocolMap = new DynamicVariable[Option[ProtocolMap]](None)
+
+  val readConsistency = new DynamicVariable[ReadConsistency](ReadConsistent())
 }
