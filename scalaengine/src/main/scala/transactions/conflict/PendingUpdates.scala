@@ -188,7 +188,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
           // Add the updates to the pending list, if compatible.
           if (newUpdateResolver.isCompatible(xid, commandsInfo, storedMDCCRec, r)) {
             // No conflict
-            commandsInfo.appendCommand(CStructCommand(xid, r, true))
+            commandsInfo.appendCommand(CStructCommand(xid, r, true, true))
             pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
           } else {
             success = false
@@ -249,7 +249,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
         // Commit the updates in the pending list.
         val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key).getOrElse(PendingCommandsInfo(new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
-        commandsInfo.commitCommand(CStructCommand(xid, r, false), logicalRecordUpdater)
+        commandsInfo.commitCommand(CStructCommand(xid, r, false, true), logicalRecordUpdater)
 
         pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
       })
@@ -277,7 +277,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
           status.updates.foreach(r => {
             // Remove the updates in the pending list.
             val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key).getOrElse(PendingCommandsInfo(new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
-            commandsInfo.abortCommand(CStructCommand(xid, r, false))
+            commandsInfo.abortCommand(CStructCommand(xid, r, false, true))
 
             pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
           })
