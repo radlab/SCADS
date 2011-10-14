@@ -199,7 +199,7 @@ sealed trait MDCCProtocol extends TrxMessage
 
 case class BeMaster(var key: Array[Byte], var startRound: Long, var endRound: Long, var fast : Boolean) extends AvroRecord with MDCCProtocol
 
-case class ProposeTrx() extends AvroRecord with MDCCProtocol //This is a dummy message
+case class GotMastership(var ballots: MDCCMetadata) extends AvroRecord with MDCCProtocol
 
 case class Propose(var xid: ScadsXid, var update: RecordUpdate) extends AvroRecord with MDCCProtocol
 
