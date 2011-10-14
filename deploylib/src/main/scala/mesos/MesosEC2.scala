@@ -108,13 +108,12 @@ class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
    * The ami used when launching new instances
    */
   val mesosAmi = region match {
-    case EC2East => "ami-d373b1ba"
-    case EC2West => "ami-1f08545a"
-    case USEast1 => "ami-d373b1ba"
-    case USWest1 => "ami-1f08545a"
-    case EUWest1 => "ami-43b38137"
-    case APNortheast1 => "ami-04912505"
-    case APSoutheast1 => "ami-92057fc0"
+    case USWest1 => "ami-13653956"
+//    case USWest1 => "ami-1f08545a"
+//    case EUWest1 => "ami-43b38137"
+//    case APNortheast1 => "ami-04912505"
+//    case APSoutheast1 => "ami-92057fc0"
+    case r => throw new RuntimeException("No AMI for region: " + r)
   }
 
   /**
