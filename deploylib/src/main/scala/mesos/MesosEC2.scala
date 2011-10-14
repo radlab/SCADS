@@ -38,7 +38,7 @@ object MesosCluster {
   /**
    * Start a new plain ubuntu ami, install java/mesos on it, bundle it as a new AMI.
    */
-  def buildNewAmi(region: EC2Region): String = {
+  def buildNewAmi(region: EC2Region, branch: String = "twitter"): String = {
     region.update()
     val oldInst = region.client.describeTags().getTags()
       .filter(_.getResourceType equals "instance")
@@ -73,7 +73,8 @@ object MesosCluster {
     logger.info("installing autoconf...")
     inst ! "apt-get install -y autoconf"
     logger.info("cloning mesos")
-    inst ! "git clone https://github.com/mesos/mesos.git"
+    inst ! ("git clone -b %s https://github.com/mesos/mesos.git".format(branch))
+
     logger.info("building and installing mesos...")
     inst ! "cd mesos; ./configure --with-python-headers=/usr/include/python2.6 --with-java-home=/usr/lib/jvm/java-6-sun --with-webui --with-included-zookeeper; make; make install"
 
