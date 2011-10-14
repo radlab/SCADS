@@ -22,6 +22,9 @@ import org.apache.avro.Schema
 class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
   type CommandSets = ArrayBuffer[HashSet[CStructCommand]]
 
+  // TODO: pending vs. committed.
+  // TODO: base record for cstructs.
+
   def getLUB(cstructs: Seq[CStruct]): CStruct = {
     if (cstructs.length == 1) {
       cstructs.head
@@ -59,17 +62,52 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
   def isSubset(c1: CStruct, c2: CStruct, strict: Boolean = false): Boolean = {
     val cs1 = convertToSets(c1.commands)
     val cs2 = convertToSets(c2.commands)
-    true
+    var valid = true
+
+    cs1.zipAll(cs2, null, null).foreach(x => {
+      if (valid) {
+        x match {
+          case (null, b) =>
+          case (a, null) => valid = false
+          case (a, b) => {
+            val aSize = a.size
+            val bSize = b.size
+            val intSize = a.intersect(b).size
+            if (aSize == intSize) {
+              valid = strict match {
+                case true => aSize < bSize
+                case false => true
+              }
+            } else {
+              valid = false
+            }
+          }
+        }
+      }
+    })
+    valid
   }
 
   def isStrictSubset(cstruct1: CStruct, cstruct2: CStruct) = isSubset(cstruct1, cstruct2, true)
 
   def provedSafe(cstructs: Seq[CStruct], fastQuorumSize: Int,
-                 classicQuorumSize: Int): CStruct = {
-    // TODO: does cstructs require fastQuorumSize number of elements??
+                 classicQuorumSize: Int, N: Int): CStruct = {
+    // TODO: does cstructs require fastQuorumSize number of elements?
 
+    // All the sizes of quorums to check within the cstructs seq.
+    val sizes = (classicQuorumSize - (N - fastQuorumSize)) to classicQuorumSize
 
-    cstructs.head
+    // All possible quorums which intersect with the cstructs.
+    val allCombos = sizes.map(cstructs.combinations(_).toSeq).reduceLeft(_ ++ _)
+
+    // GLB for each possible quorum.
+    val allGLBs = allCombos.map(getGLB _)
+
+    // LUB of all possible GLBs.
+    val lub = getLUB(allGLBs)
+
+    // TODO: Check if LUB is valid w.r.t. constraints?
+    lub
   }
 
   // Modifies first CommandSet to be merged with the second CommandSet.
@@ -137,13 +175,6 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
     })
     result
   }
-
-
-
-
-
-
-
 
 /***********************************************************************
  **************** old code, will probably go away **********************
