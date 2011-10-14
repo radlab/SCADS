@@ -178,7 +178,10 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     val schemasvc = schemasAndValueClassFor(namespace)
     val nsRoot = getNamespaceRoot(namespace)
     trxMgrType match {
-      case "2PC" => new Protocol2PCManager(storageMgr)
+      case "2PC" =>
+        val partition = PartitionService(handler.remoteHandle, partitionIdLock.name, StorageService(remoteHandle))
+        val defaultMeta = MDCCMetaDefault.getOrCreateDefault(nsRoot, partition)
+        new Protocol2PCManager(storageMgr)
       case "MDCC" => {
         assert(db != null)
         assert(factory != null)

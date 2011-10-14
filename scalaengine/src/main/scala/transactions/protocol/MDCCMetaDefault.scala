@@ -16,11 +16,10 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
   protected lazy val logger = Logger()
 
   var defaultMeta : MDCCMetadata = null
-  loadDefault()
 
   def loadDefault() : MDCCMetadata = {
     val defaultNode =
-      nsRoot.get(MDCC_DEFAULT_META, tries=1) match{
+      nsRoot.get(MDCC_DEFAULT_META, tries=1) match {
         case None => {
           nsRoot.awaitChild(MDCC_DEFAULT_META, timeout=5 * 1000)
           val tmp = nsRoot.get(MDCC_DEFAULT_META)
@@ -29,7 +28,10 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
         }
         case Some(x) => x
       }
-    defaultMeta.parse(defaultNode.onDataChange(loadDefault))
+
+    val reader = new AvroSpecificReaderWriter[MDCCMetadata](None)
+    defaultMeta = reader.deserialize(defaultNode.onDataChange(loadDefault))
+    defaultMeta
   }
 
   def defaultMetaData : MDCCMetadata = {
@@ -44,12 +46,14 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
 
 
   def init(defaultPartition : SCADSService) : MDCCMetadata = {
-     if(!nsRoot.get(MDCC_DEFAULT_META).isDefined) {
+    if(!nsRoot.get(MDCC_DEFAULT_META).isDefined) {
       try {
         val createLock = nsRoot.createChild("trxLock", mode=CreateMode.EPHEMERAL)
         defaultMeta = MDCCMetadata(0, MDCCBallotRange(0,0,0,defaultPartition, true) :: Nil)
         logger.info("Default Metadata: " + defaultMeta)
-        nsRoot.createChild(MDCC_DEFAULT_META, defaultMeta.toBytes)
+        val writer = new AvroSpecificReaderWriter[MDCCMetadata](None)
+        val defaultBytes = writer.serialize(defaultMeta)
+        nsRoot.createChild(MDCC_DEFAULT_META, defaultBytes)
         nsRoot("trxLock").delete()
       } catch {
         /* Someone else has the create lock, so we should wait until they finish */
@@ -68,10 +72,10 @@ object MDCCMetaDefault {
 
   protected lazy val defaults = new ConcurrentHashMap[ZooKeeperProxy#ZooKeeperNode,  MDCCMetaDefault]
 
-  def getOrCreateDefault(nsRoot : ZooKeeperProxy#ZooKeeperNode, defaultPartition : SCADSService) : MDCCMetaDefault  = {
+  def getOrCreateDefault(nsRoot : ZooKeeperProxy#ZooKeeperNode, defaultPartition : SCADSService) : MDCCMetaDefault = {
     var default = defaults.get(nsRoot)
     if (default == null) {
-      defaults.synchronized{
+      defaults.synchronized {
         default = new MDCCMetaDefault(nsRoot)
         default.init(defaultPartition)
         defaults.put(nsRoot, default)
@@ -80,10 +84,10 @@ object MDCCMetaDefault {
     default
   }
 
-  def getDefault(nsRoot : ZooKeeperProxy#ZooKeeperNode) : MDCCMetaDefault  = {
+  def getDefault(nsRoot : ZooKeeperProxy#ZooKeeperNode) : MDCCMetaDefault = {
     var default = defaults.get(nsRoot)
     if (default == null) {
-      defaults.synchronized{
+      defaults.synchronized {
         default = new MDCCMetaDefault(nsRoot)
         default.loadDefault()
         defaults.put(nsRoot, default)
@@ -91,6 +95,5 @@ object MDCCMetaDefault {
     }
     default
   }
-
 
 }
