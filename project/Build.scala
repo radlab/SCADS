@@ -5,7 +5,7 @@ object ScadsBuild extends Build {
   val buildVersion = "2.1.3-SNAPSHOT"
   val defaultScalaVersion = "2.9.1"
 
-  val buildSettings = Defaults.defaultSettings ++ GhPages.ghpages.settings ++ Seq(
+  val buildSettings = Defaults.defaultSettings ++ GhPages.ghpages.settings ++ sbtassembly.Plugin.assemblySettings ++ Seq(
     organization := "edu.berkeley.cs",
     scalaVersion := defaultScalaVersion,
     version := buildVersion,
