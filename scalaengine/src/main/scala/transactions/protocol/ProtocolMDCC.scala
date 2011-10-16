@@ -12,10 +12,11 @@ import net.lag.logging.Logger
 import java.lang.Thread
 import java.util.Calendar
 
-import collection.mutable.HashSet
+import collection.mutable.HashMap
 import java.util.concurrent.atomic.AtomicInteger
 import util.{LRUMap}
 import org.apache.avro.generic.IndexedRecord
+import conflict.ConflictResolver
 
 //import tools.nsc.matching.ParallelMatching.MatchMatrix.VariableRule
 import actors.Actor
@@ -50,21 +51,17 @@ class MCCCTrxHandler(tx: Tx) extends Actor {
       update match {
         case ValueUpdateInfo(ns, servers, key, value) => {
           val oldRrecord = readList.getRecord(key)
-          val md : MDCCMetadata= oldRrecord
-                                  .map(r => MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
-                                  .getOrElse(ns.getDefaultMeta())
+          val md : Option[MDCCMetadata] = oldRrecord.map(r => MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
           //TODO: Do we really need the MDCCMetadata
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           val propose = Envelope(Some(remoteHandle), Propose(Xid, ValueUpdate(key, oldRrecord.flatMap(_.value), value.get)))
-          MDCCRecordCache.getOrCreate(key, servers, md) ! propose
+          MDCCRecordCache.getOrCreate(ns, key, servers, md) ! propose
         }
         case LogicalUpdateInfo(ns, servers, key, value) => {
-          val md = readList.getRecord(key)
-                              .map(r => MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
-                              .getOrElse(ns.getDefaultMeta())
+          val md = readList.getRecord(key).map(r => MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           val propose = Envelope(Some(remoteHandle), Propose(Xid, LogicalUpdate(key, value.get)))
-          MDCCRecordCache.getOrCreate(key, servers, md) ! propose
+          MDCCRecordCache.getOrCreate(ns, key, servers, md) ! propose
         }
       }
     })
@@ -118,11 +115,11 @@ object MDCCRecordCache {
     }
   }
 
-  def getOrCreate(key : Array[Byte], servers: Seq[PartitionService], meta: MDCCMetadata) : MCCCRecordHandler = {
+  def getOrCreate(ns: TransactionI, key : Array[Byte], servers: Seq[PartitionService], mt: Option[MDCCMetadata]) : MCCCRecordHandler = {
     cache.synchronized{
       cache.get(key) match {
         case None => {
-          var handler = new MCCCRecordHandler(key, servers, meta)
+          var handler = new MCCCRecordHandler(key, servers, mt.getOrElse(ns.getDefaultMeta()), ns.getConflictResolver)
           handler.start()
           cache.update(key, handler)
           handler
@@ -149,7 +146,8 @@ case object LEARNED_ACCEPT extends RecordStatus {val name = "LEARNED_ACCEPT"}
 class MCCCRecordHandler (
        var key : Array[Byte],
        var servers: Seq[PartitionService],
-       var meta: MDCCMetadata
+       var meta: MDCCMetadata,
+       var resolver : ConflictResolver
   ) extends Actor {
 
   type ServiceType =  RemoteService[IndexedRecord]
@@ -158,13 +156,14 @@ class MCCCRecordHandler (
 
   implicit val remoteHandle = StorageRegistry.registerActor(this)
 
-  private var value : Seq[CStructCommand]  = null
+  private var safeValue : CStruct  = null
   private var status: RecordStatus = READY
   private var currentRequest : MDCCProtocol = null
-  private var quorum =  new HashSet[ServiceType]()
+  private var quorum =  new HashMap[ServiceType, MDCCProtocol]()
   private var Xid: ScadsXid = null
   private var update: RecordUpdate = null
   private var source : RemoteService[IndexedRecord] = null
+  private var maxTried = null
 
   implicit val localAddress = null
 
@@ -177,7 +176,7 @@ class MCCCRecordHandler (
 
 
   def getStatus = status
-  def getValue = value
+  def getValue = safeValue
 
   def act() {
     loop {
@@ -198,14 +197,13 @@ class MCCCRecordHandler (
           this.Xid = xid
           SendProposal()
         }
-        case Envelope(src, Phase1b(ballot, value) ) =>   {   //we do the phase check afterwards to empty out old messages
+        case Envelope(src, msg : Phase1b ) =>   {   //we do the phase check afterwards to empty out old messages
           status match {
-            case PHASE1A => processPhase1b(src, ballot, value)
+            case PHASE1A => processPhase1b(src, msg)
             case _ => //out of phase message
           }
         }
-        case Envelope(src, Phase2bClassic(ballot, value)) =>
-        case Envelope(src, Phase2bFast(ballot, value)) =>
+        case Envelope(src, Phase2b(ballot, value)) =>
         case Envelope(src, Accept(xid)) =>
         case _ =>  throw new RuntimeException("Not supported request")
       }
@@ -213,18 +211,18 @@ class MCCCRecordHandler (
   }
 
   //TODO: At the moment we agree on the full meta data, we could also just agree on the new value
-  def processPhase1b(src : ServiceType, aMeta: MDCCMetadata, value: CStruct) = {
+  def processPhase1b(src : ServiceType, msg : Phase1b) = {
     assert(status == PHASE1A)
-    compareMetadata(aMeta, meta) match {
+    compareMetadata(msg.ballots, meta) match {
       case 0 =>
         //The storage node accepted the new meta data
-        quorum += src
+        quorum += src -> msg
       case 1 =>
         //We got an old message, we can ignore this case
       case -1  | -2 => {
         //TODO We need to ensure progress while two nodes try to get the mastership
         //There was a new meta data version out there, so we try it again
-        meta = combine(meta, aMeta)
+        meta = combine(msg.ballots, meta)
         startPhase1a()  //we start over
       }
       case _ => assert(false) //should never happen
@@ -233,7 +231,7 @@ class MCCCRecordHandler (
       currentRequest match {                //why are we doing this
         case x : BeMaster => {
           source ! GotMastership(meta)
-          status = READY
+          clear()
         }
         case x : Propose =>  startPhase2a
         case _ => throw new RuntimeException("Unallowed request")
@@ -241,10 +239,19 @@ class MCCCRecordHandler (
     }
   }
 
+  private def clear() = {
+    status = READY
+    update = null
+    currentRequest = null
+    quorum.clear
+    Xid = null
+    update = null
+    source  = null
+    maxTried = null
+  }
+
   @inline def classicQuorum = floor(servers.size.toDouble / 2.0).toInt + 1
   @inline def fastQuorum = ceil(3.0 * servers.size.toDouble / 4.0).toInt
-
-
 
 
   def startPhase1a() : Unit =  {
@@ -257,9 +264,8 @@ class MCCCRecordHandler (
         meta = getOwnership(meta, meta.currentRound, meta.currentRound, false)
       case _ => throw new RuntimeException("Unallowed request")
     }
-    val phase1aMsg = Phase1a(update.key, meta)
+    val phase1aMsg = Phase1a(key, meta)
     quorum.clear()
-    value = null
     servers.map(_ ! phase1aMsg)
   }
 
@@ -284,6 +290,11 @@ class MCCCRecordHandler (
 
   def startPhase2a() : List[MessageFuture[StorageMessage]] = {
     assert(isMaster(meta))
+    assert(quorum.size >= classicQuorum)
+
+    safeValue = resolver.provedSafe(quorum.map(v => v._2.asInstanceOf[Phase1b].value), fastQuorum, classicQuorum, servers.size)
+
+    val msg = Phase2a(key, currentBallot(meta), safeValue)
 
     //Enabled if maxTried = [None]
     //leader received "1b" for balnom m from every acceptor in quorum

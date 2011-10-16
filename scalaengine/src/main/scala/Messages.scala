@@ -211,9 +211,7 @@ case class Phase2a(var key: Array[Byte], var ballot: MDCCBallot, var value: CStr
 
 //case class Phase2aClassic(var key: Array[Byte], var ballot: MDCCBallot, var command: RecordUpdate) extends AvroRecord with MDCCProtocol
 
-case class Phase2bClassic(var ballot: MDCCBallot, var value: Option[CStruct]) extends AvroRecord with MDCCProtocol
-
-case class Phase2bFast(var ballot: MDCCBallot, var value: Option[CStruct]) extends AvroRecord with MDCCProtocol
+case class Phase2b(var ballot: MDCCBallot, var value: Option[CStruct]) extends AvroRecord with MDCCProtocol
 
 case class Accept(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
 

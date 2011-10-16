@@ -130,7 +130,7 @@ object MDCCMetaHelper {
 
   def getOwnership(meta : MDCCMetadata, startRound: Long, endRound: Long, fast : Boolean)(implicit r: SCADSService) : MDCCMetadata = {
     assert(!fast || endRound - startRound == 1)  //it is not possible to have more than one fast round assigned
-    assert(!(startRound == meta.currentRound) || fast == meta.ballots.head.fast) //you are not allowed to change the current type
+    assert(!(startRound == meta.currentRound) || (!meta.ballots.head.fast) ||  (!meta.ballots.head.fast) ) //you are not allowed to change the current type
     var ballots = meta.ballots
     val newRange = MDCCBallotRange(startRound, endRound, 0, r, fast)
 
@@ -263,13 +263,13 @@ object MDCCMetaHelper {
   }
 
   def compareMetadataRound(lRange : MDCCBallotRange, rRange : MDCCBallotRange) : Int = {
-    if (lRange.fast && !rRange.fast)
-      return 1
-    else if (!lRange.fast && rRange.fast)
-      return -1
-    else if(lRange.vote < rRange.vote)
+    if(lRange.vote < rRange.vote)
       return -1
     else if (lRange.vote > rRange.vote)
+      return 1
+    else if (lRange.fast && !rRange.fast)
+      return -1
+    else if (!lRange.fast && rRange.fast)
       return 1
     else
       return lRange.server.toString.compare(rRange.server.toString())

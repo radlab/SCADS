@@ -1,4 +1,6 @@
 package edu.berkeley.cs.scads.storage.transactions
+
+import conflict.ConflictResolver
 import edu.berkeley.cs.scads.storage._
 
 
@@ -28,9 +30,18 @@ extends RangeKeyValueStore[K, V]
 with KeyRoutable
 with ZooKeeperGlobalMetadata
 with TransactionRecordMetadata
-with TransactionDefaultMetadata {
+with TransactionI {
 
   lazy val defaultMeta = MDCCMetaDefault.getDefault(nsRoot)
+
+  lazy val conflictResolver = new ConflictResolver(valueSchema, getFieldICList )
+
+  private def getFieldICList : FieldICList = {
+    assert(false) //TODO: Gene can you implement it?
+    null
+  }
+
+  def getConflictResolver = conflictResolver
 
   def getDefaultMeta = defaultMeta.defaultMetaData
 
@@ -296,10 +307,12 @@ object MDCCRecordUtil {
   }  
 }
 
-trait TransactionDefaultMetadata {
+trait TransactionI {
   def getDefaultMeta() : MDCCMetadata
   def keySchema: Schema
   def valueSchema: Schema
+  def getConflictResolver : ConflictResolver
+
 }
 
 trait TransactionRecordMetadata extends SimpleRecordMetadata {
