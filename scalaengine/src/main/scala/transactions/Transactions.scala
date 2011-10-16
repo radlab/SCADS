@@ -219,6 +219,15 @@ with TransactionI {
     }
   }
 
+  private def getReadQuorumSize(numServers: Int): Int = {
+    ThreadLocalStorage.readConsistency.value match {
+      case ReadLocal() => 1
+      case ReadCustom(n) => scala.math.min(n, numServers)
+      case ReadConsistent() => scala.math.ceil(numServers * 0.501).toInt
+      case ReadAll() => numServers
+    }
+  }
+
   // TODO: will need the getBytes() to get metadata, similar to putBytes()
   //       re-implement a quorum protocol?
   override def getBytes(key: Array[Byte]): Option[Array[Byte]] = {
@@ -226,7 +235,7 @@ with TransactionI {
     val getRequest = GetRequest(key)
     val responses = servers.map(_ !! getRequest)
     val handler = new GetHandlerTmp(key, responses)
-    val record = handler.vote(servers.length)
+    val record = handler.vote(getReadQuorumSize(servers.length))
     if (handler.failed) {
       None
     } else {

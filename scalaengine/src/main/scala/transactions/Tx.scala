@@ -12,14 +12,18 @@ case object UNKNOWN extends TxStatus { val name = "UNKNOWN" }
 case object COMMIT extends TxStatus { val name = "COMMIT" }
 case object ABORT extends TxStatus { val name = "ABORT" }
 
-
+sealed trait ReadConsistency
+case class ReadLocal() extends ReadConsistency
+case class ReadCustom(size: Int) extends ReadConsistency
+case class ReadConsistent() extends ReadConsistency
+case class ReadAll() extends ReadConsistency
 
 sealed trait TxProtocol
 case class TxProtocolNone() extends TxProtocol
 case class TxProtocol2pc() extends TxProtocol
 case class TxProtocolMDCC() extends TxProtocol
 
-class Tx(timeout: Int)(mainFn: => Unit) {
+class Tx(timeout: Int, readType: ReadConsistency = ReadConsistent())(mainFn: => Unit) {
   var unknownFn = () => {}
   var acceptFn = () => {}
   var commitFn = (status: TxStatus) => {}
@@ -44,12 +48,15 @@ class Tx(timeout: Int)(mainFn: => Unit) {
   }
 
   def Execute() {
+    val startMS = java.util.Calendar.getInstance().getTimeInMillis()
     updateList = new UpdateList
     readList = new ReadList
     ThreadLocalStorage.updateList.withValue(Some(updateList)) {
       ThreadLocalStorage.txReadList.withValue(Some(readList)) {
         ThreadLocalStorage.protocolMap.withValue(Some(protocolMap)) {
-          mainFn
+          ThreadLocalStorage.readConsistency.withValue(readType) {
+            mainFn
+          }
         }
       }
     }
@@ -60,6 +67,9 @@ class Tx(timeout: Int)(mainFn: => Unit) {
       case TxProtocolMDCC() => MDCCHandler.RunProtocol(this)
       case null => throw new RuntimeException("All namespaces in the transaction must have the same protocol.")
     }
+    val endMS = java.util.Calendar.getInstance().getTimeInMillis()
+    println("latency: " + (endMS - startMS))
+    endMS - startMS
   }
 
 }
