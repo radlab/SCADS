@@ -3,6 +3,7 @@ package storage
 package transactions
 package mdcc
 
+import _root_.edu.berkeley.cs.avro.marker.AvroRecord
 import comm._
 import MDCCMetaHelper._
 import scala.math.{floor, ceil}
@@ -12,22 +13,14 @@ import net.lag.logging.Logger
 import java.lang.Thread
 import java.util.Calendar
 
-import collection.mutable.HashMap
 import java.util.concurrent.atomic.AtomicInteger
 import util.{LRUMap}
 import org.apache.avro.generic.IndexedRecord
 import conflict.ConflictResolver
+import collection.mutable.{SynchronizedSet, HashSet, HashMap}
 
 //import tools.nsc.matching.ParallelMatching.MatchMatrix.VariableRule
 import actors.Actor
-
-sealed case class MDCCUpdateInfo(   var update: RecordUpdate,
-                                    var servers: Seq[PartitionService],
-                                    var meta: Option[MDCCMetadata],
-                                    var futures: List[MessageFuture[StorageMessage]],
-                                    var status: RecordStatus) {
-  override def hashCode() = update.key.hashCode()
-}
 
 
 object MDCCHandler extends ProtocolBase {
@@ -42,6 +35,9 @@ class MCCCTrxHandler(tx: Tx) extends Actor {
   var Xid = ScadsXid.createUniqueXid()
   var count = 0
   var size = 0
+  var participants = HashSet[MCCCRecordHandler]()
+
+  var callbacks : Seq[(Boolean) => Unit] = Nil
 
   implicit val remoteHandle = StorageRegistry.registerActor(this).asInstanceOf[RemoteService[StorageMessage]]
 
@@ -54,38 +50,52 @@ class MCCCTrxHandler(tx: Tx) extends Actor {
           val md : Option[MDCCMetadata] = oldRrecord.map(r => MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
           //TODO: Do we really need the MDCCMetadata
           val newBytes = MDCCRecordUtil.toBytes(value, md)
-          val propose = Envelope(Some(remoteHandle), Propose(Xid, ValueUpdate(key, oldRrecord.flatMap(_.value), value.get)))
-          MDCCRecordCache.getOrCreate(ns, key, servers, md) ! propose
+          val propose = Propose(Xid, ValueUpdate(key, oldRrecord.flatMap(_.value), value.get))
+          val rHandler = MDCCRecordCache.getOrCreate(ns, key, servers, md)
+          participants += rHandler
+          rHandler.remoteHandle ! propose
         }
         case LogicalUpdateInfo(ns, servers, key, value) => {
           val md = readList.getRecord(key).map(r => MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
           val newBytes = MDCCRecordUtil.toBytes(value, md)
-          val propose = Envelope(Some(remoteHandle), Propose(Xid, LogicalUpdate(key, value.get)))
-          MDCCRecordCache.getOrCreate(ns, key, servers, md) ! propose
+          val propose = Propose(Xid, LogicalUpdate(key, value.get))
+          val rHandler = MDCCRecordCache.getOrCreate(ns, key, servers, md)
+          participants += rHandler
+          rHandler.remoteHandle ! propose
         }
       }
     })
+  }
+
+  def notifyAcceptors() = {
+    if (status == COMMITTED)
+      participants.foreach(_.remoteHandle !  edu.berkeley.cs.scads.storage.Commit(Xid))
+    else if(status == ABORTED)
+      participants.foreach(_.remoteHandle !  edu.berkeley.cs.scads.storage.Abort(Xid))
+    else assert(false)
   }
 
   def act() {
     startTrx(tx.updateList, tx.readList)
     loop {
       react {
-        case LEARNED_ABORT => {
-          assert(status != COMMIT)
+        case Learned(_, _, false) => {
+          assert(status != COMMITTED)
           if(status == UNKNOWN) {
-            status = ABORT
+            status = ABORTED
             this ! EXIT
           }
         }
-        case LEARNED_ACCEPT => {
+        case Learned(_, _, true) => {
           count += 1
           if(count == size && status == UNKNOWN){
-            status = COMMIT
+            status = COMMITTED
             this ! EXIT
           }
         }
         case EXIT => {
+          callbacks.foreach(_(status == COMMITTED))
+          notifyAcceptors
           StorageRegistry.unregisterService(remoteHandle)
           exit()
         }
@@ -135,13 +145,13 @@ object MDCCRecordCache {
 sealed trait RecordStatus {def name: String}
 case object EXIT
 case object READY extends RecordStatus {val name = "READY"}
-case object PROPOSE extends RecordStatus {val name = "PROPOSE"}
-case object PROPOSED extends RecordStatus {val name = "PROPOSED"}
+case object FORWARDED extends RecordStatus {val name = "PROPOSED"}
 case object FAST_PROPOSED extends RecordStatus {val name = "FAST_PROPOSED"}
 case object PHASE1A  extends RecordStatus {val name = "PHASE1A"}
 case object PHASE2A extends RecordStatus {val name = "PHASE2A"}
 case object LEARNED_ABORT extends RecordStatus {val name = "LEARNED_ABORT"}
 case object LEARNED_ACCEPT extends RecordStatus {val name = "LEARNED_ACCEPT"}
+case object LEARNING extends RecordStatus {val name = "LEARNED_ACCEPT"}
 
 class MCCCRecordHandler (
        var key : Array[Byte],
@@ -156,14 +166,11 @@ class MCCCRecordHandler (
 
   implicit val remoteHandle = StorageRegistry.registerActor(this)
 
-  private var safeValue : CStruct  = null
+  private var initRequest : Envelope[IndexedRecord] = null
+
+  private var learnedValue : CStruct  = null
   private var status: RecordStatus = READY
-  private var currentRequest : MDCCProtocol = null
   private var quorum =  new HashMap[ServiceType, MDCCProtocol]()
-  private var Xid: ScadsXid = null
-  private var update: RecordUpdate = null
-  private var source : RemoteService[IndexedRecord] = null
-  private var maxTried = null
 
   implicit val localAddress = null
 
@@ -174,9 +181,9 @@ class MCCCRecordHandler (
      case _ => false
   }
 
-
+  def currentBallot() = MDCCMetaHelper.currentBallot(meta)
   def getStatus = status
-  def getValue = safeValue
+  def getValue = learnedValue
 
   def act() {
     loop {
@@ -185,17 +192,17 @@ class MCCCRecordHandler (
           StorageRegistry.unregisterService(remoteHandle)
           exit()
         }
-        case Envelope(src, msg @ BeMaster(key, startRound, endRound, fast )) if status == READY => {
-          source = src.get
-          currentRequest = msg
+        case msg @ Envelope(src, ResolveConflict(key, ballot)) if status == READY  => {
+          initRequest = msg
           startPhase1a()
         }
-        case Envelope(src, msg @ Propose(xid, update)) if status == READY => {
-          source = src.get
-          currentRequest = msg
-          this.update = update
-          this.Xid = xid
-          SendProposal()
+        case msg @ Envelope(src, x : BeMaster) if status == READY => {
+          initRequest = msg
+          startPhase1a()
+        }
+        case msg @ Envelope(src, x : Propose) if status == READY => {
+          initRequest = msg
+          SendProposal(x)
         }
         case Envelope(src, msg : Phase1b ) =>   {   //we do the phase check afterwards to empty out old messages
           status match {
@@ -203,8 +210,15 @@ class MCCCRecordHandler (
             case _ => //out of phase message
           }
         }
-        case Envelope(src, Phase2b(ballot, value)) =>
-        case Envelope(src, Accept(xid)) =>
+        case Envelope(src, msg : Phase2b) => {
+          status match {
+            case PHASE2A => processPhase2b(src, msg)
+            case FAST_PROPOSED => processPhase2b(src, msg)
+            case _ => //out of phase message
+          }
+        }
+        case Envelope(src, msg : Commit) => servers.map(_ ! msg)
+        case Envelope(src, msg : Abort) =>  servers.map(_ ! msg)
         case _ =>  throw new RuntimeException("Not supported request")
       }
     }
@@ -223,17 +237,17 @@ class MCCCRecordHandler (
         //TODO We need to ensure progress while two nodes try to get the mastership
         //There was a new meta data version out there, so we try it again
         meta = combine(msg.ballots, meta)
-        startPhase1a()  //we start over
+        startPhase1a  //we start over
       }
       case _ => assert(false) //should never happen
     }
     if(quorum.size >= classicQuorum) { //only if we need to do an update we go on to Phase2a
-      currentRequest match {                //why are we doing this
-        case x : BeMaster => {
-          source ! GotMastership(meta)
+      initRequest match {                //why are we doing this
+        case Envelope(src, x : BeMaster) => {
+          src ! GotMastership(meta)
           clear()
         }
-        case x : Propose =>  startPhase2a
+        case Envelope(src, x : Propose) =>  startPhase2a
         case _ => throw new RuntimeException("Unallowed request")
       }
     }
@@ -241,13 +255,8 @@ class MCCCRecordHandler (
 
   private def clear() = {
     status = READY
-    update = null
-    currentRequest = null
+    initRequest = null
     quorum.clear
-    Xid = null
-    update = null
-    source  = null
-    maxTried = null
   }
 
   @inline def classicQuorum = floor(servers.size.toDouble / 2.0).toInt + 1
@@ -256,58 +265,94 @@ class MCCCRecordHandler (
 
   def startPhase1a() : Unit =  {
     status = PHASE1A
-    currentRequest match {                //why are we doing this
-      case BeMaster(key, startRound, endRound, fast ) => {
+    initRequest match {                //why are we doing this
+      case Envelope(src, BeMaster(key, startRound, endRound, fast )) => {
         meta = getOwnership(meta, startRound, endRound, fast)
       }
-      case x : Propose =>
+      case _ =>
         meta = getOwnership(meta, meta.currentRound, meta.currentRound, false)
-      case _ => throw new RuntimeException("Unallowed request")
     }
     val phase1aMsg = Phase1a(key, meta)
     quorum.clear()
     servers.map(_ ! phase1aMsg)
   }
 
-  def SendProposal() = {
-    val propose = Propose(Xid, update)
+  def SendProposal(propose : Propose) = {
     if (fastRound(meta)){  //If we have a fast round, we can propose directly
       status = FAST_PROPOSED
       servers.foreach(_ ! propose)
     }else{
-      val master = getMaster(meta)
       if(isMaster(meta)){
         status = PHASE2A
         startPhase2a()
       }else{
-        status = PROPOSED
+        val master = getMaster(meta)
+        status = FORWARDED
         master ! propose
       }
     }
   }
 
+  def startPhase2aClassic()= {
+    assert(isMaster(meta))
+    assert(quorum.size >= classicQuorum)
+  }
 
-
-  def startPhase2a() : List[MessageFuture[StorageMessage]] = {
+  def startPhase2a() = {
     assert(isMaster(meta))
     assert(quorum.size >= classicQuorum)
 
-    safeValue = resolver.provedSafe(quorum.map(v => v._2.asInstanceOf[Phase1b].value), fastQuorum, classicQuorum, servers.size)
-
-    val msg = Phase2a(key, currentBallot(meta), safeValue)
-
-    //Enabled if maxTried = [None]
-    //leader received "1b" for balnom m from every acceptor in quorum
-    // v = w add sigma, where sigma is element of Seq(propCmd ),
-    // w element of ProvedSafe(Q; m; beta), and beta is any ballot array such that,
-    // for every acceptor a in Q, beta_head_a = k and the leader has received a message ("1b"; m; a; p)
-    // with beta_a = p
-
-    Nil
+    //TODO I need a new conflict value
+    val safeValue = resolver.provedSafe(quorum.map(v => v._2.asInstanceOf[Phase1b].value), fastQuorum, classicQuorum, servers.size)
+    val msg = initRequest match {
+      case Envelope(src, Propose(xid, update)) => Phase2a(key, currentBallot, safeValue, update :: Nil)
+      case _ => throw new RuntimeException("So far we only do classic rounds")
+    }
+    status = PHASE2A
+    quorum.clear
+    servers.map(_ ! msg)
   }
 
-  def processAccept() = {
+  def processPhase2b(src : ServiceType, msg : Phase2b) = {
+    currentBallot.compare(msg.ballot) match {
+      case 0 => {
+        quorum += src -> msg
+      }
+      case 1 => {
+        status = LEARNING
+        quorum.clear()
+        meta = combine(msg.ballot, meta)
+      }
+      case -1 => //Old message we do nothing
+    }
 
+    val success =
+      if(isFast(meta) && quorum.size >= fastQuorum) {
+        learnedValue = resolver.provedSafe(quorum.map(v => v._2.asInstanceOf[Phase2b].value), fastQuorum)
+        true
+      }else if(!isFast(meta) && quorum.size >= classicQuorum){
+        learnedValue = resolver.provedSafe(quorum.map(v => v._2.asInstanceOf[Phase2b].value), classicQuorum)
+        true
+      }else{
+        false
+      }
+    if(success) {
+      initRequest match {
+        case Envelope(src, Propose(xid, update)) => checkAndNotify(src, xid)
+        case _ => //nobody to inform
+      }
+    }
+  }
+
+  def checkAndNotify(src : Option[RemoteService[IndexedRecord]], xid : ScadsXid ) = {
+    val cmd = learnedValue.commands.find(_.xid == xid)
+    if(cmd.isDefined){
+      assert(src.isDefined)
+      src.get ! Learned(xid, key, cmd.get.commit)
+      clear()
+    }else{
+      throw new RuntimeException("What should we do? Restart?")
+    }
   }
 
 

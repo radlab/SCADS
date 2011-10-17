@@ -90,12 +90,14 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
 
   def isStrictSubset(cstruct1: CStruct, cstruct2: CStruct) = isSubset(cstruct1, cstruct2, true)
 
+  def provedSafe(cstructs: Seq[CStruct], quorum : Int): CStruct = null
+
   def provedSafe(cstructs: Seq[CStruct], fastQuorumSize: Int,
                  classicQuorumSize: Int, N: Int): CStruct = {
     // TODO: does cstructs require fastQuorumSize number of elements?
 
     // All the sizes of quorums to check within the cstructs seq.
-    val sizes = (classicQuorumSize - (N - fastQuorumSize)) to classicQuorumSize
+    val sizes = (classicQuorumSize - (N - fastQuorumSize)) to classicQuorumSize   //TODO: Tim-> Is this necessary????
 
     // All possible quorums which intersect with the cstructs.
     val allCombos = sizes.map(cstructs.combinations(_).toSeq).reduceLeft(_ ++ _)

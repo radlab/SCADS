@@ -56,7 +56,7 @@ class MDCCServer(namespace : String,
     //pendingUpdates.setMeta(combine(oldMeta, newMeta))
   }
 
-  def processPhase2a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], ballot: MDCCBallot, value: CStruct) = {
+  def processPhase2a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], ballot: MDCCBallot, value: CStruct, newUpdate : Seq[RecordUpdate] ) = {
 
   }
 
@@ -69,8 +69,9 @@ class MDCCServer(namespace : String,
     msg match {
       case Propose(xid: ScadsXid, update: RecordUpdate) => processPropose(src, xid, update)
       case Phase1a(key: Array[Byte], ballot: MDCCBallotRange) => processPhase1a(src, key, ballot)
-      case Phase2a(key: Array[Byte], ballot: MDCCBallot, value: CStruct) => processPhase2a(src, key, ballot, value)
-      case Accept(xid: ScadsXid) =>
+      case Phase2a(key, ballot, safeValue, newUpdate ) => processPhase2a(src, key, ballot, safeValue, newUpdate)
+      case Commit(xid: ScadsXid) =>
+      case Abort(xid: ScadsXid) =>
       case _ => src.map(_ ! ProcessingException("Trx Message Not Implemented", ""))
     }
   }

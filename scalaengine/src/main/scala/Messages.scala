@@ -125,7 +125,34 @@ case class RoutingTableMessage(var partitions: Seq[KeyRange]) extends AvroRecord
 
 
 /* Transaction KVStore Metadata */
-case class MDCCBallot(var round: Long, var vote: Int, var server: SCADSService, var fast: Boolean) extends AvroRecord
+case class MDCCBallot(var round: Long, var vote: Int, var server: SCADSService, var fast: Boolean) extends AvroRecord {
+
+  def <= (that: MDCCBallot): Boolean = compare(that) <= 0
+
+  def >= (that: MDCCBallot): Boolean = compare(that) >= 0
+
+  def <  (that: MDCCBallot): Boolean = compare(that) <  0
+
+  def >  (that: MDCCBallot): Boolean = compare(that) > 0
+
+  def equals (that: MDCCBallot): Boolean = compare(that) == 0
+
+  def compare(other : MDCCBallot) : Int = {
+    if(this.vote < other.vote)
+      return -1
+    else if (this.vote > other.vote)
+      return 1
+    else if (this.fast && !other.fast)
+      return -1
+    else if (!this.fast && other.fast)
+      return 1
+    else
+      return this.server.toString.compare(other.server.toString())
+  }
+
+}
+
+
 case class MDCCBallotRange(var startRound: Long, var endRound: Long, var vote: Int, var server: SCADSService, var fast: Boolean) extends AvroRecord
 case class MDCCMetadata(var currentRound: Long, var ballots: Seq[MDCCBallotRange]) extends AvroRecord
 // Pending means the command is not decided yet.
@@ -197,6 +224,8 @@ sealed trait TrxMessage extends KeyValueStoreOperation
 /* Transaction MDCC Paxos */
 sealed trait MDCCProtocol extends TrxMessage
 
+case class ResolveConflict(var key: Array[Byte], var ballots: MDCCBallot) extends AvroRecord with MDCCProtocol
+
 case class BeMaster(var key: Array[Byte], var startRound: Long, var endRound: Long, var fast : Boolean) extends AvroRecord with MDCCProtocol
 
 case class GotMastership(var ballots: MDCCMetadata) extends AvroRecord with MDCCProtocol
@@ -207,13 +236,19 @@ case class Phase1a(var key: Array[Byte], var ballots: MDCCMetadata) extends Avro
 
 case class Phase1b(var ballots: MDCCMetadata, var value: CStruct) extends AvroRecord with MDCCProtocol
 
-case class Phase2a(var key: Array[Byte], var ballot: MDCCBallot, var value: CStruct) extends AvroRecord with MDCCProtocol
+//TODO we could make the updates part of te CStruct, if we would have the chance to execute accepts locally
+case class Phase2a(var key: Array[Byte], var ballot: MDCCBallot, var safeValue: CStruct, var newUpdates : Seq[RecordUpdate]) extends AvroRecord with MDCCProtocol
+
+case class Phase2aConflict(var key: Array[Byte], var ballot: MDCCBallot, var value: CStruct) extends AvroRecord with MDCCProtocol
 
 //case class Phase2aClassic(var key: Array[Byte], var ballot: MDCCBallot, var command: RecordUpdate) extends AvroRecord with MDCCProtocol
 
 case class Phase2b(var ballot: MDCCBallot, var value: Option[CStruct]) extends AvroRecord with MDCCProtocol
 
-case class Accept(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
+case class Learned(var xid: ScadsXid, var key: Array[Byte], var status : Boolean)  extends AvroRecord with MDCCProtocol
+
+case class Commit(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
+case class Abort(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
 
 /* Transaction KVStore Operations */
 sealed trait TxProtocol2pc extends TrxMessage

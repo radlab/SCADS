@@ -9,8 +9,8 @@ import prot2pc.Protocol2pc
 
 sealed trait TxStatus { def name: String }
 case object UNKNOWN extends TxStatus { val name = "UNKNOWN" }
-case object COMMIT extends TxStatus { val name = "COMMIT" }
-case object ABORT extends TxStatus { val name = "ABORT" }
+case object COMMITTED extends TxStatus { val name = "COMMIT" }
+case object ABORTED extends TxStatus { val name = "ABORT" }
 
 sealed trait ReadConsistency
 case class ReadLocal() extends ReadConsistency

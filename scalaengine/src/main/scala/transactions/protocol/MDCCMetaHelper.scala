@@ -24,6 +24,9 @@ object MDCCMetaHelper {
     return true
   }
 
+  def isFast(meta : MDCCMetadata) = meta.ballots.head.fast
+
+
   def currentBallot(meta : MDCCMetadata ) : MDCCBallot = {
     validateMeta(meta)
     val range = meta.ballots.head
@@ -58,8 +61,9 @@ object MDCCMetaHelper {
   def increaseRound(meta : MDCCMetadata) : MDCCMetadata = {
     assert(validateMeta(meta))
     MDCCMetadata(meta.currentRound + 1, adjustRound(meta.ballots, meta.currentRound + 1))
-
   }
+
+
 
   def adjustRound(ranges : Seq[MDCCBallotRange], curRound: Long) : Seq[MDCCBallotRange] = {
     assert(ranges.size > 0)
@@ -138,6 +142,9 @@ object MDCCMetaHelper {
     MDCCMetadata(meta.currentRound, ballots)
   }
 
+  def combine(lMeta : MDCCBallot, rMeta : MDCCMetadata) : MDCCMetadata  = {
+    combine(MDCCMetadata(lMeta.round, MDCCBallotRange(lMeta.round, lMeta.round, lMeta.vote, lMeta.server, lMeta.fast) :: Nil), rMeta)
+  }
 
   def combine(lMeta : MDCCMetadata, rMeta : MDCCMetadata) : MDCCMetadata  = {
 
