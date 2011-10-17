@@ -33,14 +33,33 @@ with TransactionRecordMetadata
 with TransactionI {
 
   lazy val defaultMeta = MDCCMetaDefault.getDefault(nsRoot)
-
-  lazy val conflictResolver = new ConflictResolver(valueSchema, getFieldICList )
-
+  lazy val conflictResolver = new ConflictResolver(valueSchema, getFieldICList)
   lazy val recordCache = new MDCCRecordCache()
 
   private def getFieldICList : FieldICList = {
-    assert(false) //TODO: Gene can you implement it?
-    null
+    val fields = valueManifest.erasure.asInstanceOf[Class[V]].getDeclaredFields
+    val rlist = fields.map(f => {
+      val annotations = f.getDeclaredAnnotations
+
+      if (annotations.length > 0) {
+        val fieldPos = valueSchema.getField(f.getName).pos()
+
+        val restrictions = annotations.map(a => {
+          a match {
+            case x: JavaFieldAnnotations.JavaFieldGT => FieldRestrictionGT(x.value)
+            case x: JavaFieldAnnotations.JavaFieldGE => FieldRestrictionGE(x.value)
+            case x: JavaFieldAnnotations.JavaFieldLT => FieldRestrictionLT(x.value)
+            case x: JavaFieldAnnotations.JavaFieldLE => FieldRestrictionLE(x.value)
+          }
+        }).foldLeft[(Option[FieldRestriction], Option[FieldRestriction])]((None, None))(foldRestrictions _)
+
+        FieldIC(fieldPos, restrictions._1, restrictions._2)
+      } else {
+        // No annotations on the field.
+        null
+      }
+    }).filter(_ != null)
+    FieldICList(rlist)
   }
 
   def getConflictResolver = conflictResolver
@@ -116,32 +135,9 @@ with TransactionI {
   }
 
   override def initRootAdditional(node: ZooKeeperProxy#ZooKeeperNode): Unit = {
-    val fields = valueManifest.erasure.asInstanceOf[Class[V]].getDeclaredFields
-    val rlist = fields.map(f => {
-      val annotations = f.getDeclaredAnnotations
-
-      if (annotations.length > 0) {
-        val fieldPos = valueSchema.getField(f.getName).pos()
-
-        val restrictions = annotations.map(a => {
-          a match {
-            case x: JavaFieldAnnotations.JavaFieldGT => FieldRestrictionGT(x.value)
-            case x: JavaFieldAnnotations.JavaFieldGE => FieldRestrictionGE(x.value)
-            case x: JavaFieldAnnotations.JavaFieldLT => FieldRestrictionLT(x.value)
-            case x: JavaFieldAnnotations.JavaFieldLE => FieldRestrictionLE(x.value)
-          }
-        }).foldLeft[(Option[FieldRestriction], Option[FieldRestriction])]((None, None))(foldRestrictions _)
-
-        FieldIC(fieldPos, restrictions._1, restrictions._2)
-      } else {
-        // No annotations on the field.
-        null
-      }
-    }).filter(_ != null)
-
     // Write the integrity constraints to zookeeper.
     val writer = new AvroSpecificReaderWriter[FieldICList](None)
-    val icBytes = writer.serialize(FieldICList(rlist))
+    val icBytes = writer.serialize(getFieldICList)
     root.getOrCreate(name).createChild("valueICs", icBytes,
                                        CreateMode.PERSISTENT)
   }
