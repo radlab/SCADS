@@ -27,7 +27,9 @@ abstract trait ExperimentScheduler {
 class LocalExperimentScheduler protected(name: String, mesosMaster: String, executor: String) extends Scheduler with ExperimentScheduler {
   val logger = Logger()
   var taskId = 0
-  var driver = new MesosSchedulerDriver(this, "Deploylib Service Scheduler", execInfo, mesosMaster)
+  val executorId = ExecutorID.newBuilder().setValue("javaExecutor")
+  val execInfo = ExecutorInfo.newBuilder().setUri(executor).setExecutorId(executorId).build()
+  val driver = new MesosSchedulerDriver(this, "Deploylib Service Scheduler", execInfo, mesosMaster)
 
   case class Experiment(var processes: Seq[JvmTask])
 
@@ -44,9 +46,6 @@ class LocalExperimentScheduler protected(name: String, mesosMaster: String, exec
   def scheduleExperiment(processes: Seq[JvmTask]): Unit = synchronized {
     outstandingExperiments.add(new Experiment(processes))
   }
-
-  val executorId = ExecutorID.newBuilder().setValue("javaExecutor")
-  val execInfo = ExecutorInfo.newBuilder().setUri(executor).setExecutorId(executorId).build()
 
   override def registered(d: SchedulerDriver, fid: FrameworkID): Unit = logger.info("Registered SCADS Framework.  Fid: " + fid)
 
