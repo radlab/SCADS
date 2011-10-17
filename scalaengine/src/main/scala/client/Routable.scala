@@ -10,7 +10,7 @@ import java.util.{ Arrays => JArrays }
 import org.apache.avro._
 import io._
 
-private[storage] object DefaultKeyRoutableLike {
+object DefaultKeyRoutableLike {
   val ZOOKEEPER_ROUTING_TABLE = "routingtable"
   val ZOOKEEPER_PARTITION_ID = "partitionid"
 }

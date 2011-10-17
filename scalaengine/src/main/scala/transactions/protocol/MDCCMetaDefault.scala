@@ -15,7 +15,7 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
 
   protected lazy val logger = Logger()
 
-  var defaultMeta : MDCCMetadata = null
+  @volatile var _defaultMeta : MDCCMetadata = null
 
   def loadDefault() : MDCCMetadata = {
     val defaultNode =
@@ -30,18 +30,18 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
       }
 
     val reader = new AvroSpecificReaderWriter[MDCCMetadata](None)
-    defaultMeta = reader.deserialize(defaultNode.onDataChange(loadDefault))
-    defaultMeta
+    _defaultMeta = reader.deserialize(defaultNode.onDataChange(loadDefault))
+    _defaultMeta
   }
 
   def defaultMetaData : MDCCMetadata = {
-    assert(defaultMeta != null)
-    defaultMeta
+    assert(_defaultMeta != null)
+    _defaultMeta
   }
 
   def defaultBallot : MDCCBallot = {
-    assert(defaultMeta != null)
-    MDCCMetaHelper.currentBallot(defaultMeta)
+    assert(_defaultMeta != null)
+    MDCCMetaHelper.currentBallot(_defaultMeta)
   }
 
 
@@ -49,10 +49,10 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
     if(!nsRoot.get(MDCC_DEFAULT_META).isDefined) {
       try {
         val createLock = nsRoot.createChild("trxLock", mode=CreateMode.EPHEMERAL)
-        defaultMeta = MDCCMetadata(0, MDCCBallotRange(0,0,0,defaultPartition, true) :: Nil)
-        logger.info("Default Metadata: " + defaultMeta)
+        _defaultMeta = MDCCMetadata(0, MDCCBallotRange(0,0,0,defaultPartition, true) :: Nil)
+        logger.info("Default Metadata: " + _defaultMeta)
         val writer = new AvroSpecificReaderWriter[MDCCMetadata](None)
-        val defaultBytes = writer.serialize(defaultMeta)
+        val defaultBytes = writer.serialize(_defaultMeta)
         nsRoot.createChild(MDCC_DEFAULT_META, defaultBytes)
         nsRoot("trxLock").delete()
       } catch {

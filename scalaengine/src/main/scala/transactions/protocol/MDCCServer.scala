@@ -3,6 +3,7 @@ package storage
 package transactions
 package mdcc
 
+import _root_.transactions.protocol.MDCCRoutingTable
 import comm._
 import conflict._
 import org.apache.avro.Schema
@@ -14,22 +15,25 @@ class MDCCServer(namespace : String,
                  db: TxDB[Array[Byte], Array[Byte]],
                  partition : PartitionService,
                  pendingUpdates: PendingUpdates,
-                 default : MDCCMetaDefault) extends TrxManager {
-
+                 default : MDCCMetaDefault,
+                 recordCache : MDCCRecordCache,
+                 routingTable : MDCCRoutingTable
+                 ) extends TrxManager {
 
   def startTrx() : TransactionData= {
     db.txStart()
   }
 
-  def commitTrx(txn : TransactionData, failFunction : () => Unit) = {
+  def commitTrx(txn : TransactionData) : Boolean = {
     try{
       db.txCommit(txn)
     } catch {
       case e: Exception => {
           db.txAbort(txn)
-          failFunction()
+          return false
         }
     }
+    return true
   }
 
   def getMeta(txn : TransactionData, key : Array[Byte]) : MDCCMetadata  = {
@@ -46,13 +50,13 @@ class MDCCServer(namespace : String,
     val meta = getMeta(trx, update.key)
     //val master = getMaster(meta)
     val result = pendingUpdates.accept(xid, update)
-    commitTrx(trx, null)
+    commitTrx(trx)
   }
 
   def processPhase1a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], newMeta: MDCCMetadata) = {
     val trx = startTrx()
-    val oldMeta = getMeta(trx, key)
-    commitTrx(trx, null)
+    val meta = getMeta(trx, key)
+    commitTrx(trx)
     //pendingUpdates.setMeta(combine(oldMeta, newMeta))
   }
 
@@ -64,10 +68,20 @@ class MDCCServer(namespace : String,
 
   }
 
+  def startPropose(msg : Propose) = {
+    //TODO: no trx needed
+    val trx = startTrx()
+    val key = msg.update.key
+    val meta = getMeta(trx, key)
+    val recordHandler = recordCache.getOrCreate(key, routingTable.serversForKey(key), meta, pendingUpdates.getConflictResolver)
+    recordHandler ! msg
+    commitTrx(trx)
+  }
+
 
   def process(src: Option[RemoteServiceProxy[StorageMessage]], msg: TrxMessage)(implicit sender: RemoteServiceProxy[StorageMessage]) = {
     msg match {
-      case Propose(xid: ScadsXid, update: RecordUpdate) => processPropose(src, xid, update)
+      case  msg : Propose => startPropose(msg)
       case Phase1a(key: Array[Byte], ballot: MDCCBallotRange) => processPhase1a(src, key, ballot)
       case Phase2a(key, ballot, safeValue, newUpdate ) => processPhase2a(src, key, ballot, safeValue, newUpdate)
       case Commit(xid: ScadsXid) =>
@@ -100,6 +114,7 @@ object ProtocolMDCCServer {
       }
     }
     val defaultMeta = MDCCMetaDefault.getOrCreateDefault(nsRoot, partition)
-    new MDCCServer(namespace, db, partition, puController, defaultMeta)
+
+    new MDCCServer(namespace, db, partition, puController, defaultMeta, new MDCCRecordCache, new MDCCRoutingTable(nsRoot, keySchema))
   }
 }

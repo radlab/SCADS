@@ -47,19 +47,19 @@ class MCCCTrxHandler(tx: Tx) extends Actor {
       update match {
         case ValueUpdateInfo(ns, servers, key, value) => {
           val oldRrecord = readList.getRecord(key)
-          val md : Option[MDCCMetadata] = oldRrecord.map(r => MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
+          val md : MDCCMetadata = oldRrecord.map(r => MDCCMetadata(r.metadata.currentRound, r.metadata.ballots)).getOrElse(ns.getDefaultMeta())
           //TODO: Do we really need the MDCCMetadata
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           val propose = Propose(Xid, ValueUpdate(key, oldRrecord.flatMap(_.value), value.get))
-          val rHandler = MDCCRecordCache.getOrCreate(ns, key, servers, md)
+          val rHandler = ns.recordCache.getOrCreate(key, servers, md, ns.getConflictResolver)
           participants += rHandler
           rHandler.remoteHandle ! propose
         }
         case LogicalUpdateInfo(ns, servers, key, value) => {
-          val md = readList.getRecord(key).map(r => MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
+          val md = readList.getRecord(key).map(r => MDCCMetadata(r.metadata.currentRound, r.metadata.ballots)).getOrElse(ns.getDefaultMeta())
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           val propose = Propose(Xid, LogicalUpdate(key, value.get))
-          val rHandler = MDCCRecordCache.getOrCreate(ns, key, servers, md)
+          val rHandler = ns.recordCache.getOrCreate(key, servers, md, ns.getConflictResolver)
           participants += rHandler
           rHandler.remoteHandle ! propose
         }
@@ -108,9 +108,11 @@ class MCCCTrxHandler(tx: Tx) extends Actor {
 }
 
 
-object MDCCRecordCache {
+class MDCCRecordCache() {
 
   val CACHE_SIZE = 500
+
+
 
   //TODO: If we wanna use the cache for reads, we should use a lock-free structure
   lazy val cache = new LRUMap[Array[Byte], MCCCRecordHandler](CACHE_SIZE, None, killHandler){
@@ -125,11 +127,11 @@ object MDCCRecordCache {
     }
   }
 
-  def getOrCreate(ns: TransactionI, key : Array[Byte], servers: Seq[PartitionService], mt: Option[MDCCMetadata]) : MCCCRecordHandler = {
+  def getOrCreate(key : Array[Byte], servers: Seq[PartitionService], mt: MDCCMetadata, conflictResolver : ConflictResolver) : MCCCRecordHandler = {
     cache.synchronized{
       cache.get(key) match {
         case None => {
-          var handler = new MCCCRecordHandler(key, servers, mt.getOrElse(ns.getDefaultMeta()), ns.getConflictResolver)
+          var handler = new MCCCRecordHandler(key, servers, mt, conflictResolver)
           handler.start()
           cache.update(key, handler)
           handler

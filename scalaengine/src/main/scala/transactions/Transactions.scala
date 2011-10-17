@@ -11,7 +11,7 @@ import edu.berkeley.cs.scads.util._
 
 import collection.mutable.ArrayBuffer
 
-import mdcc.MDCCMetaDefault
+import mdcc._
 import org.apache.avro._
 import generic._
 import io._
@@ -35,6 +35,8 @@ with TransactionI {
   lazy val defaultMeta = MDCCMetaDefault.getDefault(nsRoot)
 
   lazy val conflictResolver = new ConflictResolver(valueSchema, getFieldICList )
+
+  lazy val recordCache = new MDCCRecordCache()
 
   private def getFieldICList : FieldICList = {
     assert(false) //TODO: Gene can you implement it?
@@ -321,6 +323,7 @@ trait TransactionI {
   def keySchema: Schema
   def valueSchema: Schema
   def getConflictResolver : ConflictResolver
+  def recordCache : MDCCRecordCache
 
 }
 

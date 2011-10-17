@@ -57,6 +57,8 @@ trait PendingUpdates extends DBRecords {
   def shutdown() = {}
 
   def setICs(ics: FieldICList)
+
+  def getConflictResolver : ConflictResolver
 }
 
 // TODO: Enumerations do not work with AvroRecords. Must be changed if we want
@@ -137,6 +139,8 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                                override val factory: TxDBFactory,
                                val keySchema: Schema,
                                val valueSchema: Schema) extends PendingUpdates {
+
+  def getConflictResolver : ConflictResolver = throw new RuntimeException("Not implemented") //TODO implement
 
   // Transaction state info. Maps txid -> txstatus/decision.
   private val txStatus =
