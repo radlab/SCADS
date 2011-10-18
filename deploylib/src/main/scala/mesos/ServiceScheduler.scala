@@ -39,7 +39,10 @@ class LocalExperimentScheduler protected(name: String, mesosMaster: String, exec
   var scheduledExperiments = List[List[TaskID]]()
 
   val driverThread = new Thread("ExperimentScheduler Mesos Driver Thread") {
-    override def run(): Unit = driver.run()
+    override def run(): Unit = {
+      logger.info("Starting mesos thread")
+      driver.run()
+    }
   }
   driverThread.start()
 
@@ -56,6 +59,7 @@ class LocalExperimentScheduler protected(name: String, mesosMaster: String, exec
 
   override def resourceOffers(d: SchedulerDriver, offers: java.util.List[Offer]) = awaitingSiblings.synchronized {
     val tasks = new java.util.LinkedList[TaskDescription]
+    logger.info("Processing offers: %s", offers)
 
     while (offers.size > 0 && outstandingExperiments.peek() != null) {
       val currentExperiment = outstandingExperiments.peek()
