@@ -63,13 +63,13 @@ trait ServiceManager extends RemoteMachine {
     def setCmd(cmd: String): this.type = {
       mkdir(serviceDir)
       mkdir(logDir)
-      val serviceScript = "#!/bin/bash\n" + cmd
+      val serviceScript = "#!/bin/bash\nexec %s >> %s 2>&1".format(cmd, logFile)
       createFile(runScript, serviceScript)
       self ! ("chmod 755 " + runScript)
       this
     }
 
-    def start = self ! "start-stop-daemon --make-pidfile --start --background --pidfile %s --exec %s >> %s 2>&1".format(pidFile, runScript, logFile)
+    def start = self ! "start-stop-daemon --make-pidfile --start --background --pidfile %s --exec %s".format(pidFile, runScript)
 
     def stop = self.executeCommand("start-stop-daemon --stop --pidfile %s".format(pidFile))
 
