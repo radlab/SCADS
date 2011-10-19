@@ -10,15 +10,15 @@ import edu.berkeley.cs.scads.storage.transactions.FieldAnnotations._
 case class KeyRec(var x: Int) extends AvroRecord
 
 case class ValueRec(var s: String,
-                    @FieldGT(1)
-                    @FieldGE(2)
-                    @FieldLT(3)
-                    @FieldLE(4)
+                    @FieldGT(0)
+                    @FieldGE(0)
+                    @FieldLT(100)
+                    @FieldLE(100)
                     var i: Int,
-                    @FieldGT(1)
-                    @FieldGE(1)
-                    @FieldLT(4)
-                    @FieldLE(4)
+                    @FieldGT(0)
+                    @FieldGE(0)
+                    @FieldLT(100)
+                    @FieldLE(100)
                     var a: Long,
                     var b: Float,
                     var c: Double) extends AvroRecord
