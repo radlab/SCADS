@@ -104,7 +104,7 @@ with BeforeAndAfterEach {
       val c1 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(1, 1),
                                            singleVersionUpdate(1, 1, 2),
-                                           true)))
+                                           true, true)))
       resolver.isCompatible(List(c1)) should be (true)
     }
 
@@ -112,7 +112,7 @@ with BeforeAndAfterEach {
       val c1 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(1, 1),
                                            singleVersionUpdate(1, 1, 2),
-                                           true)))
+                                           true, true)))
       resolver.isCompatible(List(c1, c1)) should be (true)
     }
 
@@ -120,11 +120,11 @@ with BeforeAndAfterEach {
       val c1 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(1, 1),
                                            singleVersionUpdate(1, 1, 2),
-                                           true)))
+                                           true, true)))
       val c2 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(2, 2),
                                            singleVersionUpdate(1, 2, 2),
-                                           true)))
+                                           true, true)))
       resolver.isCompatible(List(c1, c2)) should be (false)
     }
 
@@ -132,10 +132,10 @@ with BeforeAndAfterEach {
       val c1 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(1, 1),
                                            singleVersionUpdate(1, 2, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(2, 2),
                                            singleVersionUpdate(1, 3, 2),
-                                           true)))
+                                           true, true)))
       resolver.isCompatible(List(c1, c1)) should be (true)
     }
 
@@ -143,17 +143,17 @@ with BeforeAndAfterEach {
       val c1 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(1, 1),
                                            singleVersionUpdate(1, 2, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(2, 2),
                                            singleVersionUpdate(1, 3, 2),
-                                           true)))
+                                           true, true)))
       val c2 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(2, 2),
                                            singleVersionUpdate(1, 3, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(1, 1),
                                            singleVersionUpdate(1, 2, 2),
-                                           true)))
+                                           true, true)))
       resolver.isCompatible(List(c1, c2)) should be (false)
     }
 
@@ -161,10 +161,10 @@ with BeforeAndAfterEach {
       val c1 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(1, 1),
                                            singleLogicalUpdate(1, 2, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(2, 2),
                                            singleLogicalUpdate(1, 3, 2),
-                                           true)))
+                                           true, true)))
       resolver.isCompatible(List(c1, c1)) should be (true)
     }
 
@@ -172,17 +172,17 @@ with BeforeAndAfterEach {
       val c1 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(1, 1),
                                            singleLogicalUpdate(1, 2, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(2, 2),
                                            singleLogicalUpdate(1, 3, 2),
-                                           true)))
+                                           true, true)))
       val c2 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(2, 2),
                                            singleLogicalUpdate(1, 3, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(1, 1),
                                            singleLogicalUpdate(1, 2, 2),
-                                           true)))
+                                           true, true)))
       resolver.isCompatible(List(c1, c2)) should be (true)
     }
 
@@ -190,22 +190,22 @@ with BeforeAndAfterEach {
       val c1 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(1, 1),
                                            singleVersionUpdate(1, 2, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(2, 2),
                                            singleLogicalUpdate(1, 3, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(3, 3),
                                            singleLogicalUpdate(1, 4, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(4, 4),
                                            singleLogicalUpdate(1, 5, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(5, 5),
                                            singleVersionUpdate(1, 6, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(6, 6),
                                            singleLogicalUpdate(1, 7, 2),
-                                           true)))
+                                           true, true)))
       resolver.isCompatible(List(c1, c1)) should be (true)
     }
 
@@ -213,41 +213,41 @@ with BeforeAndAfterEach {
       val c1 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(1, 1),
                                            singleVersionUpdate(1, 2, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(2, 2),
                                            singleLogicalUpdate(1, 3, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(3, 3),
                                            singleLogicalUpdate(1, 4, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(4, 4),
                                            singleLogicalUpdate(1, 5, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(5, 5),
                                            singleVersionUpdate(1, 6, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(6, 6),
                                            singleLogicalUpdate(1, 7, 2),
-                                           true)))
+                                           true, true)))
       val c2 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(1, 1),
                                            singleVersionUpdate(1, 2, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(4, 4),
                                            singleLogicalUpdate(1, 5, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(3, 3),
                                            singleLogicalUpdate(1, 4, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(2, 2),
                                            singleLogicalUpdate(1, 3, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(5, 5),
                                            singleVersionUpdate(1, 6, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(6, 6),
                                            singleLogicalUpdate(1, 7, 2),
-                                           true)))
+                                           true, true)))
       resolver.isCompatible(List(c1, c2)) should be (true)
     }
 
@@ -255,38 +255,38 @@ with BeforeAndAfterEach {
       val c1 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(1, 1),
                                            singleVersionUpdate(1, 2, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(2, 2),
                                            singleLogicalUpdate(1, 3, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(3, 3),
                                            singleLogicalUpdate(1, 4, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(4, 4),
                                            singleLogicalUpdate(1, 5, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(5, 5),
                                            singleVersionUpdate(1, 6, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(6, 6),
                                            singleLogicalUpdate(1, 7, 2),
-                                           true)))
+                                           true, true)))
       val c2 = CStruct(Option(singleValueRecord(1, 1)),
                        List(CStructCommand(ScadsXid(1, 1),
                                            singleVersionUpdate(1, 2, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(7, 7),
                                            singleLogicalUpdate(1, 9, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(2, 2),
                                            singleLogicalUpdate(1, 3, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(5, 5),
                                            singleVersionUpdate(1, 6, 2),
-                                           true),
+                                           true, true),
                             CStructCommand(ScadsXid(6, 6),
                                            singleLogicalUpdate(1, 7, 2),
-                                           true)))
+                                           true, true)))
       resolver.isCompatible(List(c1, c2)) should be (false)
     }
   }
