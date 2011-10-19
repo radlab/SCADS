@@ -57,8 +57,9 @@ class TestTx {
     tx2.Execute()
 
     val tx3 = new Tx(100) ({
-      List.range(7, 7 + 4).foreach(x => ns.put(KeyRec(x),
-                                               ValueRec("I", 1, 1, 1.0.floatValue, 1.0)))
+      List.range(7, 7 + 4).foreach(x => {
+        ns.get(KeyRec(x))
+        ns.put(KeyRec(x), ValueRec("I", 1, 1, 1.0.floatValue, 1.0))})
     }).Accept(0.90) {
     }.Commit( success => {
     })

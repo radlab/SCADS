@@ -60,7 +60,7 @@ abstract trait StorageManager {
                      aggregates: Seq[AggOp]): Seq[GroupedAgg]
 
   // For transactions
-  def accept(xid: ScadsXid, updates: Seq[RecordUpdate]): Option[Seq[(Array[Byte], CStruct)]] = None
+  def accept(xid: ScadsXid, updates: Seq[RecordUpdate]): Seq[(Array[Byte], CStruct)] = Nil
 
   def commit(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean = false
 

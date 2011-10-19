@@ -15,7 +15,7 @@ class Protocol2PCManager(manager: StorageManager)  extends TrxManager {
      def reply(body: StorageMessage) = src.foreach(_ ! body)
      msg match {
        case PrepareRequest(xid, updates) => {
-         val success = manager.accept(xid, updates).isDefined
+         val success = manager.accept(xid, updates).nonEmpty
          reply(PrepareResponse(success))
        }
        case CommitRequest(xid, updates, commit) => {
