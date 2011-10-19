@@ -33,20 +33,38 @@ trait DBRecords {
 }
 
 trait PendingUpdates extends DBRecords {
+  //TODO: Gene all the operations should be ex
+
   // Even on abort, store the xid and always abort it afterwards --> Check
   // NoOp property
   // Is only allowed to accept, if the operation will be successful, even
   // if all outstanding Cmd might be NullOps
   // If accepted, returns all the cstructs for all the keys.  Otherwise, None
   // is returned.
-  def accept(xid: ScadsXid, updates: Seq[RecordUpdate]): Seq[(Array[Byte], CStruct)]
+  def acceptOption(xid: ScadsXid, updates: Seq[RecordUpdate])(implicit txn : TransactionData) : Seq[(Array[Byte], CStruct)]
 
-  def accept(xid: ScadsXid, update: RecordUpdate): Option[(Array[Byte], CStruct)]
+  def acceptOption(xid: ScadsXid, update: RecordUpdate)(implicit txn : TransactionData) : Option[(Array[Byte], CStruct)]  //TODO why is this a option?
+
+
+  /**
+   * The transaction was successful (we will never decide otherwise)
+   */
+  def commit(xid: ScadsXid)(implicit txn : TransactionData) : Boolean
+
+  /**
+   * The transaction was learned as aborted (we will never decide otherwise)
+   */
+  def abort(xid: ScadsXid)(implicit txn : TransactionData)  : Boolean
+
+  /**
+   * Writes the new truth. Should only return false if something is messed up with the db
+   */
+  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates : Seq[RecordUpdate])(implicit txn : TransactionData) : Boolean
 
   // Value is chosen (reflected in the db) and confirms trx state.
-  def commit(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean
+  @deprecated def commit(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean
 
-  def abort(xid: ScadsXid)
+
 
   def getDecision(xid: ScadsXid): Status.Status
 
@@ -140,7 +158,11 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                                val keySchema: Schema,
                                val valueSchema: Schema) extends PendingUpdates {
 
-  def getConflictResolver : ConflictResolver = throw new RuntimeException("Not implemented") //TODO implement
+  def getConflictResolver : ConflictResolver = throw new RuntimeException("Gene implement me") //TODO implement
+
+  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates : Seq[RecordUpdate])(implicit txn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
+  def commit(xid: ScadsXid)(implicit txn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
+
 
   // Transaction state info. Maps txid -> txstatus/decision.
   private val txStatus =
@@ -163,11 +185,11 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   }
 
 
-  override def accept(xid: ScadsXid, update: RecordUpdate): Option[(Array[Byte], CStruct)] = {
-    accept(xid, update :: Nil).headOption
+  override def acceptOption(xid: ScadsXid, update: RecordUpdate)(implicit txn : TransactionData): Option[(Array[Byte], CStruct)] = {
+    acceptOption(xid, update :: Nil).headOption
   }
 
-  override def accept(xid: ScadsXid, updates: Seq[RecordUpdate]) : Seq[(Array[Byte], CStruct)] = {
+  override def acceptOption(xid: ScadsXid, updates: Seq[RecordUpdate])(implicit txn : TransactionData) : Seq[(Array[Byte], CStruct)] = {
     var success = true
     val txn = db.txStart()
     val pendingCommandsTxn = pendingCStructs.txStart()
@@ -270,7 +292,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     success
   }
 
-  override def abort(xid: ScadsXid) = {
+  override def abort(xid: ScadsXid)(implicit txn : TransactionData) : Boolean = {
     val pendingCommandsTxn = pendingCStructs.txStart()
     try {
       txStatus.get(null, xid) match {
@@ -289,9 +311,11 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
         }
       }
       pendingCStructs.txCommit(pendingCommandsTxn)
+      return true
     } catch {
       case e: Exception => {}
       pendingCStructs.txAbort(pendingCommandsTxn)
+      return false
     }
   }
 

@@ -508,7 +508,7 @@ class BdbStorageManager(val db: Database,
   }
 
   override def accept(xid: ScadsXid, updates: Seq[RecordUpdate]): Option[Seq[(Array[Byte], CStruct)]] = {
-    pendingUpdates.accept(xid, updates)
+    pendingUpdates.acceptOption(xid, updates)(null)
   }
 
   override def commit(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean = {
@@ -516,7 +516,7 @@ class BdbStorageManager(val db: Database,
   }
 
   override def abort(xid: ScadsXid) = {
-    pendingUpdates.abort(xid)
+    pendingUpdates.abort(xid)(null)
   }
 
   private def initCursor(cursor: Cursor) = {

@@ -305,8 +305,10 @@ object MDCCRecordUtil {
     recordReaderWriter.serialize(rec)
   }
 
+
+  //TODO: Gene, why is metadata an option?
   def toBytes(rec: Option[Array[Byte]], metadata: Option[MDCCMetadata]): Array[Byte] = {
-    recordReaderWriter.serialize(MDCCRecord(rec, metadata.getOrElse(MDCCMetadata(0, List()))))
+    recordReaderWriter.serialize(MDCCRecord(rec, metadata.getOrElse(MDCCMetadata(0, List()))))   //TODO: Why use a defulat here?
   }
 
   def fromBytes(bytes: Array[Byte]): MDCCRecord = {
