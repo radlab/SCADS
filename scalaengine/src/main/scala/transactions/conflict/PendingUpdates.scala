@@ -64,8 +64,9 @@ trait PendingUpdates extends DBRecords {
 // TODO: Enumerations do not work with AvroRecords. Must be changed if we want
 //       to use AvroRecords for serialization.
 // Status of a transaction.  Stores all the updates in the transaction.
-case class TxStatusEntry(var status: Status.Status,
-                         var updates: Seq[RecordUpdate]) extends Serializable
+// status is the toString() of the enum.
+case class TxStatusEntry(var status: String,
+                         var updates: Seq[RecordUpdate]) extends Serializable with AvroRecord
 
 case class PendingStateInfo(var state: Array[Byte],
                             var xids: List[List[ScadsXid]]) extends Serializable with AvroRecord
@@ -162,11 +163,16 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   def getConflictResolver : ConflictResolver = throw new RuntimeException("Not implemented") //TODO implement
 
   // Transaction state info. Maps txid -> txstatus/decision.
-  private val txStatus =
-    factory.getNewDB[ScadsXid, TxStatusEntry](db.getName + ".txstatus")
+  private val txStatus = factory.getNewDB[ScadsXid, TxStatusEntry](
+    db.getName + ".txstatus",
+    new AvroKeySerializer[ScadsXid],
+    new AvroValueSerializer[TxStatusEntry])
   // CStructs per key.
   private val pendingCStructs =
-    factory.getNewDB[Array[Byte], PendingCommandsInfo](db.getName + ".pendingcstructs")
+    factory.getNewDB[Array[Byte], PendingCommandsInfo](
+      db.getName + ".pendingcstructs",
+      new ByteArrayKeySerializer[Array[Byte]],
+      new AvroValueSerializer[PendingCommandsInfo])
 
   // Detects conflicts for new updates.
   private var newUpdateResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs)
@@ -237,7 +243,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       pendingCStructs.txCommit(pendingCommandsTxn)
       db.txCommit(txn)
       // TODO: Handle the case when the commit arrives before the prepare.
-      txStatus.putNoOverwrite(null, xid, TxStatusEntry(Status.Accept, updates))
+      txStatus.putNoOverwrite(null, xid, TxStatusEntry(Status.Accept.toString, updates))
     } else {
       pendingCStructs.txAbort(pendingCommandsTxn)
 
@@ -258,7 +264,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
       db.txAbort(txn)
       // TODO: Handle the case when the commit arrives before the prepare.
-      txStatus.putNoOverwrite(null, xid, TxStatusEntry(Status.Reject, updates))
+      txStatus.putNoOverwrite(null, xid, TxStatusEntry(Status.Reject.toString, updates))
     }
     (success, cstructs)
   }
@@ -308,7 +314,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       success = false
     }
 
-    txStatus.put(null, xid, TxStatusEntry(Status.Commit, updates))
+    txStatus.put(null, xid, TxStatusEntry(Status.Commit.toString, updates))
     success
   }
 
@@ -317,7 +323,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     try {
       txStatus.get(null, xid) match {
         case None => {
-          txStatus.put(null, xid, TxStatusEntry(Status.Abort, List[RecordUpdate]()))
+          txStatus.put(null, xid, TxStatusEntry(Status.Abort.toString, List[RecordUpdate]()))
         }
         case Some(status) => {
           status.updates.foreach(r => {
@@ -327,7 +333,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
             pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
           })
-          txStatus.put(null, xid, TxStatusEntry(Status.Abort, status.updates))
+          txStatus.put(null, xid, TxStatusEntry(Status.Abort.toString, status.updates))
         }
       }
       pendingCStructs.txCommit(pendingCommandsTxn)
@@ -340,7 +346,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   override def getDecision(xid: ScadsXid) = {
     txStatus.get(null, xid) match {
       case None => Status.Unknown
-      case Some(status) => status.status
+      case Some(s) => Status.withName(s.status)
     }
   }
 

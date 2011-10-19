@@ -111,9 +111,10 @@ class BdbStorageManager(val db: Database,
 
   //TODO All the Trx protocol should be factored out like done for MDCC
   private lazy val pendingUpdates = new PendingUpdatesController(
-    new BDBTxDB[Array[Byte], Array[Byte]](db)
-       with ByteArrayKeySerializer[Array[Byte]]
-       with ByteArrayValueSerializer[Array[Byte]],
+    new BDBTxDB[Array[Byte], Array[Byte]](
+      db,
+      new ByteArrayKeySerializer[Array[Byte]],
+      new ByteArrayValueSerializer[Array[Byte]]),
     new BDBTxDBFactory(db.getEnvironment),
     keySchema, valueSchema)
 

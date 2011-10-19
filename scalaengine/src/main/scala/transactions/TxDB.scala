@@ -27,6 +27,8 @@ import scala.collection.mutable.ListBuffer
 
 import java.nio._
 
+import edu.berkeley.cs.scads.storage._
+
 // Transactional db interface.
 // The underlying store can be a hashmap (for testing) or a bdb instance.
 sealed trait TxDB[K <: AnyRef, V <: AnyRef] {
@@ -59,6 +61,21 @@ sealed trait TxDB[K <: AnyRef, V <: AnyRef] {
   def shutdown() = {}
 
   def getName()
+
+  def keyToBytes(k: K): Array[Byte] = keySerializer.keyToBytes(k)
+  def keyFromBytes(b: Array[Byte]): K = keySerializer.keyFromBytes(b)
+  def valueToBytes(v: V): Array[Byte] = valueSerializer.valueToBytes(v)
+  def valueFromBytes(b: Array[Byte]): V = valueSerializer.valueFromBytes(b)
+
+  private var keySerializer = new KeySerializer[K]
+  private var valueSerializer = new ValueSerializer[V]
+
+  def setKeySerializer(s: KeySerializer[K]) {
+    keySerializer = s
+  }
+  def setValueSerializer(s: ValueSerializer[V]) {
+    valueSerializer = s
+  }
 }
 
 // Transaction data for the transactionactional dbs
@@ -68,24 +85,42 @@ case class MapTransactionData(tx: ListBuffer[(Any, Any)]) extends TransactionDat
 
 // Factory for creating new transactional dbs.
 sealed trait TxDBFactory {
-  def getNewDB[K <: AnyRef, V <: AnyRef](name: String): TxDB[K, V]
+  def getNewDB[K <: AnyRef, V <: AnyRef](
+    name: String,
+    keySer: KeySerializer[K] = new KeySerializer[K],
+    valueSer: ValueSerializer[V] = new ValueSerializer[V]): TxDB[K, V]
 }
 
 // A factory for creating BDB transactional dbs.
 class BDBTxDBFactory(env: Environment) extends TxDBFactory {
-  override def getNewDB[K <: AnyRef, V <: AnyRef](name: String) = {
+  override def getNewDB[K <: AnyRef, V <: AnyRef](
+    name: String,
+    keySer: KeySerializer[K] = new KeySerializer[K],
+    valueSer: ValueSerializer[V] = new ValueSerializer[V]) = {
+
     val dbConfig = new DatabaseConfig
     dbConfig.setAllowCreate(true)
     dbConfig.setTransactional(true)
     val db = env.openDatabase(null, name, dbConfig)
-    new BDBTxDB[K, V](db)
+    val result = new BDBTxDB[K, V](db)
+    result.setKeySerializer(keySer)
+    result.setValueSerializer(valueSer)
+    result
   }
 }
 
 // A factory for creating hashmap transactional dbs.
 class MapTxDBFactory extends TxDBFactory {
-  override def getNewDB[K <: AnyRef, V <: AnyRef](name: String) =
-    new MapTxDB[K, V](new ByteArrayHashMap[K, V], name)
+  override def getNewDB[K <: AnyRef, V <: AnyRef](
+    name: String,
+    keySer: KeySerializer[K] = new KeySerializer[K],
+    valueSer: ValueSerializer[V] = new ValueSerializer[V]) = {
+
+    val result = new MapTxDB[K, V](new ByteArrayHashMap[K, V], name)
+    result.setKeySerializer(keySer)
+    result.setValueSerializer(valueSer)
+    result
+  }
 }
 
 // Default serializer which just uses java streams.
@@ -117,7 +152,7 @@ sealed trait TxRecordSerializer {
   }
 }
 
-sealed trait KeySerializer[T <: AnyRef] extends TxRecordSerializer {
+class KeySerializer[T <: AnyRef] extends TxRecordSerializer {
   def keyToBytes(k: T): Array[Byte] = {
     toBytes[T](k)
   }
@@ -125,7 +160,7 @@ sealed trait KeySerializer[T <: AnyRef] extends TxRecordSerializer {
     fromBytes[T](b)
   }
 }
-sealed trait ValueSerializer[T <: AnyRef] extends TxRecordSerializer {
+class ValueSerializer[T <: AnyRef] extends TxRecordSerializer {
   def valueToBytes(v: T): Array[Byte] = {
     toBytes[T](v)
   }
@@ -136,7 +171,7 @@ sealed trait ValueSerializer[T <: AnyRef] extends TxRecordSerializer {
 
 // Array[Byte] versions for better performance.
 // Any way to check/force T to be Array[Byte]???
-trait ByteArrayKeySerializer[T <: AnyRef] extends KeySerializer[T] {
+class ByteArrayKeySerializer[T <: AnyRef] extends KeySerializer[T] {
   override def keyToBytes(k: T): Array[Byte] = {
     k.asInstanceOf[Array[Byte]]
   }
@@ -144,7 +179,7 @@ trait ByteArrayKeySerializer[T <: AnyRef] extends KeySerializer[T] {
     b.asInstanceOf[T]
   }
 }
-trait ByteArrayValueSerializer[T <: AnyRef] extends ValueSerializer[T] {
+class ByteArrayValueSerializer[T <: AnyRef] extends ValueSerializer[T] {
   override def valueToBytes(v: T): Array[Byte] = {
     v.asInstanceOf[Array[Byte]]
   }
@@ -153,8 +188,33 @@ trait ByteArrayValueSerializer[T <: AnyRef] extends ValueSerializer[T] {
   }
 }
 
+// Avro serializers.
+class AvroKeySerializer[T <: SpecificRecord](implicit man: Manifest[T]) extends KeySerializer[T] {
+  private val rw = new AvroSpecificReaderWriter[T](None)
+  override def keyToBytes(k: T): Array[Byte] = {
+    rw.serialize(k)
+  }
+  override def keyFromBytes(b: Array[Byte]): T = {
+    rw.deserialize(b)
+  }
+}
+class AvroValueSerializer[T <: SpecificRecord](implicit man: Manifest[T]) extends ValueSerializer[T] {
+  private val rw = new AvroSpecificReaderWriter[T](None)
+  override def valueToBytes(v: T): Array[Byte] = {
+    rw.serialize(v)
+  }
+  override def valueFromBytes(b: Array[Byte]): T = {
+    rw.deserialize(b)
+  }
+}
+
 // Transactional db using BDB as the underlying store.
-class BDBTxDB[K <: AnyRef, V <: AnyRef](val db: Database) extends TxDB[K, V] with KeySerializer[K] with ValueSerializer[V] {
+class BDBTxDB[K <: AnyRef, V <: AnyRef](val db: Database,
+                                        var keySer: KeySerializer[K] = new KeySerializer[K],
+                                        var valueSer: ValueSerializer[V] = new ValueSerializer[V]) extends TxDB[K, V] {
+  setKeySerializer(keySer)
+  setValueSerializer(valueSer)
+
   private def getTransaction(tx: TransactionData, msg: String): Transaction = {
     tx match {
       case BDBTransactionData(txn) => txn

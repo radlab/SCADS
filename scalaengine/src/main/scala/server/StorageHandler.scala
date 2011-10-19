@@ -147,7 +147,10 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     val storageMgr = new BdbStorageManager(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), schemasvc._1, schemasvc._2)
     val handler = new PartitionHandler(storageMgr)
     handler.trxManager =  makeTrxMgr(namespace, partitionIdLock,
-      new BDBTxDB[Array[Byte], Array[Byte]](database) with ByteArrayKeySerializer[Array[Byte]] with ByteArrayValueSerializer[Array[Byte]],
+      new BDBTxDB[Array[Byte], Array[Byte]](
+        database,
+        new ByteArrayKeySerializer[Array[Byte]],
+        new ByteArrayValueSerializer[Array[Byte]]),
       new BDBTxDBFactory(database.getEnvironment),
       trxMgrType,
       handler,
