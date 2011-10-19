@@ -183,7 +183,7 @@ class MCCCRecordHandler (
      case _ => false
   }
 
-  def currentBallot() = MDCCMetaHelper.currentBallot(meta)
+  def currentBallot() = {assert(false); MDCCBallot(meta.currentRound, meta.ballots.head.vote, meta.ballots.head.server, meta.ballots.head.fast)}
   def getStatus = status
   def getValue = learnedValue
 
@@ -274,7 +274,7 @@ class MCCCRecordHandler (
       case _ =>
         meta = getOwnership(meta, meta.currentRound, meta.currentRound, false)
     }
-    val phase1aMsg = Phase1a(key, meta)
+    val phase1aMsg = Phase1a(key, meta.ballots)
     quorum.clear()
     servers.map(_ ! phase1aMsg)
   }

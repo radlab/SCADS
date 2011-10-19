@@ -232,7 +232,7 @@ case class GotMastership(var ballots: MDCCMetadata) extends AvroRecord with MDCC
 
 case class Propose(var xid: ScadsXid, var update: RecordUpdate) extends AvroRecord with MDCCProtocol
 
-case class Phase1a(var key: Array[Byte], var ballots: MDCCMetadata) extends AvroRecord with MDCCProtocol
+case class Phase1a(var key: Array[Byte], var ballots: Seq[MDCCBallotRange]) extends AvroRecord with MDCCProtocol
 
 case class Phase1b(var ballots: MDCCMetadata, var value: CStruct) extends AvroRecord with MDCCProtocol
 

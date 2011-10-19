@@ -9,6 +9,7 @@ import conflict._
 import org.apache.avro.Schema
 import java.util.concurrent.ConcurrentHashMap
 import collection.mutable.HashMap
+import edu.berkeley.cs.scads.storage.transactions.MDCCMetaHelper._
 
 
 class MDCCServer(namespace : String,
@@ -24,7 +25,7 @@ class MDCCServer(namespace : String,
     db.txStart()
   }
 
-  def commitTrx(txn : TransactionData) : Boolean = {
+  def commitTrx(implicit txn : TransactionData) : Boolean = {
     try{
       db.txCommit(txn)
     } catch {
@@ -36,7 +37,7 @@ class MDCCServer(namespace : String,
     return true
   }
 
-  def getMeta(txn : TransactionData, key : Array[Byte]) : MDCCMetadata  = {
+  def getMeta(key : Array[Byte])(implicit txn : TransactionData) : MDCCMetadata  = {
      val storedMDCCRec: Option[MDCCRecord] = db.get(txn, key).map(MDCCRecordUtil.fromBytes(_))
      if(storedMDCCRec.isEmpty)
       return default.defaultMetaData
@@ -45,43 +46,39 @@ class MDCCServer(namespace : String,
   }
 
 
-  def processPropose(src: Option[RemoteServiceProxy[StorageMessage]], xid: ScadsXid, update: RecordUpdate)(implicit sender: RemoteServiceProxy[StorageMessage])  = {
-    val trx = startTrx()
-    val meta = getMeta(trx, update.key)
-    //val master = getMaster(meta)
-    val result = pendingUpdates.accept(xid, update)
+  protected  def processPropose(src: Option[RemoteServiceProxy[StorageMessage]], xid: ScadsXid, update: RecordUpdate)(implicit sender: RemoteServiceProxy[StorageMessage])  = {
+    implicit val trx = startTrx()
+    val meta = getMeta(update.key)
+    if(isFast(meta)){
+      val cstruct = pendingUpdates.acceptOption(xid, update)
+    }else{
+      val recordHandler = recordCache.getOrCreate(update.key, routingTable.serversForKey(update.key), meta, pendingUpdates.getConflictResolver)
+      recordHandler ! new Envelope[StorageMessage](src.asInstanceOf[Option[RemoteService[StorageMessage]]], Propose(xid, update))
+    }
     commitTrx(trx)
   }
 
-  def processPhase1a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], newMeta: MDCCMetadata) = {
-    val trx = startTrx()
-    val meta = getMeta(trx, key)
+  protected def processPhase1a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], newMeta: MDCCBallotRange) = {
+    implicit val trx = startTrx()
+    val meta = getMeta(key)
     commitTrx(trx)
     //pendingUpdates.setMeta(combine(oldMeta, newMeta))
   }
 
-  def processPhase2a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], ballot: MDCCBallot, value: CStruct, newUpdate : Seq[RecordUpdate] ) = {
+  protected def processPhase2a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], ballot: MDCCBallot, value: CStruct, newUpdate : Seq[RecordUpdate] ) = {
 
   }
 
-  def processAccept(src: Option[RemoteServiceProxy[StorageMessage]], xid: ScadsXid) = {
+  protected def processAccept(src: Option[RemoteServiceProxy[StorageMessage]], xid: ScadsXid) = {
 
   }
 
-  def startPropose(msg : Propose) = {
-    //TODO: no trx needed
-    val trx = startTrx()
-    val key = msg.update.key
-    val meta = getMeta(trx, key)
-    val recordHandler = recordCache.getOrCreate(key, routingTable.serversForKey(key), meta, pendingUpdates.getConflictResolver)
-    recordHandler ! msg
-    commitTrx(trx)
-  }
+
 
 
   def process(src: Option[RemoteServiceProxy[StorageMessage]], msg: TrxMessage)(implicit sender: RemoteServiceProxy[StorageMessage]) = {
     msg match {
-      case  msg : Propose => startPropose(msg)
+      case Propose(xid, update) =>  processPropose(src, xid, update)
       case Phase1a(key: Array[Byte], ballot: MDCCBallotRange) => processPhase1a(src, key, ballot)
       case Phase2a(key, ballot, safeValue, newUpdate ) => processPhase2a(src, key, ballot, safeValue, newUpdate)
       case Commit(xid: ScadsXid) =>
