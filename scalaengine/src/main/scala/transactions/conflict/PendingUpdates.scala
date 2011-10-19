@@ -41,9 +41,10 @@ trait PendingUpdates extends DBRecords {
   // if all outstanding Cmd might be NullOps
   // If accepted, returns all the cstructs for all the keys.  Otherwise, None
   // is returned.
-  def acceptOption(xid: ScadsXid, updates: Seq[RecordUpdate])(implicit txn : TransactionData) : Seq[(Array[Byte], CStruct)]
+  def acceptOption(xid: ScadsXid, updates: Seq[RecordUpdate])(implicit txn : TransactionData) : (Boolean, Seq[(Array[Byte], CStruct)])
 
-  def acceptOption(xid: ScadsXid, update: RecordUpdate)(implicit txn : TransactionData) : Option[(Array[Byte], CStruct)]  //TODO why is this a option?
+
+  def acceptOption(xid: ScadsXid, update: RecordUpdate)(implicit txn : TransactionData) : (Boolean, Array[Byte], CStruct)
 
 
   /**
@@ -87,12 +88,26 @@ case class TxStatusEntry(var status: Status.Status,
 
 case class PendingStateInfo(var state: Array[Byte],
                             var xids: List[List[ScadsXid]]) extends Serializable with AvroRecord
-case class PendingCommandsInfo(var commands: ArrayBuffer[CStructCommand],
-                               var states: Seq[PendingStateInfo]) extends Serializable with AvroRecord {
+case class PendingCommandsInfo(var base: Option[Array[Byte]],
+                               var commands: ArrayBuffer[CStructCommand],
+                               var states: ArrayBuffer[PendingStateInfo]) extends Serializable with AvroRecord {
   def appendCommand(command: CStructCommand) = {
     commands.append(command)
   }
 
+  def replaceCommand(command: CStructCommand) = {
+    // TODO: Linear search for xid.  Store hash for performance?
+    val index = commands.indexWhere(x => x.xid == command.xid)
+    if (index == -1) {
+      // This commmand was not pending.
+      appendCommand(command)
+    } else if (commands(index).pending) {
+      // Only update the existing command if it was pending.
+      commands.update(index, command)
+    }
+  }
+
+  // Correct flags for the command should already be set.
   def commitCommand(command: CStructCommand, logicalUpdater: LogicalRecordUpdater) = {
     // TODO: Linear search for xid.  Store hash for performance?
     val index = commands.indexWhere(x => x.xid == command.xid)
@@ -132,6 +147,7 @@ case class PendingCommandsInfo(var commands: ArrayBuffer[CStructCommand],
     }
   }
 
+  // Correct flags for the command should already be set.
   def abortCommand(command: CStructCommand) = {
     // TODO: Linear search for xid.  Store hash for performance?
     val index = commands.indexWhere(x => x.xid == command.xid)
@@ -145,11 +161,15 @@ case class PendingCommandsInfo(var commands: ArrayBuffer[CStructCommand],
           x.xids = x.xids.filterNot(y => y.contains(command.xid))
           x})
       }
+    } else {
+      // This command was not previously pending.  Append the aborted status.
+      commands.append(command)
     }
   }
 
   def updateStates(newStates: Seq[PendingStateInfo]) = {
-    states = newStates
+    states.clear
+    states ++= newStates
   }
 }
 
@@ -184,12 +204,14 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     println("ics: " + valueICs)
   }
 
-
-  override def acceptOption(xid: ScadsXid, update: RecordUpdate)(implicit txn : TransactionData): Option[(Array[Byte], CStruct)] = {
-    acceptOption(xid, update :: Nil).headOption
+  // If accept was successful, returns the cstruct.  Otherwise, returns None.
+  override def acceptOption(xid: ScadsXid, update: RecordUpdate)(implicit txn : TransactionData): (Boolean, Array[Byte], CStruct) = {
+    val result = acceptOption(xid, update :: Nil)
+    (result._1, result._2.head._1, result._2.head._2)
   }
 
-  override def acceptOption(xid: ScadsXid, updates: Seq[RecordUpdate])(implicit txn : TransactionData) : Seq[(Array[Byte], CStruct)] = {
+  // Returns a tuple (success, list of (key, cstruct) pairs)
+  override def acceptOption(xid: ScadsXid, updates: Seq[RecordUpdate])(implicit txn : TransactionData): (Boolean, Seq[(Array[Byte], CStruct)]) = {
     var success = true
     val txn = db.txStart()
     val pendingCommandsTxn = pendingCStructs.txStart()
@@ -206,7 +228,8 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
             }
 
           val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key) match {
-            case None => PendingCommandsInfo(new ArrayBuffer[CStructCommand],
+            case None => PendingCommandsInfo(None,
+                                             new ArrayBuffer[CStructCommand],
                                              new ArrayBuffer[PendingStateInfo])
             case Some(c) => c
           }
@@ -219,7 +242,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
           } else {
             success = false
           }
-          (r.key, CStruct(storedRecValue, commandsInfo.commands))
+          (r.key, CStruct(commandsInfo.base, commandsInfo.commands))
         } else {
           (null, null)
         }
@@ -229,18 +252,33 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       success = false
     }
     if (success) {
-      db.txCommit(txn)
       pendingCStructs.txCommit(pendingCommandsTxn)
+      db.txCommit(txn)
       // TODO: Handle the case when the commit arrives before the prepare.
       txStatus.putNoOverwrite(null, xid, TxStatusEntry(Status.Accept, updates))
     } else {
-      db.txAbort(txn)
       pendingCStructs.txAbort(pendingCommandsTxn)
+
+      // On abort, still append a "reject" command to all the cstructs.
+      val pendingCommandsTxn2 = pendingCStructs.txStart()
+      cstructs = updates.map(r => {
+        val commandsInfo = pendingCStructs.get(pendingCommandsTxn2, r.key) match {
+          case None => PendingCommandsInfo(None,
+                                           new ArrayBuffer[CStructCommand],
+                                           new ArrayBuffer[PendingStateInfo])
+          case Some(c) => c
+        }
+        commandsInfo.replaceCommand(CStructCommand(xid, r, true, false))
+        pendingCStructs.put(pendingCommandsTxn2, r.key, commandsInfo)
+        (r.key, CStruct(commandsInfo.base, commandsInfo.commands))
+      })
+      pendingCStructs.txCommit(pendingCommandsTxn2)
+
+      db.txAbort(txn)
       // TODO: Handle the case when the commit arrives before the prepare.
       txStatus.putNoOverwrite(null, xid, TxStatusEntry(Status.Reject, updates))
-      cstructs = Nil
     }
-    cstructs
+    (success, cstructs)
   }
 
   override def commit(xid: ScadsXid, updates: Seq[RecordUpdate]) = {
@@ -274,7 +312,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
         }
 
         // Commit the updates in the pending list.
-        val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key).getOrElse(PendingCommandsInfo(new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
+        val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key).getOrElse(PendingCommandsInfo(None, new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
         commandsInfo.commitCommand(CStructCommand(xid, r, false, true), logicalRecordUpdater)
 
         pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
@@ -302,8 +340,8 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
         case Some(status) => {
           status.updates.foreach(r => {
             // Remove the updates in the pending list.
-            val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key).getOrElse(PendingCommandsInfo(new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
-            commandsInfo.abortCommand(CStructCommand(xid, r, false, true))
+            val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key).getOrElse(PendingCommandsInfo(None, new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
+            commandsInfo.abortCommand(CStructCommand(xid, r, false, false))
 
             pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
           })
@@ -392,7 +430,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
       }
       case ValueUpdate(key, oldValue, newValue) => {
         // Value updates conflict with all pending updates
-        if (commandsInfo.commands.indexWhere(x => x.pending) == -1) {
+        if (commandsInfo.commands.indexWhere(x => x.pending && x.commit) == -1) {
           // No pending commands.
           val newRec = MDCCRecordUtil.fromBytes(newValue)
           (oldValue, dbValue) match {
@@ -421,7 +459,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
       }
       case VersionUpdate(key, newValue) => {
         // Version updates conflict with all pending updates
-        if (commandsInfo.commands.indexWhere(x => x.pending) == -1) {
+        if (commandsInfo.commands.indexWhere(x => x.pending && x.commit) == -1) {
           // No pending commands.
           val newRec = MDCCRecordUtil.fromBytes(newValue)
           dbValue match {

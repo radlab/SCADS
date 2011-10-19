@@ -10,15 +10,15 @@ import edu.berkeley.cs.scads.storage.transactions.FieldAnnotations._
 case class KeyRec(var x: Int) extends AvroRecord
 
 case class ValueRec(var s: String,
-                    @FieldGT(1)
-                    @FieldGE(2)
-                    @FieldLT(3)
-                    @FieldLE(4)
+                    @FieldGT(0)
+                    @FieldGE(0)
+                    @FieldLT(100)
+                    @FieldLE(100)
                     var i: Int,
-                    @FieldGT(1)
-                    @FieldGE(1)
-                    @FieldLT(4)
-                    @FieldLE(4)
+                    @FieldGT(0)
+                    @FieldGE(0)
+                    @FieldLT(100)
+                    @FieldLE(100)
                     var a: Long,
                     var b: Float,
                     var c: Double) extends AvroRecord
@@ -57,8 +57,9 @@ class TestTx {
     tx2.Execute()
 
     val tx3 = new Tx(100) ({
-      List.range(7, 7 + 4).foreach(x => ns.put(KeyRec(x),
-                                               ValueRec("I", 1, 1, 1.0.floatValue, 1.0)))
+      List.range(7, 7 + 4).foreach(x => {
+        ns.get(KeyRec(x))
+        ns.put(KeyRec(x), ValueRec("I", 1, 1, 1.0.floatValue, 1.0))})
     }).Accept(0.90) {
     }.Commit( success => {
     })

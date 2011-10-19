@@ -109,7 +109,7 @@ sealed trait TxRecordSerializer {
       val ois = new java.io.ObjectInputStream(bais)
       ois.readObject().asInstanceOf[T]
     } catch {
-      case _ => { 
+      case e: Exception => { 
         // Fall back to casting it to byte array. Hopefully T is Array[Byte]?
         b.asInstanceOf[T]
       }
@@ -229,7 +229,7 @@ class MapTxDB[K <: AnyRef, V <: AnyRef](val map: ByteArrayHashMap[K, V], val nam
 
   override def put(tx: TransactionData, key: K, value: V): Boolean = {
     val txn = getTransaction(tx, "Map.put()")
-    val oldVal = map.put(key, value) 
+    val oldVal = map.put(key, value)
     if (txn != null) {
       txn.append((key, oldVal))
     }
@@ -272,7 +272,7 @@ class MapTxDB[K <: AnyRef, V <: AnyRef](val map: ByteArrayHashMap[K, V], val nam
     val txn = getTransaction(tx, "Map.txAbort()")
     if (txn != null) {
       // Undo the changes
-      txn.foreach(x => x match {
+      txn.reverse.foreach(x => x match {
         case (k: K, null) => map.remove(k)
         case (k: K, v: V) => map.put(k, v)
         case (_, _) => // this is the wrong format

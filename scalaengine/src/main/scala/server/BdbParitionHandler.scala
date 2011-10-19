@@ -507,7 +507,7 @@ class BdbStorageManager(val db: Database,
     })
   }
 
-  override def accept(xid: ScadsXid, updates: Seq[RecordUpdate]): Option[Seq[(Array[Byte], CStruct)]] = {
+  override def accept(xid: ScadsXid, updates: Seq[RecordUpdate]): (Boolean, Seq[(Array[Byte], CStruct)]) = {
     pendingUpdates.acceptOption(xid, updates)(null)
   }
 
