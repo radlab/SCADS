@@ -41,26 +41,34 @@ trait PendingUpdates extends DBRecords {
   // if all outstanding Cmd might be NullOps
   // If accepted, returns all the cstructs for all the keys.  Otherwise, None
   // is returned.
-  def acceptOption(xid: ScadsXid, updates: Seq[RecordUpdate])(implicit txn : TransactionData) : (Boolean, Seq[(Array[Byte], CStruct)])
+  // If dbTxn is non null, it is used for all db operations, and the commit is
+  // NOT performed at the end.  Otherwise, a new transaction is started and
+  // committed.
+  def acceptOptionTxn(xid: ScadsXid, updates: Seq[RecordUpdate], dbTxn: TransactionData = null) : (Boolean, Seq[(Array[Byte], CStruct)])
 
 
-  def acceptOption(xid: ScadsXid, update: RecordUpdate)(implicit txn : TransactionData) : (Boolean, Array[Byte], CStruct)
+  def acceptOption(xid: ScadsXid, update: RecordUpdate)(implicit dbTxn: TransactionData): (Boolean, Array[Byte], CStruct)
 
 
   /**
    * The transaction was successful (we will never decide otherwise)
    */
-  def commit(xid: ScadsXid)(implicit txn : TransactionData) : Boolean
+  def commit(xid: ScadsXid)(implicit dbTxn: TransactionData): Boolean
 
   /**
    * The transaction was learned as aborted (we will never decide otherwise)
    */
-  def abort(xid: ScadsXid)(implicit txn : TransactionData)  : Boolean
+  def abort(xid: ScadsXid)(implicit dbTxn: TransactionData): Boolean
+
+  // If dbTxn is non null, it is used for all db operations, and the commit is
+  // NOT performed at the end.  Otherwise, a new transaction is started and
+  // committed.
+  def abortTxn(xid: ScadsXid, dbTxn: TransactionData = null): Boolean
 
   /**
    * Writes the new truth. Should only return false if something is messed up with the db
    */
-  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates : Seq[RecordUpdate])(implicit txn : TransactionData) : Boolean
+  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates : Seq[RecordUpdate])(implicit dbTxn: TransactionData) : Boolean
 
   // Value is chosen (reflected in the db) and confirms trx state.
   @deprecated def commit(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean
@@ -181,8 +189,8 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
   def getConflictResolver : ConflictResolver = throw new RuntimeException("Gene implement me") //TODO implement
 
-  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates : Seq[RecordUpdate])(implicit txn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
-  def commit(xid: ScadsXid)(implicit txn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
+  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates : Seq[RecordUpdate])(implicit dbTxn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
+  def commit(xid: ScadsXid)(implicit dbTxn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
 
 
   // Transaction state info. Maps txid -> txstatus/decision.
@@ -211,15 +219,18 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   }
 
   // If accept was successful, returns the cstruct.  Otherwise, returns None.
-  override def acceptOption(xid: ScadsXid, update: RecordUpdate)(implicit txn : TransactionData): (Boolean, Array[Byte], CStruct) = {
-    val result = acceptOption(xid, update :: Nil)
+  override def acceptOption(xid: ScadsXid, update: RecordUpdate)(implicit dbTxn : TransactionData): (Boolean, Array[Byte], CStruct) = {
+    val result = acceptOptionTxn(xid, update :: Nil, dbTxn)
     (result._1, result._2.head._1, result._2.head._2)
   }
 
   // Returns a tuple (success, list of (key, cstruct) pairs)
-  override def acceptOption(xid: ScadsXid, updates: Seq[RecordUpdate])(implicit txn : TransactionData): (Boolean, Seq[(Array[Byte], CStruct)]) = {
+  override def acceptOptionTxn(xid: ScadsXid, updates: Seq[RecordUpdate], dbTxn: TransactionData = null): (Boolean, Seq[(Array[Byte], CStruct)]) = {
     var success = true
-    val txn = db.txStart()
+    val txn = dbTxn match {
+      case null => db.txStart()
+      case x => x
+    }
     val pendingCommandsTxn = pendingCStructs.txStart()
     var cstructs: Seq[(Array[Byte], CStruct)] = Nil
     try {
@@ -259,7 +270,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     }
     if (success) {
       pendingCStructs.txCommit(pendingCommandsTxn)
-      db.txCommit(txn)
+      if (dbTxn == null) {
+        db.txCommit(txn)
+      }
       // TODO: Handle the case when the commit arrives before the prepare.
       txStatus.putNoOverwrite(null, xid, TxStatusEntry(Status.Accept.toString, updates))
     } else {
@@ -280,7 +293,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       })
       pendingCStructs.txCommit(pendingCommandsTxn2)
 
-      db.txAbort(txn)
+      if (dbTxn == null) {
+        db.txAbort(txn)
+      }
       // TODO: Handle the case when the commit arrives before the prepare.
       txStatus.putNoOverwrite(null, xid, TxStatusEntry(Status.Reject.toString, updates))
     }
@@ -336,7 +351,11 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     success
   }
 
-  override def abort(xid: ScadsXid)(implicit txn : TransactionData) : Boolean = {
+  override def abort(xid: ScadsXid)(implicit dbTxn : TransactionData): Boolean = {
+    abortTxn(xid, dbTxn)
+  }
+
+  override def abortTxn(xid: ScadsXid, dbTxn: TransactionData = null) : Boolean = {
     val pendingCommandsTxn = pendingCStructs.txStart()
     try {
       txStatus.get(null, xid) match {
