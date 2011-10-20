@@ -4,20 +4,11 @@ package conflict
 
 import actors.threadpool.ThreadPoolExecutor.AbortPolicy
 import scala.collection.mutable.ArrayBuffer
-
-import java.util.concurrent.ConcurrentHashMap
+import scala.collection.mutable.HashMap
 import java.util.Arrays
 
-import scala.collection.mutable.Buffer
-import scala.collection.JavaConversions._
-import scala.collection.mutable.HashMap
-
 import java.io._
-import org.apache.avro._
-import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDecoder, EncoderFactory}
-import org.apache.avro.specific.{SpecificDatumWriter, SpecificDatumReader, SpecificRecordBase, SpecificRecord}
 import org.apache.avro.Schema
-
 import edu.berkeley.cs.avro.marker._
 
 // TODO: Make thread-safe.  It might already be, by using TxDB
@@ -46,9 +37,7 @@ trait PendingUpdates extends DBRecords {
   // committed.
   def acceptOptionTxn(xid: ScadsXid, updates: Seq[RecordUpdate], dbTxn: TransactionData = null) : (Boolean, Seq[(Array[Byte], CStruct)])
 
-
   def acceptOption(xid: ScadsXid, update: RecordUpdate)(implicit dbTxn: TransactionData): (Boolean, Array[Byte], CStruct)
-
 
   /**
    * The transaction was successful (we will never decide otherwise)
@@ -72,7 +61,6 @@ trait PendingUpdates extends DBRecords {
 
   // Value is chosen (reflected in the db) and confirms trx state.
   @deprecated def commit(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean
-
 
 
   def getDecision(xid: ScadsXid): Status.Status
@@ -191,7 +179,6 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
   def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates : Seq[RecordUpdate])(implicit dbTxn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
   def commit(xid: ScadsXid)(implicit dbTxn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
-
 
   // Transaction state info. Maps txid -> txstatus/decision.
   private val txStatus = factory.getNewDB[ScadsXid, TxStatusEntry](
@@ -501,145 +488,4 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
       }
     }
   } // isCompatible
-}
-
-class SpecificRecordUtil(val schema: Schema) {
-  val reader = new SpecificDatumReader[SpecificRecord](schema)
-  val writer = new SpecificDatumWriter[SpecificRecord](schema)
-  val out = new java.io.ByteArrayOutputStream(128)
-  val encoder = EncoderFactory.get().binaryEncoder(out, null)
-
-  def fromBytes(bytes: Array[Byte]): SpecificRecord = {
-    reader.read(null, DecoderFactory.get().directBinaryDecoder(new ByteArrayInputStream(bytes), null)).asInstanceOf[SpecificRecord]
-  }
-
-  def toBytes(record: SpecificRecord): Array[Byte] = {
-    out.reset()
-    writer.write(record, encoder)
-    encoder.flush
-    out.toByteArray
-  }
-}
-
-class LogicalRecordUpdater(val schema: Schema) {
-  val util = new SpecificRecordUtil(schema)
-
-  // base is the (optional) byte array of the serialized AvroRecord.
-  // delta is the (optional) byte array of the serialized delta AvroRecord.
-  // A byte array of the serialized resulting record is returned.
-  def applyDeltaBytes(baseBytes: Option[Array[Byte]], deltaBytes: Option[Array[Byte]]): Array[Byte] = {
-    if (deltaBytes.isEmpty) {
-      throw new RuntimeException("Delta records should always exist.")
-    }
-    baseBytes match {
-      case None => deltaBytes.get
-      case Some(avroBytes) => {
-        val avro = util.fromBytes(avroBytes)
-        val avroDelta = util.fromBytes(deltaBytes.get)
-        val avroNew = applyDeltaRecord(avro, avroDelta)
-        util.toBytes(avroNew)
-      }
-    }
-  }
-
-  private def applyDeltaRecord(base: SpecificRecord, delta: SpecificRecord): SpecificRecord = {
-    val schema = delta.getSchema
-    val fields: Buffer[org.apache.avro.Schema.Field] = schema.getFields
-
-    fields.foreach(field => {
-      val fieldDelta = delta.get(field.pos)
-      val baseField = base.get(field.pos)
-      val newField: AnyRef = (baseField, fieldDelta) match {
-        case (x: java.lang.Integer, y: java.lang.Integer) => {
-          if (y == 0) {
-            null
-          } else {
-            new java.lang.Integer(x.intValue + y.intValue)
-          }
-        }
-        case (x: String, y: String) => {
-          if (y.length == 0) {
-            null
-          } else {
-            y
-          }
-        }
-        case (x: org.apache.avro.util.Utf8, y: org.apache.avro.util.Utf8) => {
-          if (y.length == 0) {
-            null
-          } else {
-            y
-          }
-        }
-        case (x: java.lang.Long, y: java.lang.Long) => {
-          if (y == 0) {
-            null
-          } else {
-            new java.lang.Long(x.longValue + y.longValue)
-          }
-        }
-        case (x: java.lang.Float, y: java.lang.Float) => {
-          if (y == 0) {
-            null
-          } else {
-            new java.lang.Float(x.floatValue + y.floatValue)
-          }
-        }
-        case (x: java.lang.Double, y: java.lang.Double) => {
-          if (y == 0) {
-            null
-          } else {
-            new java.lang.Double(x.doubleValue + y.doubleValue)
-          }
-        }
-        case (_, _) => null
-      }
-      if (newField != null) {
-        base.put(field.pos, newField)
-      }
-    })
-    base
-  }
-}
-
-object ICChecker {
-  private def convertFieldToDouble(f: Any): Double = {
-    f match {
-      case x: java.lang.Integer => x.doubleValue
-      case x: String => 0
-      case x: org.apache.avro.util.Utf8 => 0
-      case x: java.lang.Long => x.doubleValue
-      case x: java.lang.Float => x.doubleValue
-      case x: java.lang.Double => x
-      case _ => 0
-    }
-  }
-
-  def check(rec: SpecificRecord, ics: FieldICList): Boolean = {
-    var valid = true
-    if (ics == null) {
-      true
-    } else {
-      ics.ics.foreach(ic => {
-        if (valid) {
-          val doubleField = convertFieldToDouble(rec.get(ic.fieldPos))
-
-          val lowerValid = ic.lower match {
-            case None => true
-            case Some(FieldRestrictionGT(x)) => doubleField > x
-            case Some(FieldRestrictionGE(x)) => doubleField >= x
-            case _ => false
-          }
-
-          valid = lowerValid && (ic.upper match {
-            case None => true
-            case Some(FieldRestrictionLT(x)) => doubleField < x
-            case Some(FieldRestrictionLE(x)) => doubleField <= x
-            case _ => false
-          })
-        }
-      })
-      valid
-    }
-  }
 }
