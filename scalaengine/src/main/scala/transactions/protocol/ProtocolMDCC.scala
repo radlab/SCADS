@@ -305,7 +305,7 @@ class MCCCRecordHandler (
     assert(quorum.size >= classicQuorum)
 
     //TODO I need a new conflict value
-    val safeValue = resolver.provedSafe(quorum.map(v => v._2.asInstanceOf[Phase1b].value), fastQuorum, classicQuorum, servers.size)
+    val (safeValue, leftover) = resolver.provedSafe(quorum.map(v => v._2.asInstanceOf[Phase1b].value), fastQuorum, classicQuorum, servers.size)
     val msg = initRequest match {
       case Envelope(src, Propose(xid, update)) => Phase2a(key, currentBallot, safeValue, update :: Nil)
       case _ => throw new RuntimeException("So far we only do classic rounds")

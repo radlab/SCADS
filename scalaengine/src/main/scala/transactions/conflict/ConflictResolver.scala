@@ -2,25 +2,14 @@ package edu.berkeley.cs.scads.storage
 package transactions
 package conflict
 
-import actors.threadpool.ThreadPoolExecutor.AbortPolicy
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable.HashSet
+import scala.collection.mutable.HashMap
 
-import java.util.concurrent.ConcurrentHashMap
-import java.util.Arrays
-
-import scala.collection.mutable.Buffer
 import scala.collection.mutable.ListBuffer
-import scala.collection.JavaConversions._
-
-import java.io._
-import org.apache.avro._
-import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDecoder, EncoderFactory}
-import org.apache.avro.specific.{SpecificDatumWriter, SpecificDatumReader, SpecificRecordBase, SpecificRecord}
 import org.apache.avro.Schema
 
 class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
-  type CommandSets = ArrayBuffer[HashSet[CStructCommand]]
+  type CommandSets = ArrayBuffer[CommandHashSet]
 
   // TODO: pending vs. committed.
   // TODO: base record for cstructs.
@@ -92,12 +81,22 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
 
   def provedSafe(cstructs: Seq[CStruct], quorum : Int): CStruct = null
 
+  // Returns a tuple pair (safe, leftover), where safe is the safe cstruct, and
+  // leftover is a Seq[CStructCommand] of commands proposed but not safe.
+  // Assumes that the base of the cstructs are all the same.
   def provedSafe(cstructs: Seq[CStruct], fastQuorumSize: Int,
-                 classicQuorumSize: Int, N: Int): CStruct = {
+                 classicQuorumSize: Int, N: Int): (CStruct, Seq[CStructCommand]) = {
     // TODO: does cstructs require fastQuorumSize number of elements?
 
+    // Collect all commands
+    val leftover = new CommandHashSet
+    cstructs.foreach(cs => {
+      cs.commands.foreach(leftover.add(_))
+    })
+
     // All the sizes of quorums to check within the cstructs seq.
-    val sizes = (classicQuorumSize - (N - fastQuorumSize)) to classicQuorumSize   //TODO: Tim-> Is this necessary????
+    // TODO: Tim-> Is this necessary????
+    val sizes = (classicQuorumSize - (N - fastQuorumSize)) to classicQuorumSize
 
     // All possible quorums which intersect with the cstructs.
     val allCombos = sizes.map(cstructs.combinations(_).toSeq).reduceLeft(_ ++ _)
@@ -108,8 +107,11 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
     // LUB of all possible GLBs.
     val lub = getLUB(allGLBs)
 
+    // Compute leftover commands, not in provedSafe.
+    leftover.remove(lub.commands)
+
     // TODO: Check if LUB is valid w.r.t. constraints?
-    lub
+    (lub, leftover.toList)
   }
 
   // Modifies first CommandSet to be merged with the second CommandSet.
@@ -127,12 +129,14 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
       // Find the corresponding HashSet in c2.
       val newSet = c2.indexWhere(!_.intersect(currentSet).isEmpty, j) match {
         case -1 => {
+          // None of the currentSet is in c2.
           if (intersect) {
             currentSet.clear
           }
           currentSet
         }
         case x => {
+          j = x
           if (intersect) {
             currentSet.intersect(c2(x))
           } else {
@@ -162,13 +166,13 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
       x.command match {
         case up: LogicalUpdate => {
           if (!isLogical) {
-            result.append(new HashSet[CStructCommand]())
+            result.append(new CommandHashSet)
           }
           result.last.add(x)
           isLogical = true
         }
         case up: PhysicalUpdate => {
-          result.append(new HashSet[CStructCommand]())
+          result.append(new CommandHashSet)
           result.last.add(x)
           isLogical = false
         }
@@ -263,5 +267,67 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
       val pendingCommands = reduceCommandList(commands.filter(_.pending))
       compareCommandList(head, pendingCommands)
     }
+  }
+}
+
+// This HashSet is aware of CStructCommands and considers the pending flag and
+// the commit flag.
+class CommandHashSet {
+  protected val map = new HashMap[ScadsXid, CStructCommand]
+
+  def toList = map.values.toList
+  def clear = map.clear
+  def isEmpty = map.isEmpty
+  def size = map.size
+
+  def add(c: CStructCommand) = {
+    map.put(c.xid, c)
+  }
+
+  def get(c: CStructCommand): Option[CStructCommand] = {
+    map.get(c.xid)
+  }
+
+  def intersect(chs: CommandHashSet): CommandHashSet = {
+    val copy = new CommandHashSet
+    map.values.foreach(c => {
+      chs.get(c).map(x => {
+        if (x.pending) {
+          copy.add(c)
+        } else {
+          copy.add(x)
+        }
+      })
+    })
+    copy
+  }
+
+  def union(chs: CommandHashSet): CommandHashSet = {
+    val copy = new CommandHashSet
+    map.values.foreach(c => {
+      chs.get(c) match {
+        case None => copy.add(c)
+        case Some(x) => {
+          if (x.pending && c.pending) {
+            // TODO: what is the union of two pending commands, one accept and
+            //       one reject?
+            if (x.commit == c.commit) {
+              copy.add(c)
+            }
+          } else if (x.pending) {
+            copy.add(c)
+          } else {
+            copy.add(x)
+          }
+        }
+      }
+    })
+    copy
+  }
+
+  def remove(c: Seq[CStructCommand]) = {
+    c.foreach(c => {
+      map.remove(c.xid)
+    })
   }
 }
