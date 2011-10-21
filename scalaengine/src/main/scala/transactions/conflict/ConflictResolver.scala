@@ -13,9 +13,7 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
 
   private val logicalRecordUpdater = new LogicalRecordUpdater(valueSchema)
 
-  // TODO: pending vs. committed.
-  // TODO: base record for cstructs.
-
+  // Assumes that the base of the cstructs are all the same.
   def getLUB(cstructs: Seq[CStruct]): CStruct = {
     if (cstructs.length == 1) {
       cstructs.head
@@ -32,6 +30,7 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
     }
   }
 
+  // Assumes that the base of the cstructs are all the same.
   def getGLB(cstructs: Seq[CStruct]): CStruct = {
     if (cstructs.length == 1) {
       cstructs.head
@@ -50,6 +49,7 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
 
   // Returns true if c1 is a subset of c2.  If strict is true,
   // only returns true if c1 is a strict subset of c2.
+  // Assumes that the base of the cstructs are all the same.
   def isSubset(c1: CStruct, c2: CStruct, strict: Boolean = false): Boolean = {
     val cs1 = convertToSets(c1.commands)
     val cs2 = convertToSets(c2.commands)
@@ -79,8 +79,11 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
     valid
   }
 
+  // Assumes that the base of the cstructs are all the same.
   def isStrictSubset(cstruct1: CStruct, cstruct2: CStruct) = isSubset(cstruct1, cstruct2, true)
 
+  // TODO(kraska): How is this different from the other interface, and what does
+  //               it mean?
   def provedSafe(cstructs: Seq[CStruct], quorum : Int): CStruct = null
 
   // Returns a tuple pair (safe, leftover), where safe is the safe cstruct, and
@@ -184,7 +187,7 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
     while (i < result.length) {
       val currentSet = result(i)
       // Find the corresponding HashSet in c2.
-      val newSet = c2.indexWhere(!_.intersect(currentSet).isEmpty, j) match {
+      val newSet = c2.indexWhere(!_.intersect(currentSet, false).isEmpty, j) match {
         case -1 => {
           // None of the currentSet is in c2.
           if (intersect) {
@@ -345,11 +348,17 @@ class CommandHashSet {
     map.get(c.xid)
   }
 
-  def intersect(chs: CommandHashSet): CommandHashSet = {
+  def intersect(chs: CommandHashSet, compareFlags: Boolean = true): CommandHashSet = {
     val copy = new CommandHashSet
     map.values.foreach(c => {
       chs.get(c).map(x => {
-        if (x.pending) {
+        if (x.pending && c.pending) {
+          // TODO: what is the union of two pending commands, one accept and
+          //       one reject?
+          if ((x.commit == c.commit) || !compareFlags) {
+            copy.add(c)
+          }
+        } else if (x.pending) {
           copy.add(c)
         } else {
           copy.add(x)
