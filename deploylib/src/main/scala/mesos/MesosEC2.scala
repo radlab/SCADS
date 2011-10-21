@@ -14,13 +14,13 @@ import java.lang.RuntimeException
 object ServiceSchedulerDaemon extends optional.Application {
   val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
 
-  def main(mesosMaster: String, zooKeeperAddress: String): Unit = {
+  def main(mesosMaster: String, zooKeeperAddress: Option[String]): Unit = {
     System.loadLibrary("mesos")
     val scheduler = new ServiceScheduler(
       mesosMaster,
       javaExecutorPath
     )
-    val serviceSchedulerNode = ZooKeeperNode(zooKeeperAddress)
+    val serviceSchedulerNode = zooKeeperAddress.map(ZooKeeperNode(_)).getOrElse(ZooKeeperHelper.getTestZooKeeper())
     val remoteService = scheduler.remoteHandle
     serviceSchedulerNode.data = new RemoteServiceScheduler(remoteService.host, remoteService.port, remoteService.id).toBytes
   }
