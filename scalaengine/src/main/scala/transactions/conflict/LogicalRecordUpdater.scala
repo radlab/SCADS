@@ -9,7 +9,7 @@ import org.apache.avro.specific.SpecificRecord
 import org.apache.avro.Schema
 
 class LogicalRecordUpdater(val schema: Schema) {
-  val util = new SpecificRecordUtil(schema)
+  val avroUtil = new SpecificRecordUtil(schema)
 
   // base is the (optional) byte array of the serialized AvroRecord.
   // delta is the (optional) byte array of the serialized delta AvroRecord.
@@ -23,21 +23,21 @@ class LogicalRecordUpdater(val schema: Schema) {
 
     val headDelta = deltaBytesList.head
     val baseAvro = baseBytes match {
-      case None => util.fromBytes(headDelta.get)
+      case None => avroUtil.fromBytes(headDelta.get)
       case Some(avroBytes) => {
-        val avro = util.fromBytes(avroBytes)
-        val avroDelta = util.fromBytes(headDelta.get)
+        val avro = avroUtil.fromBytes(avroBytes)
+        val avroDelta = avroUtil.fromBytes(headDelta.get)
         applyDeltaRecord(avro, avroDelta)
       }
     }
 
     val result = deltaBytesList.tail.foldLeft(baseAvro)((avro, deltaBytes) => {
       assert(!deltaBytes.isEmpty)
-      val avroDelta = util.fromBytes(deltaBytes.get)
+      val avroDelta = avroUtil.fromBytes(deltaBytes.get)
       applyDeltaRecord(avro, avroDelta)
     })
 
-    util.toBytes(result)
+    avroUtil.toBytes(result)
   }
 
   private def applyDeltaRecord(base: SpecificRecord, delta: SpecificRecord): SpecificRecord = {

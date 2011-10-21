@@ -388,7 +388,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
 class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
                         val ics: FieldICList) {
-  val util = new SpecificRecordUtil(valueSchema)
+  val avroUtil = new SpecificRecordUtil(valueSchema)
   val logicalRecordUpdater = new LogicalRecordUpdater(valueSchema)
 
   def isCompatible(xid: ScadsXid,
@@ -413,7 +413,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
         val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ List(List(xid))
 
         var valid = newStates.put(newState, newXidList) match {
-          case None => ICChecker.check(util.fromBytes(newState.toArray), ics)
+          case None => ICChecker.check(avroUtil.fromBytes(newState.toArray), ics)
           case Some(_) => true
         }
 
@@ -430,7 +430,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
               val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ baseXidList
               newStates.put(newState, newXidList)
               valid = newStates.put(newState, newXidList) match {
-                case None => ICChecker.check(util.fromBytes(newState.toArray), ics)
+                case None => ICChecker.check(avroUtil.fromBytes(newState.toArray), ics)
                 case Some(_) => true
               }
             }
