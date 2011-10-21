@@ -170,7 +170,7 @@ sealed trait RecordUpdate extends AvroUnion {
 }
 
 case class LogicalUpdate(var key: Array[Byte], var delta: Array[Byte]) extends AvroRecord with RecordUpdate
-// The newValue is the avro serialized TxRecord type
+// The newValue is the avro serialized MDCCRecord type
 sealed trait PhysicalUpdate extends RecordUpdate {
   var key: Array[Byte]
   var newValue: Array[Byte]

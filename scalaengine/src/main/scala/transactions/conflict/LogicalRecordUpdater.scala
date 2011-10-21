@@ -15,18 +15,29 @@ class LogicalRecordUpdater(val schema: Schema) {
   // delta is the (optional) byte array of the serialized delta AvroRecord.
   // A byte array of the serialized resulting record is returned.
   def applyDeltaBytes(baseBytes: Option[Array[Byte]], deltaBytes: Option[Array[Byte]]): Array[Byte] = {
-    if (deltaBytes.isEmpty) {
-      throw new RuntimeException("Delta records should always exist.")
-    }
-    baseBytes match {
-      case None => deltaBytes.get
+    applyDeltaBytes(baseBytes, List(deltaBytes))
+  }
+
+  def applyDeltaBytes(baseBytes: Option[Array[Byte]], deltaBytesList: Seq[Option[Array[Byte]]]): Array[Byte] = {
+    assert(deltaBytesList.length > 0)
+
+    val headDelta = deltaBytesList.head
+    val baseAvro = baseBytes match {
+      case None => util.fromBytes(headDelta.get)
       case Some(avroBytes) => {
         val avro = util.fromBytes(avroBytes)
-        val avroDelta = util.fromBytes(deltaBytes.get)
-        val avroNew = applyDeltaRecord(avro, avroDelta)
-        util.toBytes(avroNew)
+        val avroDelta = util.fromBytes(headDelta.get)
+        applyDeltaRecord(avro, avroDelta)
       }
     }
+
+    val result = deltaBytesList.tail.foldLeft(baseAvro)((avro, deltaBytes) => {
+      assert(!deltaBytes.isEmpty)
+      val avroDelta = util.fromBytes(deltaBytes.get)
+      applyDeltaRecord(avro, avroDelta)
+    })
+
+    util.toBytes(result)
   }
 
   private def applyDeltaRecord(base: SpecificRecord, delta: SpecificRecord): SpecificRecord = {

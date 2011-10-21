@@ -11,6 +11,8 @@ import org.apache.avro.Schema
 class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
   type CommandSets = ArrayBuffer[CommandHashSet]
 
+  private val logicalRecordUpdater = new LogicalRecordUpdater(valueSchema)
+
   // TODO: pending vs. committed.
   // TODO: base record for cstructs.
 
@@ -180,6 +182,61 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
       }
     })
     result
+  }
+
+  def compressCStruct(c: CStruct): CStruct = {
+    // TODO: Is reordering across pending commands allowed?
+    //       For now, not reordering...
+
+    // Extract contiguous sequence of non-pending commands.
+    val pendingIndex = c.commands.indexWhere(_.pending) match {
+      case -1 => c.commands.length
+      case x => x
+    }
+
+    if (pendingIndex == 0) {
+      // First is pending, so compression is not possible.
+      c
+    } else {
+      // pending is a seq of pending commands, NOT being compressed.
+      val (nonpending, pending) = c.commands.splitAt(pendingIndex)
+      val nonpendingCommit = nonpending.filter(_.commit)
+
+      // Just need apply last physical update, and possible additional
+      // logical updates.
+      val lastPhysical = nonpendingCommit.lastIndexWhere(_.command match {
+        case LogicalUpdate(_, _) => false
+        case _ => true
+      })
+
+      // If the base is empty, a physical update must exist.
+      // If the base exists, a physical update may or may not exist.
+      // base is the (optional) byte array of the record.
+      // remainingCommands is a seq of logical updates to apply to the base.
+      val (base, remainingCommands) = lastPhysical match {
+        case -1 => {
+          // If no physical update, base cannot be empty.
+          assert(!c.value.isEmpty)
+          (c.value, nonpendingCommit)
+        }
+        case _ => {
+          val relevantCommands = nonpendingCommit.drop(lastPhysical)
+          val remaining = relevantCommands.tail
+          val rec = MDCCRecordUtil.fromBytes(relevantCommands.head.asInstanceOf[PhysicalUpdate].newValue)
+          // The record value in the physical update.
+          if (rec.value.isEmpty) {
+            // If the physical update deletes the record, there should be no
+            // subsequent logical updates.
+            assert(remaining.isEmpty)
+          }
+          (rec.value, remaining)
+        }
+      }
+
+      val newBase = Some(logicalRecordUpdater.applyDeltaBytes(base, remainingCommands.map(x => MDCCRecordUtil.fromBytes(x.asInstanceOf[LogicalUpdate].delta).value)))
+
+      CStruct(newBase, pending)
+    }
   }
 
 /***********************************************************************
