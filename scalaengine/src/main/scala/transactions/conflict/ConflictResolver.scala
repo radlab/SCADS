@@ -19,11 +19,11 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
       cstructs.head
     } else {
       val head = cstructs.head
-      val result = convertToSets(head.commands)
+      var result = convertToSets(head.commands)
 
       // Iterate over the rest of the cstructs.
       cstructs.tail.foreach(x => {
-        updateMerge(result, convertToSets(x.commands), intersect=false)
+        result = updateMerge(result, convertToSets(x.commands), intersect=false)
       })
 
       CStruct(head.value, convertToSeq(result))
@@ -36,11 +36,11 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
       cstructs.head
     } else {
       val head = cstructs.head
-      val result = convertToSets(head.commands)
+      var result = convertToSets(head.commands)
 
       // Iterate over the rest of the cstructs.
       cstructs.tail.foreach(x => {
-        updateMerge(result, convertToSets(x.commands))
+        result = updateMerge(result, convertToSets(x.commands))
       })
 
       CStruct(head.value, convertToSeq(result))
@@ -174,18 +174,19 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
     }
   }
 
-  // Modifies first CommandSet to be merged with the second CommandSet.
+  // Returns a new CommandSet which is the c1 merged with c2.
   // If intersect is true, computes the intersection.  Otherwise, computes the
   // union.
-  private def updateMerge(result: CommandSets, c2: CommandSets,
-                          intersect: Boolean = true) = {
+  private def updateMerge(c1: CommandSets, c2: CommandSets,
+                          intersect: Boolean = true): CommandSets = {
     // Iterator for result.
     var i = 0
     // Iterator for c2.
     var j = 0
+    val results = new CommandSets
 
-    while (i < result.length) {
-      val currentSet = result(i)
+    while (i < c1.length) {
+      val currentSet = c1(i)
       // Find the corresponding HashSet in c2.
       val newSet = c2.indexWhere(!_.intersect(currentSet, false).isEmpty, j) match {
         case -1 => {
@@ -196,19 +197,31 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
           currentSet
         }
         case x => {
-          j = x
-          if (intersect) {
+          val merged = if (intersect) {
             currentSet.intersect(c2(x))
           } else {
+            (j until x).foreach(idx => {
+              results.append(c2(idx))
+            })
             currentSet.union(c2(x))
           }
+          j = x + 1
+          merged
         }
       }
       // TODO: If there is an empty intersection, should it short circuit the
       //       rest of the comparisons?
-      result.update(i, newSet)
+      results.append(newSet)
       i += 1
     }
+
+    if (!intersect) {
+      (j until c2.length).foreach(idx => {
+        results.append(c2(idx))
+      })
+    }
+
+    results
   }
 
   private def convertToSeq(c: CommandSets): Seq[CStructCommand] = {

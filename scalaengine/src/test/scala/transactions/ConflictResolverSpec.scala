@@ -161,6 +161,22 @@ with BeforeAndAfterEach {
       var glb = resolver.getGLB(List(c1, c2))
       simpleCompare(glb, cstruct(Nil)) should be (true)
     }
+    "GLB(1 command) different commands" in {
+      var c1 = cstruct(P(1, true, true) :: Nil)
+      var c2 = cstruct(P(2, true, true) :: Nil)
+      var glb = resolver.getGLB(List(c1, c2))
+      simpleCompare(glb, cstruct(Nil)) should be (true)
+
+      c1 = cstruct(P(1, false, false) :: Nil)
+      c2 = cstruct(P(2, false, false) :: Nil)
+      glb = resolver.getGLB(List(c1, c2))
+      simpleCompare(glb, cstruct(Nil)) should be (true)
+
+      c1 = cstruct(P(1, true, false) :: Nil)
+      c2 = cstruct(P(2, false, true) :: Nil)
+      glb = resolver.getGLB(List(c1, c2))
+      simpleCompare(glb, cstruct(Nil)) should be (true)
+    }
     /***********************************************************************
      ******************************** LUB **********************************
      ********************************************************************* */
@@ -202,6 +218,22 @@ with BeforeAndAfterEach {
       var c2 = cstruct(P(1, true, false) :: Nil)
       var lub = resolver.getLUB(List(c1, c2))
       simpleCompare(lub, cstruct(Nil)) should be (true)
+    }
+    "LUB(1 command) different commands" in {
+      var c1 = cstruct(P(1, true, true) :: Nil)
+      var c2 = cstruct(P(2, true, true) :: Nil)
+      var lub = resolver.getLUB(List(c1, c2))
+      simpleCompare(lub, cstruct(P(1, true, true) :: P(2, true, true) :: Nil)) should be (true)
+
+      c1 = cstruct(P(1, false, false) :: Nil)
+      c2 = cstruct(P(2, false, false) :: Nil)
+      lub = resolver.getLUB(List(c1, c2))
+      simpleCompare(lub, cstruct(P(1, false, false) :: P(2, false, false) :: Nil)) should be (true)
+
+      c1 = cstruct(P(1, true, false) :: Nil)
+      c2 = cstruct(P(2, false, true) :: Nil)
+      lub = resolver.getLUB(List(c1, c2))
+      simpleCompare(lub, cstruct(P(1, true, false) :: P(2, false, true) :: Nil)) should be (true)
     }
   }
 }
