@@ -59,7 +59,7 @@ class LocalExperimentScheduler protected(name: String, mesosMaster: String, exec
 
   override def resourceOffers(d: SchedulerDriver, offers: java.util.List[Offer]) = awaitingSiblings.synchronized {
     val tasks = new java.util.LinkedList[TaskDescription]
-    logger.info("Processing offers: %s", offers)
+    logger.debug("Processing offers: %s", offers)
 
     while (offers.size > 0 && outstandingExperiments.peek() != null) {
       val currentExperiment = outstandingExperiments.peek()
@@ -98,6 +98,11 @@ class LocalExperimentScheduler protected(name: String, mesosMaster: String, exec
         logger.info("Scheduled %d of %d processes", awaitingSiblings.size, awaitingSiblings.size + currentExperiment.processes.size)
       }
     }
+
+    offers.foreach(offer => {
+      logger.debug("Rejecting offer %s", offer)
+      d.launchTasks(offer.getId, Nil)
+    })
   }
 
   override def statusUpdate(d: SchedulerDriver, status: TaskStatus): Unit = {
