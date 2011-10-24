@@ -174,12 +174,6 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                                override val factory: TxDBFactory,
                                val keySchema: Schema,
                                val valueSchema: Schema) extends PendingUpdates {
-
-  def getConflictResolver : ConflictResolver = throw new RuntimeException("Gene implement me") //TODO implement
-
-  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates : Seq[RecordUpdate])(implicit dbTxn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
-  def commit(xid: ScadsXid)(implicit dbTxn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
-
   // Transaction state info. Maps txid -> txstatus/decision.
   private val txStatus = factory.getNewDB[ScadsXid, TxStatusEntry](
     db.getName + ".txstatus",
@@ -199,9 +193,12 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
   private var valueICs: FieldICList = null
 
+  private var conflictResolver: ConflictResolver = null
+
   def setICs(ics: FieldICList) = {
     valueICs = ics
     newUpdateResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs)
+    conflictResolver = new ConflictResolver(valueSchema, valueICs)
     println("ics: " + valueICs)
   }
 
@@ -368,6 +365,14 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       return false
     }
   }
+
+  // TODO(kraska): This probably doesn't belong here, since the conflict
+  //               resolver is never used within PendingUpdates.  A
+  //               ConflictResolver should just be created elsewhere.
+  def getConflictResolver : ConflictResolver = conflictResolver
+
+  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates : Seq[RecordUpdate])(implicit dbTxn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
+  def commit(xid: ScadsXid)(implicit dbTxn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
 
   override def getDecision(xid: ScadsXid) = {
     txStatus.get(null, xid) match {
