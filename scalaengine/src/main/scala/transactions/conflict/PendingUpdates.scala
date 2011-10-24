@@ -78,8 +78,6 @@ trait PendingUpdates extends DBRecords {
   def getConflictResolver : ConflictResolver
 }
 
-// TODO: Enumerations do not work with AvroRecords. Must be changed if we want
-//       to use AvroRecords for serialization.
 // Status of a transaction.  Stores all the updates in the transaction.
 // status is the toString() of the enum.
 case class TxStatusEntry(var status: String,
