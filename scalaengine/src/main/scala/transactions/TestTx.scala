@@ -31,6 +31,9 @@ case class DataRecord(var id: Int) extends AvroPair {
   @FieldGE(0)
   @FieldLT(20)
   var b: Long = _
+  var c: Float = _
+
+  override def toString = "DataRecord(" + id + ", " + s + ", " + a + ", " + b + ", " + c + ")"
 }
 
 class TestTx {
@@ -48,6 +51,22 @@ class TestTx {
     }
     nsPair.open()
     nsPair.setPartitionScheme(List((None, cluster.getAvailableServers)))
+
+    var dr = DataRecord(1)
+    dr.s = "a"; dr.a = 1; dr.b = 1; dr.c = 1.0.floatValue
+    nsPair.put(dr)
+    dr.id = 2
+    nsPair.put(dr)
+
+    new Tx(100) ({
+      List.range(3, 3 + 2).foreach(x => {
+        dr.s = "b"
+        dr.id = x
+        nsPair.put(dr)
+      })
+    }).Execute()
+
+    nsPair.getRange(None, None).foreach(x => println(x))
 
     new Tx(100) ({
       ns.put(KeyRec(1), ValueRec("A", 1, 1, 1.0.floatValue, 1.0))

@@ -31,22 +31,10 @@ with TransactionsBase {
 
   def putLogical(key: K, value: V): Unit = {
     putBytesLogical(keyToBytes(key), valueToBytes(value))
-    ThreadLocalStorage.protocolMap.value match {
-      case Some(protocolMap) => {
-        protocolMap.addNamespaceProtocol(name, protocolType)
-      }
-      case _ =>
-    }
   }
 
   override def put(key: K, value: Option[V]): Unit = {
     putBytes(keyToBytes(key), value.map(v => valueToBytes(v)))
-    ThreadLocalStorage.protocolMap.value match {
-      case Some(protocolMap) => {
-        protocolMap.addNamespaceProtocol(name, protocolType)
-      }
-      case _ =>
-    }
   }
 
   override def get(key: K): Option[V] = {
@@ -85,6 +73,7 @@ with TransactionsBase {
         updateList.appendLogicalUpdate(this, servers, key, Some(value))
       }
     }
+    addNSProtocol
   }
 }
 
@@ -130,6 +119,16 @@ with TransactionI {
                                        CreateMode.PERSISTENT)
   }
 
+  // Add the namespace protocol to the map.
+  def addNSProtocol = {
+    ThreadLocalStorage.protocolMap.value match {
+      case Some(protocolMap) => {
+        protocolMap.addNamespaceProtocol(name, protocolType)
+      }
+      case _ =>
+    }
+  }
+
   override def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit = {
     val servers = serversForKey(key)
     ThreadLocalStorage.updateList.value match {
@@ -145,6 +144,7 @@ with TransactionI {
         updateList.appendValueUpdateInfo(this, servers, key, value)
       }
     }
+    addNSProtocol
   }
 
   private def getReadQuorumSize(numServers: Int): Int = {
