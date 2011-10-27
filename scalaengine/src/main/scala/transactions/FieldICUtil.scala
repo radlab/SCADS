@@ -4,30 +4,42 @@ import edu.berkeley.cs.scads.storage._
 
 import org.apache.avro.specific.SpecificRecord
 import org.apache.avro.Schema
+import edu.berkeley.cs.avro.marker.{AvroRecord, AvroPair}
 
+// This class parses annotations and creates field integrity constraint lists.
+// This works for both AvroPair and AvroRecord.
 class FieldICUtil[V <: SpecificRecord](implicit valueManifest: Manifest[V]) {
 
-  val valueSchema =
-    valueManifest.erasure.asInstanceOf[Class[V]].newInstance.getSchema
+  private val valueSchema = valueManifest.erasure.asInstanceOf[Class[V]].newInstance match {
+    case p: AvroPair => p.value.getSchema
+    case r: AvroRecord => r.getSchema
+  }
+  private val fields = valueManifest.erasure.asInstanceOf[Class[V]].getDeclaredFields
 
   def getFieldICList: FieldICList = {
-    val fields = valueManifest.erasure.asInstanceOf[Class[V]].getDeclaredFields
     val rlist = fields.map(f => {
       val annotations = f.getDeclaredAnnotations
 
       if (annotations.length > 0) {
-        val fieldPos = valueSchema.getField(f.getName).pos()
+        val field = valueSchema.getField(f.getName)
+        if (field != null) {
+          val fieldPos = field.pos()
 
-        val restrictions = annotations.map(a => {
-          a match {
-            case x: JavaFieldAnnotations.JavaFieldGT => FieldRestrictionGT(x.value)
-            case x: JavaFieldAnnotations.JavaFieldGE => FieldRestrictionGE(x.value)
-            case x: JavaFieldAnnotations.JavaFieldLT => FieldRestrictionLT(x.value)
-            case x: JavaFieldAnnotations.JavaFieldLE => FieldRestrictionLE(x.value)
-          }
-        }).foldLeft[(Option[FieldRestriction], Option[FieldRestriction])]((None, None))(foldRestrictions _)
+          val restrictions = annotations.map(a => {
+            a match {
+              case x: JavaFieldAnnotations.JavaFieldGT => FieldRestrictionGT(x.value)
+              case x: JavaFieldAnnotations.JavaFieldGE => FieldRestrictionGE(x.value)
+              case x: JavaFieldAnnotations.JavaFieldLT => FieldRestrictionLT(x.value)
+              case x: JavaFieldAnnotations.JavaFieldLE => FieldRestrictionLE(x.value)
+            }
+          }).foldLeft[(Option[FieldRestriction], Option[FieldRestriction])]((None, None))(foldRestrictions _)
 
-        FieldIC(fieldPos, restrictions._1, restrictions._2)
+          FieldIC(fieldPos, restrictions._1, restrictions._2)
+        } else {
+          // The field does not exist.  This may happen if annotations are on
+          // AvroPair records.  ICs on keys are ignored.
+          null
+        }
       } else {
         // No annotations on the field.
         null

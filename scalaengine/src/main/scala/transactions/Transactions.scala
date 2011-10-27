@@ -2,57 +2,32 @@ package edu.berkeley.cs.scads.storage.transactions
 
 import conflict.ConflictResolver
 import edu.berkeley.cs.scads.storage._
-
-
 import edu.berkeley.cs.avro.marker._
-
 import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.scads.util._
-
-import collection.mutable.ArrayBuffer
 
 import mdcc._
 import org.apache.avro._
-import generic._
-import io._
 import specific._
 
-import java.util.Comparator
-
 import org.apache.zookeeper._
-
 import java.util.concurrent.TimeUnit
-import java.nio._
+
+trait TransactionI {
+  def getDefaultMeta() : MDCCMetadata
+  def keySchema: Schema
+  def valueSchema: Schema
+  def getConflictResolver: ConflictResolver
+  def recordCache: MDCCRecordCache
+}
 
 // This works with SpecificNamespace
 trait Transactions[K <: SpecificRecord, V <: SpecificRecord]
 extends RangeKeyValueStore[K, V]
-with KeyRoutable
-with ZooKeeperGlobalMetadata
-with TransactionRecordMetadata
-with TransactionI {
+with TransactionsBase {
 
   implicit protected def valueManifest: Manifest[V]
   val icUtil = new FieldICUtil[V]
-
-  lazy val defaultMeta = MDCCMetaDefault.getDefault(nsRoot)
-  lazy val conflictResolver = new ConflictResolver(valueSchema, icUtil.getFieldICList)
-  lazy val recordCache = new MDCCRecordCache()
-
-  def getConflictResolver = conflictResolver
-
-  def getDefaultMeta = defaultMeta.defaultMetaData
-
-  // TODO: Don't know why implicit manifest did not work.
-  val protocolType: TxProtocol = TxProtocol2pc()
-
-  override def initRootAdditional(node: ZooKeeperProxy#ZooKeeperNode): Unit = {
-    // Write the integrity constraints to zookeeper.
-    val writer = new AvroSpecificReaderWriter[FieldICList](None)
-    val icBytes = writer.serialize(icUtil.getFieldICList)
-    root.getOrCreate(name).createChild("valueICs", icBytes,
-                                       CreateMode.PERSISTENT)
-  }
+  def getFieldICList = icUtil.getFieldICList
 
   def putLogical(key: K, value: V): Unit = {
     putBytesLogical(keyToBytes(key), valueToBytes(value))
@@ -97,6 +72,64 @@ with TransactionI {
     }
   }
 
+  def putBytesLogical(key: Array[Byte],
+                      value: Array[Byte]): Unit = {
+    val servers = serversForKey(key)
+    ThreadLocalStorage.updateList.value match {
+      case None => {
+        // TODO: what does it mean to do puts outside of a tx?
+        //       for now, do nothing...
+        throw new RuntimeException("")
+      }
+      case Some(updateList) => {
+        updateList.appendLogicalUpdate(this, servers, key, Some(value))
+      }
+    }
+  }
+}
+
+// This works with PairNamespace.
+trait PairTransactions[R <: AvroPair]
+extends RecordStore[R]
+with TransactionsBase {
+
+  implicit protected def pairManifest: Manifest[R]
+  val icUtil = new FieldICUtil[R]
+  def getFieldICList = icUtil.getFieldICList
+
+  // TODO: implement Pair specific functionality.
+}
+
+// This is the base trait with all the shared functionality between different
+// types of namespaces.
+trait TransactionsBase
+extends RangeProtocol
+with KeyRoutable
+with ZooKeeperGlobalMetadata
+with TransactionRecordMetadata
+with TransactionI {
+
+  def getFieldICList: FieldICList
+
+  lazy val defaultMeta = MDCCMetaDefault.getDefault(nsRoot)
+  lazy val conflictResolver = new ConflictResolver(valueSchema, getFieldICList)
+  lazy val recordCache = new MDCCRecordCache()
+
+  def getConflictResolver = conflictResolver
+
+  def getDefaultMeta = defaultMeta.defaultMetaData
+
+  // TODO: Don't know why implicit manifest did not work.
+  val protocolType: TxProtocol = TxProtocol2pc()
+
+  override def initRootAdditional(node: ZooKeeperProxy#ZooKeeperNode): Unit = {
+    // Write the integrity constraints to zookeeper.
+    val writer = new AvroSpecificReaderWriter[FieldICList](None)
+    val icBytes = writer.serialize(getFieldICList)
+    root.getOrCreate(name).createChild("valueICs", icBytes,
+                                       CreateMode.PERSISTENT)
+  }
+
   override def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit = {
     val servers = serversForKey(key)
     ThreadLocalStorage.updateList.value match {
@@ -110,21 +143,6 @@ with TransactionI {
       }
       case Some(updateList) => {
         updateList.appendValueUpdateInfo(this, servers, key, value)
-      }
-    }
-  }
-
-  def putBytesLogical(key: Array[Byte],
-                      value: Array[Byte]): Unit = {
-    val servers = serversForKey(key)
-    ThreadLocalStorage.updateList.value match {
-      case None => {
-        // TODO: what does it mean to do puts outside of a tx?
-        //       for now, do nothing...
-        throw new RuntimeException("")
-      }
-      case Some(updateList) => {
-        updateList.appendLogicalUpdate(this, servers, key, Some(value))
       }
     }
   }
@@ -163,7 +181,6 @@ with TransactionI {
 
   // TODO: does get range need to collect ALL metatdata as well?
   //       could potentially be a very large list, and complicates code.
-
 
   // This is just modified from the quorum protocol...
   class GetHandlerTmp(val key: Array[Byte], val futures: Seq[MessageFuture[StorageMessage]], val timeout: Long = 5000) {
@@ -207,16 +224,6 @@ with TransactionI {
     case (Some(_), None) => 1
     case (Some(lhs), Some(rhs)) => compareMetadata(lhs, rhs)
   }
-
-}
-
-trait TransactionI {
-  def getDefaultMeta() : MDCCMetadata
-  def keySchema: Schema
-  def valueSchema: Schema
-  def getConflictResolver : ConflictResolver
-  def recordCache : MDCCRecordCache
-
 }
 
 trait TransactionRecordMetadata extends SimpleRecordMetadata {

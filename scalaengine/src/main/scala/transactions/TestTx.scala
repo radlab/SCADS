@@ -1,7 +1,7 @@
 package edu.berkeley.cs.scads.storage.examples
 import edu.berkeley.cs.scads.storage.transactions._
 import edu.berkeley.cs.scads.storage._
-import edu.berkeley.cs.avro.marker.AvroRecord
+import edu.berkeley.cs.avro.marker.{AvroRecord, AvroPair}
 
 import scala.actors.Actor._
 
@@ -23,6 +23,16 @@ case class ValueRec(var s: String,
                     var b: Float,
                     var c: Double) extends AvroRecord
 
+case class DataRecord(var id: Int) extends AvroPair {
+  var s: String = _
+  @FieldGE(0)
+  @FieldLT(20)
+  var a: Int = _
+  @FieldGE(0)
+  @FieldLT(20)
+  var b: Long = _
+}
+
 class TestTx {
   def run() {
     val cluster = TestScalaEngine.newScadsCluster(4)
@@ -32,6 +42,12 @@ class TestTx {
     }
     ns.open()
     ns.setPartitionScheme(List((None, cluster.getAvailableServers)))
+
+    val nsPair = new PairNamespace[DataRecord]("testnsPair", cluster, cluster.namespaces) with PairTransactions[DataRecord] {
+      override val protocolType = TxProtocol2pc()
+    }
+    nsPair.open()
+    nsPair.setPartitionScheme(List((None, cluster.getAvailableServers)))
 
     new Tx(100) ({
       ns.put(KeyRec(1), ValueRec("A", 1, 1, 1.0.floatValue, 1.0))
