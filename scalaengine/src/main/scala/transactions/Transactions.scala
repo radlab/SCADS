@@ -7,7 +7,8 @@ import edu.berkeley.cs.scads.comm._
 
 import mdcc._
 import org.apache.avro._
-import specific._
+import org.apache.avro.specific._
+import org.apache.avro.generic._
 
 import org.apache.zookeeper._
 import java.util.concurrent.TimeUnit
@@ -87,6 +88,9 @@ with TransactionsBase {
   def getFieldICList = icUtil.getFieldICList
 
   // TODO: implement Pair specific functionality.
+  // getRecord uses getBytes.
+  // put(Pair) uses put(), which uses putBytes.
+  // delete(Pair) uses put(), which uses putBytes.
 }
 
 // This is the base trait with all the shared functionality between different
@@ -179,6 +183,9 @@ with TransactionI {
     }
   }
 
+  // putBulkBytes calls createMetadata, so the records will have the
+  // default metadata.
+
   // TODO: does get range need to collect ALL metatdata as well?
   //       could potentially be a very large list, and complicates code.
 
@@ -226,11 +233,9 @@ with TransactionI {
   }
 }
 
-trait TransactionRecordMetadata extends SimpleRecordMetadata {
+trait TransactionRecordMetadata extends SimpleRecordMetadata with TransactionI {
   override def createMetadata(rec: Array[Byte]): Array[Byte] = {
-    // TODO: This will need a default metadata for it to work.
-    throw new RuntimeException("createMetadata is not implemented for transactions.")
-    MDCCRecordUtil.toBytes(Some(rec), null)
+    MDCCRecordUtil.toBytes(Some(rec), getDefaultMeta)
   }
 
   override def compareMetadata(lhs: Array[Byte], rhs: Array[Byte]): Int = {
