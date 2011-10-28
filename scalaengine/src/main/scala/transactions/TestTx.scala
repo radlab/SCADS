@@ -41,13 +41,13 @@ class TestTx {
     val cluster = TestScalaEngine.newScadsCluster(4)
 
     val ns = new SpecificNamespace[KeyRec, ValueRec]("testns", cluster, cluster.namespaces) with Transactions[KeyRec, ValueRec] {
-      override val protocolType = TxProtocol2pc()
+      override val protocolType = NSTxProtocol2pc()
     }
     ns.open()
     ns.setPartitionScheme(List((None, cluster.getAvailableServers)))
 
     val nsPair = new PairNamespace[DataRecord]("testnsPair", cluster, cluster.namespaces) with PairTransactions[DataRecord] {
-      override val protocolType = TxProtocol2pc()
+      override val protocolType = NSTxProtocol2pc()
     }
     nsPair.open()
     nsPair.setPartitionScheme(List((None, cluster.getAvailableServers)))
@@ -67,6 +67,7 @@ class TestTx {
     }).Execute()
 
     nsPair.getRange(None, None).foreach(x => println(x))
+    println("nsPair.getRecord: " + nsPair.getRecord(DataRecord(2)))
 
     new Tx(100) ({
       ns.put(KeyRec(1), ValueRec("A", 1, 1, 1.0.floatValue, 1.0))

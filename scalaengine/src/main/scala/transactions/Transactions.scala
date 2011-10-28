@@ -109,7 +109,7 @@ with TransactionI {
   def getDefaultMeta = defaultMeta.defaultMetaData
 
   // TODO: Don't know why implicit manifest did not work.
-  val protocolType: TxProtocol = TxProtocol2pc()
+  val protocolType: NSTxProtocol = NSTxProtocol2pc()
 
   override def initRootAdditional(node: ZooKeeperProxy#ZooKeeperNode): Unit = {
     // Write the integrity constraints to zookeeper.
