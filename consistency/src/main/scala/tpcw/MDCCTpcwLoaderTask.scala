@@ -18,11 +18,11 @@ import edu.berkeley.cs.scads.storage.transactions._
 
 // MDCC version of TpcwLoaderTask.
 case class MDCCTpcwLoaderTask(var numServers: Int,
+                              var numClusters: Int,
                               var numLoaders: Int,
                               var numEBs: Double,
                               var numItems: Int,
-                              var replicationFactor: Int = 2,
-                              var txProtocol: NSTxProtocol = NSTxProtocol2pc()) extends DataLoadingTask with AvroRecord {
+                              var txProtocol: NSTxProtocol) extends DataLoadingTask with AvroRecord {
   var clusterAddress: String = _
   
   def run() = {
@@ -37,7 +37,7 @@ case class MDCCTpcwLoaderTask(var numServers: Int,
       logger.info("Awaiting scads cluster startup")
       cluster.blockUntilReady(numServers)
       val client = new MDCCTpcwClient(cluster, new ParallelExecutor, txProtocol)
-      loader.createNamespaces(client, replicationFactor)
+      loader.createNamespacesForClusters(client, numClusters)
       import client._
       List(addresses,
            authors,

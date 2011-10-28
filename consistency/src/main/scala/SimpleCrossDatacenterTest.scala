@@ -84,7 +84,7 @@ case class Task()
     clusterAddress = scadsCluster.root.canonicalAddress
 
     // Start loaders.
-    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, 1, replicationFactor=2, numEBs=15, numItems=1000).getLoadingTasks(clusters.head.classSource, scadsCluster.root)
+    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, numClusters, 1, numEBs=15, numItems=1000, txProtocol=NSTxProtocol2pc()).getLoadingTasks(clusters.head.classSource, scadsCluster.root)
     clusters.head.serviceScheduler.scheduleExperiment(loaderTasks)
 
     // Start the task.

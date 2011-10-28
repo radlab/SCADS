@@ -178,9 +178,26 @@ trait RecordStore[RecType <: IndexedRecord] extends Namespace
    */
   def repartition(data: Seq[RecType], replicationFactor: Int): Unit = {
     val servers = cluster.getAvailableServers
-    val samplesPerServer = 10000
     require(servers.size % replicationFactor == 0, "num servers must divide evenly by replication factor")
     val numPartitions = servers.size / replicationFactor
+
+    val partitions = getPartitions(data, numPartitions, servers.grouped(replicationFactor).toList)
+    setPartitionScheme(partitions)
+  }
+
+  // Repartitions the data over multiple scads clusters.
+  def repartitionForClusters(data: Seq[RecType], numClusters: Int): Unit = {
+    require(cluster.getAvailableServers.size % numClusters == 0, "each cluster must have the same number of partitions.")
+    val numPartitions = cluster.getAvailableServers.size / numClusters
+    val serversByCluster = (0 until numClusters).map(i => cluster.getAvailableServers("cluster-" + i))
+    val serversByPartition = (0 until numPartitions).map(i => serversByCluster.map(_(i)))
+
+    val partitions = getPartitions(data, numPartitions, serversByPartition)
+    setPartitionScheme(partitions)
+  }
+
+  private def getPartitions(data: Seq[RecType], numPartitions: Int, serverGroups: Seq[Seq[StorageService]]) = {
+    val samplesPerServer = 10000
     val numSamples = samplesPerServer * numPartitions
 
     val samples = data.take(numSamples).sortWith(_ < _).toIndexedSeq
@@ -189,9 +206,9 @@ trait RecordStore[RecType <: IndexedRecord] extends Namespace
 
     logger.info("Sampled Key Splits for %s: %s", namespace, splits)
     val byteSplits = splits.map(_.map(keyToBytes))
-    val partitions = byteSplits zip servers.grouped(replicationFactor).toList
+    val partitions = byteSplits zip serverGroups
     logger.info("Sampled Partition Scheme for %s: %s", namespace , partitions)
 
-    setPartitionScheme(partitions)
+    partitions
   }
 }
