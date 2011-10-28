@@ -135,7 +135,7 @@ object ScadsBuild extends Build {
       initialCommands in console += (
         "import edu.berkeley.cs.scads.consistency._")
     )
-  ) dependsOn (config, comm, perf, scalaEngine)
+  ) dependsOn (config, comm, perf, tpcw, scalaEngine)
 
   /**
    * Dependencies

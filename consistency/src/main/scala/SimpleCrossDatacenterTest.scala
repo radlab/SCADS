@@ -15,6 +15,9 @@ import net.lag.logging.Logger
 import edu.berkeley.cs.scads.storage.transactions._
 import edu.berkeley.cs.scads.storage.transactions.FieldAnnotations._
 import edu.berkeley.cs.scads.perf._
+import edu.berkeley.cs.scads.piql.tpcw._
+
+import tpcw._
 
 case class Result(var hostname: String,
 		  var timestamp: Long) extends AvroPair {
@@ -76,11 +79,17 @@ case class Task()
     numPartitions = (clusters.tail.map(_.slaves.size) ++ List(firstSize)).min
     numClusters = clusters.size
 
+    // Start the storage servers.
     val scadsCluster = newMDCCScadsCluster(numPartitions, clusters)
     clusterAddress = scadsCluster.root.canonicalAddress
 
-    val task1 = this.toJvmTask(clusters.head.classSource)
-    clusters.head.serviceScheduler.scheduleExperiment(task1 :: Nil)
+    // Start loaders.
+    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, 1, replicationFactor=2, numEBs=15, numItems=1000).getLoadingTasks(clusters.head.classSource, scadsCluster.root)
+    clusters.head.serviceScheduler.scheduleExperiment(loaderTasks)
+
+    // Start the task.
+//    val task1 = this.toJvmTask(clusters.head.classSource)
+//    clusters.head.serviceScheduler.scheduleExperiment(task1 :: Nil)
   }
 
   def run(): Unit = {
