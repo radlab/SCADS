@@ -24,13 +24,13 @@
       <span class="symbol"> 
         <span class="name">PartitionHandler</span>
         
-        <span class="params">(<span name="manager">manager: <a name="edu.berkeley.cs.scads.storage.StorageManager" class="extype" href="StorageManager.html">StorageManager</a></span>)</span><span class="result"> extends <span name="edu.berkeley.cs.scads.comm.ServiceHandler" class="extype">ServiceHandler</span>[<span name="edu.berkeley.cs.scads.comm.PartitionServiceOperation" class="extype">PartitionServiceOperation</span>] with <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
+        <span class="params">(<span name="manager">manager: <a name="edu.berkeley.cs.scads.storage.StorageManager" class="extype" href="StorageManager.html">StorageManager</a></span>)</span><span class="result"> extends <span name="edu.berkeley.cs.scads.comm.ServiceHandler" class="extype">ServiceHandler</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>] with <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
       </span>
       </h4>
       
           <div class="fullcommenttop" id="comment"><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, <span name="scala.Product" class="extype">Product</span>, <span name="scala.Equals" class="extype">Equals</span>, <span name="edu.berkeley.cs.scads.comm.ServiceHandler" class="extype">ServiceHandler</span>[<span name="edu.berkeley.cs.scads.comm.PartitionServiceOperation" class="extype">PartitionServiceOperation</span>], <span name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype">MessageReceiver</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, <span name="scala.Product" class="extype">Product</span>, <span name="scala.Equals" class="extype">Equals</span>, <span name="edu.berkeley.cs.scads.comm.ServiceHandler" class="extype">ServiceHandler</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>], <span name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype">MessageReceiver</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>], AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
         
 
@@ -358,13 +358,13 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>ServiceHandler</dd></dl></div>
     </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.PartitionHandler#process" data-isabs="false">
-      <a id="process(Option[RemoteActorProxy],PartitionServiceOperation):Unit"></a>
+      <a id="process(Option[RemoteServiceProxy[StorageMessage]],StorageMessage):Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">process</span>
         
-        <span class="params">(<span name="src">src: <span name="scala.Option" class="extype">Option</span>[<span name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype">RemoteActorProxy</span>]</span>, <span name="msg">msg: <span name="edu.berkeley.cs.scads.comm.PartitionServiceOperation" class="extype">PartitionServiceOperation</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="src">src: <span name="scala.Option" class="extype">Option</span>[<span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]]</span>, <span name="msg">msg: <a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.PartitionHandler" class="extype" href="">PartitionHandler</a> → ServiceHandler</dd></dl></div>
@@ -413,24 +413,35 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.PartitionHandler" class="extype" href="">PartitionHandler</a> → Product</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.ServiceHandler#receiveMessage" data-isabs="false">
-      <a id="receiveMessage(Option[RemoteActorProxy],MessageBody):Unit"></a>
+      <a id="receiveMessage(Option[RemoteServiceProxy[StorageMessage]],StorageMessage):Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">receiveMessage</span>
         
-        <span class="params">(<span name="src">src: <span name="scala.Option" class="extype">Option</span>[<span name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype">RemoteActorProxy</span>]</span>, <span name="msg">msg: <span name="edu.berkeley.cs.scads.comm.MessageBody" class="extype">MessageBody</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="src">src: <span name="scala.Option" class="extype">Option</span>[<span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]]</span>, <span name="msg">msg: <a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ServiceHandler → MessageReceiver</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.ServiceHandler#remoteHandle" data-isabs="false">
-      <a id="remoteHandle:RemoteActor"></a>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>ServiceHandler → MessageReceiver</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PartitionHandler#registry" data-isabs="false">
+      <a id="registry:edu.berkeley.cs.scads.storage.package.StorageRegistry.type"></a>
       <h4 class="signature">
-      <span class="kind">implicit val</span>
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">registry</span>
+        
+        <span class="result">: edu.berkeley.cs.scads.storage.package.StorageRegistry.type</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.PartitionHandler" class="extype" href="">PartitionHandler</a> → ServiceHandler</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.ServiceHandler#remoteHandle" data-isabs="false">
+      <a id="remoteHandle:RemoteServiceProxy[StorageMessage]"></a>
+      <h4 class="signature">
+      <span class="kind">implicit lazy val</span>
       <span class="symbol"> 
         <span class="name">remoteHandle</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.comm.RemoteActor" class="extype">RemoteActor</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>ServiceHandler</dd></dl></div>
@@ -609,9 +620,9 @@ return the old completed interval for archiving
             </div><div name="scala.Equals" class="parent">
               <h3>Inherited from <span name="scala.Equals" class="extype">Equals</span></h3>
             </div><div name="edu.berkeley.cs.scads.comm.ServiceHandler" class="parent">
-              <h3>Inherited from <span name="edu.berkeley.cs.scads.comm.ServiceHandler" class="extype">ServiceHandler</span>[<span name="edu.berkeley.cs.scads.comm.PartitionServiceOperation" class="extype">PartitionServiceOperation</span>]</h3>
+              <h3>Inherited from <span name="edu.berkeley.cs.scads.comm.ServiceHandler" class="extype">ServiceHandler</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]</h3>
             </div><div name="edu.berkeley.cs.scads.comm.MessageReceiver" class="parent">
-              <h3>Inherited from <span name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype">MessageReceiver</span></h3>
+              <h3>Inherited from <span name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype">MessageReceiver</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]</h3>
             </div><div name="scala.AnyRef" class="parent">
               <h3>Inherited from AnyRef</h3>
             </div><div name="scala.Any" class="parent">

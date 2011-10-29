@@ -63,7 +63,7 @@
       <span class="symbol"> 
         <span class="name">AggHandler</span>
         
-        <span class="params">(<span name="futures">futures: Seq[Seq[<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>]]</span>, <span name="partitionMap">partitionMap: <span name="scala.collection.mutable.HashMap" class="extype">HashMap</span>[String, String]</span>, <span name="numParts">numParts: <span name="scala.Int" class="extype">Int</span></span>, <span name="aggs">aggs: Seq[(edu.berkeley.cs.scads.util.LocalAggregate[_, _], <span name="scala.Int" class="extype">Int</span>)]</span>, <span name="groupSchema">groupSchema: <span name="org.apache.avro.Schema" class="extype">Schema</span></span>, <span name="numRanges">numRanges: <span name="scala.Int" class="extype">Int</span></span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span>
+        <span class="params">(<span name="futures">futures: Seq[Seq[<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]]]</span>, <span name="partitionMap">partitionMap: <span name="scala.collection.mutable.HashMap" class="extype">HashMap</span>[String, String]</span>, <span name="numParts">numParts: <span name="scala.Int" class="extype">Int</span></span>, <span name="aggs">aggs: Seq[(edu.berkeley.cs.scads.util.LocalAggregate[_, _], <span name="scala.Int" class="extype">Int</span>)]</span>, <span name="groupSchema">groupSchema: <span name="org.apache.avro.Schema" class="extype">Schema</span></span>, <span name="numRanges">numRanges: <span name="scala.Int" class="extype">Int</span></span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span>
       </span>
       </h4>
       
@@ -215,13 +215,13 @@
       </h4>
       
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AnalyticsProtocol.AggHandler#futures" data-isabs="false">
-      <a id="futures:Seq[Seq[MessageFuture]]"></a>
+      <a id="futures:Seq[Seq[MessageFuture[StorageMessage]]]"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">futures</span>
         
-        <span class="result">: Seq[Seq[<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>]]</span>
+        <span class="result">: Seq[Seq[<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]]]</span>
       </span>
       </h4>
       

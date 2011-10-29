@@ -63,7 +63,7 @@
       <span class="symbol"> 
         <span class="name">GetHandler</span>
         
-        <span class="params">(<span name="key">key: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>, <span name="futures">futures: Seq[<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>]</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span>
+        <span class="params">(<span name="key">key: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>, <span name="futures">futures: Seq[<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]]</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span>
       </span>
       </h4>
       
@@ -215,13 +215,13 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.QuorumProtocol.GetHandler" class="extype" href="">GetHandler</a> → <a name="edu.berkeley.cs.scads.storage.RequestHandler" class="extype" href="RequestHandler.html">RequestHandler</a></dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumProtocol.GetHandler#futures" data-isabs="false">
-      <a id="futures:Seq[MessageFuture]"></a>
+      <a id="futures:Seq[MessageFuture[StorageMessage]]"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">futures</span>
         
-        <span class="result">: Seq[<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>]</span>
+        <span class="result">: Seq[<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]]</span>
       </span>
       </h4>
       
@@ -270,13 +270,13 @@
       </h4>
       
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumProtocol.GetHandler#losers" data-isabs="false">
-      <a id="losers:ArrayBuffer[RemoteActorProxy]"></a>
+      <a id="losers:ArrayBuffer[RemoteServiceProxy[StorageMessage]]"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">losers</span>
         
-        <span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype">RemoteActorProxy</span>]</span>
+        <span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]]</span>
       </span>
       </h4>
       
@@ -325,13 +325,13 @@
       </h4>
       
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumProtocol.GetHandler#repairList" data-isabs="false">
-      <a id="repairList():ArrayBuffer[RemoteActorProxy]"></a>
+      <a id="repairList():ArrayBuffer[RemoteServiceProxy[StorageMessage]]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">repairList</span>
         
-        <span class="params">()</span><span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype">RemoteActorProxy</span>]</span>
+        <span class="params">()</span><span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]]</span>
       </span>
       </h4>
       
@@ -444,13 +444,13 @@
       </h4>
       
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumProtocol.GetHandler#winners" data-isabs="false">
-      <a id="winners:ArrayBuffer[RemoteActorProxy]"></a>
+      <a id="winners:ArrayBuffer[RemoteServiceProxy[StorageMessage]]"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">winners</span>
         
-        <span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype">RemoteActorProxy</span>]</span>
+        <span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]]</span>
       </span>
       </h4>
       

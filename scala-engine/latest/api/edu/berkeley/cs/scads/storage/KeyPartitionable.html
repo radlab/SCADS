@@ -70,7 +70,7 @@
       <span class="symbol"> 
         <span class="name">deletePartitions</span>
         
-        <span class="params">(<span name="partitionHandlers">partitionHandlers: Seq[<span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="partitionHandlers">partitionHandlers: Seq[<a name="edu.berkeley.cs.scads.storage.PartitionService" class="extype" href="PartitionService.html">PartitionService</a>]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd></dl></div>
@@ -92,7 +92,7 @@
       <span class="symbol"> 
         <span class="name">replicatePartitions</span>
         
-        <span class="params">(<span name="targets">targets: Seq[(<span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>, <span name="edu.berkeley.cs.scads.comm.StorageService" class="extype">StorageService</span>)]</span>)</span><span class="result">: Seq[<span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>]</span>
+        <span class="params">(<span name="targets">targets: Seq[(<a name="edu.berkeley.cs.scads.storage.PartitionService" class="extype" href="PartitionService.html">PartitionService</a>, <a name="edu.berkeley.cs.scads.storage.StorageService" class="extype" href="StorageService.html">StorageService</a>)]</span>)</span><span class="result">: Seq[<a name="edu.berkeley.cs.scads.storage.PartitionService" class="extype" href="PartitionService.html">PartitionService</a>]</span>
       </span>
       </h4>
       <p class="shortcomment cmt">For each target, replace the PartitionService on the StorageService</p><div class="fullcomment"><div class="comment cmt"><p>For each target, replace the PartitionService on the StorageService</p></div><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd></dl></div>
@@ -103,7 +103,7 @@
       <span class="symbol"> 
         <span class="name">routingTable</span>
         
-        <span class="result">: <a name="edu.berkeley.cs.scads.util.RangeTable" class="extype" href="../util/RangeTable.html">RangeTable</a>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>], <span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>]</span>
+        <span class="result">: <a name="edu.berkeley.cs.scads.util.RangeTable" class="extype" href="../util/RangeTable.html">RangeTable</a>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>], <a name="edu.berkeley.cs.scads.storage.PartitionService" class="extype" href="PartitionService.html">PartitionService</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd></dl></div>
@@ -114,7 +114,7 @@
       <span class="symbol"> 
         <span class="name">setPartitionScheme</span>
         
-        <span class="params">(<span name="scheme">scheme: Seq[(<span name="scala.Option" class="extype">Option</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]], Seq[<span name="edu.berkeley.cs.scads.comm.StorageService" class="extype">StorageService</span>])]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="scheme">scheme: Seq[(<span name="scala.Option" class="extype">Option</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]], Seq[<a name="edu.berkeley.cs.scads.storage.StorageService" class="extype" href="StorageService.html">StorageService</a>])]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
       <p class="shortcomment cmt">sets the partition scheme to be exactly that which is represented by the input.</p><div class="fullcomment"><div class="comment cmt"><p>sets the partition scheme to be exactly that which is represented by the input.

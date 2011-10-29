@@ -2,7 +2,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html>
         <head>
-          <title>edu.berkeley.cs.scads.storage.PartitionIterator.RecordSetTaken</title>
+          <title>edu.berkeley.cs.scads.storage.StorageService</title>
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link type="text/css" media="screen" rel="stylesheet" href="../../../../../lib/template.css" />
@@ -14,23 +14,23 @@
         </head>
         <body class="value">
       <div id="definition">
-        <img src="../../../../../lib/object_big.png" />
-        <p id="owner"><a name="edu" class="extype" href="../../../../package.html">edu</a>.<a name="edu.berkeley" class="extype" href="../../../package.html">berkeley</a>.<a name="edu.berkeley.cs" class="extype" href="../../package.html">cs</a>.<a name="edu.berkeley.cs.scads" class="extype" href="../package.html">scads</a>.<a name="edu.berkeley.cs.scads.storage" class="extype" href="package.html">storage</a>.<a name="edu.berkeley.cs.scads.storage.PartitionIterator" class="extype" href="PartitionIterator.html">PartitionIterator</a></p>
-        <h1>RecordSetTaken</h1>
+        <a title="Go to companion" href="StorageService.html"><img src="../../../../../lib/object_to_class_big.png" /></a>
+        <p id="owner"><a name="edu" class="extype" href="../../../../package.html">edu</a>.<a name="edu.berkeley" class="extype" href="../../../package.html">berkeley</a>.<a name="edu.berkeley.cs" class="extype" href="../../package.html">cs</a>.<a name="edu.berkeley.cs.scads" class="extype" href="../package.html">scads</a>.<a name="edu.berkeley.cs.scads.storage" class="extype" href="package.html">storage</a></p>
+        <h1><a title="Go to companion" href="StorageService.html">StorageService</a></h1>
       </div>
 
       <h4 class="signature" id="signature">
       <span class="kind">object</span>
       <span class="symbol"> 
-        <span class="name">RecordSetTaken</span>
+        <span class="name">StorageService</span>
         
-        <span class="result"> extends AnyRef</span>
+        <span class="result"> extends <span name="scala.Serializable" class="extype">Serializable</span></span>
       </span>
       </h4>
       
-          <div class="fullcommenttop" id="comment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl><div class="toggleContainer block">
+          <div class="fullcommenttop" id="comment"><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent">AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
         
 
@@ -46,7 +46,7 @@
                 <span class="filtertype">Inherited</span>
                 <ol><li class="hideall out"><span>Hide All</span></li>
                 <li class="showall in"><span>Show all</span></li></ol>
-                <ol id="linearization"><li name="edu.berkeley.cs.scads.storage.PartitionIterator.RecordSetTaken" class="in"><span>RecordSetTaken</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
+                <ol id="linearization"><li name="edu.berkeley.cs.scads.storage.StorageService" class="in"><span>StorageService</span></li><li name="scala.Serializable" class="in"><span>Serializable</span></li><li name="java.io.Serializable" class="in"><span>Serializable</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
               </div>
           <div id="visbl">
               <span class="filtertype">Visibility</span>
@@ -117,6 +117,17 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.StorageService#apply" data-isabs="false">
+      <a id="apply(RemoteServiceProxy[StorageMessage]):StorageService"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">apply</span>
+        
+        <span class="params">(<span name="s">s: <span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.storage.StorageService" class="extype" href="StorageService.html">StorageService</a></span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="scala.Any#asInstanceOf" data-isabs="false">
       <a id="asInstanceOf[T0]:T0"></a>
       <h4 class="signature">
@@ -244,6 +255,17 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.StorageService#readResolve" data-isabs="false">
+      <a id="readResolve():AnyRef"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">readResolve</span>
+        
+        <span class="params">()</span><span class="result">: AnyRef</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#synchronized" data-isabs="false">
       <a id="synchronized[T0](⇒ T0):T0"></a>
       <h4 class="signature">
@@ -313,7 +335,11 @@
 
         
 
-        <div name="scala.AnyRef" class="parent">
+        <div name="scala.Serializable" class="parent">
+              <h3>Inherited from <span name="scala.Serializable" class="extype">Serializable</span></h3>
+            </div><div name="java.io.Serializable" class="parent">
+              <h3>Inherited from <span name="java.io.Serializable" class="extype">Serializable</span></h3>
+            </div><div name="scala.AnyRef" class="parent">
               <h3>Inherited from AnyRef</h3>
             </div><div name="scala.Any" class="parent">
               <h3>Inherited from <span name="scala.Any" class="extype">Any</span></h3>

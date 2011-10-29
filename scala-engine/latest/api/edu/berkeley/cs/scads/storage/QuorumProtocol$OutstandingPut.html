@@ -24,7 +24,7 @@
       <span class="symbol"> 
         <span class="name">OutstandingPut</span>
         
-        <span class="params">(<span name="timestamp">timestamp: <span name="scala.Long" class="extype">Long</span></span>, <span name="server">server: <span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span></span>, <span name="sendBuffer">sendBuffer: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="edu.berkeley.cs.scads.comm.PutRequest" class="extype">PutRequest</span>]</span>, <span name="future">future: <span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span></span>, <span name="tries">tries: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result"> extends <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
+        <span class="params">(<span name="timestamp">timestamp: <span name="scala.Long" class="extype">Long</span></span>, <span name="server">server: <a name="edu.berkeley.cs.scads.storage.PartitionService" class="extype" href="PartitionService.html">PartitionService</a></span>, <span name="sendBuffer">sendBuffer: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<a name="edu.berkeley.cs.scads.storage.PutRequest" class="extype" href="PutRequest.html">PutRequest</a>]</span>, <span name="future">future: <span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]</span>, <span name="tries">tries: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result"> extends <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
       </span>
       </h4>
       
@@ -63,7 +63,7 @@
       <span class="symbol"> 
         <span class="name">OutstandingPut</span>
         
-        <span class="params">(<span name="timestamp">timestamp: <span name="scala.Long" class="extype">Long</span></span>, <span name="server">server: <span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span></span>, <span name="sendBuffer">sendBuffer: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="edu.berkeley.cs.scads.comm.PutRequest" class="extype">PutRequest</span>]</span>, <span name="future">future: <span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span></span>, <span name="tries">tries: <span name="scala.Int" class="extype">Int</span></span>)</span>
+        <span class="params">(<span name="timestamp">timestamp: <span name="scala.Long" class="extype">Long</span></span>, <span name="server">server: <a name="edu.berkeley.cs.scads.storage.PartitionService" class="extype" href="PartitionService.html">PartitionService</a></span>, <span name="sendBuffer">sendBuffer: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<a name="edu.berkeley.cs.scads.storage.PutRequest" class="extype" href="PutRequest.html">PutRequest</a>]</span>, <span name="future">future: <span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]</span>, <span name="tries">tries: <span name="scala.Int" class="extype">Int</span></span>)</span>
       </span>
       </h4>
       
@@ -204,13 +204,13 @@
               
         </dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumProtocol.OutstandingPut#future" data-isabs="false">
-      <a id="future:MessageFuture"></a>
+      <a id="future:MessageFuture[StorageMessage]"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">future</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]</span>
       </span>
       </h4>
       
@@ -331,7 +331,7 @@
       <span class="symbol"> 
         <span class="name">sendBuffer</span>
         
-        <span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="edu.berkeley.cs.scads.comm.PutRequest" class="extype">PutRequest</span>]</span>
+        <span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<a name="edu.berkeley.cs.scads.storage.PutRequest" class="extype" href="PutRequest.html">PutRequest</a>]</span>
       </span>
       </h4>
       
@@ -342,7 +342,7 @@
       <span class="symbol"> 
         <span class="name">server</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span></span>
+        <span class="result">: <a name="edu.berkeley.cs.scads.storage.PartitionService" class="extype" href="PartitionService.html">PartitionService</a></span>
       </span>
       </h4>
       

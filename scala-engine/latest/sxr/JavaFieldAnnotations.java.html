@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>JavaFieldAnnotations.java</title>
+        <script type="text/javascript" src="jquery-all.js"></script>
+        <script type="text/javascript" src="linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.storage.transactions;
+
+<span class="keyword">import</span> java.lang.annotation.ElementType;
+<span class="keyword">import</span> java.lang.annotation.Retention;
+<span class="keyword">import</span> java.lang.annotation.RetentionPolicy;
+<span class="keyword">import</span> java.lang.annotation.Target;
+
+<span class="keyword">class</span> <a title="object edu.berkeley.cs.scads.storage.transactions.JavaFieldAnnotations" id="9129">JavaFieldAnnotations</a> <span class="delimiter">{</span>
+  @Retention<span class="delimiter">(</span>RetentionPolicy.RUNTIME<span class="delimiter">)</span>
+  @Target<span class="delimiter">(</span>ElementType.FIELD<span class="delimiter">)</span>
+  public @interface <a title="object edu.berkeley.cs.scads.storage.transactions.JavaFieldAnnotations.JavaFieldGT" id="92185">JavaFieldGT</a> <span class="delimiter">{</span>
+    double <a title="()Double" id="92186">value</a><span class="delimiter">(</span><span class="delimiter">)</span>;
+  <span class="delimiter">}</span>
+  @Retention<span class="delimiter">(</span>RetentionPolicy.RUNTIME<span class="delimiter">)</span>
+  @Target<span class="delimiter">(</span>ElementType.FIELD<span class="delimiter">)</span>
+  public @interface <a title="object edu.berkeley.cs.scads.storage.transactions.JavaFieldAnnotations.JavaFieldGE" id="92192">JavaFieldGE</a> <span class="delimiter">{</span>
+    double <a title="()Double" id="92193">value</a><span class="delimiter">(</span><span class="delimiter">)</span>;
+  <span class="delimiter">}</span>
+  @Retention<span class="delimiter">(</span>RetentionPolicy.RUNTIME<span class="delimiter">)</span>
+  @Target<span class="delimiter">(</span>ElementType.FIELD<span class="delimiter">)</span>
+  public @interface <a title="object edu.berkeley.cs.scads.storage.transactions.JavaFieldAnnotations.JavaFieldLT" id="92199">JavaFieldLT</a> <span class="delimiter">{</span>
+    double <a title="()Double" id="92200">value</a><span class="delimiter">(</span><span class="delimiter">)</span>;
+  <span class="delimiter">}</span>
+  @Retention<span class="delimiter">(</span>RetentionPolicy.RUNTIME<span class="delimiter">)</span>
+  @Target<span class="delimiter">(</span>ElementType.FIELD<span class="delimiter">)</span>
+  public @interface <a title="object edu.berkeley.cs.scads.storage.transactions.JavaFieldAnnotations.JavaFieldLE" id="92206">JavaFieldLE</a> <span class="delimiter">{</span>
+    double <a title="()Double" id="92207">value</a><span class="delimiter">(</span><span class="delimiter">)</span>;
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+        </pre>
+    </body>
+</html>

@@ -30,7 +30,7 @@
       
           <div class="fullcommenttop" id="comment"><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent"><a name="edu.berkeley.cs.scads.storage.FutureBasedIterator" class="extype" href="FutureBasedIterator.html">FutureBasedIterator</a>, <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>], <span name="scala.collection.TraversableOnce" class="extype">TraversableOnce</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>], <span name="scala.collection.GenTraversableOnce" class="extype">GenTraversableOnce</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>], AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><a name="edu.berkeley.cs.scads.storage.FutureBasedIterator" class="extype" href="FutureBasedIterator.html">FutureBasedIterator</a>, <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>], <span name="scala.collection.TraversableOnce" class="extype">TraversableOnce</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>], <span name="scala.collection.GenTraversableOnce" class="extype">GenTraversableOnce</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>], AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
         
 
@@ -63,7 +63,7 @@
       <span class="symbol"> 
         <span class="name">CursorBasedPartitionIterator</span>
         
-        <span class="params">(<span name="partitionService">partitionService: <span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span></span>, <span name="minKey">minKey: <span name="scala.Option" class="extype">Option</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]]</span>, <span name="maxKey">maxKey: <span name="scala.Option" class="extype">Option</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]]</span>, <span name="recsPerMessage">recsPerMessage: <span name="scala.Int" class="extype">Int</span></span>)</span>
+        <span class="params">(<span name="partitionService">partitionService: <a name="edu.berkeley.cs.scads.storage.PartitionService" class="extype" href="PartitionService.html">PartitionService</a></span>, <span name="minKey">minKey: <span name="scala.Option" class="extype">Option</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]]</span>, <span name="maxKey">maxKey: <span name="scala.Option" class="extype">Option</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]]</span>, <span name="recsPerMessage">recsPerMessage: <span name="scala.Int" class="extype">Int</span></span>)</span>
       </span>
       </h4>
       
@@ -115,7 +115,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">++</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="that">that: ⇒ <span name="scala.collection.GenTraversableOnce" class="extype">GenTraversableOnce</span>[B]</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>
       </span>
       </h4>
@@ -127,7 +127,7 @@
       <span class="symbol"> 
         <span class="name">/:</span>
         <span class="tparams">[<span name="B">B</span>]</span>
-        <span class="params">(<span name="z">z: B</span>)</span><span class="params">(<span name="op">op: (B, <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ B</span>)</span><span class="result">: B</span>
+        <span class="params">(<span name="z">z: B</span>)</span><span class="params">(<span name="op">op: (B, <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ B</span>)</span><span class="result">: B</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -137,7 +137,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">/:\</span>
-        <span class="tparams">[<span name="A1">A1 &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="A1">A1 &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="z">z: A1</span>)</span><span class="params">(<span name="op">op: (A1, A1) ⇒ A1</span>)</span><span class="result">: A1</span>
       </span>
       </h4>
@@ -149,7 +149,7 @@
       <span class="symbol"> 
         <span class="name">:\</span>
         <span class="tparams">[<span name="B">B</span>]</span>
-        <span class="params">(<span name="z">z: B</span>)</span><span class="params">(<span name="op">op: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>, B) ⇒ B</span>)</span><span class="result">: B</span>
+        <span class="params">(<span name="z">z: B</span>)</span><span class="params">(<span name="op">op: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>, B) ⇒ B</span>)</span><span class="result">: B</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -215,7 +215,7 @@
       <span class="symbol"> 
         <span class="name">aggregate</span>
         <span class="tparams">[<span name="B">B</span>]</span>
-        <span class="params">(<span name="z">z: B</span>)</span><span class="params">(<span name="seqop">seqop: (B, <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ B</span>, <span name="combop">combop: (B, B) ⇒ B</span>)</span><span class="result">: B</span>
+        <span class="params">(<span name="z">z: B</span>)</span><span class="params">(<span name="seqop">seqop: (B, <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ B</span>, <span name="combop">combop: (B, B) ⇒ B</span>)</span><span class="result">: B</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -237,7 +237,7 @@
       <span class="symbol"> 
         <span class="name">buffered</span>
         
-        <span class="result">: <span name="scala.collection.BufferedIterator" class="extype">BufferedIterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="result">: <span name="scala.collection.BufferedIterator" class="extype">BufferedIterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -273,7 +273,7 @@
       <span class="symbol"> 
         <span class="name">collect</span>
         <span class="tparams">[<span name="B">B</span>]</span>
-        <span class="params">(<span name="pf">pf: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>, B]</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>
+        <span class="params">(<span name="pf">pf: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>, B]</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd><dt>Annotations</dt><dd>
@@ -287,7 +287,7 @@
       <span class="symbol"> 
         <span class="name">collectFirst</span>
         <span class="tparams">[<span name="B">B</span>]</span>
-        <span class="params">(<span name="pf">pf: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>, B]</span>)</span><span class="result">: <span name="scala.Option" class="extype">Option</span>[B]</span>
+        <span class="params">(<span name="pf">pf: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>, B]</span>)</span><span class="result">: <span name="scala.Option" class="extype">Option</span>[B]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce</dd></dl></div>
@@ -308,7 +308,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">copyToArray</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="xs">xs: <span name="scala.Array" class="extype">Array</span>[B]</span>, <span name="start">start: <span name="scala.Int" class="extype">Int</span></span>, <span name="len">len: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
@@ -319,7 +319,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">copyToArray</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="xs">xs: <span name="scala.Array" class="extype">Array</span>[B]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
@@ -330,7 +330,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">copyToArray</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="xs">xs: <span name="scala.Array" class="extype">Array</span>[B]</span>, <span name="start">start: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
@@ -341,7 +341,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">copyToBuffer</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="dest">dest: <span name="scala.collection.mutable.Buffer" class="extype">Buffer</span>[B]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
@@ -353,7 +353,7 @@
       <span class="symbol"> 
         <span class="name">count</span>
         
-        <span class="params">(<span name="p">p: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+        <span class="params">(<span name="p">p: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -364,7 +364,7 @@
       <span class="symbol"> 
         <span class="name">drop</span>
         
-        <span class="params">(<span name="n">n: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="params">(<span name="n">n: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -375,7 +375,7 @@
       <span class="symbol"> 
         <span class="name">dropWhile</span>
         
-        <span class="params">(<span name="p">p: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="params">(<span name="p">p: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -386,7 +386,7 @@
       <span class="symbol"> 
         <span class="name">duplicate</span>
         
-        <span class="result">: (<span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>], <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>])</span>
+        <span class="result">: (<span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>], <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>])</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -419,7 +419,7 @@
       <span class="symbol"> 
         <span class="name">exists</span>
         
-        <span class="params">(<span name="p">p: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+        <span class="params">(<span name="p">p: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator → TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -430,7 +430,7 @@
       <span class="symbol"> 
         <span class="name">filter</span>
         
-        <span class="params">(<span name="p">p: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="params">(<span name="p">p: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -441,7 +441,7 @@
       <span class="symbol"> 
         <span class="name">filterNot</span>
         
-        <span class="params">(<span name="p">p: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="params">(<span name="p">p: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -466,7 +466,7 @@
       <span class="symbol"> 
         <span class="name">find</span>
         
-        <span class="params">(<span name="p">p: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Option" class="extype">Option</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="params">(<span name="p">p: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Option" class="extype">Option</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator → TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -477,7 +477,7 @@
       <span class="symbol"> 
         <span class="name">flatMap</span>
         <span class="tparams">[<span name="B">B</span>]</span>
-        <span class="params">(<span name="f">f: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ <span name="scala.collection.GenTraversableOnce" class="extype">GenTraversableOnce</span>[B]</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>
+        <span class="params">(<span name="f">f: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ <span name="scala.collection.GenTraversableOnce" class="extype">GenTraversableOnce</span>[B]</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -487,7 +487,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">fold</span>
-        <span class="tparams">[<span name="A1">A1 &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="A1">A1 &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="z">z: A1</span>)</span><span class="params">(<span name="op">op: (A1, A1) ⇒ A1</span>)</span><span class="result">: A1</span>
       </span>
       </h4>
@@ -499,7 +499,7 @@
       <span class="symbol"> 
         <span class="name">foldLeft</span>
         <span class="tparams">[<span name="B">B</span>]</span>
-        <span class="params">(<span name="z">z: B</span>)</span><span class="params">(<span name="op">op: (B, <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ B</span>)</span><span class="result">: B</span>
+        <span class="params">(<span name="z">z: B</span>)</span><span class="params">(<span name="op">op: (B, <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ B</span>)</span><span class="result">: B</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -510,7 +510,7 @@
       <span class="symbol"> 
         <span class="name">foldRight</span>
         <span class="tparams">[<span name="B">B</span>]</span>
-        <span class="params">(<span name="z">z: B</span>)</span><span class="params">(<span name="op">op: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>, B) ⇒ B</span>)</span><span class="result">: B</span>
+        <span class="params">(<span name="z">z: B</span>)</span><span class="params">(<span name="op">op: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>, B) ⇒ B</span>)</span><span class="result">: B</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -521,7 +521,7 @@
       <span class="symbol"> 
         <span class="name">forall</span>
         
-        <span class="params">(<span name="p">p: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+        <span class="params">(<span name="p">p: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator → TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -532,7 +532,7 @@
       <span class="symbol"> 
         <span class="name">foreach</span>
         <span class="tparams">[<span name="U">U</span>]</span>
-        <span class="params">(<span name="f">f: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ U</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="f">f: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ U</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator → TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -548,13 +548,13 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
     </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.CursorBasedPartitionIterator#getRecordsFromFuture" data-isabs="false">
-      <a id="getRecordsFromFuture(MessageFuture):IndexedSeq[Record]"></a>
+      <a id="getRecordsFromFuture(MessageFuture[StorageMessage]):IndexedSeq[Record]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">getRecordsFromFuture</span>
         
-        <span class="params">(<span name="ftch">ftch: <span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span></span>)</span><span class="result">: IndexedSeq[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="params">(<span name="ftch">ftch: <span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]</span>)</span><span class="result">: IndexedSeq[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.CursorBasedPartitionIterator" class="extype" href="">CursorBasedPartitionIterator</a> → <a name="edu.berkeley.cs.scads.storage.FutureBasedIterator" class="extype" href="FutureBasedIterator.html">FutureBasedIterator</a></dd></dl></div>
@@ -564,7 +564,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">grouped</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="size">size: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.collection.Iterator.GroupedIterator" class="extype">GroupedIterator</span>[B]</span>
       </span>
       </h4>
@@ -608,7 +608,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">indexOf</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="elem">elem: B</span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
@@ -620,7 +620,7 @@
       <span class="symbol"> 
         <span class="name">indexWhere</span>
         
-        <span class="params">(<span name="p">p: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+        <span class="params">(<span name="p">p: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -658,13 +658,13 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator → GenTraversableOnce</dd></dl></div>
     </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.CursorBasedPartitionIterator#issueNextRequest" data-isabs="false">
-      <a id="issueNextRequest():MessageFuture"></a>
+      <a id="issueNextRequest():MessageFuture[StorageMessage]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">issueNextRequest</span>
         
-        <span class="params">()</span><span class="result">: <span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span></span>
+        <span class="params">()</span><span class="result">: <span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.CursorBasedPartitionIterator" class="extype" href="">CursorBasedPartitionIterator</a> → <a name="edu.berkeley.cs.scads.storage.FutureBasedIterator" class="extype" href="FutureBasedIterator.html">FutureBasedIterator</a></dd></dl></div>
@@ -686,7 +686,7 @@
       <span class="symbol"> 
         <span class="name">map</span>
         <span class="tparams">[<span name="B">B</span>]</span>
-        <span class="params">(<span name="f">f: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ B</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>
+        <span class="params">(<span name="f">f: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ B</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -696,8 +696,8 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">max</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
-        <span class="params">(<span class="implicit">implicit </span><span name="cmp">cmp: Ordering[B]</span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
+        <span class="params">(<span class="implicit">implicit </span><span name="cmp">cmp: Ordering[B]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -708,7 +708,7 @@
       <span class="symbol"> 
         <span class="name">maxBy</span>
         <span class="tparams">[<span name="B">B</span>]</span>
-        <span class="params">(<span name="f">f: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ B</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="cmp">cmp: Ordering[B]</span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>
+        <span class="params">(<span name="f">f: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ B</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="cmp">cmp: Ordering[B]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -718,8 +718,8 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">min</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
-        <span class="params">(<span class="implicit">implicit </span><span name="cmp">cmp: Ordering[B]</span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
+        <span class="params">(<span class="implicit">implicit </span><span name="cmp">cmp: Ordering[B]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -730,7 +730,7 @@
       <span class="symbol"> 
         <span class="name">minBy</span>
         <span class="tparams">[<span name="B">B</span>]</span>
-        <span class="params">(<span name="f">f: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ B</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="cmp">cmp: Ordering[B]</span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>
+        <span class="params">(<span name="f">f: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ B</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="cmp">cmp: Ordering[B]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -785,7 +785,7 @@
       <span class="symbol"> 
         <span class="name">next</span>
         
-        <span class="params">()</span><span class="result">: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>
+        <span class="params">()</span><span class="result">: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.FutureBasedIterator" class="extype" href="FutureBasedIterator.html">FutureBasedIterator</a> → Iterator</dd></dl></div>
@@ -828,7 +828,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">padTo</span>
-        <span class="tparams">[<span name="A1">A1 &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="A1">A1 &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="len">len: <span name="scala.Int" class="extype">Int</span></span>, <span name="elem">elem: A1</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[A1]</span>
       </span>
       </h4>
@@ -840,7 +840,7 @@
       <span class="symbol"> 
         <span class="name">partition</span>
         
-        <span class="params">(<span name="p">p: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: (<span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>], <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>])</span>
+        <span class="params">(<span name="p">p: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: (<span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>], <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>])</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -850,7 +850,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">patch</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="from">from: <span name="scala.Int" class="extype">Int</span></span>, <span name="patchElems">patchElems: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>, <span name="replaced">replaced: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>
       </span>
       </h4>
@@ -861,7 +861,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">product</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span class="implicit">implicit </span><span name="num">num: Numeric[B]</span>)</span><span class="result">: B</span>
       </span>
       </h4>
@@ -872,7 +872,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">reduce</span>
-        <span class="tparams">[<span name="A1">A1 &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="A1">A1 &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="op">op: (A1, A1) ⇒ A1</span>)</span><span class="result">: A1</span>
       </span>
       </h4>
@@ -883,8 +883,8 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">reduceLeft</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
-        <span class="params">(<span name="op">op: (B, <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ B</span>)</span><span class="result">: B</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
+        <span class="params">(<span name="op">op: (B, <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ B</span>)</span><span class="result">: B</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce</dd></dl></div>
@@ -894,8 +894,8 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">reduceLeftOption</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
-        <span class="params">(<span name="op">op: (B, <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ B</span>)</span><span class="result">: <span name="scala.Option" class="extype">Option</span>[B]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
+        <span class="params">(<span name="op">op: (B, <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ B</span>)</span><span class="result">: <span name="scala.Option" class="extype">Option</span>[B]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -905,7 +905,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">reduceOption</span>
-        <span class="tparams">[<span name="A1">A1 &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="A1">A1 &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="op">op: (A1, A1) ⇒ A1</span>)</span><span class="result">: <span name="scala.Option" class="extype">Option</span>[A1]</span>
       </span>
       </h4>
@@ -916,8 +916,8 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">reduceRight</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
-        <span class="params">(<span name="op">op: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>, B) ⇒ B</span>)</span><span class="result">: B</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
+        <span class="params">(<span name="op">op: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>, B) ⇒ B</span>)</span><span class="result">: B</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -927,8 +927,8 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">reduceRightOption</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
-        <span class="params">(<span name="op">op: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>, B) ⇒ B</span>)</span><span class="result">: <span name="scala.Option" class="extype">Option</span>[B]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
+        <span class="params">(<span name="op">op: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>, B) ⇒ B</span>)</span><span class="result">: <span name="scala.Option" class="extype">Option</span>[B]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -939,7 +939,7 @@
       <span class="symbol"> 
         <span class="name">reversed</span>
         
-        <span class="result">: List[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="result">: List[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[this] </dd><dt>Definition Classes</dt><dd>TraversableOnce</dd></dl></div>
@@ -961,7 +961,7 @@
       <span class="symbol"> 
         <span class="name">scanLeft</span>
         <span class="tparams">[<span name="B">B</span>]</span>
-        <span class="params">(<span name="z">z: B</span>)</span><span class="params">(<span name="op">op: (B, <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ B</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>
+        <span class="params">(<span name="z">z: B</span>)</span><span class="params">(<span name="op">op: (B, <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ B</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -972,7 +972,7 @@
       <span class="symbol"> 
         <span class="name">scanRight</span>
         <span class="tparams">[<span name="B">B</span>]</span>
-        <span class="params">(<span name="z">z: B</span>)</span><span class="params">(<span name="op">op: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>, B) ⇒ B</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>
+        <span class="params">(<span name="z">z: B</span>)</span><span class="params">(<span name="op">op: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>, B) ⇒ B</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -983,7 +983,7 @@
       <span class="symbol"> 
         <span class="name">seq</span>
         
-        <span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator → TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -1005,7 +1005,7 @@
       <span class="symbol"> 
         <span class="name">slice</span>
         
-        <span class="params">(<span name="from">from: <span name="scala.Int" class="extype">Int</span></span>, <span name="until">until: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="params">(<span name="from">from: <span name="scala.Int" class="extype">Int</span></span>, <span name="until">until: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -1015,7 +1015,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">sliding</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="size">size: <span name="scala.Int" class="extype">Int</span></span>, <span name="step">step: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.collection.Iterator.GroupedIterator" class="extype">GroupedIterator</span>[B]</span>
       </span>
       </h4>
@@ -1027,7 +1027,7 @@
       <span class="symbol"> 
         <span class="name">span</span>
         
-        <span class="params">(<span name="p">p: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: (<span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>], <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>])</span>
+        <span class="params">(<span name="p">p: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: (<span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>], <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>])</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -1037,7 +1037,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">sum</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span class="implicit">implicit </span><span name="num">num: Numeric[B]</span>)</span><span class="result">: B</span>
       </span>
       </h4>
@@ -1060,7 +1060,7 @@
       <span class="symbol"> 
         <span class="name">take</span>
         
-        <span class="params">(<span name="n">n: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="params">(<span name="n">n: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -1071,7 +1071,7 @@
       <span class="symbol"> 
         <span class="name">takeWhile</span>
         
-        <span class="params">(<span name="p">p: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="params">(<span name="p">p: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -1081,7 +1081,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">toArray</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: ClassManifest[B]</span>)</span><span class="result">: <span name="scala.Array" class="extype">Array</span>[B]</span>
       </span>
       </h4>
@@ -1092,7 +1092,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">toBuffer</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="result">: <span name="scala.collection.mutable.Buffer" class="extype">Buffer</span>[B]</span>
       </span>
       </h4>
@@ -1103,7 +1103,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">toIndexedSeq</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="result">: <span name="scala.collection.immutable.IndexedSeq" class="extype">IndexedSeq</span>[B]</span>
       </span>
       </h4>
@@ -1115,7 +1115,7 @@
       <span class="symbol"> 
         <span class="name">toIterable</span>
         
-        <span class="result">: <span name="scala.collection.Iterable" class="extype">Iterable</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="result">: <span name="scala.collection.Iterable" class="extype">Iterable</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -1126,7 +1126,7 @@
       <span class="symbol"> 
         <span class="name">toIterator</span>
         
-        <span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator → GenTraversableOnce</dd></dl></div>
@@ -1137,7 +1137,7 @@
       <span class="symbol"> 
         <span class="name">toList</span>
         
-        <span class="result">: List[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="result">: List[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -1148,7 +1148,7 @@
       <span class="symbol"> 
         <span class="name">toMap</span>
         <span class="tparams">[<span name="T">T</span>, <span name="U">U</span>]</span>
-        <span class="params">(<span class="implicit">implicit </span><span name="ev">ev: <span name="scala.Predef.&lt;:&lt;" class="extype">&lt;:&lt;</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>, (T, U)]</span>)</span><span class="result">: <span name="scala.collection.immutable.Map" class="extype">Map</span>[T, U]</span>
+        <span class="params">(<span class="implicit">implicit </span><span name="ev">ev: <span name="scala.Predef.&lt;:&lt;" class="extype">&lt;:&lt;</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>, (T, U)]</span>)</span><span class="result">: <span name="scala.collection.immutable.Map" class="extype">Map</span>[T, U]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -1159,7 +1159,7 @@
       <span class="symbol"> 
         <span class="name">toSeq</span>
         
-        <span class="result">: <span name="scala.collection.Seq" class="extype">Seq</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="result">: <span name="scala.collection.Seq" class="extype">Seq</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -1169,7 +1169,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">toSet</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="result">: <span name="scala.collection.immutable.Set" class="extype">Set</span>[B]</span>
       </span>
       </h4>
@@ -1181,7 +1181,7 @@
       <span class="symbol"> 
         <span class="name">toStream</span>
         
-        <span class="result">: <span name="scala.collection.immutable.Stream" class="extype">Stream</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="result">: <span name="scala.collection.immutable.Stream" class="extype">Stream</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator → GenTraversableOnce</dd></dl></div>
@@ -1203,7 +1203,7 @@
       <span class="symbol"> 
         <span class="name">toTraversable</span>
         
-        <span class="result">: <span name="scala.collection.Traversable" class="extype">Traversable</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="result">: <span name="scala.collection.Traversable" class="extype">Traversable</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator → TraversableOnce → GenTraversableOnce</dd></dl></div>
@@ -1256,7 +1256,7 @@
       <span class="symbol"> 
         <span class="name">withFilter</span>
         
-        <span class="params">(<span name="p">p: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="params">(<span name="p">p: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -1267,7 +1267,7 @@
       <span class="symbol"> 
         <span class="name">zip</span>
         <span class="tparams">[<span name="B">B</span>]</span>
-        <span class="params">(<span name="that">that: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[(<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>, B)]</span>
+        <span class="params">(<span name="that">that: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[(<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>, B)]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -1277,7 +1277,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">zipAll</span>
-        <span class="tparams">[<span name="B">B</span>, <span name="A1">A1 &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>, <span name="B1">B1 &gt;: B</span>]</span>
+        <span class="tparams">[<span name="B">B</span>, <span name="A1">A1 &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>, <span name="B1">B1 &gt;: B</span>]</span>
         <span class="params">(<span name="that">that: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>, <span name="thisElem">thisElem: A1</span>, <span name="thatElem">thatElem: B1</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[(A1, B1)]</span>
       </span>
       </h4>
@@ -1289,7 +1289,7 @@
       <span class="symbol"> 
         <span class="name">zipWithIndex</span>
         
-        <span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[(<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>, <span name="scala.Int" class="extype">Int</span>)] { ... /* 2 definitions in type refinement */ }</span>
+        <span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[(<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>, <span name="scala.Int" class="extype">Int</span>)] { ... /* 2 definitions in type refinement */ }</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd></dl></div>
@@ -1304,7 +1304,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name deprecated">append</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="that">that: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>)</span><span class="result">: <span name="scala.collection.Iterator" class="extype">Iterator</span>[B]</span>
       </span>
       </h4>
@@ -1319,7 +1319,7 @@
       <span class="symbol"> 
         <span class="name deprecated">counted</span>
         
-        <span class="result">: <span name="scala.CountedIterator" class="extype">CountedIterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="result">: <span name="scala.CountedIterator" class="extype">CountedIterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd><dt>Annotations</dt><dd>
@@ -1333,7 +1333,7 @@
       <span class="symbol"> 
         <span class="name deprecated">findIndexOf</span>
         
-        <span class="params">(<span name="p">p: (<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+        <span class="params">(<span name="p">p: (<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Iterator</dd><dt>Annotations</dt><dd>
@@ -1346,7 +1346,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name deprecated">readInto</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="xs">xs: <span name="scala.Array" class="extype">Array</span>[B]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
@@ -1360,7 +1360,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name deprecated">readInto</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="xs">xs: <span name="scala.Array" class="extype">Array</span>[B]</span>, <span name="start">start: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
@@ -1374,7 +1374,7 @@
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name deprecated">readInto</span>
-        <span class="tparams">[<span name="B">B &gt;: <span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span></span>]</span>
+        <span class="tparams">[<span name="B">B &gt;: <a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a></span>]</span>
         <span class="params">(<span name="xs">xs: <span name="scala.Array" class="extype">Array</span>[B]</span>, <span name="start">start: <span name="scala.Int" class="extype">Int</span></span>, <span name="sz">sz: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
@@ -1388,11 +1388,11 @@
         <div name="edu.berkeley.cs.scads.storage.FutureBasedIterator" class="parent">
               <h3>Inherited from <a name="edu.berkeley.cs.scads.storage.FutureBasedIterator" class="extype" href="FutureBasedIterator.html">FutureBasedIterator</a></h3>
             </div><div name="scala.collection.Iterator" class="parent">
-              <h3>Inherited from <span name="scala.collection.Iterator" class="extype">Iterator</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</h3>
+              <h3>Inherited from <span name="scala.collection.Iterator" class="extype">Iterator</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</h3>
             </div><div name="scala.collection.TraversableOnce" class="parent">
-              <h3>Inherited from <span name="scala.collection.TraversableOnce" class="extype">TraversableOnce</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</h3>
+              <h3>Inherited from <span name="scala.collection.TraversableOnce" class="extype">TraversableOnce</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</h3>
             </div><div name="scala.collection.GenTraversableOnce" class="parent">
-              <h3>Inherited from <span name="scala.collection.GenTraversableOnce" class="extype">GenTraversableOnce</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</h3>
+              <h3>Inherited from <span name="scala.collection.GenTraversableOnce" class="extype">GenTraversableOnce</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</h3>
             </div><div name="scala.AnyRef" class="parent">
               <h3>Inherited from AnyRef</h3>
             </div><div name="scala.Any" class="parent">

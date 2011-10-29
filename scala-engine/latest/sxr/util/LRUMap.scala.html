@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>util/LRUMap.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.util
+
+<span class="keyword">private</span><span class="delimiter">[</span>util<span class="delimiter">]</span> <span class="keyword">trait</span> <a title="trait LinkedListElem[T1, T2] extends java.lang.Object with ScalaObject" id="10576">LinkedListElem</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: Any" id="10577">T1</a>, <a title="&gt;: Nothing &lt;: Any" id="10578">T2</a><span class="delimiter">]</span> <span title="ScalaObject" class="delimiter">{</span>
+  <span class="keyword">private</span><span class="delimiter">[</span>util<span class="delimiter">]</span> <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]" id="102220">_prev</a>: <a href="#10576" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">LinkedListElem</a><span class="delimiter">[</span>T1, T2<span class="delimiter">]</span> = <span title="Null(null)" class="keyword">null</span>
+  <span class="keyword">private</span><span class="delimiter">[</span>util<span class="delimiter">]</span> <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]" id="102223">_next</a>: <a href="#10576" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">LinkedListElem</a><span class="delimiter">[</span>T1, T2<span class="delimiter">]</span> = <span title="Null(null)" class="keyword">null</span>
+  <span class="keyword">private</span><span class="delimiter">[</span>util<span class="delimiter">]</span> <span class="keyword">def</span> <a title="=&gt; T1" id="102225">value1</a>: <a href="#10577" title="T1">T1</a>
+  <span class="keyword">private</span><span class="delimiter">[</span>util<span class="delimiter">]</span> <span class="keyword">var</span> <a title="T2" id="102227">value2</a>: <a href="#10578" title="T2">T2</a> = _
+
+
+  <span class="keyword">private</span><span class="delimiter">[</span>util<span class="delimiter">]</span> <span class="keyword">def</span> <a title="=&gt; Unit" id="102229">remove</a> <span class="delimiter">{</span>
+    <a href="#102220" title="=&gt; edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">_prev</a>.<a href="#102223" title="(x$1: edu.berkeley.cs.scads.util.LinkedListElem[T1,T2])Unit">_next</a> = <a href="#102223" title="=&gt; edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">_next</a>
+    <a href="#102223" title="=&gt; edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">_next</a>.<a href="#102220" title="(x$1: edu.berkeley.cs.scads.util.LinkedListElem[T1,T2])Unit">_prev</a> = <a href="#102220" title="=&gt; edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">_prev</a>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">private</span><span class="delimiter">[</span>util<span class="delimiter">]</span> <span class="keyword">def</span> <a title="(what: edu.berkeley.cs.scads.util.LinkedListElem[T1,T2])Unit" id="102230">addAtHead</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]" id="111704">what</a>: <a href="#10576" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">LinkedListElem</a><span class="delimiter">[</span>T1, T2<span class="delimiter">]</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+    <a href="#111704" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">what</a>.<a href="#102223" title="(x$1: edu.berkeley.cs.scads.util.LinkedListElem[T1,T2])Unit">_next</a> = <a href="#102223" title="=&gt; edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">_next</a>
+    <a href="#111704" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">what</a>.<a href="#102220" title="(x$1: edu.berkeley.cs.scads.util.LinkedListElem[T1,T2])Unit">_prev</a> = <a href="#10576" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]" class="keyword">this</a>
+    <a href="#102223" title="=&gt; edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">_next</a>.<a href="#102220" title="(x$1: edu.berkeley.cs.scads.util.LinkedListElem[T1,T2])Unit">_prev</a> = <a href="#111704" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">what</a>
+    <a href="#10576" title="LinkedListElem.this.type" class="keyword">this</a>.<a href="#102223" title="(x$1: edu.berkeley.cs.scads.util.LinkedListElem[T1,T2])Unit">_next</a> = <a href="#111704" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">what</a>
+    <a href="#111704" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">what</a>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">private</span><span class="delimiter">[</span>util<span class="delimiter">]</span> <span class="keyword">def</span> <a title="(what: edu.berkeley.cs.scads.util.LinkedListElem[T1,T2])Unit" id="102231">addAtTail</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]" id="111706">what</a>: <a href="#10576" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">LinkedListElem</a><span class="delimiter">[</span>T1, T2<span class="delimiter">]</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+    <a href="#111706" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">what</a>.<a href="#102220" title="(x$1: edu.berkeley.cs.scads.util.LinkedListElem[T1,T2])Unit">_prev</a> = <a href="#102220" title="=&gt; edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">_prev</a>
+    <a href="#111706" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">what</a>.<a href="#102223" title="(x$1: edu.berkeley.cs.scads.util.LinkedListElem[T1,T2])Unit">_next</a> = <a href="#10576" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]" class="keyword">this</a>
+    <a href="#102220" title="=&gt; edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">_prev</a>.<a href="#102223" title="(x$1: edu.berkeley.cs.scads.util.LinkedListElem[T1,T2])Unit">_next</a> = <a href="#111706" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">what</a>
+    <a href="#10576" title="LinkedListElem.this.type" class="keyword">this</a>.<a href="#102220" title="(x$1: edu.berkeley.cs.scads.util.LinkedListElem[T1,T2])Unit">_prev</a> = <a href="#111706" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">what</a>
+    <a href="#111706" title="edu.berkeley.cs.scads.util.LinkedListElem[T1,T2]">what</a>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+
+
+<span class="comment">/**
+ *
+ */</span>
+<span class="keyword">class</span> <a title="class LRUMap[K, V] extends java.lang.Object with edu.berkeley.cs.scads.util.LinkedListElem[K,V] with ScalaObject" id="10579">LRUMap</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: Any" id="10580">K</a>, <a title="&gt;: Nothing &lt;: Any" id="10581">V</a><span class="delimiter">]</span><a href="#10579" title="ScalaObject" class="delimiter">(</a><a title="Int" id="102273">initMaxSize</a>: <span title="Int">Int</span>, <a title="Option[Float]" id="102274">loadFactor</a>: <span title="Option[Float]">Option</span><span class="delimiter">[</span>Float<span class="delimiter">]</span>, <a title="(K, V) =&gt; Unit*" id="102275">expiredFunc</a>: <span class="delimiter">(</span><span class="delimiter">(</span>K, V<span class="delimiter">)</span> =&gt; Unit<span class="delimiter">)</span>*<span class="delimiter">)</span> <span class="keyword">extends</span> <a href="#10576" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">LinkedListElem</a><span class="delimiter">[</span>K, V<span class="delimiter">]</span> <span class="delimiter">{</span>
+  <span class="keyword">import</span> java.util.HashMap
+
+  <span class="keyword">def</span> <a title="(size: Int)edu.berkeley.cs.scads.util.LRUMap[K,V]" id="102240" class="keyword">this</a><span class="delimiter">(</span><a title="Int" id="102272">size</a>: <span title="Int">Int</span><span class="delimiter">)</span> = <a href="#10579" title="LRUMap.this.type" class="keyword">this</a><span class="delimiter">(</span><a href="#102272" title="Int">size</a>, <span title="object None">None</span><span class="delimiter">)</span>
+
+  <span class="keyword">private</span> <span class="keyword">var</span> <a title="Int" id="102242">_maxSize</a> = <a href="#102273" title="Int">initMaxSize</a>
+
+  <span class="keyword">def</span> <a title="=&gt; Int" id="102244">maxSize</a> = <a href="#102242" title="=&gt; Int">_maxSize</a>
+
+  <span class="keyword">def</span> <a title="(newMaxSize: Int)Unit" id="102245">updateMaxSize</a><span class="delimiter">(</span><a title="Int" id="111727">newMaxSize</a>: <span title="Int">Int</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+    <span class="keyword">val</span> <a title="Int" id="111729">oldMaxSize</a> = <a href="#102242" title="=&gt; Int">_maxSize</a>
+    <a href="#102242" title="(x$1: Int)Unit">_maxSize</a> = <a href="#111727" title="Int">newMaxSize</a>
+
+    <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><a href="#111727" title="Int">newMaxSize</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#111729" title="Int">oldMaxSize</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+      <a href="#102255" title="()Unit">doRemoveIfTooMany</a><span class="delimiter">(</span><span class="delimiter">)</span>
+    <span class="delimiter">}</span>
+  <span class="delimiter">}</span>
+
+  <a href="#102220" title="(x$1: edu.berkeley.cs.scads.util.LinkedListElem[K,V])Unit">_prev</a> = <a href="#10579" title="edu.berkeley.cs.scads.util.LRUMap[K,V]" class="keyword">this</a>
+  <a href="#102223" title="(x$1: edu.berkeley.cs.scads.util.LinkedListElem[K,V])Unit">_next</a> = <a href="#10579" title="edu.berkeley.cs.scads.util.LRUMap[K,V]" class="keyword">this</a>
+
+  <span class="keyword">private</span><span class="delimiter">[</span>util<span class="delimiter">]</span> <span class="keyword">def</span> <a title="=&gt; K" id="102246">value1</a>: <a href="#10580" title="K">K</a> = <span title="Nothing" class="keyword">throw</span> <span title="(x$1: java.lang.String)java.lang.NullPointerException" class="keyword">new</span> <span title="java.lang.NullPointerException">NullPointerException</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Foo&quot;)" class="string">&quot;Foo&quot;</span><span class="delimiter">)</span>
+
+
+  <span class="keyword">private</span><span class="delimiter">[</span><span class="keyword">this</span><span class="delimiter">]</span> <span class="keyword">val</span> <a title="java.util.HashMap[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]" id="102247">localMap</a> = <span title="java.util.HashMap[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]" class="keyword">new</span> <span title="java.util.HashMap[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]">HashMap</span><span class="delimiter">[</span>K, LinkedListElem<span class="delimiter">[</span>K, V<span class="delimiter">]</span><span class="delimiter">]</span><span class="delimiter">(</span><a href="#102244" title="=&gt; Int">maxSize</a> <span title="(x: Int)Int">/</span> <span title="Int(4)" class="int">4</span>, <a href="#102274" title="Option[Float]">loadFactor</a>.<span title="(default: =&gt; Float)Float">getOrElse</span><span class="delimiter">(</span><span title="Float(0.75)" class="float">0.75f</span><span class="delimiter">)</span><span class="delimiter">)</span>
+
+  <span class="keyword">def</span> <a title="(key: K)Option[V]" id="102248">get</a><span class="delimiter">(</span><a title="K" id="102307">key</a>: <a href="#10580" title="K">K</a><span class="delimiter">)</span>: <span title="Option[V]">Option</span><span class="delimiter">[</span>V<span class="delimiter">]</span> = <a href="#102247" title="java.util.HashMap[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]">localMap</a>.<span title="(x$1: Any)edu.berkeley.cs.scads.util.LinkedListElem[K,V]">get</span><span class="delimiter">(</span><a href="#102307" title="K">key</a><span class="delimiter">)</span> <span title="Option[V]" class="keyword">match</span> <span class="delimiter">{</span>
+    <span class="keyword">case</span> <span title="None.type" class="keyword">null</span> =&gt; <span title="object None">None</span>
+    <span class="keyword">case</span> <a title="Some[V]" id="111981">v</a> =&gt;
+      <a href="#111981" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">v</a>.<a href="#102229" title="=&gt; Unit">remove</a>
+    <a href="#102230" title="(what: edu.berkeley.cs.scads.util.LinkedListElem[K,V])Unit">addAtHead</a><span class="delimiter">(</span><a href="#111981" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">v</a><span class="delimiter">)</span>
+    <span title="(x: V)Some[V]">Some</span><span class="delimiter">(</span><a href="#111981" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">v</a>.<a href="#102227" title="=&gt; V">value2</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="(key: K)V" id="102249">apply</a><span class="delimiter">(</span><a title="K" id="111986">key</a>: <a href="#10580" title="K">K</a><span class="delimiter">)</span> = <a href="#102248" title="(key: K)Option[V]">get</a><span class="delimiter">(</span><a href="#111986" title="K">key</a><span class="delimiter">)</span>.<span title="=&gt; V">get</span>
+
+  <span class="keyword">def</span> <a title="(key: K)Boolean" id="102250">contains</a><span class="delimiter">(</span><a title="K" id="111989">key</a>: <a href="#10580" title="K">K</a><span class="delimiter">)</span>: <span title="Boolean">Boolean</span> = <a href="#102247" title="java.util.HashMap[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]">localMap</a>.<span title="(x$1: Any)Boolean">containsKey</span><span class="delimiter">(</span><a href="#111989" title="K">key</a><span class="delimiter">)</span>
+
+  <span class="keyword">def</span> <a title="(key: K)Unit" id="102251">-</a><span class="delimiter">(</span><a title="K" id="111991">key</a>: <a href="#10580" title="K">K</a><span class="delimiter">)</span> = <a href="#102252" title="(key: K)Unit">remove</a><span class="delimiter">(</span><a href="#111991" title="K">key</a><span class="delimiter">)</span>
+
+  <span class="keyword">def</span> <a title="(key: K)Unit" id="102252">remove</a><span class="delimiter">(</span><a title="K" id="111994">key</a>: <a href="#10580" title="K">K</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+    <a href="#102247" title="java.util.HashMap[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]">localMap</a>.<span title="(x$1: Any)edu.berkeley.cs.scads.util.LinkedListElem[K,V]">get</span><span class="delimiter">(</span><a href="#111994" title="K">key</a><span class="delimiter">)</span> <span title="Unit" class="keyword">match</span> <span class="delimiter">{</span>
+      <span class="keyword">case</span> <span title="Unit" class="keyword">null</span> =&gt;
+	<span class="keyword">case</span> <a title="Unit" id="112000">v</a> =&gt;
+          <a href="#112000" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">v</a>.<a href="#102229" title="=&gt; Unit">remove</a>
+      <a href="#102247" title="java.util.HashMap[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]">localMap</a>.<span title="(x$1: Any)edu.berkeley.cs.scads.util.LinkedListElem[K,V]">remove</span><span title="Unit" class="delimiter">(</span><a href="#111994" title="K">key</a><span class="delimiter">)</span>
+    <span class="delimiter">}</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="(key: K, value: V)Unit" id="102253">update</a><span class="delimiter">(</span><a title="K" id="102318">key</a>: <a href="#10580" title="K">K</a>, <a title="V" id="102319">value</a>: <a href="#10581" title="V">V</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+    <a href="#102247" title="java.util.HashMap[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]">localMap</a>.<span title="(x$1: Any)edu.berkeley.cs.scads.util.LinkedListElem[K,V]">get</span><span class="delimiter">(</span><a href="#102318" title="K">key</a><span class="delimiter">)</span> <span title="Unit" class="keyword">match</span> <span class="delimiter">{</span>
+      <span class="keyword">case</span> <span title="Unit" class="keyword">null</span> =&gt;
+        <span class="keyword">val</span> <a title="what extends java.lang.Object with edu.berkeley.cs.scads.util.LinkedListElem[K,V]" id="112001">what</a> = <a href="#112002" title="java.lang.Object with edu.berkeley.cs.scads.util.LinkedListElem[K,V]" class="keyword">new</a> <a title="anonymous class $anon extends java.lang.Object with edu.berkeley.cs.scads.util.LinkedListElem[K,V]" id="112002">LinkedListElem</a><span class="delimiter">[</span>K, V<span class="delimiter">]</span> <span class="delimiter">{</span><span class="keyword">def</span> <a title="=&gt; K" id="112004">value1</a> = <a href="#102318" title="K">key</a><span class="delimiter">}</span>
+      <a href="#112001" title="what extends java.lang.Object with edu.berkeley.cs.scads.util.LinkedListElem[K,V]">what</a>.<a href="#102227" title="(x$1: V)Unit">value2</a> = <a href="#102319" title="V">value</a>
+      <a href="#102230" title="(what: edu.berkeley.cs.scads.util.LinkedListElem[K,V])Unit">addAtHead</a><span class="delimiter">(</span><a href="#112001" title="what extends java.lang.Object with edu.berkeley.cs.scads.util.LinkedListElem[K,V]">what</a><span class="delimiter">)</span>
+      <a href="#102247" title="java.util.HashMap[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]">localMap</a>.<span title="(x$1: K, x$2: edu.berkeley.cs.scads.util.LinkedListElem[K,V])edu.berkeley.cs.scads.util.LinkedListElem[K,V]">put</span><span class="delimiter">(</span><a href="#102318" title="K">key</a>, <a href="#112001" title="what extends java.lang.Object with edu.berkeley.cs.scads.util.LinkedListElem[K,V]">what</a><span class="delimiter">)</span>
+
+      <a href="#102255" title="()Unit">doRemoveIfTooMany</a><span class="delimiter">(</span><span class="delimiter">)</span>
+
+      <span class="keyword">case</span> <a title="Unit" id="112023">v</a> =&gt;
+        <a href="#112023" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">v</a>.<a href="#102229" title="=&gt; Unit">remove</a>
+      <a href="#102230" title="(what: edu.berkeley.cs.scads.util.LinkedListElem[K,V])Unit">addAtHead</a><span class="delimiter">(</span><a href="#112023" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">v</a><span class="delimiter">)</span>
+      <a href="#112023" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">v</a>.<a href="#102227" title="(x$1: V)Unit">value2</a> = <a href="#102319" title="V">value</a>
+    <span class="delimiter">}</span>
+  <span class="delimiter">}</span>
+
+  <span class="comment">/**
+   * Override this method to implement a test to see if a particular
+   * element can be expired from the cache
+   */</span>
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="(k: K, v: V)Boolean" id="102254">canExpire</a><span class="delimiter">(</span><a title="K" id="102264">k</a>: <a href="#10580" title="K">K</a>, <a title="V" id="102265">v</a>: <a href="#10581" title="V">V</a><span class="delimiter">)</span>: <span title="Boolean">Boolean</span> = <span class="delimiter">{</span>
+    <span title="Boolean(true)" class="keyword">true</span>
+  <span class="delimiter">}</span>
+
+  <span class="comment">/**
+   * A mechanism for expiring elements from cache.  This method
+   * can devolve into O(n ^ 2) if lots of elements can't be
+   * expired
+   */</span>
+  <span class="keyword">private</span> <span class="keyword">def</span> <a title="()Unit" id="102255">doRemoveIfTooMany</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+    <span title="Unit" class="keyword">while</span> <span class="delimiter">(</span><a href="#102247" title="java.util.HashMap[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]">localMap</a>.<span title="()Int">size</span> <span title="(x: Int)Boolean">&gt;</span> <a href="#102244" title="=&gt; Int">maxSize</a><span class="delimiter">)</span> <a href="#112025" title="()Unit" class="delimiter">{</a>
+      <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]" id="112031">toRemove</a> = <a href="#102220" title="=&gt; edu.berkeley.cs.scads.util.LinkedListElem[K,V]">_prev</a>
+      <span title="Unit" class="keyword">while</span> <span class="delimiter">(</span><span title="=&gt; Boolean">!</span><a href="#102254" title="(k: K, v: V)Boolean">canExpire</a><span class="delimiter">(</span><a href="#112031" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">toRemove</a>.<a href="#102225" title="=&gt; K">value1</a>, <a href="#112031" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">toRemove</a>.<a href="#102227" title="=&gt; V">value2</a><span class="delimiter">)</span><span class="delimiter">)</span> <a href="#112032" title="()Unit" class="delimiter">{</a>
+        <a href="#112031" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">toRemove</a> = <a href="#112031" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">toRemove</a>.<a href="#102220" title="=&gt; edu.berkeley.cs.scads.util.LinkedListElem[K,V]">_prev</a>
+        <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><a href="#112031" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">toRemove</a> <span title="(x$1: AnyRef)Boolean">eq</span> <a href="#10579" title="edu.berkeley.cs.scads.util.LRUMap[K,V]" class="keyword">this</a><span class="delimiter">)</span> <span title="Nothing" class="keyword">return</span>
+      <span class="delimiter">}</span>
+      <a href="#112031" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">toRemove</a>.<a href="#102229" title="=&gt; Unit">remove</a>
+      <a href="#102247" title="java.util.HashMap[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]">localMap</a>.<span title="(x$1: Any)edu.berkeley.cs.scads.util.LinkedListElem[K,V]">remove</span><span class="delimiter">(</span><a href="#112031" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">toRemove</a>.<a href="#102225" title="=&gt; K">value1</a><span class="delimiter">)</span>
+      <a href="#102256" title="(key: K, value: V)Unit">expired</a><span class="delimiter">(</span><a href="#112031" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">toRemove</a>.<a href="#102225" title="=&gt; K">value1</a>, <a href="#112031" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">toRemove</a>.<a href="#102227" title="=&gt; V">value2</a><span class="delimiter">)</span>
+      <a href="#102275" title="(K, V) =&gt; Unit*">expiredFunc</a>.<span title="(f: (K, V) =&gt; Unit =&gt; Unit)Unit">foreach</span><span class="delimiter">(</span><a href="#112060" title="(v1: K, v2: V)Unit">_</a><span class="delimiter">(</span><a href="#112031" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">toRemove</a>.<a href="#102225" title="=&gt; K">value1</a>, <a href="#112031" title="edu.berkeley.cs.scads.util.LinkedListElem[K,V]">toRemove</a>.<a href="#102227" title="=&gt; V">value2</a><span class="delimiter">)</span><span class="delimiter">)</span>
+    <span class="delimiter">}</span>
+  <span class="delimiter">}</span>
+
+  <span class="comment">/**
+   * Called when a key/value pair is removed
+   */</span>
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="(key: K, value: V)Unit" id="102256">expired</a><span class="delimiter">(</span><a title="K" id="112033">key</a>: <a href="#10580" title="K">K</a>, <a title="V" id="112034">value</a>: <a href="#10581" title="V">V</a><span class="delimiter">)</span> <span title="Unit" class="delimiter">{</span>
+
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="=&gt; List[K]" id="102257">keys</a>: <span title="List[K]">List</span><span class="delimiter">[</span>K<span class="delimiter">]</span> = <a href="#102258" title="=&gt; Iterator[(K, V)]">elements</a>.<span title="=&gt; List[(K, V)]">toList</span>.<span title="(f: (K, V) =&gt; K)(implicit bf: scala.collection.generic.CanBuildFrom[List[(K, V)],K,List[K]])List[K]">map</span><span title="scala.collection.generic.CanBuildFrom[scala.collection.immutable.List.Coll,K,List[K]]" class="delimiter">(</span><a href="#112109" title="(K, V)">_</a>.<span title="=&gt; K">_1</span><span class="delimiter">)</span>
+
+  <span class="keyword">def</span> <a title="=&gt; Iterator[(K, V)]" id="102258">elements</a>: <span title="Iterator[(K, V)]">Iterator</span><span class="delimiter">[</span><span class="delimiter">(</span>K, V<span class="delimiter">)</span><span class="delimiter">]</span> = <span class="delimiter">{</span>
+    <span class="keyword">val</span> <a title="java.util.Iterator[java.util.Map.Entry[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]]" id="112137">set</a> = <a href="#102247" title="java.util.HashMap[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]">localMap</a>.<span title="()java.util.Set[java.util.Map.Entry[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]]">entrySet</span>.<span title="()java.util.Iterator[java.util.Map.Entry[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]]">iterator</span>
+    <a href="#112139" title="java.lang.Object with Iterator[(K, V)]" class="keyword">new</a> <a title="anonymous class $anon extends java.lang.Object with Iterator[(K, V)]" id="112139">Iterator</a><span class="delimiter">[</span><span class="delimiter">(</span>K, V<span class="delimiter">)</span><span class="delimiter">]</span> <span class="delimiter">{</span>
+      <span class="keyword">def</span> <a title="=&gt; Boolean" id="112310">hasNext</a> = <a href="#112137" title="java.util.Iterator[java.util.Map.Entry[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]]">set</a>.<span title="()Boolean">hasNext</span>
+      <span class="keyword">def</span> <a title="()(K, V)" id="112311">next</a>: <span title="(K, V)" class="delimiter">(</span>K, V<span class="delimiter">)</span> = <span class="delimiter">{</span>
+        <span class="keyword">val</span> <a title="java.util.Map.Entry[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]" id="112319">k</a> = <a href="#112137" title="java.util.Iterator[java.util.Map.Entry[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]]">set</a>.<span title="()java.util.Map.Entry[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]">next</span>
+        <span title="(_1: K, _2: V)(K, V)" class="delimiter">(</span><a href="#112319" title="java.util.Map.Entry[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]">k</a>.<span title="()K">getKey</span>, <a href="#112319" title="java.util.Map.Entry[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]">k</a>.<span title="()edu.berkeley.cs.scads.util.LinkedListElem[K,V]">getValue</span>.<a href="#102227" title="=&gt; V">value2</a><span class="delimiter">)</span>
+      <span class="delimiter">}</span>
+    <span class="delimiter">}</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="=&gt; Int" id="102259">size</a>: <span title="Int">Int</span> = <a href="#102247" title="java.util.HashMap[K,edu.berkeley.cs.scads.util.LinkedListElem[K,V]]">localMap</a>.<span title="()Int">size</span>
+
+<span class="delimiter">}</span>
+
+
+
+        
+
+        </pre>
+    </body>
+</html>

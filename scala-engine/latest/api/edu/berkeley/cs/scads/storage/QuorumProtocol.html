@@ -101,7 +101,7 @@
       <span class="symbol"> 
         <a href="QuorumProtocol$OutstandingPut.html"><span class="name">OutstandingPut</span></a>
         
-        <span class="params">(<span name="timestamp">timestamp: Long</span>, <span name="server">server: PartitionService</span>, <span name="sendBuffer">sendBuffer: ArrayBuffer[PutRequest]</span>, <span name="future">future: MessageFuture</span>, <span name="tries">tries: Int</span>)</span><span class="result"> extends Product with Serializable</span>
+        <span class="params">(<span name="timestamp">timestamp: Long</span>, <span name="server">server: PartitionService</span>, <span name="sendBuffer">sendBuffer: ArrayBuffer[PutRequest]</span>, <span name="future">future: MessageFuture[StorageMessage]</span>, <span name="tries">tries: Int</span>)</span><span class="result"> extends Product with Serializable</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
@@ -307,7 +307,7 @@ this information and returns a tuple of (metadata, value)</p></div><dl class="at
       <span class="symbol"> 
         <span class="name">serversForKey</span>
         
-        <span class="params">(<span name="key">key: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: Seq[<span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>]</span>
+        <span class="params">(<span name="key">key: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: Seq[<a name="edu.berkeley.cs.scads.storage.PartitionService" class="extype" href="PartitionService.html">PartitionService</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.KeyRoutable" class="extype" href="KeyRoutable.html">KeyRoutable</a></dd></dl></div>
@@ -563,7 +563,7 @@ is blocked forever. Use with timeouts is recommended.</p><p>NOTE: The returned f
       <span class="symbol"> 
         <span class="name">getAllVersions</span>
         
-        <span class="params">(<span name="key">key: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: Seq[(<span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>, <span name="scala.Option" class="extype">Option</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]])]</span>
+        <span class="params">(<span name="key">key: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: Seq[(<a name="edu.berkeley.cs.scads.storage.PartitionService" class="extype" href="PartitionService.html">PartitionService</a>, <span name="scala.Option" class="extype">Option</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]])]</span>
       </span>
       </h4>
       <p class="shortcomment cmt">Returns all value versions for a given key.</p><div class="fullcomment"><div class="comment cmt"><p>Returns all value versions for a given key. Does not perform read-repair.
@@ -818,7 +818,7 @@ is blocked forever. Use with timeouts is recommended.</p><p>NOTE: The returned f
       <span class="symbol"> 
         <span class="name">readQuorumForKey</span>
         
-        <span class="params">(<span name="key">key: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: (Seq[<span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>], <span name="scala.Int" class="extype">Int</span>)</span>
+        <span class="params">(<span name="key">key: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: (Seq[<a name="edu.berkeley.cs.scads.storage.PartitionService" class="extype" href="PartitionService.html">PartitionService</a>], <span name="scala.Int" class="extype">Int</span>)</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
@@ -829,7 +829,7 @@ is blocked forever. Use with timeouts is recommended.</p><p>NOTE: The returned f
       <span class="symbol"> 
         <span class="name">serverBuffers</span>
         
-        <span class="result">: <span name="scala.collection.mutable.HashMap" class="extype">HashMap</span>[<span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>, <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="edu.berkeley.cs.scads.comm.PutRequest" class="extype">PutRequest</span>]]</span>
+        <span class="result">: <span name="scala.collection.mutable.HashMap" class="extype">HashMap</span>[<a name="edu.berkeley.cs.scads.storage.PartitionService" class="extype" href="PartitionService.html">PartitionService</a>, <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<a name="edu.berkeley.cs.scads.storage.PutRequest" class="extype" href="PutRequest.html">PutRequest</a>]]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
@@ -909,13 +909,13 @@ is blocked forever. Use with timeouts is recommended.</p><p>NOTE: The returned f
               
         </dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ParFuture#waitFor" data-isabs="false">
-      <a id="waitFor[Data, T](Seq[(MessageFuture, Data)],Long)(PartialFunction[(MessageBody, Data), T]):Seq[Either[Throwable, T]]"></a>
+      <a id="waitFor[Data, T](Seq[(MessageFuture[StorageMessage], Data)],Long)(PartialFunction[(StorageMessage, Data), T]):Seq[Either[Throwable, T]]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">waitFor</span>
         <span class="tparams">[<span name="Data">Data</span>, <span name="T">T</span>]</span>
-        <span class="params">(<span name="futures">futures: Seq[(<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>, Data)]</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="params">(<span name="f">f: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[(<span name="edu.berkeley.cs.scads.comm.MessageBody" class="extype">MessageBody</span>, Data), T]</span>)</span><span class="result">: Seq[<span name="scala.Either" class="extype">Either</span>[Throwable, T]]</span>
+        <span class="params">(<span name="futures">futures: Seq[(<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>], Data)]</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="params">(<span name="f">f: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[(<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>, Data), T]</span>)</span><span class="result">: Seq[<span name="scala.Either" class="extype">Either</span>[Throwable, T]]</span>
       </span>
       </h4>
       <p class="shortcomment cmt">Blocks until each future in futures has been collected.</p><div class="fullcomment"><div class="comment cmt"><p>Blocks until each future in futures has been collected. Upon collection,
@@ -923,13 +923,13 @@ the result of the future is applied to f, and the results are collected
 and returned.
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.ParFuture" class="extype" href="ParFuture.html">ParFuture</a></dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ParFuture#waitForAndThrowException" data-isabs="false">
-      <a id="waitForAndThrowException[Data, T](Seq[(MessageFuture, Data)],Long)(PartialFunction[(MessageBody, Data), T]):Seq[T]"></a>
+      <a id="waitForAndThrowException[Data, T](Seq[(MessageFuture[StorageMessage], Data)],Long)(PartialFunction[(StorageMessage, Data), T]):Seq[T]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">waitForAndThrowException</span>
         <span class="tparams">[<span name="Data">Data</span>, <span name="T">T</span>]</span>
-        <span class="params">(<span name="futures">futures: Seq[(<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>, Data)]</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="params">(<span name="f">f: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[(<span name="edu.berkeley.cs.scads.comm.MessageBody" class="extype">MessageBody</span>, Data), T]</span>)</span><span class="result">: Seq[T]</span>
+        <span class="params">(<span name="futures">futures: Seq[(<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>], Data)]</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="params">(<span name="f">f: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[(<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>, Data), T]</span>)</span><span class="result">: Seq[T]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.ParFuture" class="extype" href="ParFuture.html">ParFuture</a></dd></dl></div>
@@ -940,7 +940,7 @@ and returned.
       <span class="symbol"> 
         <span class="name">writeQuorumForKey</span>
         
-        <span class="params">(<span name="key">key: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: (Seq[<span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>], <span name="scala.Int" class="extype">Int</span>)</span>
+        <span class="params">(<span name="key">key: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: (Seq[<a name="edu.berkeley.cs.scads.storage.PartitionService" class="extype" href="PartitionService.html">PartitionService</a>], <span name="scala.Int" class="extype">Int</span>)</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>

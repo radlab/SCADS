@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>transactions/ReadList.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.storage
+<span class="keyword">package</span> transactions
+
+<span class="keyword">import</span> scala.collection.mutable.HashMap
+<span class="keyword">import</span> net.lag.logging.Logger
+
+<span class="comment">// TODO: Worry about thread safety?</span>
+<span class="keyword">class</span> <a title="class ReadList extends java.lang.Object with ScalaObject" id="10185">ReadList</a> <a href="#10185" title="ScalaObject" class="delimiter">{</a>
+  <span class="keyword">val</span> <a title="scala.collection.mutable.HashMap[List[Byte],edu.berkeley.cs.scads.storage.MDCCRecord]" id="90716">readList</a> = <span title="()scala.collection.mutable.HashMap[List[Byte],edu.berkeley.cs.scads.storage.MDCCRecord]" class="keyword">new</span> <span title="scala.collection.mutable.HashMap[List[Byte],edu.berkeley.cs.scads.storage.MDCCRecord]">HashMap</span><span class="delimiter">[</span>List<span class="delimiter">[</span>Byte<span class="delimiter">]</span>, MDCCRecord<span class="delimiter">]</span>
+
+  <span class="keyword">def</span> <a title="(key: Array[Byte], record: edu.berkeley.cs.scads.storage.MDCCRecord)Option[edu.berkeley.cs.scads.storage.MDCCRecord]" id="90718">addRecord</a><span class="delimiter">(</span><a title="Array[Byte]" id="91806">key</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span>, <a title="edu.berkeley.cs.scads.storage.MDCCRecord" id="91807">record</a>: <a href="../Messages.scala.html#9677" title="edu.berkeley.cs.scads.storage.MDCCRecord">MDCCRecord</a><span class="delimiter">)</span> = <span class="delimiter">{</span>
+    <a href="#90716" title="=&gt; scala.collection.mutable.HashMap[List[Byte],edu.berkeley.cs.scads.storage.MDCCRecord]">readList</a>.<span title="(key: List[Byte], value: edu.berkeley.cs.scads.storage.MDCCRecord)Option[edu.berkeley.cs.scads.storage.MDCCRecord]">put</span><span class="delimiter">(</span><a href="#91806" title="implicit scala.Predef.byteArrayOps : (xs: Array[Byte])scala.collection.mutable.ArrayOps[Byte]">key</a>.<span title="=&gt; List[Byte]">toList</span>, <a href="#91807" title="edu.berkeley.cs.scads.storage.MDCCRecord">record</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="(key: Array[Byte])Option[edu.berkeley.cs.scads.storage.MDCCRecord]" id="90719">getRecord</a><span class="delimiter">(</span><a title="Array[Byte]" id="91403">key</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="Option[edu.berkeley.cs.scads.storage.MDCCRecord]">Option</span><span class="delimiter">[</span>MDCCRecord<span class="delimiter">]</span> = <span class="delimiter">{</span>
+    <a href="#90716" title="=&gt; scala.collection.mutable.HashMap[List[Byte],edu.berkeley.cs.scads.storage.MDCCRecord]">readList</a>.<span title="(key: List[Byte])Option[edu.berkeley.cs.scads.storage.MDCCRecord]">get</span><span class="delimiter">(</span><a href="#91403" title="implicit scala.Predef.byteArrayOps : (xs: Array[Byte])scala.collection.mutable.ArrayOps[Byte]">key</a>.<span title="=&gt; List[Byte]">toList</span><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="()Unit" id="90720">print</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+    <span title="(x: Any)Unit">println</span><span class="delimiter">(</span><span title="java.lang.String(&quot;len: &quot;)" class="string">&quot;len: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#90716" title="=&gt; scala.collection.mutable.HashMap[List[Byte],edu.berkeley.cs.scads.storage.MDCCRecord]">readList</a>.<span title="=&gt; Int">size</span><span class="delimiter">)</span>
+    <a href="#90716" title="=&gt; scala.collection.mutable.HashMap[List[Byte],edu.berkeley.cs.scads.storage.MDCCRecord]">readList</a>.<span title="(f: (List[Byte], edu.berkeley.cs.scads.storage.MDCCRecord) =&gt; Unit)Unit">foreach</span><span class="delimiter">(</span><a title="(List[Byte], edu.berkeley.cs.scads.storage.MDCCRecord)" id="92087">x</a> =&gt; <span title="(x: Any)Unit">println</span><span class="delimiter">(</span><a href="#92087" title="(List[Byte], edu.berkeley.cs.scads.storage.MDCCRecord)">x</a><span class="delimiter">)</span><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

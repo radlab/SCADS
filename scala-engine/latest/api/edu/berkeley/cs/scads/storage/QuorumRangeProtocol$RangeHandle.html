@@ -65,7 +65,7 @@ This class is optimized for none/few violations.
       <span class="symbol"> 
         <span class="name">RangeHandle</span>
         
-        <span class="params">(<span name="futures">futures: Seq[<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>]</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span>
+        <span class="params">(<span name="futures">futures: Seq[<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]]</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span>
       </span>
       </h4>
       
@@ -145,13 +145,13 @@ This class is optimized for none/few violations.
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumRangeProtocol.RangeHandle#baseServer" data-isabs="false">
-      <a id="baseServer:RemoteActorProxy"></a>
+      <a id="baseServer:RemoteServiceProxy[StorageMessage]"></a>
       <h4 class="signature">
       <span class="kind">var</span>
       <span class="symbol"> 
         <span class="name">baseServer</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype">RemoteActorProxy</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]</span>
       </span>
       </h4>
       
@@ -228,13 +228,13 @@ This class is optimized for none/few violations.
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.QuorumRangeProtocol.RangeHandle" class="extype" href="">RangeHandle</a> → <a name="edu.berkeley.cs.scads.storage.RequestHandler" class="extype" href="RequestHandler.html">RequestHandler</a></dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumRangeProtocol.RangeHandle#futures" data-isabs="false">
-      <a id="futures:Seq[MessageFuture]"></a>
+      <a id="futures:Seq[MessageFuture[StorageMessage]]"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">futures</span>
         
-        <span class="result">: Seq[<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>]</span>
+        <span class="result">: Seq[<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]]</span>
       </span>
       </h4>
       
@@ -272,13 +272,13 @@ This class is optimized for none/few violations.
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumRangeProtocol.RangeHandle#losers" data-isabs="false">
-      <a id="losers:HashMap[Array[Byte], (Array[Byte], List[RemoteActorProxy])]"></a>
+      <a id="losers:HashMap[Array[Byte], (Array[Byte], List[RemoteServiceProxy[StorageMessage]])]"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">losers</span>
         
-        <span class="result">: <span name="scala.collection.mutable.HashMap" class="extype">HashMap</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>], (<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>], List[<span name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype">RemoteActorProxy</span>])]</span>
+        <span class="result">: <span name="scala.collection.mutable.HashMap" class="extype">HashMap</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>], (<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>], List[<span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]])]</span>
       </span>
       </h4>
       
@@ -327,13 +327,13 @@ This class is optimized for none/few violations.
       </h4>
       
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumRangeProtocol.RangeHandle#responses" data-isabs="false">
-      <a id="responses:LinkedBlockingQueue[MessageFuture]"></a>
+      <a id="responses:LinkedBlockingQueue[MessageFuture[StorageMessage]]"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">responses</span>
         
-        <span class="result">: <span name="java.util.concurrent.LinkedBlockingQueue" class="extype">LinkedBlockingQueue</span>[<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>]</span>
+        <span class="result">: <span name="java.util.concurrent.LinkedBlockingQueue" class="extype">LinkedBlockingQueue</span>[<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]]</span>
       </span>
       </h4>
       
@@ -399,7 +399,7 @@ This class is optimized for none/few violations.
       <span class="symbol"> 
         <span class="name">vote</span>
         
-        <span class="params">(<span name="quorum">quorum: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="params">(<span name="quorum">quorum: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       
@@ -446,13 +446,13 @@ This class is optimized for none/few violations.
               
         </dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumRangeProtocol.RangeHandle#winnerExceptions" data-isabs="false">
-      <a id="winnerExceptions:HashMap[Array[Byte], RemoteActorProxy]"></a>
+      <a id="winnerExceptions:HashMap[Array[Byte], RemoteServiceProxy[StorageMessage]]"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">winnerExceptions</span>
         
-        <span class="result">: <span name="scala.collection.mutable.HashMap" class="extype">HashMap</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>], <span name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype">RemoteActorProxy</span>]</span>
+        <span class="result">: <span name="scala.collection.mutable.HashMap" class="extype">HashMap</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>], <span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]]</span>
       </span>
       </h4>
       
@@ -463,7 +463,7 @@ This class is optimized for none/few violations.
       <span class="symbol"> 
         <span class="name">winners</span>
         
-        <span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       

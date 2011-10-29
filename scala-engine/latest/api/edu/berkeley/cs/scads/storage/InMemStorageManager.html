@@ -138,7 +138,7 @@
       <span class="symbol"> 
         <span class="name">applyAggregate</span>
         
-        <span class="params">(<span name="groups">groups: Seq[String]</span>, <span name="keyType">keyType: String</span>, <span name="valType">valType: String</span>, <span name="filters">filters: Seq[<span name="edu.berkeley.cs.scads.comm.AggFilter" class="extype">AggFilter</span>]</span>, <span name="aggs">aggs: Seq[<span name="edu.berkeley.cs.scads.comm.AggOp" class="extype">AggOp</span>]</span>)</span><span class="result">: Seq[<span name="edu.berkeley.cs.scads.comm.GroupedAgg" class="extype">GroupedAgg</span>]</span>
+        <span class="params">(<span name="groups">groups: Seq[String]</span>, <span name="keyType">keyType: String</span>, <span name="valType">valType: String</span>, <span name="filters">filters: Seq[<a name="edu.berkeley.cs.scads.storage.AggFilter" class="extype" href="AggFilter.html">AggFilter</a>]</span>, <span name="aggs">aggs: Seq[<a name="edu.berkeley.cs.scads.storage.AggOp" class="extype" href="AggOp.html">AggOp</a>]</span>)</span><span class="result">: Seq[<a name="edu.berkeley.cs.scads.storage.GroupedAgg" class="extype" href="GroupedAgg.html">GroupedAgg</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.InMemStorageManager" class="extype" href="">InMemStorageManager</a> → <a name="edu.berkeley.cs.scads.storage.StorageManager" class="extype" href="StorageManager.html">StorageManager</a></dd></dl></div>
@@ -160,7 +160,7 @@
       <span class="symbol"> 
         <span class="name">bulkPut</span>
         
-        <span class="params">(<span name="records">records: Seq[<span name="edu.berkeley.cs.scads.comm.PutRequest" class="extype">PutRequest</span>]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="records">records: Seq[<a name="edu.berkeley.cs.scads.storage.PutRequest" class="extype" href="PutRequest.html">PutRequest</a>]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.InMemStorageManager" class="extype" href="">InMemStorageManager</a> → <a name="edu.berkeley.cs.scads.storage.StorageManager" class="extype" href="StorageManager.html">StorageManager</a></dd></dl></div>
@@ -229,7 +229,7 @@
       <span class="symbol"> 
         <span class="name">copyData</span>
         
-        <span class="params">(<span name="src">src: <span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span></span>, <span name="overwrite">overwrite: <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Nothing" class="extype">Nothing</span></span>
+        <span class="params">(<span name="src">src: <a name="edu.berkeley.cs.scads.storage.PartitionService" class="extype" href="PartitionService.html">PartitionService</a></span>, <span name="overwrite">overwrite: <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Nothing" class="extype">Nothing</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.InMemStorageManager" class="extype" href="">InMemStorageManager</a> → <a name="edu.berkeley.cs.scads.storage.StorageManager" class="extype" href="StorageManager.html">StorageManager</a></dd></dl></div>
@@ -336,13 +336,13 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.InMemStorageManager" class="extype" href="">InMemStorageManager</a> → <a name="edu.berkeley.cs.scads.storage.StorageManager" class="extype" href="StorageManager.html">StorageManager</a></dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.InMemStorageManager#getBatch" data-isabs="false">
-      <a id="getBatch(Seq[MessageBody]):ArrayBuffer[GetRangeResponse]"></a>
+      <a id="getBatch(Seq[StorageMessage]):ArrayBuffer[GetRangeResponse]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">getBatch</span>
         
-        <span class="params">(<span name="ranges">ranges: Seq[<span name="edu.berkeley.cs.scads.comm.MessageBody" class="extype">MessageBody</span>]</span>)</span><span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="edu.berkeley.cs.scads.comm.GetRangeResponse" class="extype">GetRangeResponse</span>]</span>
+        <span class="params">(<span name="ranges">ranges: Seq[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>]</span>)</span><span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<a name="edu.berkeley.cs.scads.storage.GetRangeResponse" class="extype" href="GetRangeResponse.html">GetRangeResponse</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.InMemStorageManager" class="extype" href="">InMemStorageManager</a> → <a name="edu.berkeley.cs.scads.storage.StorageManager" class="extype" href="StorageManager.html">StorageManager</a></dd></dl></div>
@@ -364,7 +364,7 @@
       <span class="symbol"> 
         <span class="name">getRange</span>
         
-        <span class="params">(<span name="minKey">minKey: <span name="scala.Option" class="extype">Option</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]]</span>, <span name="maxKey">maxKey: <span name="scala.Option" class="extype">Option</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]]</span>, <span name="limit">limit: <span name="scala.Option" class="extype">Option</span>[<span name="scala.Int" class="extype">Int</span>]</span>, <span name="offset">offset: <span name="scala.Option" class="extype">Option</span>[<span name="scala.Int" class="extype">Int</span>]</span>, <span name="ascending">ascending: <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: Seq[<span name="edu.berkeley.cs.scads.comm.Record" class="extype">Record</span>]</span>
+        <span class="params">(<span name="minKey">minKey: <span name="scala.Option" class="extype">Option</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]]</span>, <span name="maxKey">maxKey: <span name="scala.Option" class="extype">Option</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]]</span>, <span name="limit">limit: <span name="scala.Option" class="extype">Option</span>[<span name="scala.Int" class="extype">Int</span>]</span>, <span name="offset">offset: <span name="scala.Option" class="extype">Option</span>[<span name="scala.Int" class="extype">Int</span>]</span>, <span name="ascending">ascending: <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: Seq[<a name="edu.berkeley.cs.scads.storage.Record" class="extype" href="Record.html">Record</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.InMemStorageManager" class="extype" href="">InMemStorageManager</a> → <a name="edu.berkeley.cs.scads.storage.StorageManager" class="extype" href="StorageManager.html">StorageManager</a></dd></dl></div>

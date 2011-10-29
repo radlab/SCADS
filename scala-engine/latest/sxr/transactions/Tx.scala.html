@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>transactions/Tx.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.storage.transactions
+
+<span class="keyword">import</span> mdcc.MDCCHandler
+<span class="keyword">import</span> net.lag.logging.Logger
+
+<span class="keyword">import</span> java.lang.Thread
+<span class="keyword">import</span> java.util.Calendar
+<span class="keyword">import</span> prot2pc.Protocol2pc
+
+<span class="keyword">sealed</span> <span class="keyword">trait</span> <a title="trait TxStatus extends java.lang.Object" id="10250">TxStatus</a> <span title="java.lang.Object" class="delimiter">{</span> <span class="keyword">def</span> <a title="=&gt; String" id="92639">name</a>: <span title="String">String</span> <span class="delimiter">}</span>
+case <span class="keyword">object</span> <a href="#95892" title="object edu.berkeley.cs.scads.storage.transactions.UNKNOWN" id="95897">UNKNOWN</a> <span title="ScalaObject" class="keyword">extends</span> <a href="#10250" title="edu.berkeley.cs.scads.storage.transactions.TxStatus">TxStatus</a> <span class="delimiter">{</span> <span class="keyword">val</span> <a title="java.lang.String" id="95884">name</a> = <span title="java.lang.String(&quot;UNKNOWN&quot;)" class="string">&quot;UNKNOWN&quot;</span> <span class="delimiter">}</span>
+case <span class="keyword">object</span> <a href="#95907" title="object edu.berkeley.cs.scads.storage.transactions.COMMIT" id="95912">COMMIT</a> <span title="ScalaObject" class="keyword">extends</span> <a href="#10250" title="edu.berkeley.cs.scads.storage.transactions.TxStatus">TxStatus</a> <span class="delimiter">{</span> <span class="keyword">val</span> <a title="java.lang.String" id="95899">name</a> = <span title="java.lang.String(&quot;COMMIT&quot;)" class="string">&quot;COMMIT&quot;</span> <span class="delimiter">}</span>
+case <span class="keyword">object</span> <a href="#95922" title="object edu.berkeley.cs.scads.storage.transactions.ABORT" id="95927">ABORT</a> <span title="ScalaObject" class="keyword">extends</span> <a href="#10250" title="edu.berkeley.cs.scads.storage.transactions.TxStatus">TxStatus</a> <span class="delimiter">{</span> <span class="keyword">val</span> <a title="java.lang.String" id="95914">name</a> = <span title="java.lang.String(&quot;ABORT&quot;)" class="string">&quot;ABORT&quot;</span> <span class="delimiter">}</span>
+
+
+
+<span class="keyword">sealed</span> <span class="keyword">trait</span> <a title="trait TxProtocol extends java.lang.Object" id="10257">TxProtocol</a>
+case <span class="keyword">class</span> <a title="class TxProtocolNone extends java.lang.Object with edu.berkeley.cs.scads.storage.transactions.TxProtocol with ScalaObject with Product with Serializable" id="96263">TxProtocolNone</a><a href="#96263" title="ScalaObject" class="delimiter">(</a><span class="delimiter">)</span> <span class="keyword">extends</span> <a href="#10257" title="edu.berkeley.cs.scads.storage.transactions.TxProtocol">TxProtocol</a>
+case <span class="keyword">class</span> <a title="class TxProtocol2pc extends java.lang.Object with edu.berkeley.cs.scads.storage.transactions.TxProtocol with ScalaObject with Product with Serializable" id="96258">TxProtocol2pc</a><a href="#96258" title="ScalaObject" class="delimiter">(</a><span class="delimiter">)</span> <span class="keyword">extends</span> <a href="#10257" title="edu.berkeley.cs.scads.storage.transactions.TxProtocol">TxProtocol</a>
+case <span class="keyword">class</span> <a title="class TxProtocolMDCC extends java.lang.Object with edu.berkeley.cs.scads.storage.transactions.TxProtocol with ScalaObject with Product with Serializable" id="96254">TxProtocolMDCC</a><a href="#96254" title="ScalaObject" class="delimiter">(</a><span class="delimiter">)</span> <span class="keyword">extends</span> <a href="#10257" title="edu.berkeley.cs.scads.storage.transactions.TxProtocol">TxProtocol</a>
+
+<span class="keyword">class</span> <a title="class Tx extends java.lang.Object with ScalaObject" id="10267">Tx</a><a href="#10267" title="ScalaObject" class="delimiter">(</a><a title="Int" id="92463">timeout</a>: <span title="Int">Int</span><span class="delimiter">)</span><span class="delimiter">(</span><a title="=&gt; Unit" id="92464">mainFn</a>: =&gt; Unit<span class="delimiter">)</span> <span class="delimiter">{</span>
+  <span class="keyword">var</span> <a title="() =&gt; Unit" id="90399">unknownFn</a> = <span class="delimiter">(</span><span class="delimiter">)</span> =&gt; <span title="Unit" class="delimiter">{</span><span class="delimiter">}</span>
+  <span class="keyword">var</span> <a title="() =&gt; Unit" id="90402">acceptFn</a> = <span class="delimiter">(</span><span class="delimiter">)</span> =&gt; <span title="Unit" class="delimiter">{</span><span class="delimiter">}</span>
+  <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.storage.transactions.TxStatus =&gt; Unit" id="90405">commitFn</a> = <span class="delimiter">(</span>status: <a href="#10250" title="edu.berkeley.cs.scads.storage.transactions.TxStatus">TxStatus</a><span class="delimiter">)</span> =&gt; <span title="Unit" class="delimiter">{</span><span class="delimiter">}</span>
+
+  <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.storage.transactions.UpdateList" id="90408">updateList</a> = <span title="edu.berkeley.cs.scads.storage.transactions.UpdateList" class="keyword">new</span> <a href="UpdateList.scala.html#10330" title="edu.berkeley.cs.scads.storage.transactions.UpdateList">UpdateList</a>
+  <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.storage.transactions.ReadList" id="90411">readList</a> = <span title="edu.berkeley.cs.scads.storage.transactions.ReadList" class="keyword">new</span> <a href="ReadList.scala.html#10185" title="edu.berkeley.cs.scads.storage.transactions.ReadList">ReadList</a>
+  <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.storage.transactions.ProtocolMap" id="90414">protocolMap</a> = <span title="edu.berkeley.cs.scads.storage.transactions.ProtocolMap" class="keyword">new</span> <a href="ProtocolMap.scala.html#10179" title="edu.berkeley.cs.scads.storage.transactions.ProtocolMap">ProtocolMap</a>
+
+  <span class="keyword">def</span> <a title="(f: =&gt; Unit)edu.berkeley.cs.scads.storage.transactions.Tx" id="90416">Unknown</a><span class="delimiter">(</span><a title="=&gt; Unit" id="95995">f</a>: =&gt; Unit<span class="delimiter">)</span> = <span class="delimiter">{</span>
+    <a href="#90399" title="(x$1: () =&gt; Unit)Unit">unknownFn</a> = <a href="#95995" title="=&gt; Unit">f</a> _
+    <a href="#10267" title="edu.berkeley.cs.scads.storage.transactions.Tx" class="keyword">this</a> 
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="(p: Double)(f: =&gt; Unit)edu.berkeley.cs.scads.storage.transactions.Tx" id="90417">Accept</a><span class="delimiter">(</span><a title="Double" id="92627">p</a>: <span title="Double">Double</span><span class="delimiter">)</span><span class="delimiter">(</span><a title="=&gt; Unit" id="92628">f</a>: =&gt; Unit<span class="delimiter">)</span> = <span class="delimiter">{</span>
+    <a href="#90402" title="(x$1: () =&gt; Unit)Unit">acceptFn</a> = <a href="#92628" title="=&gt; Unit">f</a> _
+    <a href="#10267" title="edu.berkeley.cs.scads.storage.transactions.Tx" class="keyword">this</a> 
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="(f: edu.berkeley.cs.scads.storage.transactions.TxStatus =&gt; Unit)edu.berkeley.cs.scads.storage.transactions.Tx" id="90418">Commit</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.storage.transactions.TxStatus =&gt; Unit" id="92634">f</a>: TxStatus =&gt; Unit<span class="delimiter">)</span> = <span class="delimiter">{</span>
+    <a href="#90405" title="(x$1: edu.berkeley.cs.scads.storage.transactions.TxStatus =&gt; Unit)Unit">commitFn</a> = <a href="#92634" title="edu.berkeley.cs.scads.storage.transactions.TxStatus =&gt; Unit">f</a>
+    <a href="#10267" title="edu.berkeley.cs.scads.storage.transactions.Tx" class="keyword">this</a>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="()Unit" id="90419">Execute</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+    <a href="#90408" title="(x$1: edu.berkeley.cs.scads.storage.transactions.UpdateList)Unit">updateList</a> = <span title="edu.berkeley.cs.scads.storage.transactions.UpdateList" class="keyword">new</span> <a href="UpdateList.scala.html#10330" title="edu.berkeley.cs.scads.storage.transactions.UpdateList">UpdateList</a>
+    <a href="#90411" title="(x$1: edu.berkeley.cs.scads.storage.transactions.ReadList)Unit">readList</a> = <span title="edu.berkeley.cs.scads.storage.transactions.ReadList" class="keyword">new</span> <a href="ReadList.scala.html#10185" title="edu.berkeley.cs.scads.storage.transactions.ReadList">ReadList</a>
+    <a href="ThreadLocalStorage.scala.html#10210" title="object edu.berkeley.cs.scads.storage.transactions.ThreadLocalStorage">ThreadLocalStorage</a>.<a href="ThreadLocalStorage.scala.html#93069" title="=&gt; scala.util.DynamicVariable[Option[edu.berkeley.cs.scads.storage.transactions.UpdateList]]">updateList</a>.<span title="(newval: Option[edu.berkeley.cs.scads.storage.transactions.UpdateList])(thunk: =&gt; Unit)Unit">withValue</span><span class="delimiter">(</span><span title="(x: edu.berkeley.cs.scads.storage.transactions.UpdateList)Some[edu.berkeley.cs.scads.storage.transactions.UpdateList]">Some</span><span class="delimiter">(</span><a href="#90408" title="=&gt; edu.berkeley.cs.scads.storage.transactions.UpdateList">updateList</a><span class="delimiter">)</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+      <a href="ThreadLocalStorage.scala.html#10210" title="object edu.berkeley.cs.scads.storage.transactions.ThreadLocalStorage">ThreadLocalStorage</a>.<a href="ThreadLocalStorage.scala.html#93071" title="=&gt; scala.util.DynamicVariable[Option[edu.berkeley.cs.scads.storage.transactions.ReadList]]">txReadList</a>.<span title="(newval: Option[edu.berkeley.cs.scads.storage.transactions.ReadList])(thunk: =&gt; Unit)Unit">withValue</span><span class="delimiter">(</span><span title="(x: edu.berkeley.cs.scads.storage.transactions.ReadList)Some[edu.berkeley.cs.scads.storage.transactions.ReadList]">Some</span><span class="delimiter">(</span><a href="#90411" title="=&gt; edu.berkeley.cs.scads.storage.transactions.ReadList">readList</a><span class="delimiter">)</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+        <a href="ThreadLocalStorage.scala.html#10210" title="object edu.berkeley.cs.scads.storage.transactions.ThreadLocalStorage">ThreadLocalStorage</a>.<a href="ThreadLocalStorage.scala.html#93073" title="=&gt; scala.util.DynamicVariable[Option[edu.berkeley.cs.scads.storage.transactions.ProtocolMap]]">protocolMap</a>.<span title="(newval: Option[edu.berkeley.cs.scads.storage.transactions.ProtocolMap])(thunk: =&gt; Unit)Unit">withValue</span><span class="delimiter">(</span><span title="(x: edu.berkeley.cs.scads.storage.transactions.ProtocolMap)Some[edu.berkeley.cs.scads.storage.transactions.ProtocolMap]">Some</span><span class="delimiter">(</span><a href="#90414" title="=&gt; edu.berkeley.cs.scads.storage.transactions.ProtocolMap">protocolMap</a><span class="delimiter">)</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+          <a href="#92464" title="=&gt; Unit">mainFn</a>
+        <span class="delimiter">}</span>
+      <span class="delimiter">}</span>
+    <span class="delimiter">}</span>
+
+    <a href="#90414" title="=&gt; edu.berkeley.cs.scads.storage.transactions.ProtocolMap">protocolMap</a>.<a href="ProtocolMap.scala.html#91755" title="()edu.berkeley.cs.scads.storage.transactions.TxProtocol">getProtocol</a><span class="delimiter">(</span><span class="delimiter">)</span> <span title="Unit" class="keyword">match</span> <span class="delimiter">{</span>
+      <span class="keyword">case</span> <span title="Unit">TxProtocolNone</span><span class="delimiter">(</span><span class="delimiter">)</span> =&gt;
+      <span class="keyword">case</span> <span title="Unit">TxProtocol2pc</span><span class="delimiter">(</span><span class="delimiter">)</span> =&gt; <a href="Protocol2pc.scala.html#10166" title="object edu.berkeley.cs.scads.storage.transactions.prot2pc.Protocol2pc">Protocol2pc</a>.<a href="Protocol2pc.scala.html#90385" title="(tx: edu.berkeley.cs.scads.storage.transactions.Tx)Unit">RunProtocol</a><span class="delimiter">(</span><a href="#10267" title="edu.berkeley.cs.scads.storage.transactions.Tx" class="keyword">this</a><span class="delimiter">)</span>
+      <span class="keyword">case</span> <span title="Unit">TxProtocolMDCC</span><span class="delimiter">(</span><span class="delimiter">)</span> =&gt; <a href="protocol/ProtocolMDCC.scala.html#10433" title="object edu.berkeley.cs.scads.storage.transactions.mdcc.MDCCHandler">MDCCHandler</a>.<a href="protocol/ProtocolMDCC.scala.html#96030" title="(tx: edu.berkeley.cs.scads.storage.transactions.Tx)Unit">RunProtocol</a><span class="delimiter">(</span><a href="#10267" title="edu.berkeley.cs.scads.storage.transactions.Tx" class="keyword">this</a><span class="delimiter">)</span>
+      <span class="keyword">case</span> <span title="Nothing" class="keyword">null</span> =&gt; <span title="Nothing" class="keyword">throw</span> <span title="(x$1: java.lang.String)java.lang.RuntimeException" class="keyword">new</span> <span title="java.lang.RuntimeException">RuntimeException</span><span class="delimiter">(</span><span title="java.lang.String(&quot;All namespaces in the transaction must have the same protocol.&quot;)" class="string">&quot;All namespaces in the transaction must have the same protocol.&quot;</span><span class="delimiter">)</span>
+    <span class="delimiter">}</span>
+  <span class="delimiter">}</span>
+
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

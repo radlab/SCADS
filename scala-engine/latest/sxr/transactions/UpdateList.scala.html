@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>transactions/UpdateList.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.storage
+<span class="keyword">package</span> transactions
+
+
+<span class="keyword">import</span> edu.berkeley.cs.scads.comm._
+
+<span class="keyword">import</span> scala.collection.mutable.ListBuffer
+
+<span class="keyword">import</span> net.lag.logging.Logger
+
+<span class="keyword">sealed</span> <span class="keyword">trait</span> <a title="trait UpdateInfo extends java.lang.Object" id="10323">UpdateInfo</a>
+case <span class="keyword">class</span> <a title="class ValueUpdateInfo extends java.lang.Object with edu.berkeley.cs.scads.storage.transactions.UpdateInfo with ScalaObject with Product with Serializable" id="97231">ValueUpdateInfo</a><a href="#97231" title="ScalaObject" class="delimiter">(</a><a title="edu.berkeley.cs.scads.storage.transactions.TransactionDefaultMetadata" id="95325">ns</a> : <a href="Transactions.scala.html#10234" title="edu.berkeley.cs.scads.storage.transactions.TransactionDefaultMetadata">TransactionDefaultMetadata</a>,
+                           <a title="Seq[edu.berkeley.cs.scads.storage.PartitionService]" id="95326">servers</a>: <span title="Seq[edu.berkeley.cs.scads.storage.PartitionService]">Seq</span><span class="delimiter">[</span>PartitionService<span class="delimiter">]</span>,
+                           <a title="Array[Byte]" id="95327">key</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span>,
+                           <a title="Option[Array[Byte]]" id="95328">rec</a>: <span title="Option[Array[Byte]]">Option</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span><span class="delimiter">)</span> <span class="keyword">extends</span> <a href="#10323" title="edu.berkeley.cs.scads.storage.transactions.UpdateInfo">UpdateInfo</a>
+case <span class="keyword">class</span> <a title="class LogicalUpdateInfo extends java.lang.Object with edu.berkeley.cs.scads.storage.transactions.UpdateInfo with ScalaObject with Product with Serializable" id="97227">LogicalUpdateInfo</a><a href="#97227" title="ScalaObject" class="delimiter">(</a><a title="edu.berkeley.cs.scads.storage.transactions.TransactionDefaultMetadata" id="95351">ns</a> : <a href="Transactions.scala.html#10234" title="edu.berkeley.cs.scads.storage.transactions.TransactionDefaultMetadata">TransactionDefaultMetadata</a>,
+                             <a title="Seq[edu.berkeley.cs.scads.storage.PartitionService]" id="95352">servers</a>: <span title="Seq[edu.berkeley.cs.scads.storage.PartitionService]">Seq</span><span class="delimiter">[</span>PartitionService<span class="delimiter">]</span>,
+                             <a title="Array[Byte]" id="95353">key</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span>,
+                             <a title="Option[Array[Byte]]" id="95354">rec</a>: <span title="Option[Array[Byte]]">Option</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span><span class="delimiter">)</span> <span class="keyword">extends</span> <a href="#10323" title="edu.berkeley.cs.scads.storage.transactions.UpdateInfo">UpdateInfo</a>
+
+<span class="comment">// TODO: Worry about thread safety?</span>
+<span class="keyword">class</span> <a title="class UpdateList extends java.lang.Object with ScalaObject" id="10330">UpdateList</a> <a href="#10330" title="ScalaObject" class="delimiter">{</a>
+  <span class="keyword">private</span> <span class="keyword">val</span> <a title="scala.collection.mutable.ListBuffer[edu.berkeley.cs.scads.storage.transactions.UpdateInfo]" id="90709">updateList</a> = <span title="scala.collection.mutable.ListBuffer[edu.berkeley.cs.scads.storage.transactions.UpdateInfo]" class="keyword">new</span> <span title="scala.collection.mutable.ListBuffer[edu.berkeley.cs.scads.storage.transactions.UpdateInfo]">ListBuffer</span><span class="delimiter">[</span>UpdateInfo<span class="delimiter">]</span>
+
+  <span class="keyword">def</span> <a title="(ns: edu.berkeley.cs.scads.storage.transactions.TransactionDefaultMetadata, servers: Seq[edu.berkeley.cs.scads.storage.PartitionService], key: Array[Byte], rec: Option[Array[Byte]])Unit" id="90711">appendValueUpdateInfo</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.storage.transactions.TransactionDefaultMetadata" id="95318">ns</a> : <a href="Transactions.scala.html#10234" title="edu.berkeley.cs.scads.storage.transactions.TransactionDefaultMetadata">TransactionDefaultMetadata</a>,
+                            <a title="Seq[edu.berkeley.cs.scads.storage.PartitionService]" id="95319">servers</a>: <span title="Seq[edu.berkeley.cs.scads.storage.PartitionService]">Seq</span><span class="delimiter">[</span>PartitionService<span class="delimiter">]</span>,
+                            <a title="Array[Byte]" id="95320">key</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span>,
+                            <a title="Option[Array[Byte]]" id="95321">rec</a>: <span title="Option[Array[Byte]]">Option</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span><span class="delimiter">)</span> = <span class="delimiter">{</span>
+    <a href="#90709" title="=&gt; scala.collection.mutable.ListBuffer[edu.berkeley.cs.scads.storage.transactions.UpdateInfo]">updateList</a>.<span title="(elems: edu.berkeley.cs.scads.storage.transactions.UpdateInfo*)Unit">append</span><span class="delimiter">(</span><a href="#97231" title="(ns: edu.berkeley.cs.scads.storage.transactions.TransactionDefaultMetadata, servers: Seq[edu.berkeley.cs.scads.storage.PartitionService], key: Array[Byte], rec: Option[Array[Byte]])edu.berkeley.cs.scads.storage.transactions.ValueUpdateInfo">ValueUpdateInfo</a><span class="delimiter">(</span><a href="#95318" title="edu.berkeley.cs.scads.storage.transactions.TransactionDefaultMetadata">ns</a>, <a href="#95319" title="Seq[edu.berkeley.cs.scads.storage.PartitionService]">servers</a>, <a href="#95320" title="Array[Byte]">key</a>, <a href="#95321" title="Option[Array[Byte]]">rec</a><span class="delimiter">)</span><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="(ns: edu.berkeley.cs.scads.storage.transactions.TransactionDefaultMetadata, servers: Seq[edu.berkeley.cs.scads.storage.PartitionService], key: Array[Byte], rec: Option[Array[Byte]])Unit" id="90712">appendLogicalUpdate</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.storage.transactions.TransactionDefaultMetadata" id="95345">ns</a> : <a href="Transactions.scala.html#10234" title="edu.berkeley.cs.scads.storage.transactions.TransactionDefaultMetadata">TransactionDefaultMetadata</a>,
+                          <a title="Seq[edu.berkeley.cs.scads.storage.PartitionService]" id="95346">servers</a>: <span title="Seq[edu.berkeley.cs.scads.storage.PartitionService]">Seq</span><span class="delimiter">[</span>PartitionService<span class="delimiter">]</span>,
+                          <a title="Array[Byte]" id="95347">key</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span>,
+                          <a title="Option[Array[Byte]]" id="95348">rec</a>: <span title="Option[Array[Byte]]">Option</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span><span class="delimiter">)</span> = <span class="delimiter">{</span>
+    <a href="#90709" title="=&gt; scala.collection.mutable.ListBuffer[edu.berkeley.cs.scads.storage.transactions.UpdateInfo]">updateList</a>.<span title="(elems: edu.berkeley.cs.scads.storage.transactions.UpdateInfo*)Unit">append</span><span class="delimiter">(</span><a href="#97227" title="(ns: edu.berkeley.cs.scads.storage.transactions.TransactionDefaultMetadata, servers: Seq[edu.berkeley.cs.scads.storage.PartitionService], key: Array[Byte], rec: Option[Array[Byte]])edu.berkeley.cs.scads.storage.transactions.LogicalUpdateInfo">LogicalUpdateInfo</a><span class="delimiter">(</span><a href="#95345" title="edu.berkeley.cs.scads.storage.transactions.TransactionDefaultMetadata">ns</a>, <a href="#95346" title="Seq[edu.berkeley.cs.scads.storage.PartitionService]">servers</a>, <a href="#95347" title="Array[Byte]">key</a>, <a href="#95348" title="Option[Array[Byte]]">rec</a><span class="delimiter">)</span><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="()List[edu.berkeley.cs.scads.storage.transactions.UpdateInfo]" id="90713">getUpdateList</a><span class="delimiter">(</span><span class="delimiter">)</span> = <span class="delimiter">{</span>
+    <a href="#90709" title="=&gt; scala.collection.mutable.ListBuffer[edu.berkeley.cs.scads.storage.transactions.UpdateInfo]">updateList</a>.<span title="=&gt; List[edu.berkeley.cs.scads.storage.transactions.UpdateInfo]">readOnly</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="()Unit" id="90714">print</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+    <span title="(x: Any)Unit">println</span><span class="delimiter">(</span><span title="java.lang.String(&quot;len: &quot;)" class="string">&quot;len: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#90709" title="=&gt; scala.collection.mutable.ListBuffer[edu.berkeley.cs.scads.storage.transactions.UpdateInfo]">updateList</a>.<span title="=&gt; Int">length</span><span class="delimiter">)</span>
+    <a href="#90709" title="=&gt; scala.collection.mutable.ListBuffer[edu.berkeley.cs.scads.storage.transactions.UpdateInfo]">updateList</a>.<span title="(f: edu.berkeley.cs.scads.storage.transactions.UpdateInfo =&gt; Unit)Unit">foreach</span><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.storage.transactions.UpdateInfo" id="97220">x</a> =&gt; <span title="(x: Any)Unit">println</span><span class="delimiter">(</span><a href="#97220" title="edu.berkeley.cs.scads.storage.transactions.UpdateInfo">x</a><span class="delimiter">)</span><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

@@ -58,6 +58,50 @@
       </span>
       </h4>
       
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AggFilter" data-isabs="false">
+      <a id="AggFilter:AggFilter"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="AggFilter.html"><span class="name">AggFilter</span></a>
+        
+        <span class="params">(<span name="obj">obj: Array[Byte]</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AggOp" data-isabs="false">
+      <a id="AggOp:AggOp"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="AggOp.html"><span class="name">AggOp</span></a>
+        
+        <span class="params">(<span name="codename">codename: String</span>, <span name="code">code: Array[Byte]</span>, <span name="obj">obj: Array[Byte]</span>, <span name="raw">raw: Boolean</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AggReply" data-isabs="false">
+      <a id="AggReply:AggReply"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="AggReply.html"><span class="name">AggReply</span></a>
+        
+        <span class="params">(<span name="results">results: Seq[GroupedAgg]</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AggRequest" data-isabs="false">
+      <a id="AggRequest:AggRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="AggRequest.html"><span class="name">AggRequest</span></a>
+        
+        <span class="params">(<span name="groups">groups: Seq[String]</span>, <span name="keyType">keyType: String</span>, <span name="valueType">valueType: String</span>, <span name="filters">filters: Seq[AggFilter]</span>, <span name="aggs">aggs: Seq[AggOp]</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AnalyticsProtocol" data-isabs="true">
       <a id="AnalyticsProtocol:AnalyticsProtocol"></a>
       <h4 class="signature">
@@ -203,6 +247,28 @@ is a requirement of Comparators for BDB
       </span>
       </h4>
       
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.BatchRequest" data-isabs="false">
+      <a id="BatchRequest:BatchRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="BatchRequest.html"><span class="name">BatchRequest</span></a>
+        
+        <span class="params">(<span name="ranges">ranges: Seq[StorageMessage]</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.BatchResponse" data-isabs="false">
+      <a id="BatchResponse:BatchResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="BatchResponse.html"><span class="name">BatchResponse</span></a>
+        
+        <span class="params">(<span name="ranges">ranges: Seq[StorageMessage]</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.BdbStorageManager" data-isabs="false">
       <a id="BdbStorageManager:BdbStorageManager"></a>
       <h4 class="signature">
@@ -225,6 +291,50 @@ is a requirement of Comparators for BDB
       </span>
       </h4>
       
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.BulkPutRequest" data-isabs="false">
+      <a id="BulkPutRequest:BulkPutRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="BulkPutRequest.html"><span class="name">BulkPutRequest</span></a>
+        
+        <span class="params">(<span name="records">records: Seq[PutRequest]</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.BulkPutResponse" data-isabs="false">
+      <a id="BulkPutResponse:BulkPutResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="BulkPutResponse.html"><span class="name">BulkPutResponse</span></a>
+        
+        <span class="params">()</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.BulkUrlPutReqest" data-isabs="false">
+      <a id="BulkUrlPutReqest:BulkUrlPutReqest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="BulkUrlPutReqest.html"><span class="name">BulkUrlPutReqest</span></a>
+        
+        <span class="params">(<span name="parser">parser: Array[Byte]</span>, <span name="locations">locations: Seq[String]</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.CompIntStringRec" data-isabs="false">
+      <a id="CompIntStringRec:CompIntStringRec"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="CompIntStringRec.html"><span class="name">CompIntStringRec</span></a>
+        
+        <span class="params">(<span name="intRec">intRec: IntRec</span>, <span name="stringRec">stringRec: StringRec</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.CompositeSlice" data-isabs="false">
       <a id="CompositeSlice:CompositeSlice[A]"></a>
       <h4 class="signature">
@@ -236,6 +346,72 @@ is a requirement of Comparators for BDB
       </span>
       </h4>
       
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.CopyDataRequest" data-isabs="false">
+      <a id="CopyDataRequest:CopyDataRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="CopyDataRequest.html"><span class="name">CopyDataRequest</span></a>
+        
+        <span class="params">(<span name="src">src: PartitionService</span>, <span name="overwrite">overwrite: Boolean</span>)</span><span class="result"> extends AvroRecord with PartitionServiceOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.CopyDataResponse" data-isabs="false">
+      <a id="CopyDataResponse:CopyDataResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="CopyDataResponse.html"><span class="name">CopyDataResponse</span></a>
+        
+        <span class="params">()</span><span class="result"> extends AvroRecord with PartitionServiceOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.CountRangeRequest" data-isabs="false">
+      <a id="CountRangeRequest:CountRangeRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="CountRangeRequest.html"><span class="name">CountRangeRequest</span></a>
+        
+        <span class="params">(<span name="minKey">minKey: Option[Array[Byte]]</span>, <span name="maxKey">maxKey: Option[Array[Byte]]</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.CountRangeResponse" data-isabs="false">
+      <a id="CountRangeResponse:CountRangeResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="CountRangeResponse.html"><span class="name">CountRangeResponse</span></a>
+        
+        <span class="params">(<span name="count">count: Int</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.CreatePartitionRequest" data-isabs="false">
+      <a id="CreatePartitionRequest:CreatePartitionRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="CreatePartitionRequest.html"><span class="name">CreatePartitionRequest</span></a>
+        
+        <span class="params">(<span name="namespace">namespace: String</span>, <span name="partitionType">partitionType: String</span>, <span name="startKey">startKey: Option[Array[Byte]]</span>, <span name="endKey">endKey: Option[Array[Byte]]</span>)</span><span class="result"> extends AvroRecord with StorageServiceOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.CreatePartitionResponse" data-isabs="false">
+      <a id="CreatePartitionResponse:CreatePartitionResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="CreatePartitionResponse.html"><span class="name">CreatePartitionResponse</span></a>
+        
+        <span class="params">(<span name="partitionActor">partitionActor: PartitionService</span>)</span><span class="result"> extends AvroRecord with StorageServiceOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.CursorBasedPartitionIterator" data-isabs="false">
       <a id="CursorBasedPartitionIterator:CursorBasedPartitionIterator"></a>
       <h4 class="signature">
@@ -244,6 +420,28 @@ is a requirement of Comparators for BDB
         <a href="CursorBasedPartitionIterator.html"><span class="name">CursorBasedPartitionIterator</span></a>
         
         <span class="result"> extends FutureBasedIterator</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.CursorScanRequest" data-isabs="false">
+      <a id="CursorScanRequest:CursorScanRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="CursorScanRequest.html"><span class="name">CursorScanRequest</span></a>
+        
+        <span class="params">(<span name="cursorId">cursorId: Option[Int]</span>, <span name="recsPerRequest">recsPerRequest: Int</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.CursorScanResponse" data-isabs="false">
+      <a id="CursorScanResponse:CursorScanResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="CursorScanResponse.html"><span class="name">CursorScanResponse</span></a>
+        
+        <span class="params">(<span name="cursorId">cursorId: Option[Int]</span>, <span name="records">records: IndexedSeq[Record]</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
       </span>
       </h4>
       
@@ -310,6 +508,50 @@ is a requirement of Comparators for BDB
         <a href="DefaultKeyRoutableLike.html"><span class="name">DefaultKeyRoutableLike</span></a>
         
         <span class="result"> extends KeyRoutable with KeyPartitionable with Namespace with GlobalMetadata with RecordMetadata with ParFuture</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DeleteNamespaceRequest" data-isabs="false">
+      <a id="DeleteNamespaceRequest:DeleteNamespaceRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="DeleteNamespaceRequest.html"><span class="name">DeleteNamespaceRequest</span></a>
+        
+        <span class="params">(<span name="namespace">namespace: String</span>)</span><span class="result"> extends AvroRecord with StorageServiceOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DeleteNamespaceResponse" data-isabs="false">
+      <a id="DeleteNamespaceResponse:DeleteNamespaceResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="DeleteNamespaceResponse.html"><span class="name">DeleteNamespaceResponse</span></a>
+        
+        <span class="params">()</span><span class="result"> extends AvroRecord with StorageServiceOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DeletePartitionRequest" data-isabs="false">
+      <a id="DeletePartitionRequest:DeletePartitionRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="DeletePartitionRequest.html"><span class="name">DeletePartitionRequest</span></a>
+        
+        <span class="params">(<span name="partitionId">partitionId: String</span>)</span><span class="result"> extends AvroRecord with StorageServiceOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DeletePartitionResponse" data-isabs="false">
+      <a id="DeletePartitionResponse:DeletePartitionResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="DeletePartitionResponse.html"><span class="name">DeletePartitionResponse</span></a>
+        
+        <span class="params">()</span><span class="result"> extends AvroRecord with StorageServiceOperation with Product with Serializable</span>
       </span>
       </h4>
       
@@ -381,6 +623,116 @@ is a requirement of Comparators for BDB
       </span>
       </h4>
       
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GetPartitionsRequest" data-isabs="false">
+      <a id="GetPartitionsRequest:GetPartitionsRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="GetPartitionsRequest.html"><span class="name">GetPartitionsRequest</span></a>
+        
+        <span class="params">()</span><span class="result"> extends AvroRecord with StorageServiceOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GetPartitionsResponse" data-isabs="false">
+      <a id="GetPartitionsResponse:GetPartitionsResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="GetPartitionsResponse.html"><span class="name">GetPartitionsResponse</span></a>
+        
+        <span class="params">(<span name="partitions">partitions: List[PartitionService]</span>)</span><span class="result"> extends AvroRecord with StorageServiceOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GetRangeRequest" data-isabs="false">
+      <a id="GetRangeRequest:GetRangeRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="GetRangeRequest.html"><span class="name">GetRangeRequest</span></a>
+        
+        <span class="params">(<span name="minKey">minKey: Option[Array[Byte]]</span>, <span name="maxKey">maxKey: Option[Array[Byte]]</span>, <span name="limit">limit: Option[Int]</span>, <span name="offset">offset: Option[Int]</span>, <span name="ascending">ascending: Boolean</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GetRangeResponse" data-isabs="false">
+      <a id="GetRangeResponse:GetRangeResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="GetRangeResponse.html"><span class="name">GetRangeResponse</span></a>
+        
+        <span class="params">(<span name="records">records: Seq[Record]</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GetRequest" data-isabs="false">
+      <a id="GetRequest:GetRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="GetRequest.html"><span class="name">GetRequest</span></a>
+        
+        <span class="params">(<span name="key">key: Array[Byte]</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GetResponse" data-isabs="false">
+      <a id="GetResponse:GetResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="GetResponse.html"><span class="name">GetResponse</span></a>
+        
+        <span class="params">(<span name="value">value: Option[Array[Byte]]</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GetResponsibilityRequest" data-isabs="false">
+      <a id="GetResponsibilityRequest:GetResponsibilityRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="GetResponsibilityRequest.html"><span class="name">GetResponsibilityRequest</span></a>
+        
+        <span class="params">()</span><span class="result"> extends AvroRecord with PartitionServiceOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GetResponsibilityResponse" data-isabs="false">
+      <a id="GetResponsibilityResponse:GetResponsibilityResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="GetResponsibilityResponse.html"><span class="name">GetResponsibilityResponse</span></a>
+        
+        <span class="params">(<span name="startKey">startKey: Option[Array[Byte]]</span>, <span name="endKey">endKey: Option[Array[Byte]]</span>)</span><span class="result"> extends AvroRecord with PartitionServiceOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GetWorkloadStats" data-isabs="false">
+      <a id="GetWorkloadStats:GetWorkloadStats"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="GetWorkloadStats.html"><span class="name">GetWorkloadStats</span></a>
+        
+        <span class="params">()</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GetWorkloadStatsResponse" data-isabs="false">
+      <a id="GetWorkloadStatsResponse:GetWorkloadStatsResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="GetWorkloadStatsResponse.html"><span class="name">GetWorkloadStatsResponse</span></a>
+        
+        <span class="params">(<span name="getCount">getCount: Int</span>, <span name="putCount">putCount: Int</span>, <span name="statsSince">statsSince: Long</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GlobalMetadata" data-isabs="true">
       <a id="GlobalMetadata:GlobalMetadata"></a>
       <h4 class="signature">
@@ -389,6 +741,17 @@ is a requirement of Comparators for BDB
         <a href="GlobalMetadata.html"><span class="name">GlobalMetadata</span></a>
         
         <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GroupedAgg" data-isabs="false">
+      <a id="GroupedAgg:GroupedAgg"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="GroupedAgg.html"><span class="name">GroupedAgg</span></a>
+        
+        <span class="params">(<span name="group">group: Option[Array[Byte]]</span>, <span name="groupVals">groupVals: Seq[Array[Byte]]</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
       </span>
       </h4>
       
@@ -403,6 +766,61 @@ is a requirement of Comparators for BDB
       </span>
       </h4>
       
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.IntRec" data-isabs="false">
+      <a id="IntRec:IntRec"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="IntRec.html"><span class="name">IntRec</span></a>
+        
+        <span class="params">(<span name="f1">f1: Int</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.IntRec2" data-isabs="false">
+      <a id="IntRec2:IntRec2"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="IntRec2.html"><span class="name">IntRec2</span></a>
+        
+        <span class="params">(<span name="f1">f1: Int</span>, <span name="f2">f2: Int</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.IntRec3" data-isabs="false">
+      <a id="IntRec3:IntRec3"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="IntRec3.html"><span class="name">IntRec3</span></a>
+        
+        <span class="params">(<span name="f1">f1: Int</span>, <span name="f2">f2: Int</span>, <span name="f3">f3: Int</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.InvalidNamespace" data-isabs="false">
+      <a id="InvalidNamespace:InvalidNamespace"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="InvalidNamespace.html"><span class="name">InvalidNamespace</span></a>
+        
+        <span class="params">(<span name="namespace">namespace: String</span>)</span><span class="result"> extends RemoteException with AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.InvalidPartition" data-isabs="false">
+      <a id="InvalidPartition:InvalidPartition"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="InvalidPartition.html"><span class="name">InvalidPartition</span></a>
+        
+        <span class="params">(<span name="partitionId">partitionId: String</span>)</span><span class="result"> extends RemoteException with AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.KeyPartitionable" data-isabs="true">
       <a id="KeyPartitionable:KeyPartitionable"></a>
       <h4 class="signature">
@@ -411,6 +829,17 @@ is a requirement of Comparators for BDB
         <a href="KeyPartitionable.html"><span class="name">KeyPartitionable</span></a>
         
         <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.KeyRange" data-isabs="false">
+      <a id="KeyRange:KeyRange"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="KeyRange.html"><span class="name">KeyRange</span></a>
+        
+        <span class="params">(<span name="startKey">startKey: Option[Array[Byte]]</span>, <span name="servers">servers: Seq[PartitionService]</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
       </span>
       </h4>
       
@@ -469,6 +898,17 @@ is a requirement of Comparators for BDB
       </span>
       </h4>
       
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.KeyValueStoreOperation" data-isabs="true">
+      <a id="KeyValueStoreOperation:KeyValueStoreOperation"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="KeyValueStoreOperation.html"><span class="name">KeyValueStoreOperation</span></a>
+        
+        <span class="result"> extends PartitionServiceOperation</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed </dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ManagedScadsCluster" data-isabs="false">
       <a id="ManagedScadsCluster:ManagedScadsCluster"></a>
       <h4 class="signature">
@@ -524,6 +964,17 @@ is a requirement of Comparators for BDB
       </span>
       </h4>
       
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PairRec" data-isabs="false">
+      <a id="PairRec:PairRec"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="PairRec.html"><span class="name">PairRec</span></a>
+        
+        <span class="params">(<span name="username">username: String</span>)</span><span class="result"> extends AvroPair with Product with Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PairSerializer" data-isabs="true">
       <a id="PairSerializer:PairSerializer[PairType]"></a>
       <h4 class="signature">
@@ -554,21 +1005,32 @@ is a requirement of Comparators for BDB
       <span class="symbol"> 
         <a href="PartitionHandler.html"><span class="name">PartitionHandler</span></a>
         
-        <span class="params">(<span name="manager">manager: StorageManager</span>)</span><span class="result"> extends ServiceHandler[PartitionServiceOperation] with Product with Serializable</span>
+        <span class="params">(<span name="manager">manager: StorageManager</span>)</span><span class="result"> extends ServiceHandler[StorageMessage] with Product with Serializable</span>
       </span>
       </h4>
       
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PartitionIterator" data-isabs="false">
-      <a id="PartitionIterator:PartitionIterator"></a>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PartitionService" data-isabs="false">
+      <a id="PartitionService:PartitionService"></a>
       <h4 class="signature">
-      <span class="kind">class</span>
+      <span class="kind">case class</span>
       <span class="symbol"> 
-        <a href="PartitionIterator.html"><span class="name">PartitionIterator</span></a>
+        <a href="PartitionService.html"><span class="name">PartitionService</span></a>
         
-        <span class="result"> extends Iterator[Record]</span>
+        <span class="params">(<span name="host">host: String</span>, <span name="port">port: Int</span>, <span name="id">id: ServiceId</span>, <span name="partitionId">partitionId: String</span>, <span name="storageService">storageService: StorageService</span>)</span><span class="result"> extends AvroRecord with RemoteServiceProxy[StorageMessage] with Product with Serializable</span>
       </span>
       </h4>
-      <p class="comment cmt">Iterator that makes succesive GetRange requests to the specified partitionService to retrieve all values [minKey, maxKey).</p>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PartitionServiceOperation" data-isabs="true">
+      <a id="PartitionServiceOperation:PartitionServiceOperation"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="PartitionServiceOperation.html"><span class="name">PartitionServiceOperation</span></a>
+        
+        <span class="result"> extends StorageMessage</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed </dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PartitionWorkloadStats" data-isabs="false">
       <a id="PartitionWorkloadStats:PartitionWorkloadStats"></a>
       <h4 class="signature">
@@ -591,6 +1053,17 @@ is a requirement of Comparators for BDB
       </span>
       </h4>
       
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ProcessingException" data-isabs="false">
+      <a id="ProcessingException:ProcessingException"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="ProcessingException.html"><span class="name">ProcessingException</span></a>
+        
+        <span class="params">(<span name="cause">cause: String</span>, <span name="stacktrace">stacktrace: String</span>)</span><span class="result"> extends RemoteException with AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Protocol" data-isabs="true">
       <a id="Protocol:Protocol"></a>
       <h4 class="signature">
@@ -602,6 +1075,28 @@ is a requirement of Comparators for BDB
       </span>
       </h4>
       
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PutRequest" data-isabs="false">
+      <a id="PutRequest:PutRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="PutRequest.html"><span class="name">PutRequest</span></a>
+        
+        <span class="params">(<span name="key">key: Array[Byte]</span>, <span name="value">value: Option[Array[Byte]]</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PutResponse" data-isabs="false">
+      <a id="PutResponse:PutResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="PutResponse.html"><span class="name">PutResponse</span></a>
+        
+        <span class="params">()</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumProtocol" data-isabs="true">
       <a id="QuorumProtocol:QuorumProtocol"></a>
       <h4 class="signature">
@@ -610,6 +1105,17 @@ is a requirement of Comparators for BDB
         <a href="QuorumProtocol.html"><span class="name">QuorumProtocol</span></a>
         
         <span class="result"> extends Protocol with Namespace with KeyRoutable with RecordMetadata with GlobalMetadata with ParFuture</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumProtocolConfig" data-isabs="false">
+      <a id="QuorumProtocolConfig:QuorumProtocolConfig"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="QuorumProtocolConfig.html"><span class="name">QuorumProtocolConfig</span></a>
+        
+        <span class="params">(<span name="readQuorum">readQuorum: Double</span>, <span name="writeQuorum">writeQuorum: Double</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
       </span>
       </h4>
       
@@ -679,6 +1185,17 @@ is a requirement of Comparators for BDB
       </span>
       </h4>
       
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Record" data-isabs="false">
+      <a id="Record:Record"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="Record.html"><span class="name">Record</span></a>
+        
+        <span class="params">(<span name="key">key: Array[Byte]</span>, <span name="value">value: Option[Array[Byte]]</span>)</span><span class="result"> extends AvroRecord with StorageMessage with Product with Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RecordMetadata" data-isabs="true">
       <a id="RecordMetadata:RecordMetadata"></a>
       <h4 class="signature">
@@ -701,6 +1218,17 @@ is a requirement of Comparators for BDB
       </span>
       </h4>
       
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RemoteException" data-isabs="true">
+      <a id="RemoteException:RemoteException"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="RemoteException.html"><span class="name">RemoteException</span></a>
+        
+        <span class="result"> extends StorageMessage</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed </dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RequestHandler" data-isabs="true">
       <a id="RequestHandler:RequestHandler"></a>
       <h4 class="signature">
@@ -712,6 +1240,17 @@ is a requirement of Comparators for BDB
       </span>
       </h4>
       
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RequestRejected" data-isabs="false">
+      <a id="RequestRejected:RequestRejected"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="RequestRejected.html"><span class="name">RequestRejected</span></a>
+        
+        <span class="params">(<span name="reason">reason: String</span>, <span name="req">req: StorageMessage</span>)</span><span class="result"> extends RemoteException with AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RequestRejectedException" data-isabs="false">
       <a id="RequestRejectedException:RequestRejectedException"></a>
       <h4 class="signature">
@@ -720,6 +1259,17 @@ is a requirement of Comparators for BDB
         <a href="RequestRejectedException.html"><span class="name">RequestRejectedException</span></a>
         
         <span class="result"> extends Exception</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RoutingTableMessage" data-isabs="false">
+      <a id="RoutingTableMessage:RoutingTableMessage"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="RoutingTableMessage.html"><span class="name">RoutingTableMessage</span></a>
+        
+        <span class="params">(<span name="partitions">partitions: Seq[KeyRange]</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
       </span>
       </h4>
       
@@ -754,6 +1304,17 @@ is a requirement of Comparators for BDB
         <a href="Serializer.html"><span class="name">Serializer</span></a>
         <span class="tparams">[<span name="KeyType">KeyType &lt;: IndexedRecord</span>, <span name="ValueType">ValueType &lt;: IndexedRecord</span>, <span name="BulkType">BulkType</span>]</span>
         <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ShutdownStorageHandler" data-isabs="false">
+      <a id="ShutdownStorageHandler:ShutdownStorageHandler"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="ShutdownStorageHandler.html"><span class="name">ShutdownStorageHandler</span></a>
+        
+        <span class="params">()</span><span class="result"> extends AvroRecord with StorageServiceOperation with Product with Serializable</span>
       </span>
       </h4>
       
@@ -830,7 +1391,7 @@ is a requirement of Comparators for BDB
       <span class="symbol"> 
         <a href="StorageHandler.html"><span class="name">StorageHandler</span></a>
         
-        <span class="result"> extends ServiceHandler[StorageServiceOperation]</span>
+        <span class="result"> extends ServiceHandler[StorageMessage]</span>
       </span>
       </h4>
       <p class="comment cmt">Basic implementation of a storage handler using BDB as a backend.</p>
@@ -842,6 +1403,94 @@ is a requirement of Comparators for BDB
         <a href="StorageManager.html"><span class="name">StorageManager</span></a>
         
         <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.StorageMessage" data-isabs="true">
+      <a id="StorageMessage:StorageMessage"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="StorageMessage.html"><span class="name">StorageMessage</span></a>
+        
+        <span class="result"> extends AvroUnion</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed </dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.StorageService" data-isabs="false">
+      <a id="StorageService:StorageService"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="StorageService.html"><span class="name">StorageService</span></a>
+        
+        <span class="params">(<span name="host">host: String</span>, <span name="port">port: Int</span>, <span name="id">id: ServiceId</span>)</span><span class="result"> extends AvroRecord with RemoteServiceProxy[StorageMessage] with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.StorageServiceOperation" data-isabs="true">
+      <a id="StorageServiceOperation:StorageServiceOperation"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="StorageServiceOperation.html"><span class="name">StorageServiceOperation</span></a>
+        
+        <span class="result"> extends StorageMessage</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed </dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.StringRec" data-isabs="false">
+      <a id="StringRec:StringRec"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="StringRec.html"><span class="name">StringRec</span></a>
+        
+        <span class="params">(<span name="f1">f1: String</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.StringRec2" data-isabs="false">
+      <a id="StringRec2:StringRec2"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="StringRec2.html"><span class="name">StringRec2</span></a>
+        
+        <span class="params">(<span name="f1">f1: String</span>, <span name="f2">f2: String</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.StringRec3" data-isabs="false">
+      <a id="StringRec3:StringRec3"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="StringRec3.html"><span class="name">StringRec3</span></a>
+        
+        <span class="params">(<span name="f1">f1: String</span>, <span name="f2">f2: String</span>, <span name="f3">f3: String</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.TestSetRequest" data-isabs="false">
+      <a id="TestSetRequest:TestSetRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="TestSetRequest.html"><span class="name">TestSetRequest</span></a>
+        
+        <span class="params">(<span name="key">key: Array[Byte]</span>, <span name="value">value: Option[Array[Byte]]</span>, <span name="expectedValue">expectedValue: Option[Array[Byte]]</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.TestSetResponse" data-isabs="false">
+      <a id="TestSetResponse:TestSetResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="TestSetResponse.html"><span class="name">TestSetResponse</span></a>
+        
+        <span class="params">(<span name="success">success: Boolean</span>)</span><span class="result"> extends AvroRecord with KeyValueStoreOperation with Product with Serializable</span>
       </span>
       </h4>
       
@@ -898,6 +1547,17 @@ is a requirement of Comparators for BDB
       <p class="comment cmt">Provides a set of implicit conversions on namespaces to be used
 as scala collections
 </p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PartitionService" data-isabs="false">
+      <a id="PartitionService:PartitionService"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="PartitionService$.html"><span class="name">PartitionService</span></a>
+        
+        <span class="result"> extends Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ScalaEngine" data-isabs="false">
       <a id="ScalaEngine:ScalaEngine"></a>
       <h4 class="signature">
@@ -929,6 +1589,28 @@ as scala collections
         <a href="StorageHandler$.html"><span class="name">StorageHandler</span></a>
         
         <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.package.StorageRegistry" data-isabs="false">
+      <a id="StorageRegistry:StorageRegistry"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="package$$StorageRegistry$.html"><span class="name">StorageRegistry</span></a>
+        
+        <span class="result"> extends ServiceRegistry[StorageMessage]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.StorageService" data-isabs="false">
+      <a id="StorageService:StorageService"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="StorageService$.html"><span class="name">StorageService</span></a>
+        
+        <span class="result"> extends Serializable</span>
       </span>
       </h4>
       

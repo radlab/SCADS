@@ -217,7 +217,7 @@ TODO: Move parition management code into namespace
       <span class="symbol"> 
         <span class="name">createNamespace</span>
         <span class="tparams">[<span name="PairType">PairType &lt;: <span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span></span>]</span>
-        <span class="params">(<span name="ns">ns: String</span>, <span name="servers">servers: Seq[(<span name="scala.Option" class="extype">Option</span>[<span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span>], Seq[<span name="edu.berkeley.cs.scads.comm.StorageService" class="extype">StorageService</span>])]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: Manifest[PairType]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.storage.PairNamespace" class="extype" href="PairNamespace.html">PairNamespace</a>[PairType]</span>
+        <span class="params">(<span name="ns">ns: String</span>, <span name="servers">servers: Seq[(<span name="scala.Option" class="extype">Option</span>[<span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span>], Seq[<a name="edu.berkeley.cs.scads.storage.StorageService" class="extype" href="StorageService.html">StorageService</a>])]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: Manifest[PairType]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.storage.PairNamespace" class="extype" href="PairNamespace.html">PairNamespace</a>[PairType]</span>
       </span>
       </h4>
       
@@ -228,7 +228,7 @@ TODO: Move parition management code into namespace
       <span class="symbol"> 
         <span class="name">createNamespace</span>
         <span class="tparams">[<span name="KeyType">KeyType &lt;: <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span></span>, <span name="ValueType">ValueType &lt;: <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span></span>]</span>
-        <span class="params">(<span name="ns">ns: String</span>, <span name="servers">servers: Seq[(<span name="scala.Option" class="extype">Option</span>[KeyType], Seq[<span name="edu.berkeley.cs.scads.comm.StorageService" class="extype">StorageService</span>])]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: Manifest[KeyType]</span>, <span name="arg1">arg1: Manifest[ValueType]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.storage.SpecificNamespace" class="extype" href="SpecificNamespace.html">SpecificNamespace</a>[KeyType, ValueType]</span>
+        <span class="params">(<span name="ns">ns: String</span>, <span name="servers">servers: Seq[(<span name="scala.Option" class="extype">Option</span>[KeyType], Seq[<a name="edu.berkeley.cs.scads.storage.StorageService" class="extype" href="StorageService.html">StorageService</a>])]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: Manifest[KeyType]</span>, <span name="arg1">arg1: Manifest[ValueType]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.storage.SpecificNamespace" class="extype" href="SpecificNamespace.html">SpecificNamespace</a>[KeyType, ValueType]</span>
       </span>
       </h4>
       
@@ -239,7 +239,7 @@ TODO: Move parition management code into namespace
       <span class="symbol"> 
         <span class="name">createNamespace</span>
         
-        <span class="params">(<span name="ns">ns: String</span>, <span name="keySchema">keySchema: <span name="org.apache.avro.Schema" class="extype">Schema</span></span>, <span name="valueSchema">valueSchema: <span name="org.apache.avro.Schema" class="extype">Schema</span></span>, <span name="valueClass">valueClass: String</span>, <span name="servers">servers: Seq[(<span name="scala.Option" class="extype">Option</span>[<span name="org.apache.avro.generic.GenericRecord" class="extype">GenericRecord</span>], Seq[<span name="edu.berkeley.cs.scads.comm.StorageService" class="extype">StorageService</span>])]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.storage.GenericNamespace" class="extype" href="GenericNamespace.html">GenericNamespace</a></span>
+        <span class="params">(<span name="ns">ns: String</span>, <span name="keySchema">keySchema: <span name="org.apache.avro.Schema" class="extype">Schema</span></span>, <span name="valueSchema">valueSchema: <span name="org.apache.avro.Schema" class="extype">Schema</span></span>, <span name="valueClass">valueClass: String</span>, <span name="servers">servers: Seq[(<span name="scala.Option" class="extype">Option</span>[<span name="org.apache.avro.generic.GenericRecord" class="extype">GenericRecord</span>], Seq[<a name="edu.berkeley.cs.scads.storage.StorageService" class="extype" href="StorageService.html">StorageService</a>])]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.storage.GenericNamespace" class="extype" href="GenericNamespace.html">GenericNamespace</a></span>
       </span>
       </h4>
       
@@ -286,7 +286,7 @@ TODO: Move parition management code into namespace
       <span class="symbol"> 
         <span class="name">getAvailableServers</span>
         
-        <span class="params">(<span name="prefix">prefix: String</span>)</span><span class="result">: List[<span name="edu.berkeley.cs.scads.comm.StorageService" class="extype">StorageService</span>]</span>
+        <span class="params">(<span name="prefix">prefix: String</span>)</span><span class="result">: List[<a name="edu.berkeley.cs.scads.storage.StorageService" class="extype" href="StorageService.html">StorageService</a>]</span>
       </span>
       </h4>
       
@@ -297,7 +297,7 @@ TODO: Move parition management code into namespace
       <span class="symbol"> 
         <span class="name">getAvailableServers</span>
         
-        <span class="params">()</span><span class="result">: List[<span name="edu.berkeley.cs.scads.comm.StorageService" class="extype">StorageService</span>]</span>
+        <span class="params">()</span><span class="result">: List[<a name="edu.berkeley.cs.scads.storage.StorageService" class="extype" href="StorageService.html">StorageService</a>]</span>
       </span>
       </h4>
       
@@ -374,7 +374,7 @@ TODO: Move parition management code into namespace
       <span class="symbol"> 
         <span class="name">getRandomServers</span>
         
-        <span class="params">(<span name="nbServer">nbServer: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: List[<span name="edu.berkeley.cs.scads.comm.StorageService" class="extype">StorageService</span>]</span>
+        <span class="params">(<span name="nbServer">nbServer: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: List[<a name="edu.berkeley.cs.scads.storage.StorageService" class="extype" href="StorageService.html">StorageService</a>]</span>
       </span>
       </h4>
       

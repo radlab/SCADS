@@ -313,13 +313,13 @@
               
         </dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ParFuture#waitFor" data-isabs="false">
-      <a id="waitFor[Data, T](Seq[(MessageFuture, Data)],Long)(PartialFunction[(MessageBody, Data), T]):Seq[Either[Throwable, T]]"></a>
+      <a id="waitFor[Data, T](Seq[(MessageFuture[StorageMessage], Data)],Long)(PartialFunction[(StorageMessage, Data), T]):Seq[Either[Throwable, T]]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">waitFor</span>
         <span class="tparams">[<span name="Data">Data</span>, <span name="T">T</span>]</span>
-        <span class="params">(<span name="futures">futures: Seq[(<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>, Data)]</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="params">(<span name="f">f: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[(<span name="edu.berkeley.cs.scads.comm.MessageBody" class="extype">MessageBody</span>, Data), T]</span>)</span><span class="result">: Seq[<span name="scala.Either" class="extype">Either</span>[Throwable, T]]</span>
+        <span class="params">(<span name="futures">futures: Seq[(<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>], Data)]</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="params">(<span name="f">f: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[(<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>, Data), T]</span>)</span><span class="result">: Seq[<span name="scala.Either" class="extype">Either</span>[Throwable, T]]</span>
       </span>
       </h4>
       <p class="shortcomment cmt">Blocks until each future in futures has been collected.</p><div class="fullcomment"><div class="comment cmt"><p>Blocks until each future in futures has been collected. Upon collection,
@@ -327,13 +327,13 @@ the result of the future is applied to f, and the results are collected
 and returned.
 </p></div></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ParFuture#waitForAndThrowException" data-isabs="false">
-      <a id="waitForAndThrowException[Data, T](Seq[(MessageFuture, Data)],Long)(PartialFunction[(MessageBody, Data), T]):Seq[T]"></a>
+      <a id="waitForAndThrowException[Data, T](Seq[(MessageFuture[StorageMessage], Data)],Long)(PartialFunction[(StorageMessage, Data), T]):Seq[T]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">waitForAndThrowException</span>
         <span class="tparams">[<span name="Data">Data</span>, <span name="T">T</span>]</span>
-        <span class="params">(<span name="futures">futures: Seq[(<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>, Data)]</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="params">(<span name="f">f: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[(<span name="edu.berkeley.cs.scads.comm.MessageBody" class="extype">MessageBody</span>, Data), T]</span>)</span><span class="result">: Seq[T]</span>
+        <span class="params">(<span name="futures">futures: Seq[(<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>], Data)]</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="params">(<span name="f">f: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[(<a name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype" href="StorageMessage.html">StorageMessage</a>, Data), T]</span>)</span><span class="result">: Seq[T]</span>
       </span>
       </h4>
       
