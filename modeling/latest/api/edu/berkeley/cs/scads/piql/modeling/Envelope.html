@@ -2,7 +2,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html>
         <head>
-          <title>edu.berkeley.cs.scads.piql.modeling.PlanCompareTask</title>
+          <title>edu.berkeley.cs.scads.piql.modeling.Envelope</title>
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link type="text/css" media="screen" rel="stylesheet" href="../../../../../../lib/template.css" />
@@ -16,24 +16,21 @@
       <div id="definition">
         <img src="../../../../../../lib/class_big.png" />
         <p id="owner"><a name="edu" class="extype" href="../../../../../package.html">edu</a>.<a name="edu.berkeley" class="extype" href="../../../../package.html">berkeley</a>.<a name="edu.berkeley.cs" class="extype" href="../../../package.html">cs</a>.<a name="edu.berkeley.cs.scads" class="extype" href="../../package.html">scads</a>.<a name="edu.berkeley.cs.scads.piql" class="extype" href="../package.html">piql</a>.<a name="edu.berkeley.cs.scads.piql.modeling" class="extype" href="package.html">modeling</a></p>
-        <h1>PlanCompareTask</h1>
+        <h1>Envelope</h1>
       </div>
 
       <h4 class="signature" id="signature">
       <span class="kind">case class</span>
       <span class="symbol"> 
-        <span class="name">PlanCompareTask</span>
+        <span class="name">Envelope</span>
         
-        <span class="params">(<span name="clusterAddress">clusterAddress: String</span>, <span name="resultClusterAddress">resultClusterAddress: String</span>, <span name="replicationFactor">replicationFactor: <span name="scala.Int" class="extype">Int</span></span>, <span name="iterations">iterations: <span name="scala.Int" class="extype">Int</span></span>, <span name="points">points: <span name="scala.Int" class="extype">Int</span></span>, <span name="stepSize">stepSize: <span name="scala.Int" class="extype">Int</span></span>, <span name="numExecutions">numExecutions: <span name="scala.Int" class="extype">Int</span></span>, <span name="numFollowers">numFollowers: <span name="scala.Int" class="extype">Int</span></span>, <span name="fetchSize">fetchSize: <span name="scala.Int" class="extype">Int</span></span>, <span name="warmupTimeMin">warmupTimeMin: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result"> extends <span name="deploylib.mesos.AvroTask" class="extype">AvroTask</span> with <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span> with <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
+        <span class="params">(<span name="src">src: <span name="edu.berkeley.cs.scads.comm.ServiceId" class="extype">ServiceId</span></span>, <span name="dest">dest: <span name="edu.berkeley.cs.scads.comm.ServiceId" class="extype">ServiceId</span></span>, <span name="msg">msg: <span name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype">StorageMessage</span></span>)</span><span class="result"> extends <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span> with <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
       </span>
       </h4>
       
-          <div class="fullcommenttop" id="comment"><div class="comment cmt"><p>Mesos task to compare the response time of different physical plans for
-the following SCADr query:</p><p>SELECT * FROM Subscriptions
-WHERE owner = &lt;activeUser&gt; AND target IN [1]
-</p></div><div class="toggleContainer block">
+          <div class="fullcommenttop" id="comment"><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, <span name="scala.Product" class="extype">Product</span>, <span name="scala.Equals" class="extype">Equals</span>, <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span>, <span name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="extype">ScalaSpecificRecord</span>, <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span>, <span name="deploylib.mesos.AvroTask" class="extype">AvroTask</span>, <span name="java.lang.Runnable" class="extype">Runnable</span>, <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span>, <span name="org.apache.avro.generic.GenericContainer" class="extype">GenericContainer</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, <span name="scala.Product" class="extype">Product</span>, <span name="scala.Equals" class="extype">Equals</span>, <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span>, <span name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="extype">ScalaSpecificRecord</span>, <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span>, <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span>, <span name="org.apache.avro.generic.GenericContainer" class="extype">GenericContainer</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
         
 
@@ -49,7 +46,7 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
                 <span class="filtertype">Inherited</span>
                 <ol><li class="hideall out"><span>Hide All</span></li>
                 <li class="showall in"><span>Show all</span></li></ol>
-                <ol id="linearization"><li name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask" class="in"><span>PlanCompareTask</span></li><li name="scala.Serializable" class="in"><span>Serializable</span></li><li name="java.io.Serializable" class="in"><span>Serializable</span></li><li name="scala.Product" class="in"><span>Product</span></li><li name="scala.Equals" class="in"><span>Equals</span></li><li name="edu.berkeley.cs.avro.marker.AvroRecord" class="in"><span>AvroRecord</span></li><li name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="in"><span>ScalaSpecificRecord</span></li><li name="org.apache.avro.specific.SpecificRecord" class="in"><span>SpecificRecord</span></li><li name="deploylib.mesos.AvroTask" class="in"><span>AvroTask</span></li><li name="java.lang.Runnable" class="in"><span>Runnable</span></li><li name="org.apache.avro.generic.IndexedRecord" class="in"><span>IndexedRecord</span></li><li name="org.apache.avro.generic.GenericContainer" class="in"><span>GenericContainer</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
+                <ol id="linearization"><li name="edu.berkeley.cs.scads.piql.modeling.Envelope" class="in"><span>Envelope</span></li><li name="scala.Serializable" class="in"><span>Serializable</span></li><li name="java.io.Serializable" class="in"><span>Serializable</span></li><li name="scala.Product" class="in"><span>Product</span></li><li name="scala.Equals" class="in"><span>Equals</span></li><li name="edu.berkeley.cs.avro.marker.AvroRecord" class="in"><span>AvroRecord</span></li><li name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="in"><span>ScalaSpecificRecord</span></li><li name="org.apache.avro.specific.SpecificRecord" class="in"><span>SpecificRecord</span></li><li name="org.apache.avro.generic.IndexedRecord" class="in"><span>IndexedRecord</span></li><li name="org.apache.avro.generic.GenericContainer" class="in"><span>GenericContainer</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
               </div>
           <div id="visbl">
               <span class="filtertype">Visibility</span>
@@ -59,14 +56,14 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
 
         <div class="members" id="constructors">
               <h3>Instance Constructors</h3>
-              <ol><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#this" data-isabs="false">
-      <a id="this:PlanCompareTask"></a>
+              <ol><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.Envelope#this" data-isabs="false">
+      <a id="this:Envelope"></a>
       <h4 class="signature">
       <span class="kind">new</span>
       <span class="symbol"> 
-        <span class="name">PlanCompareTask</span>
+        <span class="name">Envelope</span>
         
-        <span class="params">(<span name="clusterAddress">clusterAddress: String</span>, <span name="resultClusterAddress">resultClusterAddress: String</span>, <span name="replicationFactor">replicationFactor: <span name="scala.Int" class="extype">Int</span></span>, <span name="iterations">iterations: <span name="scala.Int" class="extype">Int</span></span>, <span name="points">points: <span name="scala.Int" class="extype">Int</span></span>, <span name="stepSize">stepSize: <span name="scala.Int" class="extype">Int</span></span>, <span name="numExecutions">numExecutions: <span name="scala.Int" class="extype">Int</span></span>, <span name="numFollowers">numFollowers: <span name="scala.Int" class="extype">Int</span></span>, <span name="fetchSize">fetchSize: <span name="scala.Int" class="extype">Int</span></span>, <span name="warmupTimeMin">warmupTimeMin: <span name="scala.Int" class="extype">Int</span></span>)</span>
+        <span class="params">(<span name="src">src: <span name="edu.berkeley.cs.scads.comm.ServiceId" class="extype">ServiceId</span></span>, <span name="dest">dest: <span name="edu.berkeley.cs.scads.comm.ServiceId" class="extype">ServiceId</span></span>, <span name="msg">msg: <span name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype">StorageMessage</span></span>)</span>
       </span>
       </h4>
       
@@ -112,17 +109,6 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.mesos.AvroTask#*" data-isabs="false">
-      <a id="*(Int):Seq[AvroTask]"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">*</span>
-        
-        <span class="params">(<span name="count">count: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.collection.immutable.Seq" class="extype">Seq</span>[<span name="deploylib.mesos.AvroTask" class="extype">AvroTask</span>]</span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AvroTask</dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#==" data-isabs="false">
       <a id="==(AnyRef):Boolean"></a>
       <h4 class="signature">
@@ -156,7 +142,7 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#canEqual" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.Envelope#canEqual" data-isabs="false">
       <a id="canEqual(Any):Boolean"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -166,7 +152,7 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
         <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask" class="extype" href="">PlanCompareTask</a> → Equals</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.Envelope" class="extype" href="">Envelope</a> → Equals</dd></dl></div>
     </li><li visbl="prt" name="scala.AnyRef#clone" data-isabs="false">
       <a id="clone():AnyRef"></a>
       <h4 class="signature">
@@ -181,25 +167,14 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
                 <span class="name">@throws</span><span class="args">()</span>
               
         </dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#clusterAddress" data-isabs="false">
-      <a id="clusterAddress:String"></a>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.Envelope#dest" data-isabs="false">
+      <a id="dest:ServiceId"></a>
       <h4 class="signature">
       <span class="kind">var</span>
       <span class="symbol"> 
-        <span class="name">clusterAddress</span>
+        <span class="name">dest</span>
         
-        <span class="result">: String</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#currentTime" data-isabs="false">
-      <a id="currentTime:Long"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">currentTime</span>
-        
-        <span class="result">: <span name="scala.Long" class="extype">Long</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.comm.ServiceId" class="extype">ServiceId</span></span>
       </span>
       </h4>
       
@@ -214,7 +189,7 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#equals" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.Envelope#equals" data-isabs="false">
       <a id="equals(Any):Boolean"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -224,18 +199,7 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
         <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask" class="extype" href="">PlanCompareTask</a> → Equals → AnyRef → Any</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#fetchSize" data-isabs="false">
-      <a id="fetchSize:Int"></a>
-      <h4 class="signature">
-      <span class="kind">var</span>
-      <span class="symbol"> 
-        <span class="name">fetchSize</span>
-        
-        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
-      </span>
-      </h4>
-      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.Envelope" class="extype" href="">Envelope</a> → Equals → AnyRef → Any</dd></dl></div>
     </li><li visbl="prt" name="scala.AnyRef#finalize" data-isabs="false">
       <a id="finalize():Unit"></a>
       <h4 class="signature">
@@ -251,13 +215,13 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
               
         </dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord#fromGenericRecord" data-isabs="false">
-      <a id="fromGenericRecord(Record):PlanCompareTask.this.type"></a>
+      <a id="fromGenericRecord(Record):Envelope.this.type"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">fromGenericRecord</span>
         
-        <span class="params">(<span name="generic">generic: <span name="org.apache.avro.generic.GenericData.Record" class="extype">Record</span></span>)</span><span class="result">: PlanCompareTask.this.type</span>
+        <span class="params">(<span name="generic">generic: <span name="org.apache.avro.generic.GenericData.Record" class="extype">Record</span></span>)</span><span class="result">: Envelope.this.type</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ScalaSpecificRecord</dd></dl></div>
@@ -294,7 +258,7 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AvroRecord → GenericContainer</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#hashCode" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.Envelope#hashCode" data-isabs="false">
       <a id="hashCode():Int"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -304,7 +268,7 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
         <span class="params">()</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask" class="extype" href="">PlanCompareTask</a> → AnyRef → Any</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.Envelope" class="extype" href="">Envelope</a> → AnyRef → Any</dd></dl></div>
     </li><li visbl="pub" name="scala.Any#isInstanceOf" data-isabs="false">
       <a id="isInstanceOf[T0]:Boolean"></a>
       <h4 class="signature">
@@ -316,28 +280,17 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#iterations" data-isabs="false">
-      <a id="iterations:Int"></a>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.Envelope#msg" data-isabs="false">
+      <a id="msg:StorageMessage"></a>
       <h4 class="signature">
       <span class="kind">var</span>
       <span class="symbol"> 
-        <span class="name">iterations</span>
+        <span class="name">msg</span>
         
-        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.storage.StorageMessage" class="extype">StorageMessage</span></span>
       </span>
       </h4>
       
-    </li><li visbl="pub" name="deploylib.mesos.AvroTask#logger" data-isabs="false">
-      <a id="logger:Logger"></a>
-      <h4 class="signature">
-      <span class="kind">val</span>
-      <span class="symbol"> 
-        <span class="name">logger</span>
-        
-        <span class="result">: <span name="net.lag.logging.Logger" class="extype">Logger</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AvroTask</dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#ne" data-isabs="false">
       <a id="ne(AnyRef):Boolean"></a>
       <h4 class="signature">
@@ -371,62 +324,29 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#numExecutions" data-isabs="false">
-      <a id="numExecutions:Int"></a>
-      <h4 class="signature">
-      <span class="kind">var</span>
-      <span class="symbol"> 
-        <span class="name">numExecutions</span>
-        
-        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#numFollowers" data-isabs="false">
-      <a id="numFollowers:Int"></a>
-      <h4 class="signature">
-      <span class="kind">var</span>
-      <span class="symbol"> 
-        <span class="name">numFollowers</span>
-        
-        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
-      </span>
-      </h4>
-      
     </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord#parse" data-isabs="false">
-      <a id="parse(InputStream):PlanCompareTask.this.type"></a>
+      <a id="parse(InputStream):Envelope.this.type"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">parse</span>
         
-        <span class="params">(<span name="inputStream">inputStream: <span name="java.io.InputStream" class="extype">InputStream</span></span>)</span><span class="result">: PlanCompareTask.this.type</span>
+        <span class="params">(<span name="inputStream">inputStream: <span name="java.io.InputStream" class="extype">InputStream</span></span>)</span><span class="result">: Envelope.this.type</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ScalaSpecificRecord</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord#parse" data-isabs="false">
-      <a id="parse(Array[Byte]):PlanCompareTask.this.type"></a>
+      <a id="parse(Array[Byte]):Envelope.this.type"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">parse</span>
         
-        <span class="params">(<span name="data">data: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: PlanCompareTask.this.type</span>
+        <span class="params">(<span name="data">data: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: Envelope.this.type</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ScalaSpecificRecord</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#points" data-isabs="false">
-      <a id="points:Int"></a>
-      <h4 class="signature">
-      <span class="kind">var</span>
-      <span class="symbol"> 
-        <span class="name">points</span>
-        
-        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#productArity" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.Envelope#productArity" data-isabs="false">
       <a id="productArity:Int"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -436,8 +356,8 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
         <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask" class="extype" href="">PlanCompareTask</a> → Product</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#productElement" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.Envelope" class="extype" href="">Envelope</a> → Product</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.Envelope#productElement" data-isabs="false">
       <a id="productElement(Int):Any"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -447,7 +367,7 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
         <span class="params">(<span name="arg0">arg0: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Any" class="extype">Any</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask" class="extype" href="">PlanCompareTask</a> → Product</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.Envelope" class="extype" href="">Envelope</a> → Product</dd></dl></div>
     </li><li visbl="pub" name="scala.Product#productIterator" data-isabs="false">
       <a id="productIterator:Iterator[Any]"></a>
       <h4 class="signature">
@@ -459,7 +379,7 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Product</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#productPrefix" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.Envelope#productPrefix" data-isabs="false">
       <a id="productPrefix:String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -469,7 +389,7 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
         <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask" class="extype" href="">PlanCompareTask</a> → Product</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.Envelope" class="extype" href="">Envelope</a> → Product</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.avro.marker.AvroRecord#put" data-isabs="false">
       <a id="put(Int,Any):Unit"></a>
       <h4 class="signature">
@@ -481,58 +401,14 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AvroRecord → IndexedRecord</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#randomUserList" data-isabs="false">
-      <a id="randomUserList(Int,Int):Seq[String]"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">randomUserList</span>
-        
-        <span class="params">(<span name="maxUser">maxUser: <span name="scala.Int" class="extype">Int</span></span>, <span name="size">size: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.collection.Seq" class="extype">Seq</span>[String]</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#replicationFactor" data-isabs="false">
-      <a id="replicationFactor:Int"></a>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.Envelope#src" data-isabs="false">
+      <a id="src:ServiceId"></a>
       <h4 class="signature">
       <span class="kind">var</span>
       <span class="symbol"> 
-        <span class="name">replicationFactor</span>
+        <span class="name">src</span>
         
-        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#resultClusterAddress" data-isabs="false">
-      <a id="resultClusterAddress:String"></a>
-      <h4 class="signature">
-      <span class="kind">var</span>
-      <span class="symbol"> 
-        <span class="name">resultClusterAddress</span>
-        
-        <span class="result">: String</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#run" data-isabs="false">
-      <a id="run():Unit"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">run</span>
-        
-        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask" class="extype" href="">PlanCompareTask</a> → AvroTask → Runnable</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#stepSize" data-isabs="false">
-      <a id="stepSize:Int"></a>
-      <h4 class="signature">
-      <span class="kind">var</span>
-      <span class="symbol"> 
-        <span class="name">stepSize</span>
-        
-        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.comm.ServiceId" class="extype">ServiceId</span></span>
       </span>
       </h4>
       
@@ -569,18 +445,7 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ScalaSpecificRecord</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.mesos.AvroTask#toJvmTask" data-isabs="false">
-      <a id="toJvmTask(Seq[ClassSource]):JvmMainTask"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">toJvmTask</span>
-        
-        <span class="params">(<span class="implicit">implicit </span><span name="classSource">classSource: Seq[<span name="deploylib.mesos.ClassSource" class="extype">ClassSource</span>]</span>)</span><span class="result">: <span name="deploylib.mesos.JvmMainTask" class="extype">JvmMainTask</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AvroTask</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#toString" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.Envelope#toString" data-isabs="false">
       <a id="toString():String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -590,18 +455,7 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
         <span class="params">()</span><span class="result">: String</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask" class="extype" href="">PlanCompareTask</a> → AnyRef → Any</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#toUser" data-isabs="false">
-      <a id="toUser(Int):String"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">toUser</span>
-        
-        <span class="params">(<span name="i">i: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: String</span>
-      </span>
-      </h4>
-      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.Envelope" class="extype" href="">Envelope</a> → AnyRef → Any</dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
       <a id="wait():Unit"></a>
       <h4 class="signature">
@@ -644,17 +498,6 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
                 <span class="name">@throws</span><span class="args">()</span>
               
         </dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.PlanCompareTask#warmupTimeMin" data-isabs="false">
-      <a id="warmupTimeMin:Int"></a>
-      <h4 class="signature">
-      <span class="kind">var</span>
-      <span class="symbol"> 
-        <span class="name">warmupTimeMin</span>
-        
-        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
-      </span>
-      </h4>
-      
     </li></ol>
             </div>
 
@@ -691,10 +534,6 @@ WHERE owner = &lt;activeUser&gt; AND target IN [1]
               <h3>Inherited from <span name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="extype">ScalaSpecificRecord</span></h3>
             </div><div name="org.apache.avro.specific.SpecificRecord" class="parent">
               <h3>Inherited from <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span></h3>
-            </div><div name="deploylib.mesos.AvroTask" class="parent">
-              <h3>Inherited from <span name="deploylib.mesos.AvroTask" class="extype">AvroTask</span></h3>
-            </div><div name="java.lang.Runnable" class="parent">
-              <h3>Inherited from <span name="java.lang.Runnable" class="extype">Runnable</span></h3>
             </div><div name="org.apache.avro.generic.IndexedRecord" class="parent">
               <h3>Inherited from <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span></h3>
             </div><div name="org.apache.avro.generic.GenericContainer" class="parent">

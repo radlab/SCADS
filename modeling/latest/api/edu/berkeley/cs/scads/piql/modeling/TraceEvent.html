@@ -30,7 +30,7 @@
       
           <div class="fullcommenttop" id="comment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed </dd></dl><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent"><span name="edu.berkeley.cs.avro.marker.AvroUnion" class="extype">AvroUnion</span>, <span name="org.apache.avro.generic.GenericContainer" class="extype">GenericContainer</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><span name="edu.berkeley.cs.avro.marker.AvroUnion" class="extype">AvroUnion</span>, <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span>, <span name="org.apache.avro.generic.GenericContainer" class="extype">GenericContainer</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div><div class="toggleContainer block">
           <span class="toggle">Known Subclasses</span>
           <div class="subClasses hiddenContent"><a name="edu.berkeley.cs.scads.piql.modeling.ChangeCardinalityEvent" class="extype" href="ChangeCardinalityEvent.html">ChangeCardinalityEvent</a>, <a name="edu.berkeley.cs.scads.piql.modeling.ChangeNamedCardinalityEvent" class="extype" href="ChangeNamedCardinalityEvent.html">ChangeNamedCardinalityEvent</a>, <a name="edu.berkeley.cs.scads.piql.modeling.IteratorEvent" class="extype" href="IteratorEvent.html">IteratorEvent</a>, <a name="edu.berkeley.cs.scads.piql.modeling.MessageEvent" class="extype" href="MessageEvent.html">MessageEvent</a>, <a name="edu.berkeley.cs.scads.piql.modeling.QueryEvent" class="extype" href="QueryEvent.html">QueryEvent</a>, <a name="edu.berkeley.cs.scads.piql.modeling.WarmupEvent" class="extype" href="WarmupEvent.html">WarmupEvent</a></div>
@@ -49,7 +49,7 @@
                 <span class="filtertype">Inherited</span>
                 <ol><li class="hideall out"><span>Hide All</span></li>
                 <li class="showall in"><span>Show all</span></li></ol>
-                <ol id="linearization"><li name="edu.berkeley.cs.scads.piql.modeling.TraceEvent" class="in"><span>TraceEvent</span></li><li name="edu.berkeley.cs.avro.marker.AvroUnion" class="in"><span>AvroUnion</span></li><li name="org.apache.avro.generic.GenericContainer" class="in"><span>GenericContainer</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
+                <ol id="linearization"><li name="edu.berkeley.cs.scads.piql.modeling.TraceEvent" class="in"><span>TraceEvent</span></li><li name="edu.berkeley.cs.avro.marker.AvroUnion" class="in"><span>AvroUnion</span></li><li name="org.apache.avro.generic.IndexedRecord" class="in"><span>IndexedRecord</span></li><li name="org.apache.avro.generic.GenericContainer" class="in"><span>GenericContainer</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
               </div>
           <div id="visbl">
               <span class="filtertype">Visibility</span>
@@ -63,7 +63,18 @@
         
         <div class="values members" id="values">
               <h3>Abstract Value Members</h3>
-              <ol><li visbl="pub" name="org.apache.avro.generic.GenericContainer#getSchema" data-isabs="true">
+              <ol><li visbl="pub" name="org.apache.avro.generic.IndexedRecord#get" data-isabs="true">
+      <a id="get(Int):AnyRef"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">get</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: AnyRef</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd>IndexedRecord</dd></dl></div>
+    </li><li visbl="pub" name="org.apache.avro.generic.GenericContainer#getSchema" data-isabs="true">
       <a id="getSchema():Schema"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -74,6 +85,17 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd>GenericContainer</dd></dl></div>
+    </li><li visbl="pub" name="org.apache.avro.generic.IndexedRecord#put" data-isabs="true">
+      <a id="put(Int,Any):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">put</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Int" class="extype">Int</span></span>, <span name="arg1">arg1: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd>IndexedRecord</dd></dl></div>
     </li></ol>
             </div>
 
@@ -332,6 +354,8 @@
 
         <div name="edu.berkeley.cs.avro.marker.AvroUnion" class="parent">
               <h3>Inherited from <span name="edu.berkeley.cs.avro.marker.AvroUnion" class="extype">AvroUnion</span></h3>
+            </div><div name="org.apache.avro.generic.IndexedRecord" class="parent">
+              <h3>Inherited from <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span></h3>
             </div><div name="org.apache.avro.generic.GenericContainer" class="parent">
               <h3>Inherited from <span name="org.apache.avro.generic.GenericContainer" class="extype">GenericContainer</span></h3>
             </div><div name="scala.AnyRef" class="parent">

@@ -91,6 +91,17 @@
       </span>
       </h4>
       
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.Envelope" data-isabs="false">
+      <a id="Envelope:Envelope"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="Envelope.html"><span class="name">Envelope</span></a>
+        
+        <span class="params">(<span name="src">src: ServiceId</span>, <span name="dest">dest: ServiceId</span>, <span name="msg">msg: StorageMessage</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.modeling.ExecutionTrace" data-isabs="false">
       <a id="ExecutionTrace:ExecutionTrace"></a>
       <h4 class="signature">
@@ -175,7 +186,7 @@
       <span class="symbol"> 
         <a href="MessageEvent.html"><span class="name">MessageEvent</span></a>
         
-        <span class="params">(<span name="message">message: Message</span>)</span><span class="result"> extends AvroRecord with TraceEvent with Product with Serializable</span>
+        <span class="params">(<span name="message">message: Array[Byte]</span>)</span><span class="result"> extends AvroRecord with TraceEvent with Product with Serializable</span>
       </span>
       </h4>
       
@@ -186,7 +197,7 @@
       <span class="symbol"> 
         <a href="MessagePassingTracer.html"><span class="name">MessagePassingTracer</span></a>
         
-        <span class="result"> extends MessageHandlerListener[Message, Message]</span>
+        <span class="result"> extends MessageHandlerListener</span>
       </span>
       </h4>
       
