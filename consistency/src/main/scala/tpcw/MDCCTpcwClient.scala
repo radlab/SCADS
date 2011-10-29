@@ -22,16 +22,15 @@ import java.util.UUID
 class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: QueryExecutor, val txProtocol: NSTxProtocol) extends TpcwClient(cluster, executor) {
 
   // transaction versions of the relations.
-  override val addresses = new PairNamespace[Address]("addresses", cluster, cluster.namespaces) with PairTransactions[Address] { override val protocolType = txProtocol }
-  override val authors = new PairNamespace[Author]("authors", cluster, cluster.namespaces) with PairTransactions[Author] { override val protocolType = txProtocol }
-  override val xacts = new PairNamespace[CcXact]("xacts", cluster, cluster.namespaces) with PairTransactions[CcXact] { override val protocolType = txProtocol }
-  override val countries = new PairNamespace[Country]("countries", cluster, cluster.namespaces) with PairTransactions[Country] { override val protocolType = txProtocol }
-  override val customers = new PairNamespace[Customer]("customers", cluster, cluster.namespaces) with PairTransactions[Customer] { override val protocolType = txProtocol }
-  override val items = new PairNamespace[Item]("items", cluster, cluster.namespaces) with PairTransactions[Item] { override val protocolType = txProtocol }
-  override val orderLines = new PairNamespace[OrderLine]("orderLines", cluster, cluster.namespaces) with PairTransactions[OrderLine] { override val protocolType = txProtocol }
-  override val orders = new PairNamespace[Order]("orders", cluster, cluster.namespaces) with PairTransactions[Order] { override val protocolType = txProtocol }
-  override val shoppingCartItems = new PairNamespace[ShoppingCartItem]("shoppingCartItems", cluster, cluster.namespaces) with PairTransactions[ShoppingCartItem] { override val protocolType = txProtocol }
+  override lazy val addresses = cluster.getNamespace[Address]("addresses", txProtocol)
+  override lazy val authors = cluster.getNamespace[Author]("authors", txProtocol)
+  override lazy val xacts = cluster.getNamespace[CcXact]("xacts", txProtocol)
+  override lazy val countries = cluster.getNamespace[Country]("countries", txProtocol)
+  override lazy val customers = cluster.getNamespace[Customer]("customers", txProtocol)
+  override lazy val items = cluster.getNamespace[Item]("items", txProtocol)
+  override lazy val orderLines = cluster.getNamespace[OrderLine]("orderLines", txProtocol)
+  override lazy val orders = cluster.getNamespace[Order]("orders", txProtocol)
+  override lazy val shoppingCartItems = cluster.getNamespace[ShoppingCartItem]("shoppingCartItems", txProtocol)
 
-  override val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems)
-  namespaces.foreach(_.open)
+//  override val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems)
 }

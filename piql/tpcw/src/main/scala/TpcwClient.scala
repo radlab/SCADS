@@ -20,15 +20,15 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   protected implicit val exec = executor
 
   /* Relations */
-  val addresses = cluster.getNamespace[Address]("addresses")
-  val authors = cluster.getNamespace[Author]("authors")
-  val xacts = cluster.getNamespace[CcXact]("xacts")
-  val countries = cluster.getNamespace[Country]("countries")
-  val customers = cluster.getNamespace[Customer]("customers")
-  val items = cluster.getNamespace[Item]("items")
-  val orderLines = cluster.getNamespace[OrderLine]("orderLines")
-  val orders = cluster.getNamespace[Order]("orders")
-  val shoppingCartItems = cluster.getNamespace[ShoppingCartItem]("shoppingCartItems")
+  lazy val addresses = cluster.getNamespace[Address]("addresses")
+  lazy val authors = cluster.getNamespace[Author]("authors")
+  lazy val xacts = cluster.getNamespace[CcXact]("xacts")
+  lazy val countries = cluster.getNamespace[Country]("countries")
+  lazy val customers = cluster.getNamespace[Customer]("customers")
+  lazy val items = cluster.getNamespace[Item]("items")
+  lazy val orderLines = cluster.getNamespace[OrderLine]("orderLines")
+  lazy val orders = cluster.getNamespace[Order]("orders")
+  lazy val shoppingCartItems = cluster.getNamespace[ShoppingCartItem]("shoppingCartItems")
 
   val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems)
   //def allNamespaces = namespaces.flatMap(ns => ns +: ns.listIndexes.map(_._2).toSeq)
@@ -59,7 +59,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * from CUSTOMER
    * where C_UNAME=@C_UNAME
    */
-  lazy val homeWI = customers.where("C_UNAME".a === (0.?))
+  val homeWI = customers.where("C_UNAME".a === (0.?))
 		                    .toPiql("homeWI")
 
   /**
@@ -71,7 +71,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    *       I_SUBJECT LIKE @CategoryID
    * order by I_PUB_DATE desc,I_TITLE
    */
-  lazy val newProductWI =
+  val newProductWI =
     new OptimizedQuery(
       "newProductWI",
       IndexLookupJoin(
@@ -115,7 +115,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * SELECT DISTINCT * FROM ITEM,AUTHOR
    * WHERE AUTHOR.A_ID = ITEM.I_A_ID AND ITEM.I_ID = @BookID
    */
-  lazy val productDetailWI =
+  val productDetailWI =
       items.where("I_ID".a === (0.?))
 			     .join(authors)
 			     .where("A_ID".a === "I_A_ID".a)
@@ -132,7 +132,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * order by I_TITLE
   */
 
-  lazy val searchByAuthorWI =
+  val searchByAuthorWI =
     new OptimizedQuery(
       "searchByAuthorWI",
       LocalStopAfter(
@@ -166,7 +166,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * order by I_TITLE
    */
 
-  lazy val searchByTitleWI =
+  val searchByTitleWI =
     new OptimizedQuery(
       "searchByTitleWI",
       IndexLookupJoin(
@@ -191,7 +191,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * WHERE I_A_ID = A_ID AND I_SUBJECT LIKE @CategoryID
    * order by I_TITLE
    */
-  lazy val searchBySubjectWI = newProductWI
+  val searchBySubjectWI = newProductWI
 
   /**
    * Order Display web interaction
@@ -220,11 +220,11 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * I_COST,OL_QTY,OL_DISCOUNT,OL_COMMENTSfrom ORDER_LINE,ITEM where
    * OL_I_ID=I_ID and OL_O_ID=@O_I
    */
-  lazy val orderDisplayGetCustomer =
+  val orderDisplayGetCustomer =
     customers.where("C_UNAME".a === (0.?))
 	     .toPiql("orderDisplayGetCustomer")
 
-  lazy val orderDisplayGetLastOrder =
+  val orderDisplayGetLastOrder =
     orders
       .where("O_C_UNAME".a === (0.?))
       .sort("O_DATE_Time".a :: Nil, false)
@@ -239,7 +239,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       .where("ADDR_CO_ID".a === "CO_ID".a)
       .toPiql("orderDisplayGetLastOrder")
 
-  lazy val orderDisplayGetOrderLines =
+  val orderDisplayGetOrderLines =
     orderLines.where("OL_O_ID".a === (0.?))
       .limit((1.?), maxOrderLinesPerPage)
       .join(items)
@@ -269,7 +269,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * Delete from SHOPPING_CART where SC_ID=@UserID and SC_I_ID=@BookID
    */
 
-  lazy val retrieveShoppingCart =
+  val retrieveShoppingCart =
     shoppingCartItems.where("SCL_C_UNAME".a === (0.?))
                      .limit(1000)
                      .join(items)
@@ -315,7 +315,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * where C_ADDR_ID=ADDR_ID and ADDR_CO_ID=CO_ID and C_ID = @C_ID
    */
 
-  lazy val buyRequestExistingCustomerWI =
+  val buyRequestExistingCustomerWI =
     customers.where("C_UNAME".a === (0.?))
              .join(addresses)
              .where("C_ADDR_ID".a === "ADDR_ID".a)
@@ -467,5 +467,5 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     order.O_ID
   }
 
-  lazy val adminRequestWI = productDetailWI
+  val adminRequestWI = productDetailWI
 }
