@@ -15,12 +15,12 @@
 <span class="keyword">import</span> java.util.GregorianCalendar;
 <span class="keyword">import</span> java.util.Random;
 
-public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.populate.data.Utils" id="9142">Utils</a> <span class="delimiter">{</span>
+public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.populate.data.Utils" id="9140">Utils</a> <span class="delimiter">{</span>
 
-	<span class="keyword">private</span> static Random <a title="java.util.Random" id="36303">rand</a> = <span class="keyword">new</span> Random<span class="delimiter">(</span><span class="delimiter">)</span>;
-	<span class="keyword">private</span> static GregorianCalendar <a title="java.util.GregorianCalendar" id="36304">cal</a> = <span class="keyword">new</span> GregorianCalendar<span class="delimiter">(</span><span class="delimiter">)</span>;
+	<span class="keyword">private</span> static Random <a title="java.util.Random" id="36535">rand</a> = <span class="keyword">new</span> Random<span class="delimiter">(</span><span class="delimiter">)</span>;
+	<span class="keyword">private</span> static GregorianCalendar <a title="java.util.GregorianCalendar" id="36536">cal</a> = <span class="keyword">new</span> GregorianCalendar<span class="delimiter">(</span><span class="delimiter">)</span>;
 
-  public static <span class="keyword">final</span> String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[java.lang.String]" id="36305">COUNTRIES</a> = <span class="delimiter">{</span> <span class="string">&quot;United States&quot;</span>, <span class="string">&quot;United Kingdom&quot;</span>, <span class="string">&quot;Canada&quot;</span>,
+  public static <span class="keyword">final</span> String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[java.lang.String]" id="36537">COUNTRIES</a> = <span class="delimiter">{</span> <span class="string">&quot;United States&quot;</span>, <span class="string">&quot;United Kingdom&quot;</span>, <span class="string">&quot;Canada&quot;</span>,
 			<span class="string">&quot;Germany&quot;</span>, <span class="string">&quot;France&quot;</span>, <span class="string">&quot;Japan&quot;</span>, <span class="string">&quot;Netherlands&quot;</span>, <span class="string">&quot;Italy&quot;</span>,
 			<span class="string">&quot;Switzerland&quot;</span>, <span class="string">&quot;Australia&quot;</span>, <span class="string">&quot;Algeria&quot;</span>, <span class="string">&quot;Argentina&quot;</span>, <span class="string">&quot;Armenia&quot;</span>,
 			<span class="string">&quot;Austria&quot;</span>, <span class="string">&quot;Azerbaijan&quot;</span>, <span class="string">&quot;Bahamas&quot;</span>, <span class="string">&quot;Bahrain&quot;</span>, <span class="string">&quot;Bangla Desh&quot;</span>,
@@ -41,7 +41,7 @@ public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.
 			<span class="string">&quot;Taiwan&quot;</span>, <span class="string">&quot;Thailand&quot;</span>, <span class="string">&quot;Trinidad&quot;</span>, <span class="string">&quot;Turkey&quot;</span>, <span class="string">&quot;Venezuela&quot;</span>,
 			<span class="string">&quot;Zambia&quot;</span> <span class="delimiter">}</span>;
 
-	<span class="keyword">private</span> static <span class="keyword">final</span> double<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[Double]" id="36306">EXCHANGES</a> = <span class="delimiter">{</span> <span class="int">1</span>, <span class="double">.625461</span>, <span class="double">1.46712</span>, <span class="double">1.86125</span>, <span class="double">6.24238</span>, <span class="double">121.907</span>,
+	<span class="keyword">private</span> static <span class="keyword">final</span> double<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[Double]" id="36538">EXCHANGES</a> = <span class="delimiter">{</span> <span class="int">1</span>, <span class="double">.625461</span>, <span class="double">1.46712</span>, <span class="double">1.86125</span>, <span class="double">6.24238</span>, <span class="double">121.907</span>,
 			<span class="double">2.09715</span>, <span class="double">1842.64</span>, <span class="double">1.51645</span>, <span class="double">1.54208</span>, <span class="double">65.3851</span>, <span class="double">0.998</span>, <span class="double">540.92</span>,
 			<span class="double">13.0949</span>, <span class="int">3977</span>, <span class="int">1</span>, <span class="double">.3757</span>, <span class="double">48.65</span>, <span class="int">2</span>, <span class="int">248000</span>, <span class="double">38.3892</span>, <span class="int">1</span>, <span class="double">5.74</span>,
 			<span class="double">4.7304</span>, <span class="double">1.71</span>, <span class="int">1846</span>, <span class="double">.8282</span>, <span class="double">627.1999</span>, <span class="double">494.2</span>, <span class="double">8.278</span>, <span class="double">1.5391</span>,
@@ -54,7 +54,7 @@ public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.
 			<span class="double">43.9642</span>, <span class="double">6.25845</span>, <span class="double">1190.15</span>, <span class="double">158.34</span>, <span class="double">5.282</span>, <span class="double">8.54477</span>, <span class="double">32.77</span>,
 			<span class="double">37.1414</span>, <span class="double">6.1764</span>, <span class="int">401500</span>, <span class="int">596</span>, <span class="double">2447.7</span> <span class="delimiter">}</span>;
 
-	<span class="keyword">private</span> static <span class="keyword">final</span> String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[java.lang.String]" id="36307">CURRENCIES</a> = <span class="delimiter">{</span> <span class="string">&quot;Dollars&quot;</span>, <span class="string">&quot;Pounds&quot;</span>, <span class="string">&quot;Dollars&quot;</span>,
+	<span class="keyword">private</span> static <span class="keyword">final</span> String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[java.lang.String]" id="36539">CURRENCIES</a> = <span class="delimiter">{</span> <span class="string">&quot;Dollars&quot;</span>, <span class="string">&quot;Pounds&quot;</span>, <span class="string">&quot;Dollars&quot;</span>,
 			<span class="string">&quot;Deutsche Marks&quot;</span>, <span class="string">&quot;Francs&quot;</span>, <span class="string">&quot;Yen&quot;</span>, <span class="string">&quot;Guilders&quot;</span>, <span class="string">&quot;Lira&quot;</span>,
 			<span class="string">&quot;Francs&quot;</span>, <span class="string">&quot;Dollars&quot;</span>, <span class="string">&quot;Dinars&quot;</span>, <span class="string">&quot;Pesos&quot;</span>, <span class="string">&quot;Dram&quot;</span>, <span class="string">&quot;Schillings&quot;</span>,
 			<span class="string">&quot;Manat&quot;</span>, <span class="string">&quot;Dollars&quot;</span>, <span class="string">&quot;Dinar&quot;</span>, <span class="string">&quot;Taka&quot;</span>, <span class="string">&quot;Dollars&quot;</span>, <span class="string">&quot;Rouble&quot;</span>,
@@ -72,25 +72,25 @@ public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.
 			<span class="string">&quot;Krona&quot;</span>, <span class="string">&quot;Dollars&quot;</span>, <span class="string">&quot;Baht&quot;</span>, <span class="string">&quot;Dollars&quot;</span>, <span class="string">&quot;Lira&quot;</span>, <span class="string">&quot;Bolivar&quot;</span>,
 			<span class="string">&quot;Kwacha&quot;</span> <span class="delimiter">}</span>;
 
-	public static <span class="keyword">final</span> String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[java.lang.String]" id="36308">SUBJECTS</a> = <span class="delimiter">{</span> <span class="string">&quot;ARTS&quot;</span>, <span class="string">&quot;BIOGRAPHIES&quot;</span>, <span class="string">&quot;BUSINESS&quot;</span>, <span class="string">&quot;CHILDREN&quot;</span>,
+	public static <span class="keyword">final</span> String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[java.lang.String]" id="36540">SUBJECTS</a> = <span class="delimiter">{</span> <span class="string">&quot;ARTS&quot;</span>, <span class="string">&quot;BIOGRAPHIES&quot;</span>, <span class="string">&quot;BUSINESS&quot;</span>, <span class="string">&quot;CHILDREN&quot;</span>,
 			<span class="string">&quot;COMPUTERS&quot;</span>, <span class="string">&quot;COOKING&quot;</span>, <span class="string">&quot;HEALTH&quot;</span>, <span class="string">&quot;HISTORY&quot;</span>, <span class="string">&quot;HOME&quot;</span>, <span class="string">&quot;HUMOR&quot;</span>,
 			<span class="string">&quot;LITERATURE&quot;</span>, <span class="string">&quot;MYSTERY&quot;</span>, <span class="string">&quot;NON-FICTION&quot;</span>, <span class="string">&quot;PARENTING&quot;</span>,
 			<span class="string">&quot;POLITICS&quot;</span>, <span class="string">&quot;REFERENCE&quot;</span>, <span class="string">&quot;RELIGION&quot;</span>, <span class="string">&quot;ROMANCE&quot;</span>, <span class="string">&quot;SELF-HELP&quot;</span>,
 			<span class="string">&quot;SCIENCE-NATURE&quot;</span>, <span class="string">&quot;SCIENCE-FICTION&quot;</span>, <span class="string">&quot;SPORTS&quot;</span>, <span class="string">&quot;YOUTH&quot;</span>,
 			<span class="string">&quot;TRAVEL&quot;</span> <span class="delimiter">}</span>;
 
-	<span class="keyword">private</span> static <span class="keyword">final</span> String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[java.lang.String]" id="36309">BACKINGS</a> = <span class="delimiter">{</span> <span class="string">&quot;HARDBACK&quot;</span>, <span class="string">&quot;PAPERBACK&quot;</span>, <span class="string">&quot;USED&quot;</span>, <span class="string">&quot;AUDIO&quot;</span>,
+	<span class="keyword">private</span> static <span class="keyword">final</span> String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[java.lang.String]" id="36541">BACKINGS</a> = <span class="delimiter">{</span> <span class="string">&quot;HARDBACK&quot;</span>, <span class="string">&quot;PAPERBACK&quot;</span>, <span class="string">&quot;USED&quot;</span>, <span class="string">&quot;AUDIO&quot;</span>,
 			<span class="string">&quot;LIMITED-EDITION&quot;</span> <span class="delimiter">}</span>;
 
 
-	<span class="keyword">private</span> static <span class="keyword">final</span> String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[java.lang.String]" id="36310">CREDITCARDS</a> = <span class="delimiter">{</span> <span class="string">&quot;VISA&quot;</span>, <span class="string">&quot;MASTERCARD&quot;</span>, <span class="string">&quot;DISCOVER&quot;</span>, <span class="string">&quot;AMEX&quot;</span>,	<span class="string">&quot;DINERS&quot;</span> <span class="delimiter">}</span>;
+	<span class="keyword">private</span> static <span class="keyword">final</span> String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[java.lang.String]" id="36542">CREDITCARDS</a> = <span class="delimiter">{</span> <span class="string">&quot;VISA&quot;</span>, <span class="string">&quot;MASTERCARD&quot;</span>, <span class="string">&quot;DISCOVER&quot;</span>, <span class="string">&quot;AMEX&quot;</span>,	<span class="string">&quot;DINERS&quot;</span> <span class="delimiter">}</span>;
 
-	<span class="keyword">private</span> static <span class="keyword">final</span> String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[java.lang.String]" id="36311">SHIPTYPES</a> = <span class="delimiter">{</span> <span class="string">&quot;AIR&quot;</span>, <span class="string">&quot;UPS&quot;</span>, <span class="string">&quot;FEDEX&quot;</span>, <span class="string">&quot;SHIP&quot;</span>, <span class="string">&quot;COURIER&quot;</span>, <span class="string">&quot;MAIL&quot;</span> <span class="delimiter">}</span>;
+	<span class="keyword">private</span> static <span class="keyword">final</span> String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[java.lang.String]" id="36543">SHIPTYPES</a> = <span class="delimiter">{</span> <span class="string">&quot;AIR&quot;</span>, <span class="string">&quot;UPS&quot;</span>, <span class="string">&quot;FEDEX&quot;</span>, <span class="string">&quot;SHIP&quot;</span>, <span class="string">&quot;COURIER&quot;</span>, <span class="string">&quot;MAIL&quot;</span> <span class="delimiter">}</span>;
 
-	<span class="keyword">private</span> static <span class="keyword">final</span> String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[java.lang.String]" id="36312">STATUSTYPES</a> = <span class="delimiter">{</span> <span class="string">&quot;PROCESSING&quot;</span>, <span class="string">&quot;SHIPPED&quot;</span>, <span class="string">&quot;PENDING&quot;</span>, <span class="string">&quot;DENIED&quot;</span> <span class="delimiter">}</span>;
+	<span class="keyword">private</span> static <span class="keyword">final</span> String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="Array[java.lang.String]" id="36544">STATUSTYPES</a> = <span class="delimiter">{</span> <span class="string">&quot;PROCESSING&quot;</span>, <span class="string">&quot;SHIPPED&quot;</span>, <span class="string">&quot;PENDING&quot;</span>, <span class="string">&quot;DENIED&quot;</span> <span class="delimiter">}</span>;
 
 
-	public static String <a title="(min: Int, max: Int)java.lang.String" id="36313">getRandomAString</a><span class="delimiter">(</span>int <a title="Int" id="36333">min</a>, int <a title="Int" id="36334">max</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static String <a title="(min: Int, max: Int)java.lang.String" id="36545">getRandomAString</a><span class="delimiter">(</span>int <a title="Int" id="36565">min</a>, int <a title="Int" id="36566">max</a><span class="delimiter">)</span> <span class="delimiter">{</span>
 		String newstring = <span class="keyword">new</span> String<span class="delimiter">(</span><span class="delimiter">)</span>;
 		int i;
 		<span class="keyword">final</span> char<span class="delimiter">[</span><span class="delimiter">]</span> chars = <span class="delimiter">{</span> <span class="char">'a'</span>, <span class="char">'b'</span>, <span class="char">'c'</span>, <span class="char">'d'</span>, <span class="char">'e'</span>, <span class="char">'f'</span>, <span class="char">'g'</span>, <span class="char">'h'</span>, <span class="char">'i'</span>,
@@ -110,7 +110,7 @@ public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.
 		<span class="keyword">return</span> newstring;
 	<span class="delimiter">}</span>
 
-	public static String <a title="(length: Int)java.lang.String" id="36314">getRandomAString</a><span class="delimiter">(</span>int <a title="Int" id="36331">length</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static String <a title="(length: Int)java.lang.String" id="36546">getRandomAString</a><span class="delimiter">(</span>int <a title="Int" id="36563">length</a><span class="delimiter">)</span> <span class="delimiter">{</span>
 		String newstring = <span class="keyword">new</span> String<span class="delimiter">(</span><span class="delimiter">)</span>;
 		int i;
 		<span class="keyword">final</span> char<span class="delimiter">[</span><span class="delimiter">]</span> chars = <span class="delimiter">{</span> <span class="char">'a'</span>, <span class="char">'b'</span>, <span class="char">'c'</span>, <span class="char">'d'</span>, <span class="char">'e'</span>, <span class="char">'f'</span>, <span class="char">'g'</span>, <span class="char">'h'</span>, <span class="char">'i'</span>,
@@ -128,7 +128,7 @@ public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.
 		<span class="keyword">return</span> newstring;
 	<span class="delimiter">}</span>
 
-	public static int <a title="(num_digits: Int)Int" id="36315">getRandomNString</a><span class="delimiter">(</span>int <a title="Int" id="54732">num_digits</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static int <a title="(num_digits: Int)Int" id="36547">getRandomNString</a><span class="delimiter">(</span>int <a title="Int" id="55176">num_digits</a><span class="delimiter">)</span> <span class="delimiter">{</span>
 		int return_num = <span class="int">0</span>;
 		<span class="keyword">for</span> <span class="delimiter">(</span>int i = <span class="int">0</span>; i &lt; num_digits; i++<span class="delimiter">)</span> <span class="delimiter">{</span>
 			return_num += getRandomInt<span class="delimiter">(</span><span class="int">0</span>, <span class="int">9</span><span class="delimiter">)</span>
@@ -137,13 +137,13 @@ public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.
 		<span class="keyword">return</span> return_num;
 	<span class="delimiter">}</span>
 
-	public static int <a title="(min: Int, max: Int)Int" id="36316">getRandomNString</a><span class="delimiter">(</span>int <a title="Int" id="54729">min</a>, int <a title="Int" id="54730">max</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static int <a title="(min: Int, max: Int)Int" id="36548">getRandomNString</a><span class="delimiter">(</span>int <a title="Int" id="55173">min</a>, int <a title="Int" id="55174">max</a><span class="delimiter">)</span> <span class="delimiter">{</span>
 		int strlen = <span class="delimiter">(</span>int<span class="delimiter">)</span> Math.floor<span class="delimiter">(</span>rand.nextDouble<span class="delimiter">(</span><span class="delimiter">)</span> * <span class="delimiter">(</span><span class="delimiter">(</span>max - min<span class="delimiter">)</span> + <span class="int">1</span><span class="delimiter">)</span><span class="delimiter">)</span>
 				+ min;
 		<span class="keyword">return</span> getRandomNString<span class="delimiter">(</span>strlen<span class="delimiter">)</span>;
 	<span class="delimiter">}</span>
 
-	public static int <a title="(lower: Int, upper: Int)Int" id="36317">getRandomInt</a><span class="delimiter">(</span>int <a title="Int" id="36458">lower</a>, int <a title="Int" id="36459">upper</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static int <a title="(lower: Int, upper: Int)Int" id="36549">getRandomInt</a><span class="delimiter">(</span>int <a title="Int" id="36690">lower</a>, int <a title="Int" id="36691">upper</a><span class="delimiter">)</span> <span class="delimiter">{</span>
 		int num = <span class="delimiter">(</span>int<span class="delimiter">)</span> Math.floor<span class="delimiter">(</span>rand.nextDouble<span class="delimiter">(</span><span class="delimiter">)</span> * <span class="delimiter">(</span><span class="delimiter">(</span>upper + <span class="int">1</span><span class="delimiter">)</span> - lower<span class="delimiter">)</span><span class="delimiter">)</span>;
 		<span class="keyword">if</span> <span class="delimiter">(</span>num + lower &gt; upper || num + lower &lt; lower<span class="delimiter">)</span> <span class="delimiter">{</span>
 			System.out.println<span class="delimiter">(</span><span class="string">&quot;ERROR: Random returned value of of range!&quot;</span><span class="delimiter">)</span>;
@@ -152,7 +152,7 @@ public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.
 		<span class="keyword">return</span> num + lower;
 	<span class="delimiter">}</span>
 
-	public static String <a title="(D: Int, N: Int)java.lang.String" id="36318">DigSyl</a><span class="delimiter">(</span>int <a title="Int" id="88161">D</a>, int <a title="Int" id="88162">N</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static String <a title="(D: Int, N: Int)java.lang.String" id="36550">DigSyl</a><span class="delimiter">(</span>int <a title="Int" id="88605">D</a>, int <a title="Int" id="88606">N</a><span class="delimiter">)</span> <span class="delimiter">{</span>
 		int i;
 		String resultString = <span class="keyword">new</span> String<span class="delimiter">(</span><span class="delimiter">)</span>;
 		String Dstr = Integer.toString<span class="delimiter">(</span>D<span class="delimiter">)</span>;
@@ -189,7 +189,7 @@ public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.
 		<span class="keyword">return</span> resultString;
 	<span class="delimiter">}</span>
 
-	public static long <a title="(year: Int, month: Int)Long" id="36319">getRandomDate</a><span class="delimiter">(</span>int <a title="Int" id="88164">year</a>, int <a title="Int" id="88165">month</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static long <a title="(year: Int, month: Int)Long" id="36551">getRandomDate</a><span class="delimiter">(</span>int <a title="Int" id="88608">year</a>, int <a title="Int" id="88609">month</a><span class="delimiter">)</span> <span class="delimiter">{</span>
 		int day, maxday;
 
 		maxday = <span class="int">31</span>;
@@ -204,39 +204,39 @@ public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.
 		<span class="keyword">return</span> cal.getTime<span class="delimiter">(</span><span class="delimiter">)</span>.getTime<span class="delimiter">(</span><span class="delimiter">)</span>;
 	<span class="delimiter">}</span>
 
-	public static GregorianCalendar <a title="()java.util.GregorianCalendar" id="36320">getCalendar</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static GregorianCalendar <a title="()java.util.GregorianCalendar" id="36552">getCalendar</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
 		<span class="keyword">return</span> <span class="delimiter">(</span>GregorianCalendar<span class="delimiter">)</span> cal.clone<span class="delimiter">(</span><span class="delimiter">)</span>;
 	<span class="delimiter">}</span>
 
-	public static String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[java.lang.String]" id="36321">getCountries</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[java.lang.String]" id="36553">getCountries</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
 		<span class="keyword">return</span> COUNTRIES;
 	<span class="delimiter">}</span>
 
-	public static double<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[Double]" id="36322">getExchanges</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static double<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[Double]" id="36554">getExchanges</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
 		<span class="keyword">return</span> EXCHANGES;
 	<span class="delimiter">}</span>
 
-	public static String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[java.lang.String]" id="36323">getCurrencies</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[java.lang.String]" id="36555">getCurrencies</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
 		<span class="keyword">return</span> CURRENCIES;
 	<span class="delimiter">}</span>
 
-	public static String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[java.lang.String]" id="36324">getSubjects</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[java.lang.String]" id="36556">getSubjects</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
 		<span class="keyword">return</span> SUBJECTS;
 	<span class="delimiter">}</span>
 
-	public static String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[java.lang.String]" id="36325">getBackings</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[java.lang.String]" id="36557">getBackings</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
 		<span class="keyword">return</span> BACKINGS;
 	<span class="delimiter">}</span>
 
-	public static String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[java.lang.String]" id="36326">getCreditCards</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[java.lang.String]" id="36558">getCreditCards</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
 		<span class="keyword">return</span> CREDITCARDS;
 	<span class="delimiter">}</span>
 
-	public static String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[java.lang.String]" id="36327">getShipTypes</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[java.lang.String]" id="36559">getShipTypes</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
 		<span class="keyword">return</span> SHIPTYPES;
 	<span class="delimiter">}</span>
 
-	public static String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[java.lang.String]" id="36328">getStatusTypes</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+	public static String<span class="delimiter">[</span><span title="Array" class="delimiter">]</span> <a title="()Array[java.lang.String]" id="36560">getStatusTypes</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
 		<span class="keyword">return</span> STATUSTYPES;
 	<span class="delimiter">}</span>
 <span class="delimiter">}</span>

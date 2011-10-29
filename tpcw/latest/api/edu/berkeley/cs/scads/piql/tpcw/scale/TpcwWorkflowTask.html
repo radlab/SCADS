@@ -229,7 +229,7 @@
       <span class="symbol"> 
         <span class="name">delayedSchedule</span>
         
-        <span class="params">(<span name="cluster">cluster: <span name="edu.berkeley.cs.scads.storage.ScadsCluster" class="extype">ScadsCluster</span></span>, <span name="resultCluster">resultCluster: <span name="edu.berkeley.cs.scads.storage.ScadsCluster" class="extype">ScadsCluster</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="classpath">classpath: Seq[<span name="edu.berkeley.cs.scads.comm.ClassSource" class="extype">ClassSource</span>]</span>, <span name="zookeeperRoot">zookeeperRoot: <span name="edu.berkeley.cs.scads.comm.ZooKeeperProxy.ZooKeeperNode" class="extype">ZooKeeperNode</span></span>)</span><span class="result">: Seq[<span name="edu.berkeley.cs.scads.comm.JvmTask" class="extype">JvmTask</span>]</span>
+        <span class="params">(<span name="cluster">cluster: <span name="edu.berkeley.cs.scads.storage.ScadsCluster" class="extype">ScadsCluster</span></span>, <span name="resultCluster">resultCluster: <span name="edu.berkeley.cs.scads.storage.ScadsCluster" class="extype">ScadsCluster</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="classpath">classpath: Seq[<span name="deploylib.mesos.ClassSource" class="extype">ClassSource</span>]</span>, <span name="zookeeperRoot">zookeeperRoot: <span name="edu.berkeley.cs.scads.comm.ZooKeeperProxy.ZooKeeperNode" class="extype">ZooKeeperNode</span></span>)</span><span class="result">: Seq[<span name="deploylib.mesos.JvmTask" class="extype">JvmTask</span>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ReplicatedExperimentTask</dd></dl></div>
@@ -573,7 +573,7 @@
       <span class="symbol"> 
         <span class="name">schedule</span>
         
-        <span class="params">(<span name="cluster">cluster: <span name="edu.berkeley.cs.scads.storage.ScadsCluster" class="extype">ScadsCluster</span></span>, <span name="resultCluster">resultCluster: <span name="edu.berkeley.cs.scads.storage.ScadsCluster" class="extype">ScadsCluster</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="classpath">classpath: Seq[<span name="edu.berkeley.cs.scads.comm.ClassSource" class="extype">ClassSource</span>]</span>, <span name="scheduler">scheduler: <span name="deploylib.mesos.ExperimentScheduler" class="extype">ExperimentScheduler</span></span>, <span name="zookeeperRoot">zookeeperRoot: <span name="edu.berkeley.cs.scads.comm.ZooKeeperProxy.ZooKeeperNode" class="extype">ZooKeeperNode</span></span>)</span><span class="result">: TpcwWorkflowTask.this.type</span>
+        <span class="params">(<span name="cluster">cluster: <span name="edu.berkeley.cs.scads.storage.ScadsCluster" class="extype">ScadsCluster</span></span>, <span name="resultCluster">resultCluster: <span name="edu.berkeley.cs.scads.storage.ScadsCluster" class="extype">ScadsCluster</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="classpath">classpath: Seq[<span name="deploylib.mesos.ClassSource" class="extype">ClassSource</span>]</span>, <span name="scheduler">scheduler: <span name="deploylib.mesos.ExperimentScheduler" class="extype">ExperimentScheduler</span></span>, <span name="zookeeperRoot">zookeeperRoot: <span name="edu.berkeley.cs.scads.comm.ZooKeeperProxy.ZooKeeperNode" class="extype">ZooKeeperNode</span></span>)</span><span class="result">: TpcwWorkflowTask.this.type</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ReplicatedExperimentTask</dd></dl></div>
@@ -628,7 +628,7 @@
       <span class="symbol"> 
         <span class="name">toJvmTask</span>
         
-        <span class="params">(<span class="implicit">implicit </span><span name="classSource">classSource: Seq[<span name="edu.berkeley.cs.scads.comm.ClassSource" class="extype">ClassSource</span>]</span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.comm.JvmMainTask" class="extype">JvmMainTask</span></span>
+        <span class="params">(<span class="implicit">implicit </span><span name="classSource">classSource: Seq[<span name="deploylib.mesos.ClassSource" class="extype">ClassSource</span>]</span>)</span><span class="result">: <span name="deploylib.mesos.JvmMainTask" class="extype">JvmMainTask</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AvroTask</dd></dl></div>

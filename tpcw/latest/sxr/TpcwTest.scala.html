@@ -27,12 +27,12 @@
  * To change this template use File | Settings | File Templates.
  */</span>
 
-<span class="keyword">class</span> <a title="class TpcwTest extends java.lang.Object with ScalaObject" id="9744">TpcwTest</a> <a href="#9744" title="ScalaObject" class="delimiter">{</a>
-  <span class="keyword">implicit</span> <span class="keyword">def</span> <a title="[A](a: A)Option[A]" id="50728">toOption</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: Any" id="50730">A</a><span class="delimiter">]</span><span class="delimiter">(</span><a title="A" id="50768">a</a>: <a href="#50730" title="A">A</a><span class="delimiter">)</span>: <span title="Option[A]">Option</span><span class="delimiter">[</span>A<span class="delimiter">]</span> = <span title="(x: A)Option[A]">Option</span><span class="delimiter">(</span><a href="#50768" title="A">a</a><span class="delimiter">)</span>
-   <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.storage.ManagedScadsCluster" id="50731">cluster</a> = <span title="object edu.berkeley.cs.scads.storage.TestScalaEngine">TestScalaEngine</span>.<span title="(numNodes: Int)edu.berkeley.cs.scads.storage.ManagedScadsCluster">newScadsCluster</span><span class="delimiter">(</span><span title="Int(3)" class="int">3</span><span class="delimiter">)</span>
-   <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.piql.tpcw.TpcwClient" id="50734">client</a> = <span title="edu.berkeley.cs.scads.piql.tpcw.TpcwClient" class="keyword">new</span> <a href="TpcwClient.scala.html#9653" title="edu.berkeley.cs.scads.piql.tpcw.TpcwClient">TpcwClient</a><span class="delimiter">(</span><a href="#50731" title="=&gt; edu.berkeley.cs.scads.storage.ManagedScadsCluster">cluster</a>, <span title="edu.berkeley.cs.scads.piql.exec.SimpleExecutor" class="keyword">new</span> <span title="edu.berkeley.cs.scads.piql.exec.SimpleExecutor">SimpleExecutor</span><span class="delimiter">)</span>
+<span class="keyword">class</span> <a title="class TpcwTest extends java.lang.Object with ScalaObject" id="9690">TpcwTest</a> <a href="#9690" title="ScalaObject" class="delimiter">{</a>
+  <span class="keyword">implicit</span> <span class="keyword">def</span> <a title="[A](a: A)Option[A]" id="50914">toOption</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: Any" id="50916">A</a><span class="delimiter">]</span><span class="delimiter">(</span><a title="A" id="50952">a</a>: <a href="#50916" title="A">A</a><span class="delimiter">)</span>: <span title="Option[A]">Option</span><span class="delimiter">[</span>A<span class="delimiter">]</span> = <span title="(x: A)Option[A]">Option</span><span class="delimiter">(</span><a href="#50952" title="A">a</a><span class="delimiter">)</span>
+   <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.storage.ManagedScadsCluster" id="50917">cluster</a> = <span title="object edu.berkeley.cs.scads.storage.TestScalaEngine">TestScalaEngine</span>.<span title="(numNodes: Int)edu.berkeley.cs.scads.storage.ManagedScadsCluster">newScadsCluster</span><span class="delimiter">(</span><span title="Int(3)" class="int">3</span><span class="delimiter">)</span>
+   <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.piql.tpcw.TpcwClient" id="50920">client</a> = <span title="edu.berkeley.cs.scads.piql.tpcw.TpcwClient" class="keyword">new</span> <a href="TpcwClient.scala.html#9634" title="edu.berkeley.cs.scads.piql.tpcw.TpcwClient">TpcwClient</a><span class="delimiter">(</span><a href="#50917" title="=&gt; edu.berkeley.cs.scads.storage.ManagedScadsCluster">cluster</a>, <span title="edu.berkeley.cs.scads.piql.exec.SimpleExecutor" class="keyword">new</span> <span title="edu.berkeley.cs.scads.piql.exec.SimpleExecutor">SimpleExecutor</span><span class="delimiter">)</span>
 
-  <span class="keyword">def</span> <a title="()Unit" id="50736">run</a><span class="delimiter">(</span><span class="delimiter">)</span> = <span title="Unit" class="delimiter">{</span>
+  <span class="keyword">def</span> <a title="()Unit" id="50922">run</a><span class="delimiter">(</span><span class="delimiter">)</span> = <span title="Unit" class="delimiter">{</span>
 
     <span class="comment">//client.loadData(0.1, 100)</span>
     <span class="comment">//println(&quot;cust1 interaction &quot; + client.homeWI(&quot;cust1&quot;).flatMap(_.map(_.toString)))</span>
@@ -64,11 +64,11 @@
   <span class="delimiter">}</span>
 <span class="delimiter">}</span>
 
-<span class="keyword">object</span> <a title="object edu.berkeley.cs.scads.piql.tpcw.TpcwTest" id="9745">TpcwTest</a> <span title="ScalaObject" class="delimiter">{</span>
+<span class="keyword">object</span> <a title="object edu.berkeley.cs.scads.piql.tpcw.TpcwTest" id="9691">TpcwTest</a> <span title="ScalaObject" class="delimiter">{</span>
 
-  <span class="keyword">def</span> <a title="(args: Array[String])Unit" id="50777">main</a><span class="delimiter">(</span><a title="Array[String]" id="50779">args</a>: <span title="Array[String]">Array</span><span class="delimiter">[</span>String<span class="delimiter">]</span><span class="delimiter">)</span> <span class="delimiter">{</span>
-    <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.piql.tpcw.TpcwTest" id="50781">test</a> = <span title="edu.berkeley.cs.scads.piql.tpcw.TpcwTest" class="keyword">new</span> <a href="#9744" title="edu.berkeley.cs.scads.piql.tpcw.TpcwTest">TpcwTest</a>
-    <a href="#50781" title="edu.berkeley.cs.scads.piql.tpcw.TpcwTest">test</a>.<a href="#50736" title="()Unit">run</a><span class="delimiter">(</span><span class="delimiter">)</span>
+  <span class="keyword">def</span> <a title="(args: Array[String])Unit" id="50961">main</a><span class="delimiter">(</span><a title="Array[String]" id="50963">args</a>: <span title="Array[String]">Array</span><span class="delimiter">[</span>String<span class="delimiter">]</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+    <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.piql.tpcw.TpcwTest" id="50965">test</a> = <span title="edu.berkeley.cs.scads.piql.tpcw.TpcwTest" class="keyword">new</span> <a href="#9690" title="edu.berkeley.cs.scads.piql.tpcw.TpcwTest">TpcwTest</a>
+    <a href="#50965" title="edu.berkeley.cs.scads.piql.tpcw.TpcwTest">test</a>.<a href="#50922" title="()Unit">run</a><span class="delimiter">(</span><span class="delimiter">)</span>
   <span class="delimiter">}</span>
 
 <span class="delimiter">}</span>
