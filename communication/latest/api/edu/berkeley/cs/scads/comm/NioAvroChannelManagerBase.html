@@ -23,7 +23,7 @@
       <span class="kind">class</span>
       <span class="symbol"> 
         <span class="name">NioAvroChannelManagerBase</span>
-        <span class="tparams">[<span name="SendMsgType">SendMsgType &lt;: <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span></span>, <span name="RecvMsgType">RecvMsgType &lt;: <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span></span>]</span>
+        <span class="tparams">[<span name="SendMsgType">SendMsgType &lt;: <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span></span>, <span name="RecvMsgType">RecvMsgType &lt;: <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span></span>]</span>
         <span class="result"> extends <a name="edu.berkeley.cs.scads.comm.AvroChannelManager" class="extype" href="AvroChannelManager.html">AvroChannelManager</a>[SendMsgType, RecvMsgType] with <a name="edu.berkeley.cs.scads.comm.ChannelHandler" class="extype" href="ChannelHandler.html">ChannelHandler</a></span>
       </span>
       </h4>
@@ -33,7 +33,7 @@
           <div class="superTypes hiddenContent"><a name="edu.berkeley.cs.scads.comm.ChannelHandler" class="extype" href="ChannelHandler.html">ChannelHandler</a>, <a name="edu.berkeley.cs.scads.comm.AvroChannelManager" class="extype" href="AvroChannelManager.html">AvroChannelManager</a>[SendMsgType, RecvMsgType], AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div><div class="toggleContainer block">
           <span class="toggle">Known Subclasses</span>
-          <div class="subClasses hiddenContent"><a name="edu.berkeley.cs.scads.comm.DefaultNioChannelManager" class="extype" href="DefaultNioChannelManager.html">DefaultNioChannelManager</a>, <a name="edu.berkeley.cs.scads.comm.DiscardAvroChannelManager" class="extype" href="DiscardAvroChannelManager.html">DiscardAvroChannelManager</a>, <a name="edu.berkeley.cs.scads.comm.EchoAvroChannelManager" class="extype" href="EchoAvroChannelManager.html">EchoAvroChannelManager</a>, <a name="edu.berkeley.cs.scads.comm.PrintAvroChannelManager" class="extype" href="PrintAvroChannelManager.html">PrintAvroChannelManager</a></div>
+          <div class="subClasses hiddenContent"><a name="edu.berkeley.cs.scads.comm.DefaultNioChannelManager" class="extype" href="DefaultNioChannelManager.html">DefaultNioChannelManager</a></div>
         </div></div>
         
 
@@ -66,7 +66,7 @@
       <span class="symbol"> 
         <span class="name">NioAvroChannelManagerBase</span>
         
-        <span class="params">()</span><span class="params">(<span class="implicit">implicit </span><span name="sendManifest">sendManifest: <span name="scala.reflect.Manifest" class="extype">Manifest</span>[SendMsgType]</span>, <span name="recvManifest">recvManifest: <span name="scala.reflect.Manifest" class="extype">Manifest</span>[RecvMsgType]</span>)</span>
+        <span class="params">()</span><span class="params">(<span class="implicit">implicit </span><span name="sendSchema">sendSchema: <span name="edu.berkeley.cs.avro.runtime.package.TypedSchema" class="extype">TypedSchema</span>[SendMsgType]</span>, <span name="recvSchema">recvSchema: <span name="edu.berkeley.cs.avro.runtime.package.TypedSchema" class="extype">TypedSchema</span>[RecvMsgType]</span>)</span>
       </span>
       </h4>
       

@@ -211,6 +211,17 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.MessageFuture#logger" data-isabs="false">
+      <a id="logger:Logger"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">logger</span>
+        
+        <span class="result">: <span name="net.lag.logging.Logger" class="extype">Logger</span></span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="scala.AnyRef#ne" data-isabs="false">
       <a id="ne(AnyRef):Boolean"></a>
       <h4 class="signature">
@@ -267,13 +278,13 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.MessageFuture#toFutureCollection" data-isabs="false">
-      <a id="toFutureCollection(Seq[MessageFuture]):FutureCollection"></a>
+      <a id="toFutureCollection[MessageType&lt;:IndexedRecord](Seq[MessageFuture[MessageType]]):FutureCollection[MessageType]"></a>
       <h4 class="signature">
       <span class="kind">implicit def</span>
       <span class="symbol"> 
         <span class="name">toFutureCollection</span>
-        
-        <span class="params">(<span name="futures">futures: Seq[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.comm.FutureCollection" class="extype" href="FutureCollection.html">FutureCollection</a></span>
+        <span class="tparams">[<span name="MessageType">MessageType &lt;: <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span></span>]</span>
+        <span class="params">(<span name="futures">futures: Seq[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>[MessageType]]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.comm.FutureCollection" class="extype" href="FutureCollection.html">FutureCollection</a>[MessageType]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd></dl></div>

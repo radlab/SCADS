@@ -23,7 +23,7 @@
       <span class="kind">class</span>
       <span class="symbol"> 
         <span class="name">FutureCollection</span>
-        
+        <span class="tparams">[<span name="MessageType">MessageType &lt;: <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span></span>]</span>
         <span class="result"> extends AnyRef</span>
       </span>
       </h4>
@@ -57,13 +57,13 @@
         <div class="members" id="constructors">
               <h3>Instance Constructors</h3>
               <ol><li visbl="pub" name="edu.berkeley.cs.scads.comm.FutureCollection#this" data-isabs="false">
-      <a id="this:FutureCollection"></a>
+      <a id="this:FutureCollection[MessageType]"></a>
       <h4 class="signature">
       <span class="kind">new</span>
       <span class="symbol"> 
         <span class="name">FutureCollection</span>
         
-        <span class="params">(<span name="futures">futures: Seq[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>]</span>)</span>
+        <span class="params">(<span name="futures">futures: Seq[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>[MessageType]]</span>)</span>
       </span>
       </h4>
       
@@ -143,24 +143,24 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.FutureCollection#blockFor" data-isabs="false">
-      <a id="blockFor(Int,Long,TimeUnit):Seq[MessageFuture]"></a>
+      <a id="blockFor(Int,Long,TimeUnit):Seq[MessageFuture[MessageType]]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">blockFor</span>
         
-        <span class="params">(<span name="count">count: <span name="scala.Int" class="extype">Int</span></span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>, <span name="unit">unit: <span name="java.util.concurrent.TimeUnit" class="extype">TimeUnit</span></span>)</span><span class="result">: Seq[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>]</span>
+        <span class="params">(<span name="count">count: <span name="scala.Int" class="extype">Int</span></span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>, <span name="unit">unit: <span name="java.util.concurrent.TimeUnit" class="extype">TimeUnit</span></span>)</span><span class="result">: Seq[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>[MessageType]]</span>
       </span>
       </h4>
       
     </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.FutureCollection#blockFor" data-isabs="false">
-      <a id="blockFor(Int):Seq[MessageFuture]"></a>
+      <a id="blockFor(Int):Seq[MessageFuture[MessageType]]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">blockFor</span>
         
-        <span class="params">(<span name="count">count: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: Seq[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>]</span>
+        <span class="params">(<span name="count">count: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: Seq[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>[MessageType]]</span>
       </span>
       </h4>
       
@@ -215,13 +215,13 @@
               
         </dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.FutureCollection#futures" data-isabs="false">
-      <a id="futures:Seq[MessageFuture]"></a>
+      <a id="futures:Seq[MessageFuture[MessageType]]"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">futures</span>
         
-        <span class="result">: Seq[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>]</span>
+        <span class="result">: Seq[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>[MessageType]]</span>
       </span>
       </h4>
       
@@ -292,13 +292,13 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.FutureCollection#responses" data-isabs="false">
-      <a id="responses:LinkedBlockingQueue[MessageFuture]"></a>
+      <a id="responses:LinkedBlockingQueue[MessageFuture[MessageType]]"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">responses</span>
         
-        <span class="result">: <span name="java.util.concurrent.LinkedBlockingQueue" class="extype">LinkedBlockingQueue</span>[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>]</span>
+        <span class="result">: <span name="java.util.concurrent.LinkedBlockingQueue" class="extype">LinkedBlockingQueue</span>[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>[MessageType]]</span>
       </span>
       </h4>
       

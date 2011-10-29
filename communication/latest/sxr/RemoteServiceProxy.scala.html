@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>RemoteServiceProxy.scala</title>
+        <script type="text/javascript" src="jquery-all.js"></script>
+        <script type="text/javascript" src="linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.comm
+
+<span class="keyword">import</span> net.lag.logging.Logger
+
+<span class="keyword">import</span> org.apache.avro.generic.IndexedRecord
+<span class="keyword">import</span> edu.berkeley.cs.avro.marker.<span class="delimiter">{</span>AvroUnion, AvroRecord<span class="delimiter">}</span>
+
+<span class="comment">/* Generic Remote Actor Handle */</span>
+case <span class="keyword">class</span> <a title="class RemoteService[MessageType &lt;: org.apache.avro.generic.IndexedRecord] extends java.lang.Object with edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType] with ScalaObject with Product with Serializable" id="36858">RemoteService</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: org.apache.avro.generic.IndexedRecord" id="36560">MessageType</a> &lt;: IndexedRecord<span class="delimiter">]</span><a href="#36858" title="ScalaObject" class="delimiter">(</a><span class="keyword">var</span> <a title="String" id="36854">host</a>: <span title="String">String</span>,
+                       <span class="keyword">var</span> <a title="Int" id="36855">port</a>: <span title="Int">Int</span>,
+                       <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.comm.ServiceId" id="36856">id</a>: <a href="ServiceRegistry.scala.html#9579" title="edu.berkeley.cs.scads.comm.ServiceId">ServiceId</a><span class="delimiter">)</span> <span class="keyword">extends</span> <a href="#9558" title="edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType]">RemoteServiceProxy</a><span class="delimiter">[</span>MessageType<span class="delimiter">]</span>
+
+
+case <span class="keyword">class</span> <a title="class TimeoutException extends java.lang.Exception with ScalaObject with Product with Serializable" id="36850">TimeoutException</a><a href="#36850" title="ScalaObject" class="delimiter">(</a><a title="org.apache.avro.generic.IndexedRecord" id="36834">msg</a>: <span title="org.apache.avro.generic.IndexedRecord">IndexedRecord</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="java.lang.Exception">Exception</span>
+
+<span class="keyword">object</span> <a title="object edu.berkeley.cs.scads.comm.RemoteServiceProxy" id="9556">RemoteServiceProxy</a> <span title="ScalaObject" class="delimiter">{</span>
+  <span class="keyword">val</span> <a title="net.lag.logging.Logger" id="36551">logger</a> = <span title="()net.lag.logging.Logger">Logger</span><span class="delimiter">(</span><span class="delimiter">)</span>
+<span class="delimiter">}</span>
+
+<span class="keyword">trait</span> <a title="trait RemoteServiceProxy[MessageType &lt;: org.apache.avro.generic.IndexedRecord] extends java.lang.Object with ScalaObject" id="9558">RemoteServiceProxy</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: org.apache.avro.generic.IndexedRecord" id="9559">MessageType</a> &lt;: IndexedRecord<span class="delimiter">]</span> <span title="ScalaObject" class="delimiter">{</span>
+  <span class="keyword">var</span> <a title="=&gt; String" id="28457">host</a>: <span title="String">String</span>
+  <span class="keyword">var</span> <a title="=&gt; Int" id="28459">port</a>: <span title="Int">Int</span>
+  <span class="keyword">var</span> <a title="=&gt; edu.berkeley.cs.scads.comm.ServiceId" id="28461">id</a>: <a href="ServiceRegistry.scala.html#9579" title="edu.berkeley.cs.scads.comm.ServiceId">ServiceId</a>
+
+  <span class="keyword">import</span> <a href="#9556" title="object edu.berkeley.cs.scads.comm.RemoteServiceProxy">RemoteServiceProxy</a>._
+
+  <span class="keyword">implicit</span> <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.comm.ServiceRegistry[MessageType]" id="28464">registry</a>: <a href="ServiceRegistry.scala.html#9586" title="edu.berkeley.cs.scads.comm.ServiceRegistry[MessageType]">ServiceRegistry</a><span class="delimiter">[</span>MessageType<span class="delimiter">]</span> = <span title="Null(null)" class="keyword">null</span>
+
+  <span class="keyword">def</span> <a title="=&gt; edu.berkeley.cs.scads.comm.RemoteNode" id="28466">remoteNode</a> = <a href="AvroChannelManager.scala.html#20827" title="(hostname: String, port: Int)edu.berkeley.cs.scads.comm.RemoteNode">RemoteNode</a><span class="delimiter">(</span><a href="#28457" title="=&gt; String">host</a>, <a href="#28459" title="=&gt; Int">port</a><span class="delimiter">)</span>
+
+  <span class="keyword">override</span> <span class="keyword">def</span> <a title="()String" id="28467">toString</a><span class="delimiter">(</span><span class="delimiter">)</span>: <span title="String">String</span> = <a href="#28461" title="implicit scala.Predef.any2stringadd : (x: Any)scala.runtime.StringAdd">id</a> <span title="(other: String)java.lang.String">+</span> <span title="java.lang.String(&quot;@&quot;)" class="string">&quot;@&quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#28457" title="=&gt; String">host</a> <span title="(x$1: Any)java.lang.String">+</span> <span title="java.lang.String(&quot;:&quot;)" class="string">&quot;:&quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#28459" title="=&gt; Int">port</a>
+
+  <span class="comment">/**
+   * Returns an ouput proxy that forwards any messages to the remote actor with and empty sender.
+   */</span>
+  <span class="comment">/*def outputChannel = new OutputChannel[Any] {
+    def !(msg: Any):Unit = msg match {
+      case msgBody: MessageType =&gt; MessageHandler.sendMessage(remoteNode, Message(None, id, None, msgBody))
+      case otherMessage =&gt; throw new RuntimeException(&quot;Invalid remote message type:&quot; + otherMessage + &quot; Must extend MessageBody.&quot;)
+    }
+    def forward(msg: Any):Unit = throw new RuntimeException(&quot;Unimplemented&quot;)
+    def send(msg: Any, sender: OutputChannel[Any]):Unit = throw new RuntimeException(&quot;Unimplemented&quot;)
+    def receiver: Actor = throw new RuntimeException(&quot;Unimplemented&quot;)
+  }*/</span>
+
+  <span class="comment">/**
+   * Send a message asynchronously.
+   */</span>
+  <span class="keyword">def</span> <a title="(msg: MessageType)(implicit sender: edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType])Unit" id="28468">!</a><span class="delimiter">(</span><a title="MessageType" id="36793">msg</a>: <a href="#9559" title="MessageType">MessageType</a><span class="delimiter">)</span><span class="delimiter">(</span><span class="keyword">implicit</span> <a title="edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType]" id="36794">sender</a>: <a href="#9558" title="edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType]">RemoteServiceProxy</a><span class="delimiter">[</span>MessageType<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="Unit">Unit</span> = <span class="delimiter">{</span>
+    <a href="#28464" title="=&gt; edu.berkeley.cs.scads.comm.ServiceRegistry[MessageType]">registry</a>.<a href="ServiceRegistry.scala.html#24038" title="(src: Option[edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType]], dest: edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType], msg: MessageType)Unit">sendMessage</a><span class="delimiter">(</span><span title="(x: edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType])Some[edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType]]">Some</span><span class="delimiter">(</span><a href="#36794" title="edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType]">sender</a><span class="delimiter">)</span>, <a href="#9558" title="edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType]" class="keyword">this</a>, <a href="#36793" title="MessageType">msg</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="comment">/**
+   * Send a message and synchronously wait for a response.
+   */</span>
+  <span class="keyword">def</span> <a title="(msg: MessageType, timeout: Int)MessageType" id="28469">!?</a><span class="delimiter">(</span><a title="MessageType" id="36806">msg</a>: <a href="#9559" title="MessageType">MessageType</a>, <a title="Int" id="36809">timeout</a>: <span title="Int">Int</span> = <span class="int">10</span> <span title="Int(10000)">*</span> <span class="int">1000</span><span class="delimiter">)</span>: <a href="#9559" title="MessageType">MessageType</a> = <span class="delimiter">{</span>
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.comm.MessageFuture[MessageType]" id="36814">future</a> = <a href="#28464" title="edu.berkeley.cs.scads.comm.MessageFuture[MessageType]" class="keyword">new</a> <a href="Futures.scala.html#9508" title="edu.berkeley.cs.scads.comm.MessageFuture[MessageType]">MessageFuture</a><span class="delimiter">[</span>MessageType<span class="delimiter">]</span><span class="delimiter">(</span><a href="#9558" title="edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType]" class="keyword">this</a>, <a href="#36806" title="MessageType">msg</a><span class="delimiter">)</span>
+    <a href="#9558" title="RemoteServiceProxy.this.type" class="keyword">this</a>.<a href="#28468" title="(msg: MessageType)(implicit sender: edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType])Unit">!</a><span class="delimiter">(</span><a href="#36806" title="MessageType">msg</a><span class="delimiter">)</span><span class="delimiter">(</span><a href="#36814" title="edu.berkeley.cs.scads.comm.MessageFuture[MessageType]">future</a>.<a href="Futures.scala.html#23166" title="=&gt; edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType]">remoteService</a><span class="delimiter">)</span>
+    <a href="#36551" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">debug</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Wating for SyncSend %s&quot;)" class="string">&quot;Wating for SyncSend %s&quot;</span>, <a href="#36814" title="edu.berkeley.cs.scads.comm.MessageFuture[MessageType]">future</a>.<a href="Futures.scala.html#23166" title="=&gt; edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType]">remoteService</a><span class="delimiter">)</span>
+    <a href="#36814" title="edu.berkeley.cs.scads.comm.MessageFuture[MessageType]">future</a>.<a href="Futures.scala.html#23176" title="(timeout: Long)Option[MessageType]">get</a><span class="delimiter">(</span><a href="#36809" title="=&gt; Long">timeout</a><span class="delimiter">)</span> <span title="MessageType" class="keyword">match</span> <span class="delimiter">{</span>
+      <span class="comment">//TODO: fix exception throwing: case Some(exp: RemoteException) =&gt; throw new RuntimeException(exp.toString)</span>
+      <span class="keyword">case</span> <span title="MessageType">Some</span><span class="delimiter">(</span><a title="MessageType" id="36825">msg</a><span class="delimiter">)</span> =&gt;
+        <a href="#36551" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">debug</span><span class="delimiter">(</span><span title="java.lang.String(&quot;SyncSend %s complete &quot;)" class="string">&quot;SyncSend %s complete &quot;</span>, <a href="#36814" title="edu.berkeley.cs.scads.comm.MessageFuture[MessageType]">future</a>.<a href="Futures.scala.html#23166" title="=&gt; edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType]">remoteService</a><span class="delimiter">)</span>
+        <a href="#36825" title="MessageType">msg</a>.<span title="[T0]=&gt; T0">asInstanceOf</span><span title="MessageType" class="delimiter">[</span><a href="#9559" title="MessageType">MessageType</a><span class="delimiter">]</span>
+      <span class="keyword">case</span> <span title="Nothing">None</span> =&gt; <span class="delimiter">{</span>
+        <a href="#36551" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">debug</span><span class="delimiter">(</span><span title="java.lang.String(&quot;SyncSend %s timeout&quot;)" class="string">&quot;SyncSend %s timeout&quot;</span>, <a href="#36814" title="edu.berkeley.cs.scads.comm.MessageFuture[MessageType]">future</a>.<a href="Futures.scala.html#23166" title="=&gt; edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType]">remoteService</a><span class="delimiter">)</span>
+        <span title="Nothing" class="keyword">throw</span> <a href="#36850" title="(msg: org.apache.avro.generic.IndexedRecord)edu.berkeley.cs.scads.comm.TimeoutException">TimeoutException</a><span class="delimiter">(</span><a href="#36806" title="MessageType">msg</a><span class="delimiter">)</span>
+      <span class="delimiter">}</span>
+    <span class="delimiter">}</span>
+  <span class="delimiter">}</span>
+
+  <span class="comment">/**
+   * Sends a message and returns a future for the response.
+   */</span>
+  <span class="keyword">def</span> <a title="(body: MessageType)edu.berkeley.cs.scads.comm.MessageFuture[MessageType]" id="28470">!!</a><span class="delimiter">(</span><a title="MessageType" id="36838">body</a>: <a href="#9559" title="MessageType">MessageType</a><span class="delimiter">)</span>: <a href="Futures.scala.html#9508" title="edu.berkeley.cs.scads.comm.MessageFuture[MessageType]">MessageFuture</a><span class="delimiter">[</span>MessageType<span class="delimiter">]</span> = <span class="delimiter">{</span>
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.comm.MessageFuture[MessageType]" id="36840">future</a> = <a href="#28464" title="edu.berkeley.cs.scads.comm.MessageFuture[MessageType]" class="keyword">new</a> <a href="Futures.scala.html#9508" title="edu.berkeley.cs.scads.comm.MessageFuture[MessageType]">MessageFuture</a><span class="delimiter">[</span>MessageType<span class="delimiter">]</span><span class="delimiter">(</span><a href="#9558" title="edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType]" class="keyword">this</a>, <a href="#36838" title="MessageType">body</a><span class="delimiter">)</span>
+    <a href="#9558" title="RemoteServiceProxy.this.type" class="keyword">this</a>.<a href="#28468" title="(msg: MessageType)(implicit sender: edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType])Unit">!</a><span class="delimiter">(</span><a href="#36838" title="MessageType">body</a><span class="delimiter">)</span><span class="delimiter">(</span><a href="#36840" title="edu.berkeley.cs.scads.comm.MessageFuture[MessageType]">future</a>.<a href="Futures.scala.html#23166" title="=&gt; edu.berkeley.cs.scads.comm.RemoteServiceProxy[MessageType]">remoteService</a><span class="delimiter">)</span>
+    <a href="#36840" title="edu.berkeley.cs.scads.comm.MessageFuture[MessageType]">future</a>
+  <span class="delimiter">}</span>
+
+  <span class="comment">/*
+  private var msgSet = List[(MessageType, MessageFuture[MessageType])]()
+
+  /**
+   * Collects messages for bulk-send
+   */
+  def !!!(body: MessageType): MessageFuture[MessageType] = {
+    val future = new MessageFuture[MessageType]
+    synchronized {
+      msgSet ::= Tuple2(body, future)
+    }
+    return future
+  }
+
+  /*
+  def commit(): Unit = synchronized {
+    val currentSet = msgSet
+    msgSet = Nil
+
+    if (currentSet.length == 1) {
+      logger.debug(&quot;Falling back to normal send for commit size 1&quot;)
+      this.!(currentSet.head._1)(currentSet.head._2.remoteService)
+    }
+    else if (currentSet.length &gt; 1) {
+      val batchFuture = !!(new BatchRequest(currentSet.map(_._1)))
+      batchFuture.respond {
+        case BatchResponse(ranges) =&gt; {
+          logger.trace(&quot;Unpacking %d messages to %d futures&quot;, ranges.length, currentSet.length)
+          ranges.zip(currentSet.map(_._2)).foreach {
+            case (msg, subFuture) =&gt; subFuture.receiveMessage(batchFuture.source, msg)
+          }
+        }
+        case unexp =&gt; {
+          logger.warning(&quot;Batch request failed with unexpected message: %s&quot;, unexp)
+          currentSet.foreach(_._2.receiveMessage(batchFuture.source, unexp))
+        }
+      }
+    }
+  }
+  */
+  */</span>
+<span class="delimiter">}</span>
+
+
+        </pre>
+    </body>
+</html>

@@ -18,70 +18,73 @@
 
 <span class="keyword">import</span> org.apache.avro.io._
 <span class="keyword">import</span> org.apache.avro.specific._
+<span class="keyword">import</span> org.apache.avro.generic.IndexedRecord
 
-case <span class="keyword">class</span> <a title="class RemoteNode extends java.lang.Object with ScalaObject with Product with Serializable" id="28559">RemoteNode</a><a href="#28559" title="ScalaObject" class="delimiter">(</a><a title="String" id="24048">hostname</a>:<span title="String">String</span>, <a title="Int" id="24049">port</a>: <span title="Int">Int</span><span class="delimiter">)</span> <span class="delimiter">{</span>
-    <span class="keyword">private</span> <span class="keyword">val</span> <a title="java.net.InetSocketAddress" id="24032">socketAddress</a> = <span title="(x$1: java.lang.String, x$2: Int)java.net.InetSocketAddress" class="keyword">new</span> <span title="java.net.InetSocketAddress">InetSocketAddress</span><span class="delimiter">(</span><a href="#24048" title="=&gt; String">hostname</a>, <a href="#24049" title="=&gt; Int">port</a><span class="delimiter">)</span>
-    <span class="keyword">def</span> <a title="=&gt; java.net.InetSocketAddress" id="24034">getInetSocketAddress</a>:<span title="java.net.InetSocketAddress">InetSocketAddress</span> = <a href="#24032" title="=&gt; java.net.InetSocketAddress">socketAddress</a>
+case <span class="keyword">class</span> <a title="class RemoteNode extends java.lang.Object with ScalaObject with Product with Serializable" id="21046">RemoteNode</a><a href="#21046" title="ScalaObject" class="delimiter">(</a><a title="String" id="21041">hostname</a>:<span title="String">String</span>, <a title="Int" id="21042">port</a>: <span title="Int">Int</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+    <span class="keyword">private</span> <span class="keyword">val</span> <a title="java.net.InetSocketAddress" id="10351">socketAddress</a> = <span title="(x$1: java.lang.String, x$2: Int)java.net.InetSocketAddress" class="keyword">new</span> <span title="java.net.InetSocketAddress">InetSocketAddress</span><span class="delimiter">(</span><a href="#21041" title="=&gt; String">hostname</a>, <a href="#21042" title="=&gt; Int">port</a><span class="delimiter">)</span>
+    <span class="keyword">def</span> <a title="=&gt; java.net.InetSocketAddress" id="10353">getInetSocketAddress</a>:<span title="java.net.InetSocketAddress">InetSocketAddress</span> = <a href="#10351" title="=&gt; java.net.InetSocketAddress">socketAddress</a>
 <span class="delimiter">}</span>
 
-<span class="keyword">trait</span> <a title="trait AvroChannelManager[SendMsgType &lt;: org.apache.avro.specific.SpecificRecord, RecvMsgType &lt;: org.apache.avro.specific.SpecificRecord] extends java.lang.Object" id="9509">AvroChannelManager</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: org.apache.avro.specific.SpecificRecord" id="9510">SendMsgType</a> &lt;: SpecificRecord, <a title="&gt;: Nothing &lt;: org.apache.avro.specific.SpecificRecord" id="9511">RecvMsgType</a> &lt;: SpecificRecord<span class="delimiter">]</span> <span title="java.lang.Object" class="delimiter">{</span>
+<span class="keyword">trait</span> <a title="trait AvroChannelManager[SendMsgType &lt;: org.apache.avro.generic.IndexedRecord, RecvMsgType &lt;: org.apache.avro.generic.IndexedRecord] extends java.lang.Object" id="9478">AvroChannelManager</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: org.apache.avro.generic.IndexedRecord" id="9479">SendMsgType</a> &lt;: IndexedRecord, <a title="&gt;: Nothing &lt;: org.apache.avro.generic.IndexedRecord" id="9480">RecvMsgType</a> &lt;: IndexedRecord<span class="delimiter">]</span> <span title="java.lang.Object" class="delimiter">{</span>
   <span class="comment">/**
    * Send message to dest immediately.  Probably by calling sendMessageBulk and flush.
    * A new connection should be opened if one doesn't exist.
    */</span>
-  <span class="keyword">def</span> <a title="(dest: edu.berkeley.cs.scads.comm.RemoteNode, msg: SendMsgType)Unit" id="14304">sendMessage</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.comm.RemoteNode" id="24087">dest</a>: <a href="#28559" title="edu.berkeley.cs.scads.comm.RemoteNode">RemoteNode</a>, <a title="SendMsgType" id="24088">msg</a>: <a href="#9510" title="SendMsgType">SendMsgType</a><span class="delimiter">)</span>: <span title="Unit">Unit</span>
+  <span class="keyword">def</span> <a title="(dest: edu.berkeley.cs.scads.comm.RemoteNode, msg: SendMsgType)Unit" id="21012">sendMessage</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.comm.RemoteNode" id="21024">dest</a>: <a href="#21046" title="edu.berkeley.cs.scads.comm.RemoteNode">RemoteNode</a>, <a title="SendMsgType" id="21025">msg</a>: <a href="#9479" title="SendMsgType">SendMsgType</a><span class="delimiter">)</span>: <span title="Unit">Unit</span>
 
   <span class="comment">/**
    * Batch message for sending by serializing it into a buffer.
    * The message should be actually sent either when the buffer
    * is full or when flush is explicitly called.
    */</span>
-  <span class="keyword">def</span> <a title="(dest: edu.berkeley.cs.scads.comm.RemoteNode, msg: SendMsgType)Unit" id="14305">sendMessageBulk</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.comm.RemoteNode" id="28207">dest</a>: <a href="#28559" title="edu.berkeley.cs.scads.comm.RemoteNode">RemoteNode</a>, <a title="SendMsgType" id="28208">msg</a>: <a href="#9510" title="SendMsgType">SendMsgType</a><span class="delimiter">)</span>: <span title="Unit">Unit</span>
+  <span class="keyword">def</span> <a title="(dest: edu.berkeley.cs.scads.comm.RemoteNode, msg: SendMsgType)Unit" id="21013">sendMessageBulk</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.comm.RemoteNode" id="21033">dest</a>: <a href="#21046" title="edu.berkeley.cs.scads.comm.RemoteNode">RemoteNode</a>, <a title="SendMsgType" id="21034">msg</a>: <a href="#9479" title="SendMsgType">SendMsgType</a><span class="delimiter">)</span>: <span title="Unit">Unit</span>
 
   <span class="comment">/**
    * Transmit any messages that are currently waiting in the sendbuffer.
    */</span>
-  <span class="keyword">def</span> <a title="=&gt; Unit" id="14306">flush</a>: <span title="Unit">Unit</span>
+  <span class="keyword">def</span> <a title="=&gt; Unit" id="21014">flush</a>: <span title="Unit">Unit</span>
 
   <span class="comment">/**
    * Open a listening socket on the specified port
    */</span>
-  <span class="keyword">def</span> <a title="(port: Int)Unit" id="14307">startListener</a><span class="delimiter">(</span><a title="Int" id="28209">port</a>: <span title="Int">Int</span><span class="delimiter">)</span>: <span title="Unit">Unit</span>
+  <span class="keyword">def</span> <a title="(port: Int)Unit" id="21015">startListener</a><span class="delimiter">(</span><a title="Int" id="21035">port</a>: <span title="Int">Int</span><span class="delimiter">)</span>: <span title="Unit">Unit</span>
 
   <span class="comment">/**
    * Abstract method to be implemented by the user
    */</span>
-  <span class="keyword">def</span> <a title="(src: edu.berkeley.cs.scads.comm.RemoteNode, msg: RecvMsgType)Unit" id="14308">receiveMessage</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.comm.RemoteNode" id="28210">src</a>: <a href="#28559" title="edu.berkeley.cs.scads.comm.RemoteNode">RemoteNode</a>, <a title="RecvMsgType" id="28211">msg</a>: <a href="#9511" title="RecvMsgType">RecvMsgType</a><span class="delimiter">)</span>:<span title="Unit">Unit</span>
+  <span class="keyword">def</span> <a title="(src: edu.berkeley.cs.scads.comm.RemoteNode, msg: RecvMsgType)Unit" id="21016">receiveMessage</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.comm.RemoteNode" id="21036">src</a>: <a href="#21046" title="edu.berkeley.cs.scads.comm.RemoteNode">RemoteNode</a>, <a title="RecvMsgType" id="21037">msg</a>: <a href="#9480" title="RecvMsgType">RecvMsgType</a><span class="delimiter">)</span>:<span title="Unit">Unit</span>
 <span class="delimiter">}</span>
 
-<span class="keyword">class</span> <a title="class PrintAvroChannelManager[SendMsg &lt;: org.apache.avro.specific.SpecificRecord, RecvMsg &lt;: org.apache.avro.specific.SpecificRecord] extends edu.berkeley.cs.scads.comm.NioAvroChannelManagerBase[SendMsg,RecvMsg] with ScalaObject" id="9512">PrintAvroChannelManager</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: org.apache.avro.specific.SpecificRecord" id="9513">SendMsg</a> &lt;: SpecificRecord, <a title="&gt;: Nothing &lt;: org.apache.avro.specific.SpecificRecord" id="9514">RecvMsg</a> &lt;: SpecificRecord<span class="delimiter">]</span>
-<a href="#9512" title="ScalaObject" class="delimiter">(</a><span class="keyword">implicit</span> <a title="scala.reflect.Manifest[SendMsg]" id="28370">sendManifest</a>: scala.reflect.<span title="scala.reflect.Manifest[SendMsg]">Manifest</span><span class="delimiter">[</span>SendMsg<span class="delimiter">]</span>,
-<a title="scala.reflect.Manifest[RecvMsg]" id="28371">recvManifest</a>: scala.reflect.<span title="scala.reflect.Manifest[RecvMsg]">Manifest</span><span class="delimiter">[</span>RecvMsg<span class="delimiter">]</span><span class="delimiter">)</span>
-<span class="keyword">extends</span> <a href="nio/avro.scala.html#9943" title="edu.berkeley.cs.scads.comm.NioAvroChannelManagerBase[SendMsg,RecvMsg]">NioAvroChannelManagerBase</a><span class="delimiter">[</span>SendMsg, RecvMsg<span class="delimiter">]</span> <span class="delimiter">{</span>
-    <span class="keyword">override</span> <span class="keyword">def</span> <a title="(src: edu.berkeley.cs.scads.comm.RemoteNode, msg: RecvMsg)Unit" id="28248">receiveMessage</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.comm.RemoteNode" id="28502">src</a>: <a href="#28559" title="edu.berkeley.cs.scads.comm.RemoteNode">RemoteNode</a>, <a title="RecvMsg" id="28503">msg</a>: <a href="#9514" title="RecvMsg">RecvMsg</a><span class="delimiter">)</span>:<span title="Unit">Unit</span> = <span class="delimiter">{</span>
-        <span title="(x: Any)Unit">println</span><span class="delimiter">(</span><span title="java.lang.String(&quot;src: &quot;)" class="string">&quot;src: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#28502" title="edu.berkeley.cs.scads.comm.RemoteNode">src</a><span class="delimiter">)</span>
-        <span title="(x: Any)Unit">println</span><span class="delimiter">(</span><span title="java.lang.String(&quot;msg: &quot;)" class="string">&quot;msg: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#28503" title="RecvMsg">msg</a><span class="delimiter">)</span>
-    <span class="delimiter">}</span>
-<span class="delimiter">}</span>
+<span class="comment">/*
+class PrintAvroChannelManager[SendMsg &lt;: SpecificRecord, RecvMsg &lt;: SpecificRecord]
+(implicit sendManifest: scala.reflect.Manifest[SendMsg],
+recvManifest: scala.reflect.Manifest[RecvMsg])
+extends NioAvroChannelManagerBase[SendMsg, RecvMsg] {
+    override def receiveMessage(src: RemoteNode, msg: RecvMsg):Unit = {
+        println(&quot;src: &quot; + src)
+        println(&quot;msg: &quot; + msg)
+    }
+}
 
-<span class="keyword">class</span> <a title="class EchoAvroChannelManager[EchoMsg &lt;: org.apache.avro.specific.SpecificRecord] extends edu.berkeley.cs.scads.comm.NioAvroChannelManagerBase[EchoMsg,EchoMsg] with ScalaObject" id="9515">EchoAvroChannelManager</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: org.apache.avro.specific.SpecificRecord" id="9516">EchoMsg</a> &lt;: SpecificRecord<span class="delimiter">]</span>
-<a href="#9515" title="ScalaObject" class="delimiter">(</a><span class="keyword">implicit</span> <a title="scala.reflect.Manifest[EchoMsg]" id="28517">sendManifest</a>: scala.reflect.<span title="scala.reflect.Manifest[EchoMsg]">Manifest</span><span class="delimiter">[</span>EchoMsg<span class="delimiter">]</span><span class="delimiter">)</span>
-<span class="keyword">extends</span> <a href="nio/avro.scala.html#9943" title="edu.berkeley.cs.scads.comm.NioAvroChannelManagerBase[EchoMsg,EchoMsg]">NioAvroChannelManagerBase</a><span class="delimiter">[</span>EchoMsg, EchoMsg<span class="delimiter">]</span> <span class="delimiter">{</span>
-    <span class="keyword">override</span> <span class="keyword">def</span> <a title="(src: edu.berkeley.cs.scads.comm.RemoteNode, msg: EchoMsg)Unit" id="28514">receiveMessage</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.comm.RemoteNode" id="28520">src</a>: <a href="#28559" title="edu.berkeley.cs.scads.comm.RemoteNode">RemoteNode</a>, <a title="EchoMsg" id="28521">msg</a>: <a href="#9516" title="EchoMsg">EchoMsg</a><span class="delimiter">)</span>:<span title="Unit">Unit</span> = <span class="delimiter">{</span>
-        <span title="(x: Any)Unit">println</span><span class="delimiter">(</span><span title="java.lang.String(&quot;src: &quot;)" class="string">&quot;src: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#28520" title="edu.berkeley.cs.scads.comm.RemoteNode">src</a><span class="delimiter">)</span>
-        <span title="(x: Any)Unit">println</span><span class="delimiter">(</span><span title="java.lang.String(&quot;msg: &quot;)" class="string">&quot;msg: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#28521" title="EchoMsg">msg</a><span class="delimiter">)</span>
-        <a href="nio/avro.scala.html#28234" title="(dest: edu.berkeley.cs.scads.comm.RemoteNode, msg: EchoMsg)Unit">sendMessage</a><span class="delimiter">(</span><a href="#28520" title="edu.berkeley.cs.scads.comm.RemoteNode">src</a>, <a href="#28521" title="EchoMsg">msg</a><span class="delimiter">)</span>
-    <span class="delimiter">}</span>
-<span class="delimiter">}</span>
+class EchoAvroChannelManager[EchoMsg &lt;: SpecificRecord]
+(implicit sendManifest: scala.reflect.Manifest[EchoMsg])
+extends NioAvroChannelManagerBase[EchoMsg, EchoMsg] {
+    override def receiveMessage(src: RemoteNode, msg: EchoMsg):Unit = {
+        println(&quot;src: &quot; + src)
+        println(&quot;msg: &quot; + msg)
+        sendMessage(src, msg)
+    }
+}
 
-<span class="keyword">class</span> <a title="class DiscardAvroChannelManager[SendMsg &lt;: org.apache.avro.specific.SpecificRecord, RecvMsg &lt;: org.apache.avro.specific.SpecificRecord] extends edu.berkeley.cs.scads.comm.NioAvroChannelManagerBase[SendMsg,RecvMsg] with ScalaObject" id="9517">DiscardAvroChannelManager</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: org.apache.avro.specific.SpecificRecord" id="9518">SendMsg</a> &lt;: SpecificRecord, <a title="&gt;: Nothing &lt;: org.apache.avro.specific.SpecificRecord" id="9519">RecvMsg</a> &lt;: SpecificRecord<span class="delimiter">]</span>
-<a href="#9517" title="ScalaObject" class="delimiter">(</a><span class="keyword">implicit</span> <a title="scala.reflect.Manifest[SendMsg]" id="28547">sendManifest</a>: scala.reflect.<span title="scala.reflect.Manifest[SendMsg]">Manifest</span><span class="delimiter">[</span>SendMsg<span class="delimiter">]</span>,
-<a title="scala.reflect.Manifest[RecvMsg]" id="28548">recvManifest</a>: scala.reflect.<span title="scala.reflect.Manifest[RecvMsg]">Manifest</span><span class="delimiter">[</span>RecvMsg<span class="delimiter">]</span><span class="delimiter">)</span>
-<span class="keyword">extends</span> <a href="nio/avro.scala.html#9943" title="edu.berkeley.cs.scads.comm.NioAvroChannelManagerBase[SendMsg,RecvMsg]">NioAvroChannelManagerBase</a><span class="delimiter">[</span>SendMsg, RecvMsg<span class="delimiter">]</span> <span class="delimiter">{</span>
-    <span class="keyword">override</span> <span class="keyword">def</span> <a title="(src: edu.berkeley.cs.scads.comm.RemoteNode, msg: RecvMsg)Unit" id="28543">receiveMessage</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.comm.RemoteNode" id="28551">src</a>: <a href="#28559" title="edu.berkeley.cs.scads.comm.RemoteNode">RemoteNode</a>, <a title="RecvMsg" id="28552">msg</a>: <a href="#9519" title="RecvMsg">RecvMsg</a><span class="delimiter">)</span>:<span title="Unit">Unit</span> = <span title="Unit" class="delimiter">{</span>
-        <span class="comment">// no op</span>
-    <span class="delimiter">}</span>
-<span class="delimiter">}</span>
+class DiscardAvroChannelManager[SendMsg &lt;: SpecificRecord, RecvMsg &lt;: SpecificRecord]
+(implicit sendManifest: scala.reflect.Manifest[SendMsg],
+recvManifest: scala.reflect.Manifest[RecvMsg])
+extends NioAvroChannelManagerBase[SendMsg, RecvMsg] {
+    override def receiveMessage(src: RemoteNode, msg: RecvMsg):Unit = {
+        // no op
+    }
+}
+*/</span>
 
         </pre>
     </body>

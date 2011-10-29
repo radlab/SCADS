@@ -23,7 +23,7 @@
       <span class="kind">trait</span>
       <span class="symbol"> 
         <span class="name">MessageReceiver</span>
-        
+        <span class="tparams">[<span name="MessageType">MessageType &lt;: <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span></span>]</span>
         <span class="result"> extends AnyRef</span>
       </span>
       </h4>
@@ -33,7 +33,7 @@
           <div class="superTypes hiddenContent">AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div><div class="toggleContainer block">
           <span class="toggle">Known Subclasses</span>
-          <div class="subClasses hiddenContent"><a name="edu.berkeley.cs.scads.comm.ActorService" class="extype" href="ActorService.html">ActorService</a>, <a name="edu.berkeley.cs.scads.comm.EchoActor" class="extype" href="EchoActor$.html">EchoActor</a>, <a name="edu.berkeley.cs.scads.comm.FutureReference" class="extype" href="FutureReference.html">FutureReference</a>, <a name="edu.berkeley.cs.scads.comm.ServiceHandler" class="extype" href="ServiceHandler.html">ServiceHandler</a></div>
+          <div class="subClasses hiddenContent"><a name="edu.berkeley.cs.scads.comm.ActorReceiver" class="extype" href="ActorReceiver.html">ActorReceiver</a>, <a name="edu.berkeley.cs.scads.comm.FutureReference" class="extype" href="FutureReference.html">FutureReference</a>, <a name="edu.berkeley.cs.scads.comm.ServiceHandler" class="extype" href="ServiceHandler.html">ServiceHandler</a></div>
         </div></div>
         
 
@@ -64,13 +64,13 @@
         <div class="values members" id="values">
               <h3>Abstract Value Members</h3>
               <ol><li visbl="pub" name="edu.berkeley.cs.scads.comm.MessageReceiver#receiveMessage" data-isabs="true">
-      <a id="receiveMessage(Option[RemoteActorProxy],MessageBody):Unit"></a>
+      <a id="receiveMessage(Option[RemoteServiceProxy[MessageType]],MessageType):Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">receiveMessage</span>
         
-        <span class="params">(<span name="src">src: <span name="scala.Option" class="extype">Option</span>[<a name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype" href="RemoteActorProxy.html">RemoteActorProxy</a>]</span>, <span name="msg">msg: <a name="edu.berkeley.cs.scads.comm.MessageBody" class="extype" href="MessageBody.html">MessageBody</a></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="src">src: <span name="scala.Option" class="extype">Option</span>[<a name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype" href="RemoteServiceProxy.html">RemoteServiceProxy</a>[MessageType]]</span>, <span name="msg">msg: MessageType</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd></dl></div>

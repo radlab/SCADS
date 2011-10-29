@@ -23,7 +23,7 @@
       <span class="kind">class</span>
       <span class="symbol"> 
         <span class="name">DefaultNioChannelManager</span>
-        <span class="tparams">[<span name="S">S &lt;: <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span></span>, <span name="R">R &lt;: <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span></span>]</span>
+        <span class="tparams">[<span name="S">S &lt;: <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span></span>, <span name="R">R &lt;: <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span></span>]</span>
         <span class="result"> extends <a name="edu.berkeley.cs.scads.comm.NioAvroChannelManagerBase" class="extype" href="NioAvroChannelManagerBase.html">NioAvroChannelManagerBase</a>[S, R]</span>
       </span>
       </h4>
@@ -64,7 +64,7 @@
       <span class="symbol"> 
         <span class="name">DefaultNioChannelManager</span>
         
-        <span class="params">(<span name="recvMsg">recvMsg: (<a name="edu.berkeley.cs.scads.comm.AvroChannelManager" class="extype" href="AvroChannelManager.html">AvroChannelManager</a>[S, R], <a name="edu.berkeley.cs.scads.comm.RemoteNode" class="extype" href="RemoteNode.html">RemoteNode</a>, R) ⇒ <span name="scala.Unit" class="extype">Unit</span></span>, <span name="sendClz">sendClz: Class[S]</span>, <span name="recvClz">recvClz: Class[R]</span>)</span>
+        <span class="params">(<span name="recvMsg">recvMsg: (<a name="edu.berkeley.cs.scads.comm.AvroChannelManager" class="extype" href="AvroChannelManager.html">AvroChannelManager</a>[S, R], <a name="edu.berkeley.cs.scads.comm.RemoteNode" class="extype" href="RemoteNode.html">RemoteNode</a>, R) ⇒ <span name="scala.Unit" class="extype">Unit</span></span>, <span name="sendSchema">sendSchema: <span name="edu.berkeley.cs.avro.runtime.package.TypedSchema" class="extype">TypedSchema</span>[S]</span>, <span name="recvSchema">recvSchema: <span name="edu.berkeley.cs.avro.runtime.package.TypedSchema" class="extype">TypedSchema</span>[R]</span>)</span>
       </span>
       </h4>
       

@@ -23,8 +23,8 @@
       <span class="kind">case class</span>
       <span class="symbol"> 
         <span class="name">MessagePending</span>
-        <span class="tparams">[<span name="SendType">SendType</span>, <span name="RecvType">RecvType</span>]</span>
-        <span class="params">(<span name="remote">remote: <a name="edu.berkeley.cs.scads.comm.RemoteNode" class="extype" href="RemoteNode.html">RemoteNode</a></span>, <span name="msg">msg: <span name="scala.Either" class="extype">Either</span>[SendType, RecvType]</span>)</span><span class="result"> extends <a name="edu.berkeley.cs.scads.comm.MessageHandlerEvent" class="extype" href="MessageHandlerEvent.html">MessageHandlerEvent</a>[SendType, RecvType] with <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
+        
+        <span class="params">(<span name="remote">remote: <span name="scala.Any" class="extype">Any</span></span>, <span name="msg">msg: <span name="scala.Either" class="extype">Either</span>[MessageEnvelope, MessageEnvelope]</span>)</span><span class="result"> extends <a name="edu.berkeley.cs.scads.comm.MessageHandlerEvent" class="extype" href="MessageHandlerEvent.html">MessageHandlerEvent</a> with <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
       </span>
       </h4>
       
@@ -33,7 +33,7 @@ to be received. A LeftProjection of message indicates the former, a
 RightProjection indicates the latter
 </p></div><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, <span name="scala.Product" class="extype">Product</span>, <span name="scala.Equals" class="extype">Equals</span>, <a name="edu.berkeley.cs.scads.comm.MessageHandlerEvent" class="extype" href="MessageHandlerEvent.html">MessageHandlerEvent</a>[SendType, RecvType], AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, <span name="scala.Product" class="extype">Product</span>, <span name="scala.Equals" class="extype">Equals</span>, <a name="edu.berkeley.cs.scads.comm.MessageHandlerEvent" class="extype" href="MessageHandlerEvent.html">MessageHandlerEvent</a>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
         
 
@@ -60,13 +60,13 @@ RightProjection indicates the latter
         <div class="members" id="constructors">
               <h3>Instance Constructors</h3>
               <ol><li visbl="pub" name="edu.berkeley.cs.scads.comm.MessagePending#this" data-isabs="false">
-      <a id="this:MessagePending[SendType, RecvType]"></a>
+      <a id="this:MessagePending"></a>
       <h4 class="signature">
       <span class="kind">new</span>
       <span class="symbol"> 
         <span class="name">MessagePending</span>
         
-        <span class="params">(<span name="remote">remote: <a name="edu.berkeley.cs.scads.comm.RemoteNode" class="extype" href="RemoteNode.html">RemoteNode</a></span>, <span name="msg">msg: <span name="scala.Either" class="extype">Either</span>[SendType, RecvType]</span>)</span>
+        <span class="params">(<span name="remote">remote: <span name="scala.Any" class="extype">Any</span></span>, <span name="msg">msg: <span name="scala.Either" class="extype">Either</span>[MessageEnvelope, MessageEnvelope]</span>)</span>
       </span>
       </h4>
       
@@ -240,13 +240,13 @@ RightProjection indicates the latter
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.MessagePending#msg" data-isabs="false">
-      <a id="msg:Either[SendType, RecvType]"></a>
+      <a id="msg:Either[MessageEnvelope, MessageEnvelope]"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">msg</span>
         
-        <span class="result">: <span name="scala.Either" class="extype">Either</span>[SendType, RecvType]</span>
+        <span class="result">: <span name="scala.Either" class="extype">Either</span>[MessageEnvelope, MessageEnvelope]</span>
       </span>
       </h4>
       
@@ -328,13 +328,13 @@ RightProjection indicates the latter
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.comm.MessagePending" class="extype" href="">MessagePending</a> → Product</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.MessagePending#remote" data-isabs="false">
-      <a id="remote:RemoteNode"></a>
+      <a id="remote:Any"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">remote</span>
         
-        <span class="result">: <a name="edu.berkeley.cs.scads.comm.RemoteNode" class="extype" href="RemoteNode.html">RemoteNode</a></span>
+        <span class="result">: <span name="scala.Any" class="extype">Any</span></span>
       </span>
       </h4>
       
@@ -433,7 +433,7 @@ RightProjection indicates the latter
             </div><div name="scala.Equals" class="parent">
               <h3>Inherited from <span name="scala.Equals" class="extype">Equals</span></h3>
             </div><div name="edu.berkeley.cs.scads.comm.MessageHandlerEvent" class="parent">
-              <h3>Inherited from <a name="edu.berkeley.cs.scads.comm.MessageHandlerEvent" class="extype" href="MessageHandlerEvent.html">MessageHandlerEvent</a>[SendType, RecvType]</h3>
+              <h3>Inherited from <a name="edu.berkeley.cs.scads.comm.MessageHandlerEvent" class="extype" href="MessageHandlerEvent.html">MessageHandlerEvent</a></h3>
             </div><div name="scala.AnyRef" class="parent">
               <h3>Inherited from AnyRef</h3>
             </div><div name="scala.Any" class="parent">

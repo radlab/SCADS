@@ -23,14 +23,14 @@
       <span class="kind">class</span>
       <span class="symbol"> 
         <span class="name">FutureReference</span>
-        
-        <span class="result"> extends <span name="java.lang.ref.WeakReference" class="extype">WeakReference</span>[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>] with <a name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype" href="MessageReceiver.html">MessageReceiver</a></span>
+        <span class="tparams">[<span name="MessageType">MessageType &lt;: <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span></span>]</span>
+        <span class="result"> extends <span name="java.lang.ref.WeakReference" class="extype">WeakReference</span>[edu.berkeley.cs.scads.comm.MessageFuture[_]] with <a name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype" href="MessageReceiver.html">MessageReceiver</a>[MessageType]</span>
       </span>
       </h4>
       
           <div class="fullcommenttop" id="comment"><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent"><a name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype" href="MessageReceiver.html">MessageReceiver</a>, <span name="java.lang.ref.WeakReference" class="extype">WeakReference</span>[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>], <span name="java.lang.ref.Reference" class="extype">Reference</span>[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>], AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><a name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype" href="MessageReceiver.html">MessageReceiver</a>[MessageType], <span name="java.lang.ref.WeakReference" class="extype">WeakReference</span>[edu.berkeley.cs.scads.comm.MessageFuture[_]], <span name="java.lang.ref.Reference" class="extype">Reference</span>[edu.berkeley.cs.scads.comm.MessageFuture[_]], AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
         
 
@@ -57,13 +57,13 @@
         <div class="members" id="constructors">
               <h3>Instance Constructors</h3>
               <ol><li visbl="pub" name="edu.berkeley.cs.scads.comm.FutureReference#this" data-isabs="false">
-      <a id="this:FutureReference"></a>
+      <a id="this:FutureReference[MessageType]"></a>
       <h4 class="signature">
       <span class="kind">new</span>
       <span class="symbol"> 
         <span class="name">FutureReference</span>
         
-        <span class="params">(<span name="future">future: <a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a></span>)</span>
+        <span class="params">(<span name="future">future: <a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>[MessageType]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="handler">handler: <a name="edu.berkeley.cs.scads.comm.ServiceRegistry" class="extype" href="ServiceRegistry.html">ServiceRegistry</a>[MessageType]</span>)</span>
       </span>
       </h4>
       
@@ -167,6 +167,17 @@
                 <span class="name">@throws</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.FutureReference#dest" data-isabs="false">
+      <a id="dest:RemoteServiceProxy[MessageType]"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">dest</span>
+        
+        <span class="result">: <a name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype" href="RemoteServiceProxy.html">RemoteServiceProxy</a>[MessageType]</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="java.lang.ref.Reference#enqueue" data-isabs="false">
       <a id="enqueue():Boolean"></a>
       <h4 class="signature">
@@ -215,13 +226,13 @@
               
         </dd></dl></div>
     </li><li visbl="pub" name="java.lang.ref.Reference#get" data-isabs="false">
-      <a id="get():MessageFuture"></a>
+      <a id="get():edu.berkeley.cs.scads.comm.MessageFuture[_]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">get</span>
         
-        <span class="params">()</span><span class="result">: <a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a></span>
+        <span class="params">()</span><span class="result">: edu.berkeley.cs.scads.comm.MessageFuture[_]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Reference</dd></dl></div>
@@ -236,6 +247,17 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.FutureReference#handler" data-isabs="false">
+      <a id="handler:ServiceRegistry[MessageType]"></a>
+      <h4 class="signature">
+      <span class="kind">implicit val</span>
+      <span class="symbol"> 
+        <span class="name">handler</span>
+        
+        <span class="result">: <a name="edu.berkeley.cs.scads.comm.ServiceRegistry" class="extype" href="ServiceRegistry.html">ServiceRegistry</a>[MessageType]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#hashCode" data-isabs="false">
       <a id="hashCode():Int"></a>
       <h4 class="signature">
@@ -303,24 +325,35 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.FutureReference#receiveMessage" data-isabs="false">
-      <a id="receiveMessage(Option[RemoteActorProxy],MessageBody):Unit"></a>
+      <a id="receiveMessage(Option[RemoteServiceProxy[MessageType]],MessageType):Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">receiveMessage</span>
         
-        <span class="params">(<span name="src">src: <span name="scala.Option" class="extype">Option</span>[<a name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype" href="RemoteActorProxy.html">RemoteActorProxy</a>]</span>, <span name="msg">msg: <a name="edu.berkeley.cs.scads.comm.MessageBody" class="extype" href="MessageBody.html">MessageBody</a></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="src">src: <span name="scala.Option" class="extype">Option</span>[<a name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype" href="RemoteServiceProxy.html">RemoteServiceProxy</a>[MessageType]]</span>, <span name="msg">msg: MessageType</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.comm.FutureReference" class="extype" href="">FutureReference</a> → <a name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype" href="MessageReceiver.html">MessageReceiver</a></dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.FutureReference#remoteActor" data-isabs="false">
-      <a id="remoteActor:RemoteActor"></a>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.FutureReference#remoteService" data-isabs="false">
+      <a id="remoteService:RemoteServiceProxy[MessageType]"></a>
       <h4 class="signature">
       <span class="kind">val</span>
       <span class="symbol"> 
-        <span class="name">remoteActor</span>
+        <span class="name">remoteService</span>
         
-        <span class="result">: <a name="edu.berkeley.cs.scads.comm.RemoteActor" class="extype" href="RemoteActor.html">RemoteActor</a></span>
+        <span class="result">: <a name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype" href="RemoteServiceProxy.html">RemoteServiceProxy</a>[MessageType]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.FutureReference#request" data-isabs="false">
+      <a id="request:MessageType"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">request</span>
+        
+        <span class="result">: MessageType</span>
       </span>
       </h4>
       
@@ -346,6 +379,17 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.FutureReference#unregister" data-isabs="false">
+      <a id="unregister:Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">unregister</span>
+        
+        <span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
       <a id="wait():Unit"></a>
       <h4 class="signature">
@@ -394,11 +438,11 @@
         
 
         <div name="edu.berkeley.cs.scads.comm.MessageReceiver" class="parent">
-              <h3>Inherited from <a name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype" href="MessageReceiver.html">MessageReceiver</a></h3>
+              <h3>Inherited from <a name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype" href="MessageReceiver.html">MessageReceiver</a>[MessageType]</h3>
             </div><div name="java.lang.ref.WeakReference" class="parent">
-              <h3>Inherited from <span name="java.lang.ref.WeakReference" class="extype">WeakReference</span>[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>]</h3>
+              <h3>Inherited from <span name="java.lang.ref.WeakReference" class="extype">WeakReference</span>[edu.berkeley.cs.scads.comm.MessageFuture[_]]</h3>
             </div><div name="java.lang.ref.Reference" class="parent">
-              <h3>Inherited from <span name="java.lang.ref.Reference" class="extype">Reference</span>[<a name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype" href="MessageFuture.html">MessageFuture</a>]</h3>
+              <h3>Inherited from <span name="java.lang.ref.Reference" class="extype">Reference</span>[edu.berkeley.cs.scads.comm.MessageFuture[_]]</h3>
             </div><div name="scala.AnyRef" class="parent">
               <h3>Inherited from AnyRef</h3>
             </div><div name="scala.Any" class="parent">

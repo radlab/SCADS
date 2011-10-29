@@ -23,7 +23,7 @@
       <span class="kind">class</span>
       <span class="symbol"> 
         <span class="name">AvroSpecificDecoder</span>
-        <span class="tparams">[<span name="M">M &lt;: <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span></span>]</span>
+        <span class="tparams">[<span name="M">M &lt;: <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span></span>]</span>
         <span class="result"> extends <span name="org.jboss.netty.handler.codec.oneone.OneToOneDecoder" class="extype">OneToOneDecoder</span></span>
       </span>
       </h4>
@@ -63,7 +63,7 @@
       <span class="symbol"> 
         <span class="name">AvroSpecificDecoder</span>
         
-        <span class="params">()</span><span class="params">(<span class="implicit">implicit </span><span name="m">m: Manifest[M]</span>)</span>
+        <span class="params">(<span name="classLoader">classLoader: <span name="java.lang.ClassLoader" class="extype">ClassLoader</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="schema">schema: <span name="edu.berkeley.cs.avro.runtime.package.TypedSchema" class="extype">TypedSchema</span>[M]</span>)</span>
       </span>
       </h4>
       
