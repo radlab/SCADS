@@ -205,11 +205,11 @@ http://stackoverflow.</p>
     </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.package.TypedSchema" data-isabs="false">
       <a id="TypedSchema:TypedSchema[T]"></a>
       <h4 class="signature">
-      <span class="kind">class</span>
+      <span class="kind">case class</span>
       <span class="symbol"> 
         <a href="package$$TypedSchema.html"><span class="name">TypedSchema</span></a>
         <span class="tparams">[<span name="T">T</span>]</span>
-        <span class="result"> extends AnyRef</span>
+        <span class="params">(<span name="schema">schema: Schema</span>, <span name="classLoader">classLoader: ClassLoader</span>)</span><span class="result"> extends Product with Serializable</span>
       </span>
       </h4>
       <p class="comment cmt">Type Parameterized Schema wrapper
@@ -287,28 +287,28 @@ http://stackoverflow.</p>
       </span>
       </h4>
       
-    </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.TypedSchemas" data-isabs="false">
-      <a id="TypedSchemas:TypedSchemas"></a>
-      <h4 class="signature">
-      <span class="kind">object</span>
-      <span class="symbol"> 
-        <a href="TypedSchemas$.html"><span class="name">TypedSchemas</span></a>
-        
-        <span class="result"> extends AnyRef</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.package#genericContainerSchema" data-isabs="false">
-      <a id="genericContainerSchema[C&lt;:GenericContainer](Manifest[C]):TypedSchema[C]"></a>
+    </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.package#findSchema" data-isabs="false">
+      <a id="findSchema[C&lt;:GenericContainer](Manifest[C]):TypedSchema[C]"></a>
       <h4 class="signature">
       <span class="kind">implicit def</span>
       <span class="symbol"> 
-        <span class="name">genericContainerSchema</span>
+        <span class="name">findSchema</span>
         <span class="tparams">[<span name="C">C &lt;: <span name="org.apache.avro.generic.GenericContainer" class="extype">GenericContainer</span></span>]</span>
         <span class="params">(<span class="implicit">implicit </span><span name="r">r: Manifest[C]</span>)</span><span class="result">: <a name="edu.berkeley.cs.avro.runtime.package.TypedSchema" class="extype" href="package$$TypedSchema.html">TypedSchema</a>[C]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.avro.runtime.package" class="extype" href="package$.html">package</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.package#schemaOf" data-isabs="false">
+      <a id="schemaOf[C&lt;:GenericContainer](TypedSchema[C]):Schema"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">schemaOf</span>
+        <span class="tparams">[<span name="C">C &lt;: <span name="org.apache.avro.generic.GenericContainer" class="extype">GenericContainer</span></span>]</span>
+        <span class="params">(<span class="implicit">implicit </span><span name="s">s: <a name="edu.berkeley.cs.avro.runtime.package.TypedSchema" class="extype" href="package$$TypedSchema.html">TypedSchema</a>[C]</span>)</span><span class="result">: <span name="org.apache.avro.Schema" class="extype">Schema</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.avro.runtime.package" class="extype" href="package$.html">package</a></dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.package#toJsonObject" data-isabs="false">
       <a id="toJsonObject(String):JsonObject"></a>
       <h4 class="signature">

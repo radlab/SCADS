@@ -18,23 +18,23 @@
 
 <span class="keyword">import</span> edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
 
-<span class="keyword">private</span><span class="delimiter">[</span>marker<span class="delimiter">]</span> <span class="keyword">class</span> <a title="class NoImplementationException extends java.lang.Exception with ScalaObject" id="9473">NoImplementationException</a> <a href="#9473" title="ScalaObject" class="keyword">extends</a> <span title="java.lang.Exception">Exception</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Need to run through compiler plugin&quot;)" class="string">&quot;Need to run through compiler plugin&quot;</span><span class="delimiter">)</span>
+<span class="keyword">private</span><span class="delimiter">[</span>marker<span class="delimiter">]</span> <span class="keyword">class</span> <a title="class NoImplementationException extends java.lang.Exception with ScalaObject" id="9471">NoImplementationException</a> <a href="#9471" title="ScalaObject" class="keyword">extends</a> <span title="java.lang.Exception">Exception</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Need to run through compiler plugin&quot;)" class="string">&quot;Need to run through compiler plugin&quot;</span><span class="delimiter">)</span>
 
 <span class="comment">/** 
  * Provides dummy implementations which are rewritten by the plugin
  */</span>
-<span class="keyword">trait</span> <a title="trait AvroRecord extends java.lang.Object with edu.berkeley.cs.avro.runtime.ScalaSpecificRecord with ScalaObject" id="9474">AvroRecord</a> <span title="ScalaObject" class="keyword">extends</span> <a href="../runtime/ScalaSpecificRecord.scala.html#9710" title="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord">ScalaSpecificRecord</a> <span class="delimiter">{</span>
+<span class="keyword">trait</span> <a title="trait AvroRecord extends java.lang.Object with edu.berkeley.cs.avro.runtime.ScalaSpecificRecord with ScalaObject" id="9472">AvroRecord</a> <span title="ScalaObject" class="keyword">extends</span> <a href="../runtime/ScalaSpecificRecord.scala.html#9708" title="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord">ScalaSpecificRecord</a> <span class="delimiter">{</span>
 
-  <span class="keyword">def</span> <a title="(i: Int)AnyRef" id="11068">get</a><span class="delimiter">(</span><a title="Int" id="13237">i</a>: <span title="Int">Int</span><span class="delimiter">)</span>: <span title="AnyRef">AnyRef</span> = <span class="delimiter">{</span>
-    <span title="Nothing" class="keyword">throw</span> <span title="edu.berkeley.cs.avro.marker.NoImplementationException" class="keyword">new</span> <a href="#9473" title="edu.berkeley.cs.avro.marker.NoImplementationException">NoImplementationException</a>
+  <span class="keyword">def</span> <a title="(i: Int)AnyRef" id="11062">get</a><span class="delimiter">(</span><a title="Int" id="13231">i</a>: <span title="Int">Int</span><span class="delimiter">)</span>: <span title="AnyRef">AnyRef</span> = <span class="delimiter">{</span>
+    <span title="Nothing" class="keyword">throw</span> <span title="edu.berkeley.cs.avro.marker.NoImplementationException" class="keyword">new</span> <a href="#9471" title="edu.berkeley.cs.avro.marker.NoImplementationException">NoImplementationException</a>
   <span class="delimiter">}</span>
 
-  <span class="keyword">def</span> <a title="(i: Int, v: Any)Unit" id="11069">put</a><span class="delimiter">(</span><a title="Int" id="13458">i</a>: <span title="Int">Int</span>, <a title="Any" id="13459">v</a>: <span title="Any">Any</span><span class="delimiter">)</span> <span class="delimiter">{</span>
-    <span title="Nothing" class="keyword">throw</span> <span title="edu.berkeley.cs.avro.marker.NoImplementationException" class="keyword">new</span> <a href="#9473" title="edu.berkeley.cs.avro.marker.NoImplementationException">NoImplementationException</a>
+  <span class="keyword">def</span> <a title="(i: Int, v: Any)Unit" id="11063">put</a><span class="delimiter">(</span><a title="Int" id="13452">i</a>: <span title="Int">Int</span>, <a title="Any" id="13453">v</a>: <span title="Any">Any</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+    <span title="Nothing" class="keyword">throw</span> <span title="edu.berkeley.cs.avro.marker.NoImplementationException" class="keyword">new</span> <a href="#9471" title="edu.berkeley.cs.avro.marker.NoImplementationException">NoImplementationException</a>
   <span class="delimiter">}</span>
 
-  <span class="keyword">def</span> <a title="()org.apache.avro.Schema" id="11070">getSchema</a><span class="delimiter">(</span><span class="delimiter">)</span>: <span title="org.apache.avro.Schema">Schema</span> = <span class="delimiter">{</span>
-    <span title="Nothing" class="keyword">throw</span> <span title="edu.berkeley.cs.avro.marker.NoImplementationException" class="keyword">new</span> <a href="#9473" title="edu.berkeley.cs.avro.marker.NoImplementationException">NoImplementationException</a>
+  <span class="keyword">def</span> <a title="()org.apache.avro.Schema" id="11064">getSchema</a><span class="delimiter">(</span><span class="delimiter">)</span>: <span title="org.apache.avro.Schema">Schema</span> = <span class="delimiter">{</span>
+    <span title="Nothing" class="keyword">throw</span> <span title="edu.berkeley.cs.avro.marker.NoImplementationException" class="keyword">new</span> <a href="#9471" title="edu.berkeley.cs.avro.marker.NoImplementationException">NoImplementationException</a>
   <span class="delimiter">}</span>
 
 <span class="delimiter">}</span>
