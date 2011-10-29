@@ -24,14 +24,14 @@
       <span class="symbol"> 
         <span class="name">Cluster</span>
         
-        <span class="result"> extends <a name="deploylib.config.ConfigurationActions" class="extype" href="../config/ConfigurationActions.html">ConfigurationActions</a></span>
+        <span class="result"> extends AnyRef</span>
       </span>
       </h4>
       
           <div class="fullcommenttop" id="comment"><div class="comment cmt"><p>Functions to help maintain a mesos cluster on EC2.
 </p></div><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent"><a name="deploylib.config.ConfigurationActions" class="extype" href="../config/ConfigurationActions.html">ConfigurationActions</a>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent">AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
         
 
@@ -47,7 +47,7 @@
                 <span class="filtertype">Inherited</span>
                 <ol><li class="hideall out"><span>Hide All</span></li>
                 <li class="showall in"><span>Show all</span></li></ol>
-                <ol id="linearization"><li name="deploylib.mesos.Cluster" class="in"><span>Cluster</span></li><li name="deploylib.config.ConfigurationActions" class="in"><span>ConfigurationActions</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
+                <ol id="linearization"><li name="deploylib.mesos.Cluster" class="in"><span>Cluster</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
               </div>
           <div id="visbl">
               <span class="filtertype">Visibility</span>
@@ -133,13 +133,13 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
     </li><li visbl="pub" name="deploylib.mesos.Cluster#addSlaves" data-isabs="false">
-      <a id="addSlaves(Int,String,String,Boolean):Seq[EC2Instance]"></a>
+      <a id="addSlaves(Int,Boolean):Seq[EC2Instance]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">addSlaves</span>
         
-        <span class="params">(<span name="count">count: <span name="scala.Int" class="extype">Int</span></span>, <span name="zone">zone: String = <span class="symbol"><span class="name"><a href="#defaultZone:String">defaultZone</a></span></span></span>, <span name="ami">ami: String = <span class="symbol"><span class="name"><a href="#mesosAmi:String">mesosAmi</a></span></span></span>, <span name="updateDeploylibOnStart">updateDeploylibOnStart: <span name="scala.Boolean" class="extype">Boolean</span> = <span class="symbol">true</span></span>)</span><span class="result">: Seq[EC2Instance]</span>
+        <span class="params">(<span name="count">count: <span name="scala.Int" class="extype">Int</span></span>, <span name="updateDeploylibOnStart">updateDeploylibOnStart: <span name="scala.Boolean" class="extype">Boolean</span> = <span class="symbol">true</span></span>)</span><span class="result">: Seq[EC2Instance]</span>
       </span>
       </h4>
       <p class="shortcomment cmt">Add slaves to the cluster
@@ -169,6 +169,17 @@
 Then add that to the authorized key file all of slaves
 TODO: Dedup keys
 </p>
+    </li><li visbl="pub" name="deploylib.mesos.Cluster#availabilityZone" data-isabs="false">
+      <a id="availabilityZone:Option[String]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">availabilityZone</span>
+        
+        <span class="result">: <span name="scala.Option" class="extype">Option</span>[String]</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">The default availability zone used when launching new instances.</p>
     </li><li visbl="prt" name="deploylib.mesos.Cluster#baseConf" data-isabs="false">
       <a id="baseConf:List[String]"></a>
       <h4 class="signature">
@@ -198,7 +209,7 @@ TODO: Dedup keys
       <span class="symbol"> 
         <span class="name">classSource</span>
         
-        <span class="result">: Seq[<span name="edu.berkeley.cs.scads.comm.S3CachedJar" class="extype">S3CachedJar</span>]</span>
+        <span class="result">: Seq[<a name="deploylib.mesos.S3CachedJar" class="extype" href="S3CachedJar.html">S3CachedJar</a>]</span>
       </span>
       </h4>
       <p class="shortcomment cmt">Returns S3 Cached jars for all jar files specified in MesosCluster.</p><div class="fullcomment"><div class="comment cmt"><p>Returns S3 Cached jars for all jar files specified in MesosCluster.jarFiles.  This will upload any jar files that don't already exist
@@ -252,72 +263,6 @@ TODO: Dedup keys
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
-    </li><li visbl="prt" name="deploylib.config.ConfigurationActions#createDirectory" data-isabs="false">
-      <a id="createDirectory(RemoteMachine,File):File"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">createDirectory</span>
-        
-        <span class="params">(<span name="target">target: <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></span>, <span name="directory">directory: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: <span name="java.io.File" class="extype">File</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.config.ConfigurationActions" class="extype" href="../config/ConfigurationActions.html">ConfigurationActions</a></dd></dl></div>
-    </li><li visbl="prt" name="deploylib.config.ConfigurationActions#createFile" data-isabs="false">
-      <a id="createFile(RemoteMachine,File,String,String):File"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">createFile</span>
-        
-        <span class="params">(<span name="target">target: <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></span>, <span name="filename">filename: <span name="java.io.File" class="extype">File</span></span>, <span name="contents">contents: String</span>, <span name="mode">mode: String</span>)</span><span class="result">: <span name="java.io.File" class="extype">File</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.config.ConfigurationActions" class="extype" href="../config/ConfigurationActions.html">ConfigurationActions</a></dd></dl></div>
-    </li><li visbl="prt" name="deploylib.config.ConfigurationActions#createJavaService" data-isabs="false">
-      <a id="createJavaService(RunitManager,File,String,Int,String):RunitService"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">createJavaService</span>
-        
-        <span class="params">(<span name="target">target: <a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></span>, <span name="localJar">localJar: <span name="java.io.File" class="extype">File</span></span>, <span name="className">className: String</span>, <span name="maxHeapMb">maxHeapMb: <span name="scala.Int" class="extype">Int</span></span>, <span name="args">args: String</span>)</span><span class="result">: <a name="deploylib.runit.RunitService" class="extype" href="../runit/RunitService.html">RunitService</a></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.config.ConfigurationActions" class="extype" href="../config/ConfigurationActions.html">ConfigurationActions</a></dd></dl></div>
-    </li><li visbl="prt" name="deploylib.config.ConfigurationActions#createRunitService" data-isabs="false">
-      <a id="createRunitService(RunitManager,String,String,String):RunitService"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">createRunitService</span>
-        
-        <span class="params">(<span name="target">target: <a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></span>, <span name="name">name: String</span>, <span name="runCommand">runCommand: String</span>, <span name="logCommand">logCommand: String</span>)</span><span class="result">: <a name="deploylib.runit.RunitService" class="extype" href="../runit/RunitService.html">RunitService</a></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.config.ConfigurationActions" class="extype" href="../config/ConfigurationActions.html">ConfigurationActions</a></dd></dl></div>
-    </li><li visbl="prt" name="deploylib.config.ConfigurationActions#createRunitService" data-isabs="false">
-      <a id="createRunitService(RunitManager,String,String):RunitService"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">createRunitService</span>
-        
-        <span class="params">(<span name="target">target: <a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></span>, <span name="name">name: String</span>, <span name="runCommand">runCommand: String</span>)</span><span class="result">: <a name="deploylib.runit.RunitService" class="extype" href="../runit/RunitService.html">RunitService</a></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.config.ConfigurationActions" class="extype" href="../config/ConfigurationActions.html">ConfigurationActions</a></dd></dl></div>
-    </li><li visbl="pub" name="deploylib.mesos.Cluster#defaultZone" data-isabs="false">
-      <a id="defaultZone:String"></a>
-      <h4 class="signature">
-      <span class="kind">val</span>
-      <span class="symbol"> 
-        <span class="name">defaultZone</span>
-        
-        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
-      </span>
-      </h4>
-      <p class="shortcomment cmt">The default availability zone used when launching new instances.</p>
     </li><li visbl="pub" name="scala.AnyRef#eq" data-isabs="false">
       <a id="eq(AnyRef):Boolean"></a>
       <h4 class="signature">
@@ -411,7 +356,7 @@ TODO: Dedup keys
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.config.ConfigurationActions#logger" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.mesos.Cluster#logger" data-isabs="false">
       <a id="logger:Logger"></a>
       <h4 class="signature">
       <span class="kind">val</span>
@@ -421,7 +366,7 @@ TODO: Dedup keys
         <span class="result">: <span name="net.lag.logging.Logger" class="extype">Logger</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.config.ConfigurationActions" class="extype" href="../config/ConfigurationActions.html">ConfigurationActions</a></dd></dl></div>
+      
     </li><li visbl="pub" name="deploylib.mesos.Cluster#masterServices" data-isabs="false">
       <a id="masterServices:Buffer[RemoteService]"></a>
       <h4 class="signature">
@@ -609,13 +554,13 @@ NOTE: this will kill any other java procs running on the master.
       </h4>
       <p class="shortcomment cmt">Start and configure the mesos master, at least numSlaves mesos slaves, and zookeeper in parallel.</p>
     </li><li visbl="pub" name="deploylib.mesos.Cluster#setupMesosMaster" data-isabs="false">
-      <a id="setupMesosMaster(String,Int,Option[String]):Unit"></a>
+      <a id="setupMesosMaster(Int):Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">setupMesosMaster</span>
         
-        <span class="params">(<span name="zone">zone: String = <span class="symbol"><span class="name"><a href="#defaultZone:String">defaultZone</a></span></span></span>, <span name="numMasters">numMasters: <span name="scala.Int" class="extype">Int</span> = <span class="symbol">1</span></span>, <span name="mesosAmi">mesosAmi: <span name="scala.Option" class="extype">Option</span>[String] = <span class="symbol"><span class="name"><a href="../../scala/package.html">None</a></span></span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="numMasters">numMasters: <span name="scala.Int" class="extype">Int</span> = <span class="symbol">1</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
       <p class="shortcomment cmt">Configure the mesos master, starting instances if needed.</p>
@@ -677,14 +622,25 @@ Starts at at least numServers if they aren't already running.
       </h4>
       <p class="shortcomment cmt">Returns a list of EC2Instances for all the slaves in the cluster
 </p>
+    </li><li visbl="prt" name="deploylib.mesos.Cluster#startMasterInstances" data-isabs="false">
+      <a id="startMasterInstances(Int,Option[String]):Seq[EC2Instance]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">startMasterInstances</span>
+        
+        <span class="params">(<span name="count">count: <span name="scala.Int" class="extype">Int</span></span>, <span name="zone">zone: <span name="scala.Option" class="extype">Option</span>[String] = <span class="symbol"><span class="name"><a href="../../scala/package.html">None</a></span></span></span>)</span><span class="result">: Seq[EC2Instance]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
     </li><li visbl="pub" name="deploylib.mesos.Cluster#startMasters" data-isabs="false">
-      <a id="startMasters(String,Int,String):Seq[EC2Instance]"></a>
+      <a id="startMasters(Int,String):Seq[EC2Instance]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">startMasters</span>
         
-        <span class="params">(<span name="zone">zone: String = <span class="symbol"><span class="name"><a href="#defaultZone:String">defaultZone</a></span></span></span>, <span name="count">count: <span name="scala.Int" class="extype">Int</span> = <span class="symbol">1</span></span>, <span name="ami">ami: String = <span class="symbol"><span class="name"><a href="#mesosAmi:String">mesosAmi</a></span></span></span>)</span><span class="result">: Seq[EC2Instance]</span>
+        <span class="params">(<span name="count">count: <span name="scala.Int" class="extype">Int</span> = <span class="symbol">1</span></span>, <span name="ami">ami: String = <span class="symbol"><span class="name"><a href="#mesosAmi:String">mesosAmi</a></span></span></span>)</span><span class="result">: Seq[EC2Instance]</span>
       </span>
       </h4>
       <p class="shortcomment cmt">Start and configure the specified number of masters.</p>
@@ -711,19 +667,6 @@ Starts at at least numServers if they aren't already running.
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li visbl="pub" name="deploylib.mesos.Cluster#tailSlaveLogs" data-isabs="false">
-      <a id="tailSlaveLogs:Unit"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">tailSlaveLogs</span>
-        
-        <span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
-      </span>
-      </h4>
-      <p class="shortcomment cmt">Tail stdout of the most recently started framework on all slaves and print the output to stdout of the local machine.</p><div class="fullcomment"><div class="comment cmt"><p>Tail stdout of the most recently started framework on all slaves and print the output to stdout of the local machine.
-Used for debugging.
-</p></div></div>
     </li><li visbl="pub" name="scala.AnyRef#toString" data-isabs="false">
       <a id="toString():String"></a>
       <h4 class="signature">
@@ -782,17 +725,6 @@ Used for debugging.
       </h4>
       <p class="shortcomment cmt">Updates the slave configuration file on the specified instances (default all slaves)
 </p>
-    </li><li visbl="pub" name="deploylib.config.ConfigurationActions#uploadFile" data-isabs="false">
-      <a id="uploadFile(RemoteMachine,File,File):File"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">uploadFile</span>
-        
-        <span class="params">(<span name="target">target: <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></span>, <span name="localFile">localFile: <span name="java.io.File" class="extype">File</span></span>, <span name="destination">destination: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: <span name="java.io.File" class="extype">File</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.config.ConfigurationActions" class="extype" href="../config/ConfigurationActions.html">ConfigurationActions</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.mesos.Cluster#useFT" data-isabs="false">
       <a id="useFT:Boolean"></a>
       <h4 class="signature">
@@ -846,6 +778,32 @@ Used for debugging.
                 <span class="name">@throws</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.Cluster#watchExecLogs" data-isabs="false">
+      <a id="watchExecLogs:Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">watchExecLogs</span>
+        
+        <span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Watch stderr of the most recently started framework on all slaves and print the output to stdout of the local machine.</p><div class="fullcomment"><div class="comment cmt"><p>Watch stderr of the most recently started framework on all slaves and print the output to stdout of the local machine.
+Used for debugging.
+</p></div></div>
+    </li><li visbl="pub" name="deploylib.mesos.Cluster#watchSlaveLogs" data-isabs="false">
+      <a id="watchSlaveLogs:Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">watchSlaveLogs</span>
+        
+        <span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Watch stdout of the most recently started framework on all slaves and print the output to stdout of the local machine.</p><div class="fullcomment"><div class="comment cmt"><p>Watch stdout of the most recently started framework on all slaves and print the output to stdout of the local machine.
+Used for debugging.
+</p></div></div>
     </li><li visbl="pub" name="deploylib.mesos.Cluster#zooKeeperAddress" data-isabs="false">
       <a id="zooKeeperAddress:String"></a>
       <h4 class="signature">
@@ -887,7 +845,21 @@ Used for debugging.
 
         <div class="values members" id="values">
               <h3>Deprecated Value Members</h3>
-              <ol><li visbl="pub" name="deploylib.mesos.Cluster#updateSlavesFile" data-isabs="false">
+              <ol><li visbl="pub" name="deploylib.mesos.Cluster#tailSlaveLogs" data-isabs="false">
+      <a id="tailSlaveLogs:Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name deprecated">tailSlaveLogs</span>
+        
+        <span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Annotations</dt><dd>
+                <span class="name">@deprecated</span>
+              
+        </dd><dt>Deprecated</dt><dd class="cmt"><p>use watchSlaveLogs</p></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.Cluster#updateSlavesFile" data-isabs="false">
       <a id="updateSlavesFile:Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -906,9 +878,7 @@ Used for debugging.
     </li></ol>
             </div>
 
-        <div name="deploylib.config.ConfigurationActions" class="parent">
-              <h3>Inherited from <a name="deploylib.config.ConfigurationActions" class="extype" href="../config/ConfigurationActions.html">ConfigurationActions</a></h3>
-            </div><div name="scala.AnyRef" class="parent">
+        <div name="scala.AnyRef" class="parent">
               <h3>Inherited from AnyRef</h3>
             </div><div name="scala.Any" class="parent">
               <h3>Inherited from <span name="scala.Any" class="extype">Any</span></h3>

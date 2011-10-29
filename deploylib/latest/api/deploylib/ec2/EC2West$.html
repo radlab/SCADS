@@ -22,13 +22,16 @@
       <h4 class="signature" id="signature">
       <span class="kind">object</span>
       <span class="symbol"> 
-        <span class="name">EC2West</span>
+        <span class="name deprecated">EC2West</span>
         
         <span class="result"> extends <a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a> with <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
       </span>
       </h4>
       
-          <div class="fullcommenttop" id="comment"><div class="toggleContainer block">
+          <div class="fullcommenttop" id="comment"><dl class="attributes block"> <dt>Annotations</dt><dd>
+                <span class="name">@deprecated</span>
+              
+        </dd><dt>Deprecated</dt><dd class="cmt"><p>Use USWest1</p></dd></dl><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
           <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, <span name="scala.Product" class="extype">Product</span>, <span name="scala.Equals" class="extype">Equals</span>, <a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a>, <a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
@@ -226,28 +229,17 @@ Instances of this class can be obtained by instanceId from the static method get
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
-    </li><li visbl="prt" name="deploylib.ec2.EC2Region#defaultAMI" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#defaultAMI" data-isabs="false">
       <a id="defaultAMI:String"></a>
       <h4 class="signature">
-      <span class="kind">def</span>
+      <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">defaultAMI</span>
         
-        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+        <span class="result">: String</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
-    </li><li visbl="prt" name="deploylib.ec2.EC2Region#defaultZone" data-isabs="false">
-      <a id="defaultZone:String"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">defaultZone</span>
-        
-        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
     </li><li visbl="prt" name="deploylib.ec2.AWSConnection#ec2Cert" data-isabs="false">
       <a id="ec2Cert:File"></a>
       <h4 class="signature">
@@ -317,6 +309,17 @@ Instances of this class can be obtained by instanceId from the static method get
                 <span class="name">@throws</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#forceUpdate" data-isabs="false">
+      <a id="forceUpdate():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">forceUpdate</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#getClass" data-isabs="false">
       <a id="getClass():java.lang.Class[_]"></a>
       <h4 class="signature">
@@ -352,6 +355,19 @@ Instances of this class can be obtained by instanceId from the static method get
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2West" class="extype" href="">EC2West</a> → AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#importKeyPair" data-isabs="false">
+      <a id="importKeyPair:Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">importKeyPair</span>
+        
+        <span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Upload the current public key to ec2 as AWS_KEY_NAME
+</p><div class="fullcomment"><div class="comment cmt"><p>Upload the current public key to ec2 as AWS_KEY_NAME
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.ec2.EC2Region#instanceData" data-isabs="false">
       <a id="instanceData:Map[String, Instance]"></a>
       <h4 class="signature">
@@ -414,7 +430,7 @@ Instances of this class can be obtained by instanceId from the static method get
       <span class="symbol"> 
         <span class="name">location</span>
         
-        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+        <span class="result">: String</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
@@ -497,6 +513,17 @@ Instances of this class can be obtained by instanceId from the static method get
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#openPorts" data-isabs="false">
+      <a id="openPorts:Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">openPorts</span>
+        
+        <span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.ec2.EC2West#productArity" data-isabs="false">
       <a id="productArity:Int"></a>
       <h4 class="signature">
@@ -565,13 +592,13 @@ Instances of this class can be obtained by instanceId from the static method get
       <p class="shortcomment cmt">Launch a single golden image instance with default configuration.</p><div class="fullcomment"><div class="comment cmt"><p>Launch a single golden image instance with default configuration.
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.ec2.EC2Region" class="extype" href="EC2Region.html">EC2Region</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.ec2.EC2Region#runInstances" data-isabs="false">
-      <a id="runInstances(String,Int,Int,String,String,String,Option[String]):Seq[EC2Instance]"></a>
+      <a id="runInstances(String,Int,Int,String,String,Option[String],Option[String]):Seq[EC2Instance]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">runInstances</span>
         
-        <span class="params">(<span name="imageId">imageId: String</span>, <span name="min">min: <span name="scala.Int" class="extype">Int</span></span>, <span name="max">max: <span name="scala.Int" class="extype">Int</span></span>, <span name="keyName">keyName: String</span>, <span name="instanceType">instanceType: String</span>, <span name="location">location: String</span>, <span name="userData">userData: <span name="scala.Option" class="extype">Option</span>[String] = <span class="symbol"><span class="name"><a href="../../scala/package.html">None</a></span></span></span>)</span><span class="result">: Seq[<a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a>]</span>
+        <span class="params">(<span name="imageId">imageId: String</span>, <span name="min">min: <span name="scala.Int" class="extype">Int</span></span>, <span name="max">max: <span name="scala.Int" class="extype">Int</span></span>, <span name="keyName">keyName: String</span>, <span name="instanceType">instanceType: String</span>, <span name="location">location: <span name="scala.Option" class="extype">Option</span>[String]</span>, <span name="userData">userData: <span name="scala.Option" class="extype">Option</span>[String] = <span class="symbol"><span class="name"><a href="../../scala/package.html">None</a></span></span></span>)</span><span class="result">: Seq[<a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a>]</span>
       </span>
       </h4>
       <p class="shortcomment cmt">Launches a set of instances with the given parameters

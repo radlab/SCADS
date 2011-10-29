@@ -14,9 +14,9 @@
         </head>
         <body class="type">
       <div id="definition">
-        <img src="../lib/class_big.png" />
+        <a title="Go to companion" href="RemoteMachine$.html"><img src="../lib/class_to_object_big.png" /></a>
         <p id="owner"><a name="deploylib" class="extype" href="package.html">deploylib</a></p>
-        <h1>RemoteMachine</h1>
+        <h1><a title="Go to companion" href="RemoteMachine$.html">RemoteMachine</a></h1>
       </div>
 
       <h4 class="signature" id="signature">
@@ -344,13 +344,13 @@
               
         </dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#createFile" data-isabs="false">
-      <a id="createFile(File,String):Unit"></a>
+      <a id="createFile(File,String,String):Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">createFile</span>
         
-        <span class="params">(<span name="file">file: <span name="java.io.File" class="extype">File</span></span>, <span name="contents">contents: String</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="file">file: <span name="java.io.File" class="extype">File</span></span>, <span name="contents">contents: String</span>, <span name="mode">mode: String = <span class="symbol">&quot;644&quot;</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
       <p class="shortcomment cmt">Create a file on the remote machine with the given contents</p><div class="fullcomment"><div class="comment cmt"><p>Create a file on the remote machine with the given contents</p></div><dl class="paramcmts block"><dt class="param">file</dt><dd class="cmt"><p>- The desired path of the file. If the given path is relative, the file will be created in the rootDirectory</p></dd><dt class="param">contents</dt><dd class="cmt"><p>- A string with the desired contents of the file
@@ -415,17 +415,6 @@ and return the result as an ExecuteResponse
                 <span class="name">@throws</span><span class="args">()</span>
               
         </dd></dl></div>
-    </li><li visbl="prt" name="deploylib.RemoteMachine#findPrivateKey" data-isabs="false">
-      <a id="findPrivateKey:File"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">findPrivateKey</span>
-        
-        <span class="result">: <span name="java.io.File" class="extype">File</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#free" data-isabs="false">
       <a id="free:FreeStats"></a>
       <h4 class="signature">

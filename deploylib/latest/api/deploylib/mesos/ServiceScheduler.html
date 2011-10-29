@@ -24,13 +24,13 @@
       <span class="symbol"> 
         <span class="name">ServiceScheduler</span>
         
-        <span class="result"> extends <a name="deploylib.mesos.LocalExperimentScheduler" class="extype" href="LocalExperimentScheduler.html">LocalExperimentScheduler</a> with <span name="edu.berkeley.cs.scads.comm.ServiceHandler" class="extype">ServiceHandler</span>[<span name="edu.berkeley.cs.scads.comm.ExperimentOperation" class="extype">ExperimentOperation</span>]</span>
+        <span class="result"> extends <a name="deploylib.mesos.LocalExperimentScheduler" class="extype" href="LocalExperimentScheduler.html">LocalExperimentScheduler</a> with <span name="edu.berkeley.cs.scads.comm.ServiceHandler" class="extype">ServiceHandler</span>[<a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a>]</span>
       </span>
       </h4>
       
           <div class="fullcommenttop" id="comment"><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent"><span name="edu.berkeley.cs.scads.comm.ServiceHandler" class="extype">ServiceHandler</span>[<span name="edu.berkeley.cs.scads.comm.ExperimentOperation" class="extype">ExperimentOperation</span>], <span name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype">MessageReceiver</span>, <a name="deploylib.mesos.LocalExperimentScheduler" class="extype" href="LocalExperimentScheduler.html">LocalExperimentScheduler</a>, <a name="deploylib.mesos.ExperimentScheduler" class="extype" href="ExperimentScheduler.html">ExperimentScheduler</a>, <span name="org.apache.mesos.Scheduler" class="extype">Scheduler</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><span name="edu.berkeley.cs.scads.comm.ServiceHandler" class="extype">ServiceHandler</span>[<a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a>], <span name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype">MessageReceiver</span>[<a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a>], <a name="deploylib.mesos.LocalExperimentScheduler" class="extype" href="LocalExperimentScheduler.html">LocalExperimentScheduler</a>, <a name="deploylib.mesos.ExperimentScheduler" class="extype" href="ExperimentScheduler.html">ExperimentScheduler</a>, <span name="org.apache.mesos.Scheduler" class="extype">Scheduler</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
         
 
@@ -163,7 +163,7 @@
       <span class="symbol"> 
         <span class="name">awaitingSiblings</span>
         
-        <span class="result">: <span name="scala.collection.immutable.List" class="extype">List</span>[<span name="edu.berkeley.cs.scads.comm.JvmTask" class="extype">JvmTask</span>]</span>
+        <span class="result">: <span name="scala.collection.immutable.List" class="extype">List</span>[<a name="deploylib.mesos.JvmTask" class="extype" href="JvmTask.html">JvmTask</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.LocalExperimentScheduler" class="extype" href="LocalExperimentScheduler.html">LocalExperimentScheduler</a></dd></dl></div>
@@ -405,27 +405,27 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>ServiceHandler</dd></dl></div>
     </li><li visbl="pub" name="deploylib.mesos.ServiceScheduler#process" data-isabs="false">
-      <a id="process(Option[RemoteActorProxy],ExperimentOperation):Unit"></a>
+      <a id="process(Option[RemoteServiceProxy[Message]],Message):Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">process</span>
         
-        <span class="params">(<span name="src">src: <span name="scala.Option" class="extype">Option</span>[<span name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype">RemoteActorProxy</span>]</span>, <span name="msg">msg: <span name="edu.berkeley.cs.scads.comm.ExperimentOperation" class="extype">ExperimentOperation</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="src">src: <span name="scala.Option" class="extype">Option</span>[<span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a>]]</span>, <span name="msg">msg: <a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.ServiceScheduler" class="extype" href="">ServiceScheduler</a> → ServiceHandler</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.ServiceHandler#receiveMessage" data-isabs="false">
-      <a id="receiveMessage(Option[RemoteActorProxy],MessageBody):Unit"></a>
+      <a id="receiveMessage(Option[RemoteServiceProxy[Message]],Message):Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">receiveMessage</span>
         
-        <span class="params">(<span name="src">src: <span name="scala.Option" class="extype">Option</span>[<span name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype">RemoteActorProxy</span>]</span>, <span name="msg">msg: <span name="edu.berkeley.cs.scads.comm.MessageBody" class="extype">MessageBody</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="src">src: <span name="scala.Option" class="extype">Option</span>[<span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a>]]</span>, <span name="msg">msg: <a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ServiceHandler → MessageReceiver</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>ServiceHandler → MessageReceiver</dd></dl></div>
     </li><li visbl="pub" name="deploylib.mesos.LocalExperimentScheduler#registered" data-isabs="false">
       <a id="registered(SchedulerDriver,FrameworkID):Unit"></a>
       <h4 class="signature">
@@ -437,14 +437,25 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.LocalExperimentScheduler" class="extype" href="LocalExperimentScheduler.html">LocalExperimentScheduler</a> → Scheduler</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.ServiceHandler#remoteHandle" data-isabs="false">
-      <a id="remoteHandle:RemoteActor"></a>
+    </li><li visbl="pub" name="deploylib.mesos.ServiceScheduler#registry" data-isabs="false">
+      <a id="registry:deploylib.mesos.package.MsgHandler.type"></a>
       <h4 class="signature">
-      <span class="kind">implicit val</span>
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">registry</span>
+        
+        <span class="result">: deploylib.mesos.package.MsgHandler.type</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.ServiceScheduler" class="extype" href="">ServiceScheduler</a> → ServiceHandler</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.ServiceHandler#remoteHandle" data-isabs="false">
+      <a id="remoteHandle:RemoteServiceProxy[Message]"></a>
+      <h4 class="signature">
+      <span class="kind">implicit lazy val</span>
       <span class="symbol"> 
         <span class="name">remoteHandle</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.comm.RemoteActor" class="extype">RemoteActor</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>ServiceHandler</dd></dl></div>
@@ -466,7 +477,7 @@
       <span class="symbol"> 
         <span class="name">scheduleExperiment</span>
         
-        <span class="params">(<span name="processes">processes: Seq[<span name="edu.berkeley.cs.scads.comm.JvmTask" class="extype">JvmTask</span>]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="processes">processes: Seq[<a name="deploylib.mesos.JvmTask" class="extype" href="JvmTask.html">JvmTask</a>]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.LocalExperimentScheduler" class="extype" href="LocalExperimentScheduler.html">LocalExperimentScheduler</a> → <a name="deploylib.mesos.ExperimentScheduler" class="extype" href="ExperimentScheduler.html">ExperimentScheduler</a></dd></dl></div>
@@ -576,7 +587,7 @@
       <span class="symbol"> 
         <span class="name">taskDescription</span>
         
-        <span class="params">(<span name="task">task: <span name="edu.berkeley.cs.scads.comm.JvmTask" class="extype">JvmTask</span></span>)</span><span class="result">: String</span>
+        <span class="params">(<span name="task">task: <a name="deploylib.mesos.JvmTask" class="extype" href="JvmTask.html">JvmTask</a></span>)</span><span class="result">: String</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.mesos.LocalExperimentScheduler" class="extype" href="LocalExperimentScheduler.html">LocalExperimentScheduler</a></dd></dl></div>
@@ -661,9 +672,9 @@
         
 
         <div name="edu.berkeley.cs.scads.comm.ServiceHandler" class="parent">
-              <h3>Inherited from <span name="edu.berkeley.cs.scads.comm.ServiceHandler" class="extype">ServiceHandler</span>[<span name="edu.berkeley.cs.scads.comm.ExperimentOperation" class="extype">ExperimentOperation</span>]</h3>
+              <h3>Inherited from <span name="edu.berkeley.cs.scads.comm.ServiceHandler" class="extype">ServiceHandler</span>[<a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a>]</h3>
             </div><div name="edu.berkeley.cs.scads.comm.MessageReceiver" class="parent">
-              <h3>Inherited from <span name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype">MessageReceiver</span></h3>
+              <h3>Inherited from <span name="edu.berkeley.cs.scads.comm.MessageReceiver" class="extype">MessageReceiver</span>[<a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a>]</h3>
             </div><div name="deploylib.mesos.LocalExperimentScheduler" class="parent">
               <h3>Inherited from <a name="deploylib.mesos.LocalExperimentScheduler" class="extype" href="LocalExperimentScheduler.html">LocalExperimentScheduler</a></h3>
             </div><div name="deploylib.mesos.ExperimentScheduler" class="parent">

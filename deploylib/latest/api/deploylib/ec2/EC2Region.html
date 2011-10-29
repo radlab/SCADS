@@ -29,7 +29,7 @@
       </h4>
       
           <div class="fullcommenttop" id="comment"><div class="comment cmt"><p>Provides methods for interacting with nodes in a given ec2 region.
-It caches all data received from the EC2 api and updates it only when accessing a volitile field (such as instanceState) or when an update is manually requested.
+It caches all data received from the EC2 api and updates it only when accessing a volatile field (such as instanceState) or when an update is manually requested.
 Additionally, it will only make an update call to EC2 no more often than every 10 seconds.
 This means it is safe to make many concurrent calls to the static methods or instance methods of a specific EC2Instance concurrently from many threads with out fear of overloading amazons api.
 </p></div><div class="toggleContainer block">
@@ -37,7 +37,7 @@ This means it is safe to make many concurrent calls to the static methods or ins
           <div class="superTypes hiddenContent"><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div><div class="toggleContainer block">
           <span class="toggle">Known Subclasses</span>
-          <div class="subClasses hiddenContent"><a name="deploylib.ec2.EC2East" class="extype" href="EC2East$.html">EC2East</a>, <a name="deploylib.ec2.EC2West" class="extype" href="EC2West$.html">EC2West</a></div>
+          <div class="subClasses hiddenContent"><a name="deploylib.ec2.APNortheast1" class="extype" href="APNortheast1$.html">APNortheast1</a>, <a name="deploylib.ec2.APSoutheast1" class="extype" href="APSoutheast1$.html">APSoutheast1</a>, <a name="deploylib.ec2.EC2East" class="extype" href="EC2East$.html">EC2East</a>, <a name="deploylib.ec2.EC2West" class="extype" href="EC2West$.html">EC2West</a>, <a name="deploylib.ec2.EUWest1" class="extype" href="EUWest1$.html">EUWest1</a>, <a name="deploylib.ec2.USEast1" class="extype" href="USEast1$.html">USEast1</a>, <a name="deploylib.ec2.USWest1" class="extype" href="USWest1$.html">USWest1</a></div>
         </div></div>
         
 
@@ -70,7 +70,7 @@ This means it is safe to make many concurrent calls to the static methods or ins
       <span class="symbol"> 
         <span class="name">EC2Region</span>
         
-        <span class="params">(<span name="endpoint">endpoint: String</span>)</span>
+        <span class="params">(<span name="endpoint">endpoint: String</span>, <span name="location">location: String</span>, <span name="defaultAMI">defaultAMI: String</span>)</span>
       </span>
       </h4>
       
@@ -235,28 +235,17 @@ Instances of this class can be obtained by instanceId from the static method get
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.ec2.AWSConnection" class="extype" href="AWSConnection.html">AWSConnection</a></dd></dl></div>
-    </li><li visbl="prt" name="deploylib.ec2.EC2Region#defaultAMI" data-isabs="false">
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#defaultAMI" data-isabs="false">
       <a id="defaultAMI:String"></a>
       <h4 class="signature">
-      <span class="kind">def</span>
+      <span class="kind">val</span>
       <span class="symbol"> 
         <span class="name">defaultAMI</span>
         
-        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+        <span class="result">: String</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
-    </li><li visbl="prt" name="deploylib.ec2.EC2Region#defaultZone" data-isabs="false">
-      <a id="defaultZone:String"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">defaultZone</span>
-        
-        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+      
     </li><li visbl="prt" name="deploylib.ec2.AWSConnection#ec2Cert" data-isabs="false">
       <a id="ec2Cert:File"></a>
       <h4 class="signature">
@@ -326,6 +315,17 @@ Instances of this class can be obtained by instanceId from the static method get
                 <span class="name">@throws</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#forceUpdate" data-isabs="false">
+      <a id="forceUpdate():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">forceUpdate</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="scala.AnyRef#getClass" data-isabs="false">
       <a id="getClass():java.lang.Class[_]"></a>
       <h4 class="signature">
@@ -360,6 +360,18 @@ Instances of this class can be obtained by instanceId from the static method get
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#importKeyPair" data-isabs="false">
+      <a id="importKeyPair:Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">importKeyPair</span>
+        
+        <span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Upload the current public key to ec2 as AWS_KEY_NAME
+</p>
     </li><li visbl="pub" name="deploylib.ec2.EC2Region#instanceData" data-isabs="false">
       <a id="instanceData:Map[String, Instance]"></a>
       <h4 class="signature">
@@ -422,7 +434,7 @@ Instances of this class can be obtained by instanceId from the static method get
       <span class="symbol"> 
         <span class="name">location</span>
         
-        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+        <span class="result">: String</span>
       </span>
       </h4>
       
@@ -504,6 +516,17 @@ Instances of this class can be obtained by instanceId from the static method get
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.ec2.EC2Region#openPorts" data-isabs="false">
+      <a id="openPorts:Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">openPorts</span>
+        
+        <span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="deploylib.ec2.EC2Region#runInstance" data-isabs="false">
       <a id="runInstance():EC2Instance"></a>
       <h4 class="signature">
@@ -516,13 +539,13 @@ Instances of this class can be obtained by instanceId from the static method get
       </h4>
       <p class="shortcomment cmt">Launch a single golden image instance with default configuration.</p>
     </li><li visbl="pub" name="deploylib.ec2.EC2Region#runInstances" data-isabs="false">
-      <a id="runInstances(String,Int,Int,String,String,String,Option[String]):Seq[EC2Instance]"></a>
+      <a id="runInstances(String,Int,Int,String,String,Option[String],Option[String]):Seq[EC2Instance]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">runInstances</span>
         
-        <span class="params">(<span name="imageId">imageId: String</span>, <span name="min">min: <span name="scala.Int" class="extype">Int</span></span>, <span name="max">max: <span name="scala.Int" class="extype">Int</span></span>, <span name="keyName">keyName: String</span>, <span name="instanceType">instanceType: String</span>, <span name="location">location: String</span>, <span name="userData">userData: <span name="scala.Option" class="extype">Option</span>[String] = <span class="symbol"><span class="name"><a href="../../scala/package.html">None</a></span></span></span>)</span><span class="result">: Seq[<a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a>]</span>
+        <span class="params">(<span name="imageId">imageId: String</span>, <span name="min">min: <span name="scala.Int" class="extype">Int</span></span>, <span name="max">max: <span name="scala.Int" class="extype">Int</span></span>, <span name="keyName">keyName: String</span>, <span name="instanceType">instanceType: String</span>, <span name="location">location: <span name="scala.Option" class="extype">Option</span>[String]</span>, <span name="userData">userData: <span name="scala.Option" class="extype">Option</span>[String] = <span class="symbol"><span class="name"><a href="../../scala/package.html">None</a></span></span></span>)</span><span class="result">: Seq[<a name="deploylib.ec2.EC2Region.EC2Instance" class="extype" href="EC2Region$EC2Instance.html">EC2Instance</a>]</span>
       </span>
       </h4>
       <p class="shortcomment cmt">Launches a set of instances with the given parameters

@@ -58,6 +58,17 @@
       </span>
       </h4>
       
+    </li><li visbl="pub" name="deploylib.mesos.ClassSource" data-isabs="true">
+      <a id="ClassSource:ClassSource"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="ClassSource.html"><span class="name">ClassSource</span></a>
+        
+        <span class="result"> extends AvroUnion</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed </dd></dl></div>
     </li><li visbl="pub" name="deploylib.mesos.Cluster" data-isabs="false">
       <a id="Cluster:Cluster"></a>
       <h4 class="signature">
@@ -65,10 +76,21 @@
       <span class="symbol"> 
         <a href="Cluster.html"><span class="name">Cluster</span></a>
         
-        <span class="result"> extends ConfigurationActions</span>
+        <span class="result"> extends AnyRef</span>
       </span>
       </h4>
       <p class="comment cmt">Functions to help maintain a mesos cluster on EC2.</p>
+    </li><li visbl="pub" name="deploylib.mesos.ExperimentOperation" data-isabs="true">
+      <a id="ExperimentOperation:ExperimentOperation"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="ExperimentOperation.html"><span class="name">ExperimentOperation</span></a>
+        
+        <span class="result"> extends Message</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed </dd></dl></div>
     </li><li visbl="pub" name="deploylib.mesos.ExperimentScheduler" data-isabs="true">
       <a id="ExperimentScheduler:ExperimentScheduler"></a>
       <h4 class="signature">
@@ -91,6 +113,61 @@
       </span>
       </h4>
       
+    </li><li visbl="pub" name="deploylib.mesos.JvmMainTask" data-isabs="false">
+      <a id="JvmMainTask:JvmMainTask"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="JvmMainTask.html"><span class="name">JvmMainTask</span></a>
+        
+        <span class="params">(<span name="classpath">classpath: Seq[ClassSource]</span>, <span name="mainclass">mainclass: String</span>, <span name="args">args: Seq[String]</span>, <span name="props">props: Map[String, String]</span>, <span name="env">env: Map[String, String]</span>)</span><span class="result"> extends AvroRecord with JvmTask with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.JvmTask" data-isabs="true">
+      <a id="JvmTask:JvmTask"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="JvmTask.html"><span class="name">JvmTask</span></a>
+        
+        <span class="result"> extends AvroUnion</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed </dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.JvmWebAppTask" data-isabs="false">
+      <a id="JvmWebAppTask:JvmWebAppTask"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="JvmWebAppTask.html"><span class="name">JvmWebAppTask</span></a>
+        
+        <span class="params">(<span name="warFile">warFile: ClassSource</span>, <span name="properties">properties: Map[String, String]</span>)</span><span class="result"> extends AvroRecord with JvmTask with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.KillTaskRequest" data-isabs="false">
+      <a id="KillTaskRequest:KillTaskRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="KillTaskRequest.html"><span class="name">KillTaskRequest</span></a>
+        
+        <span class="params">(<span name="taskId">taskId: String</span>)</span><span class="result"> extends AvroRecord with ExperimentOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.KillTaskResponse" data-isabs="false">
+      <a id="KillTaskResponse:KillTaskResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="KillTaskResponse.html"><span class="name">KillTaskResponse</span></a>
+        
+        <span class="params">()</span><span class="result"> extends AvroRecord with ExperimentOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="deploylib.mesos.LocalExperimentScheduler" data-isabs="false">
       <a id="LocalExperimentScheduler:LocalExperimentScheduler"></a>
       <h4 class="signature">
@@ -102,6 +179,17 @@
       </span>
       </h4>
       
+    </li><li visbl="pub" name="deploylib.mesos.Message" data-isabs="true">
+      <a id="Message:Message"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="Message.html"><span class="name">Message</span></a>
+        
+        <span class="result"> extends AvroUnion</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed </dd></dl></div>
     </li><li visbl="pub" name="deploylib.mesos.RemoteServiceScheduler" data-isabs="false">
       <a id="RemoteServiceScheduler:RemoteServiceScheduler"></a>
       <h4 class="signature">
@@ -109,7 +197,51 @@
       <span class="symbol"> 
         <a href="RemoteServiceScheduler.html"><span class="name">RemoteServiceScheduler</span></a>
         
-        <span class="params">(<span name="host">host: String</span>, <span name="port">port: Int</span>, <span name="id">id: ActorId</span>)</span><span class="result"> extends AvroRecord with ExperimentScheduler with RemoteActorProxy with Product with Serializable</span>
+        <span class="params">(<span name="host">host: String</span>, <span name="port">port: Int</span>, <span name="id">id: ServiceId</span>)</span><span class="result"> extends AvroRecord with RemoteServiceProxy[Message] with ExperimentScheduler with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.RunExperimentRequest" data-isabs="false">
+      <a id="RunExperimentRequest:RunExperimentRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="RunExperimentRequest.html"><span class="name">RunExperimentRequest</span></a>
+        
+        <span class="params">(<span name="processes">processes: Seq[JvmTask]</span>)</span><span class="result"> extends AvroRecord with ExperimentOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.RunExperimentResponse" data-isabs="false">
+      <a id="RunExperimentResponse:RunExperimentResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="RunExperimentResponse.html"><span class="name">RunExperimentResponse</span></a>
+        
+        <span class="params">()</span><span class="result"> extends AvroRecord with ExperimentOperation with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.S3CachedJar" data-isabs="false">
+      <a id="S3CachedJar:S3CachedJar"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="S3CachedJar.html"><span class="name">S3CachedJar</span></a>
+        
+        <span class="params">(<span name="url">url: String</span>)</span><span class="result"> extends AvroRecord with ClassSource with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.ServerSideJar" data-isabs="false">
+      <a id="ServerSideJar:ServerSideJar"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="ServerSideJar.html"><span class="name">ServerSideJar</span></a>
+        
+        <span class="params">(<span name="path">path: String</span>)</span><span class="result"> extends AvroRecord with ClassSource with Product with Serializable</span>
       </span>
       </h4>
       
@@ -120,7 +252,7 @@
       <span class="symbol"> 
         <a href="ServiceScheduler.html"><span class="name">ServiceScheduler</span></a>
         
-        <span class="result"> extends LocalExperimentScheduler with ServiceHandler[ExperimentOperation]</span>
+        <span class="result"> extends LocalExperimentScheduler with ServiceHandler[Message]</span>
       </span>
       </h4>
       
@@ -208,6 +340,17 @@
       </span>
       </h4>
       <p class="comment cmt">Global state for setting and methods for running mesos on EC2.</p>
+    </li><li visbl="pub" name="deploylib.mesos.package.MsgHandler" data-isabs="false">
+      <a id="MsgHandler:MsgHandler"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="package$$MsgHandler$.html"><span class="name">MsgHandler</span></a>
+        
+        <span class="result"> extends ServiceRegistry[Message]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd></dl></div>
     </li><li visbl="pub" name="deploylib.mesos.ServiceSchedulerDaemon" data-isabs="false">
       <a id="ServiceSchedulerDaemon:ServiceSchedulerDaemon"></a>
       <h4 class="signature">
@@ -259,7 +402,7 @@
       <span class="symbol"> 
         <span class="name">s3Classpath</span>
         
-        <span class="result">: <span name="scala.collection.Seq" class="extype">Seq</span>[<span name="edu.berkeley.cs.scads.comm.S3CachedJar" class="extype">S3CachedJar</span>]</span>
+        <span class="result">: <span name="scala.collection.Seq" class="extype">Seq</span>[<a name="deploylib.mesos.S3CachedJar" class="extype" href="S3CachedJar.html">S3CachedJar</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.package" class="extype" href="package$.html">package</a></dd></dl></div>
@@ -281,7 +424,7 @@
       <span class="symbol"> 
         <span class="name">workClasspath</span>
         
-        <span class="result">: <span name="scala.collection.Seq" class="extype">Seq</span>[<span name="edu.berkeley.cs.scads.comm.ServerSideJar" class="extype">ServerSideJar</span>]</span>
+        <span class="result">: <span name="scala.collection.Seq" class="extype">Seq</span>[<a name="deploylib.mesos.ServerSideJar" class="extype" href="ServerSideJar.html">ServerSideJar</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.package" class="extype" href="package$.html">package</a></dd></dl></div>

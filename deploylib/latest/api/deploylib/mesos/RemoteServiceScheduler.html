@@ -24,13 +24,13 @@
       <span class="symbol"> 
         <span class="name">RemoteServiceScheduler</span>
         
-        <span class="params">(<span name="host">host: String</span>, <span name="port">port: <span name="scala.Int" class="extype">Int</span></span>, <span name="id">id: <span name="edu.berkeley.cs.scads.comm.ActorId" class="extype">ActorId</span></span>)</span><span class="result"> extends <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span> with <a name="deploylib.mesos.ExperimentScheduler" class="extype" href="ExperimentScheduler.html">ExperimentScheduler</a> with <span name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype">RemoteActorProxy</span> with <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
+        <span class="params">(<span name="host">host: String</span>, <span name="port">port: <span name="scala.Int" class="extype">Int</span></span>, <span name="id">id: <span name="edu.berkeley.cs.scads.comm.ServiceId" class="extype">ServiceId</span></span>)</span><span class="result"> extends <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span> with <span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a>] with <a name="deploylib.mesos.ExperimentScheduler" class="extype" href="ExperimentScheduler.html">ExperimentScheduler</a> with <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
       </span>
       </h4>
       
           <div class="fullcommenttop" id="comment"><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, <span name="scala.Product" class="extype">Product</span>, <span name="scala.Equals" class="extype">Equals</span>, <span name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype">RemoteActorProxy</span>, <a name="deploylib.mesos.ExperimentScheduler" class="extype" href="ExperimentScheduler.html">ExperimentScheduler</a>, <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span>, <span name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="extype">ScalaSpecificRecord</span>, <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span>, <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span>, <span name="org.apache.avro.generic.GenericContainer" class="extype">GenericContainer</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, <span name="scala.Product" class="extype">Product</span>, <span name="scala.Equals" class="extype">Equals</span>, <a name="deploylib.mesos.ExperimentScheduler" class="extype" href="ExperimentScheduler.html">ExperimentScheduler</a>, <span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a>], <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span>, <span name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="extype">ScalaSpecificRecord</span>, <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span>, <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span>, <span name="org.apache.avro.generic.GenericContainer" class="extype">GenericContainer</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
         
 
@@ -46,7 +46,7 @@
                 <span class="filtertype">Inherited</span>
                 <ol><li class="hideall out"><span>Hide All</span></li>
                 <li class="showall in"><span>Show all</span></li></ol>
-                <ol id="linearization"><li name="deploylib.mesos.RemoteServiceScheduler" class="in"><span>RemoteServiceScheduler</span></li><li name="scala.Serializable" class="in"><span>Serializable</span></li><li name="java.io.Serializable" class="in"><span>Serializable</span></li><li name="scala.Product" class="in"><span>Product</span></li><li name="scala.Equals" class="in"><span>Equals</span></li><li name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="in"><span>RemoteActorProxy</span></li><li name="deploylib.mesos.ExperimentScheduler" class="in"><span>ExperimentScheduler</span></li><li name="edu.berkeley.cs.avro.marker.AvroRecord" class="in"><span>AvroRecord</span></li><li name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="in"><span>ScalaSpecificRecord</span></li><li name="org.apache.avro.specific.SpecificRecord" class="in"><span>SpecificRecord</span></li><li name="org.apache.avro.generic.IndexedRecord" class="in"><span>IndexedRecord</span></li><li name="org.apache.avro.generic.GenericContainer" class="in"><span>GenericContainer</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
+                <ol id="linearization"><li name="deploylib.mesos.RemoteServiceScheduler" class="in"><span>RemoteServiceScheduler</span></li><li name="scala.Serializable" class="in"><span>Serializable</span></li><li name="java.io.Serializable" class="in"><span>Serializable</span></li><li name="scala.Product" class="in"><span>Product</span></li><li name="scala.Equals" class="in"><span>Equals</span></li><li name="deploylib.mesos.ExperimentScheduler" class="in"><span>ExperimentScheduler</span></li><li name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="in"><span>RemoteServiceProxy</span></li><li name="edu.berkeley.cs.avro.marker.AvroRecord" class="in"><span>AvroRecord</span></li><li name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="in"><span>ScalaSpecificRecord</span></li><li name="org.apache.avro.specific.SpecificRecord" class="in"><span>SpecificRecord</span></li><li name="org.apache.avro.generic.IndexedRecord" class="in"><span>IndexedRecord</span></li><li name="org.apache.avro.generic.GenericContainer" class="in"><span>GenericContainer</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
               </div>
           <div id="visbl">
               <span class="filtertype">Visibility</span>
@@ -63,7 +63,7 @@
       <span class="symbol"> 
         <span class="name">RemoteServiceScheduler</span>
         
-        <span class="params">(<span name="host">host: String</span>, <span name="port">port: <span name="scala.Int" class="extype">Int</span></span>, <span name="id">id: <span name="edu.berkeley.cs.scads.comm.ActorId" class="extype">ActorId</span></span>)</span>
+        <span class="params">(<span name="host">host: String</span>, <span name="port">port: <span name="scala.Int" class="extype">Int</span></span>, <span name="id">id: <span name="edu.berkeley.cs.scads.comm.ServiceId" class="extype">ServiceId</span></span>)</span>
       </span>
       </h4>
       
@@ -76,39 +76,28 @@
 
         <div class="values members" id="values">
               <h3>Value Members</h3>
-              <ol><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteActorProxy#!" data-isabs="false">
-      <a id="!(MessageBody)(RemoteActorProxy):Unit"></a>
+              <ol><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteServiceProxy#!" data-isabs="false">
+      <a id="!(Message)(RemoteServiceProxy[Message]):Unit"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">!</span>
         
-        <span class="params">(<span name="body">body: <span name="edu.berkeley.cs.scads.comm.MessageBody" class="extype">MessageBody</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="sender">sender: <span name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype">RemoteActorProxy</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="msg">msg: <a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="sender">sender: <span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a>]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteActorProxy</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteActorProxy#!!" data-isabs="false">
-      <a id="!!(MessageBody):MessageFuture"></a>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteServiceProxy</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteServiceProxy#!!" data-isabs="false">
+      <a id="!!(Message):MessageFuture[Message]"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">!!</span>
         
-        <span class="params">(<span name="body">body: <span name="edu.berkeley.cs.scads.comm.MessageBody" class="extype">MessageBody</span></span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span></span>
+        <span class="params">(<span name="body">body: <a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a></span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>[<a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a>]</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteActorProxy</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteActorProxy#!!!" data-isabs="false">
-      <a id="!!!(MessageBody):MessageFuture"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">!!!</span>
-        
-        <span class="params">(<span name="body">body: <span name="edu.berkeley.cs.scads.comm.MessageBody" class="extype">MessageBody</span></span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteActorProxy</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteServiceProxy</dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#!=" data-isabs="false">
       <a id="!=(AnyRef):Boolean"></a>
       <h4 class="signature">
@@ -131,17 +120,17 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteActorProxy#!?" data-isabs="false">
-      <a id="!?(MessageBody,Int):MessageBody"></a>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteServiceProxy#!?" data-isabs="false">
+      <a id="!?(Message,Int):Message"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">!?</span>
         
-        <span class="params">(<span name="body">body: <span name="edu.berkeley.cs.scads.comm.MessageBody" class="extype">MessageBody</span></span>, <span name="timeout">timeout: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.comm.MessageBody" class="extype">MessageBody</span></span>
+        <span class="params">(<span name="msg">msg: <a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a></span>, <span name="timeout">timeout: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteActorProxy</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteServiceProxy</dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef###" data-isabs="false">
       <a id="##():Int"></a>
       <h4 class="signature">
@@ -211,17 +200,6 @@
                 <span class="name">@throws</span><span class="args">()</span>
               
         </dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteActorProxy#commit" data-isabs="false">
-      <a id="commit():Unit"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">commit</span>
-        
-        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteActorProxy</dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#eq" data-isabs="false">
       <a id="eq(AnyRef):Boolean"></a>
       <h4 class="signature">
@@ -323,18 +301,18 @@
         <span class="result">: String</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.RemoteServiceScheduler" class="extype" href="">RemoteServiceScheduler</a> → RemoteActorProxy</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.RemoteServiceScheduler" class="extype" href="">RemoteServiceScheduler</a> → RemoteServiceProxy</dd></dl></div>
     </li><li visbl="pub" name="deploylib.mesos.RemoteServiceScheduler#id" data-isabs="false">
-      <a id="id:ActorId"></a>
+      <a id="id:ServiceId"></a>
       <h4 class="signature">
       <span class="kind">var</span>
       <span class="symbol"> 
         <span class="name">id</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.comm.ActorId" class="extype">ActorId</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.comm.ServiceId" class="extype">ServiceId</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.RemoteServiceScheduler" class="extype" href="">RemoteServiceScheduler</a> → RemoteActorProxy</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.RemoteServiceScheduler" class="extype" href="">RemoteServiceScheduler</a> → RemoteServiceProxy</dd></dl></div>
     </li><li visbl="pub" name="scala.Any#isInstanceOf" data-isabs="false">
       <a id="isInstanceOf[T0]:Boolean"></a>
       <h4 class="signature">
@@ -379,17 +357,6 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteActorProxy#outputChannel" data-isabs="false">
-      <a id="outputChannel:OutputChannel[Any]"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">outputChannel</span>
-        
-        <span class="result">: <span name="scala.actors.OutputChannel" class="extype">OutputChannel</span>[<span name="scala.Any" class="extype">Any</span>]</span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteActorProxy</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord#parse" data-isabs="false">
       <a id="parse(InputStream):RemoteServiceScheduler.this.type"></a>
       <h4 class="signature">
@@ -422,7 +389,7 @@
         <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.RemoteServiceScheduler" class="extype" href="">RemoteServiceScheduler</a> → RemoteActorProxy</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.RemoteServiceScheduler" class="extype" href="">RemoteServiceScheduler</a> → RemoteServiceProxy</dd></dl></div>
     </li><li visbl="pub" name="deploylib.mesos.RemoteServiceScheduler#productArity" data-isabs="false">
       <a id="productArity:Int"></a>
       <h4 class="signature">
@@ -478,7 +445,18 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AvroRecord → IndexedRecord</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteActorProxy#remoteNode" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteServiceProxy#registry" data-isabs="false">
+      <a id="registry:ServiceRegistry[Message]"></a>
+      <h4 class="signature">
+      <span class="kind">implicit var</span>
+      <span class="symbol"> 
+        <span class="name">registry</span>
+        
+        <span class="result">: <span name="edu.berkeley.cs.scads.comm.ServiceRegistry" class="extype">ServiceRegistry</span>[<a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>RemoteServiceProxy</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteServiceProxy#remoteNode" data-isabs="false">
       <a id="remoteNode:RemoteNode"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -488,7 +466,7 @@
         <span class="result">: <span name="edu.berkeley.cs.scads.comm.RemoteNode" class="extype">RemoteNode</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteActorProxy</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteServiceProxy</dd></dl></div>
     </li><li visbl="pub" name="deploylib.mesos.RemoteServiceScheduler#scheduleExperiment" data-isabs="false">
       <a id="scheduleExperiment(Seq[JvmTask]):Unit"></a>
       <h4 class="signature">
@@ -496,7 +474,7 @@
       <span class="symbol"> 
         <span class="name">scheduleExperiment</span>
         
-        <span class="params">(<span name="processes">processes: Seq[<span name="edu.berkeley.cs.scads.comm.JvmTask" class="extype">JvmTask</span>]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+        <span class="params">(<span name="processes">processes: Seq[<a name="deploylib.mesos.JvmTask" class="extype" href="JvmTask.html">JvmTask</a>]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.RemoteServiceScheduler" class="extype" href="">RemoteServiceScheduler</a> → <a name="deploylib.mesos.ExperimentScheduler" class="extype" href="ExperimentScheduler.html">ExperimentScheduler</a></dd></dl></div>
@@ -533,29 +511,7 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ScalaSpecificRecord</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteActorProxy#toPartitionService" data-isabs="false">
-      <a id="toPartitionService(String,StorageService):PartitionService"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">toPartitionService</span>
-        
-        <span class="params">(<span name="partitionId">partitionId: String</span>, <span name="storageService">storageService: <span name="edu.berkeley.cs.scads.comm.StorageService" class="extype">StorageService</span></span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteActorProxy</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteActorProxy#toStorageService" data-isabs="false">
-      <a id="toStorageService:StorageService"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">toStorageService</span>
-        
-        <span class="result">: <span name="edu.berkeley.cs.scads.comm.StorageService" class="extype">StorageService</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteActorProxy</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteActorProxy#toString" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.comm.RemoteServiceProxy#toString" data-isabs="false">
       <a id="toString():String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -565,7 +521,7 @@
         <span class="params">()</span><span class="result">: String</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteActorProxy → AnyRef → Any</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>RemoteServiceProxy → AnyRef → Any</dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
       <a id="wait():Unit"></a>
       <h4 class="signature">
@@ -638,10 +594,10 @@
               <h3>Inherited from <span name="scala.Product" class="extype">Product</span></h3>
             </div><div name="scala.Equals" class="parent">
               <h3>Inherited from <span name="scala.Equals" class="extype">Equals</span></h3>
-            </div><div name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="parent">
-              <h3>Inherited from <span name="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="extype">RemoteActorProxy</span></h3>
             </div><div name="deploylib.mesos.ExperimentScheduler" class="parent">
               <h3>Inherited from <a name="deploylib.mesos.ExperimentScheduler" class="extype" href="ExperimentScheduler.html">ExperimentScheduler</a></h3>
+            </div><div name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="parent">
+              <h3>Inherited from <span name="edu.berkeley.cs.scads.comm.RemoteServiceProxy" class="extype">RemoteServiceProxy</span>[<a name="deploylib.mesos.Message" class="extype" href="Message.html">Message</a>]</h3>
             </div><div name="edu.berkeley.cs.avro.marker.AvroRecord" class="parent">
               <h3>Inherited from <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span></h3>
             </div><div name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="parent">
