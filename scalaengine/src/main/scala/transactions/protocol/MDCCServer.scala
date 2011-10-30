@@ -9,7 +9,7 @@ import conflict._
 import org.apache.avro.Schema
 import java.util.concurrent.ConcurrentHashMap
 import collection.mutable.HashMap
-import edu.berkeley.cs.scads.storage.transactions.MDCCMetaHelper._
+import edu.berkeley.cs.scads.storage.transactions.MDCCBallotRangeHelper._
 
 
 class MDCCServer(namespace : String,
@@ -49,11 +49,12 @@ class MDCCServer(namespace : String,
   protected  def processPropose(src: Option[RemoteServiceProxy[StorageMessage]], xid: ScadsXid, update: RecordUpdate)(implicit sender: RemoteServiceProxy[StorageMessage])  = {
     implicit val trx = startTrx()
     val meta = getMeta(update.key)
-    if(isFast(meta)){
+    meta.validate() //just to make sure
+    if(meta.ballots.head.fast){
       val cstruct = pendingUpdates.acceptOption(xid, update)
     }else{
-      val recordHandler = recordCache.getOrCreate(update.key, routingTable.serversForKey(update.key), meta, pendingUpdates.getConflictResolver)
-      recordHandler ! new Envelope[StorageMessage](src.asInstanceOf[Option[RemoteService[StorageMessage]]], Propose(xid, update))
+      //val recordHandler = recordCache.getOrCreate(update.key, routingTable.serversForKey(update.key), meta, pendingUpdates.getConflictResolver)
+      //recordHandler ! new Envelope[StorageMessage](src.asInstanceOf[Option[RemoteService[StorageMessage]]], Propose(xid, update))
     }
     commitTrx(trx)
   }
@@ -65,7 +66,7 @@ class MDCCServer(namespace : String,
     //pendingUpdates.setMeta(combine(oldMeta, newMeta))
   }
 
-  protected def processPhase2a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], ballot: MDCCBallot, value: CStruct, newUpdate : Seq[RecordUpdate] ) = {
+  protected def processPhase2a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], ballot: MDCCBallot, value: CStruct, newUpdate : Seq[Propose] ) = {
 
   }
 
@@ -80,7 +81,7 @@ class MDCCServer(namespace : String,
     msg match {
       case Propose(xid, update) =>  processPropose(src, xid, update)
       case Phase1a(key: Array[Byte], ballot: MDCCBallotRange) => processPhase1a(src, key, ballot)
-      case Phase2a(key, ballot, safeValue, newUpdate ) => processPhase2a(src, key, ballot, safeValue, newUpdate)
+      case Phase2a(key, ballot, safeValue, proposes ) => processPhase2a(src, key, ballot, safeValue, proposes)
       case Commit(xid: ScadsXid) =>
       case Abort(xid: ScadsXid) =>
       case _ => src.map(_ ! ProcessingException("Trx Message Not Implemented", ""))

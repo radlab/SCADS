@@ -90,7 +90,7 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
   // leftover is a Seq[CStructCommand] of commands proposed but not safe.
   // Assumes that the base of the cstructs are all the same.
   def provedSafe(cstructs: Seq[CStruct], fastQuorumSize: Int,
-                 classicQuorumSize: Int, N: Int): (CStruct, Seq[CStructCommand]) = {
+                 classicQuorumSize: Int, N: Int): (CStruct, Seq[Propose]) = {
     // TODO: does cstructs require fastQuorumSize number of elements?
 
     // Collect all commands
@@ -116,7 +116,7 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
     leftover.remove(lub.commands)
 
     // TODO: Check if LUB is valid w.r.t. constraints?
-    (lub, leftover.toList)
+    (lub, leftover.toList.map(c => Propose(c.xid, c.command)))
   }
 
   def compressCStruct(c: CStruct): CStruct = {

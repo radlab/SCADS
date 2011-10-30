@@ -476,7 +476,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
           val newRec = MDCCRecordUtil.fromBytes(newValue)
           dbValue match {
             case Some(v) =>
-              (newRec.metadata.currentRound == v.metadata.currentRound + 1)
+              (newRec.metadata.currentVersion.round == v.metadata.currentVersion.round  + 1)
             case None => true
           }
         } else {

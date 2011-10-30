@@ -6,6 +6,14 @@ import avro.marker.{AvroPair, AvroRecord, AvroUnion}
 import comm._
 import java.nio.ByteBuffer
 import java.util.UUID
+import edu.berkeley.cs.scads.storage.transactions.{MDCCBallot, MDCCBallotRange, MDCCMetadata}
+
+object StorageEnvelope{
+  def unapply(e : Any) : Option[(RemoteService[StorageMessage], StorageMessage)] = e match {
+    case Envelope(src, msg) => Some((src.asInstanceOf[RemoteService[StorageMessage]], msg.asInstanceOf[StorageMessage]) )
+    case _ => None
+  }
+}
 
 sealed trait StorageMessage extends AvroUnion
 
@@ -124,37 +132,6 @@ case class KeyRange(var startKey: Option[Array[Byte]], var servers : Seq[Partiti
 case class RoutingTableMessage(var partitions: Seq[KeyRange]) extends AvroRecord
 
 
-/* Transaction KVStore Metadata */
-case class MDCCBallot(var round: Long, var vote: Int, var server: SCADSService, var fast: Boolean) extends AvroRecord {
-
-  def <= (that: MDCCBallot): Boolean = compare(that) <= 0
-
-  def >= (that: MDCCBallot): Boolean = compare(that) >= 0
-
-  def <  (that: MDCCBallot): Boolean = compare(that) <  0
-
-  def >  (that: MDCCBallot): Boolean = compare(that) > 0
-
-  def equals (that: MDCCBallot): Boolean = compare(that) == 0
-
-  def compare(other : MDCCBallot) : Int = {
-    if(this.vote < other.vote)
-      return -1
-    else if (this.vote > other.vote)
-      return 1
-    else if (this.fast && !other.fast)
-      return -1
-    else if (!this.fast && other.fast)
-      return 1
-    else
-      return this.server.toString.compare(other.server.toString())
-  }
-
-}
-
-
-case class MDCCBallotRange(var startRound: Long, var endRound: Long, var vote: Int, var server: SCADSService, var fast: Boolean) extends AvroRecord
-case class MDCCMetadata(var currentRound: Long, var ballots: Seq[MDCCBallotRange]) extends AvroRecord
 // Pending means the command is not decided yet.
 case class CStructCommand(var xid: ScadsXid, var command: RecordUpdate, var pending: Boolean, var commit: Boolean) extends AvroRecord
 // TODO: Does 'value' need to be an MDCCRecord?
@@ -226,18 +203,28 @@ sealed trait MDCCProtocol extends TrxMessage
 
 case class ResolveConflict(var key: Array[Byte], var ballots: MDCCBallot) extends AvroRecord with MDCCProtocol
 
+case class Recovered(var key: Array[Byte], var value: CStruct, var ballots: MDCCMetadata) extends AvroRecord with MDCCProtocol
+
 case class BeMaster(var key: Array[Byte], var startRound: Long, var endRound: Long, var fast : Boolean) extends AvroRecord with MDCCProtocol
 
-case class GotMastership(var ballots: MDCCMetadata) extends AvroRecord with MDCCProtocol
+case class GotMastership(var ballots: Seq[MDCCBallotRange]) extends AvroRecord with MDCCProtocol
 
 case class Propose(var xid: ScadsXid, var update: RecordUpdate) extends AvroRecord with MDCCProtocol
 
+case class ProposeSeq(var proposes : Seq[Propose])  extends AvroRecord with MDCCProtocol
+
+
 case class Phase1a(var key: Array[Byte], var ballots: Seq[MDCCBallotRange]) extends AvroRecord with MDCCProtocol
 
-case class Phase1b(var ballots: MDCCMetadata, var value: CStruct) extends AvroRecord with MDCCProtocol
+case class Phase1b(var meta: MDCCMetadata, var value: CStruct) extends AvroRecord with MDCCProtocol
 
 //TODO we could make the updates part of te CStruct, if we would have the chance to execute accepts locally
-case class Phase2a(var key: Array[Byte], var ballot: MDCCBallot, var safeValue: CStruct, var newUpdates : Seq[RecordUpdate]) extends AvroRecord with MDCCProtocol
+case class Phase2a(var key: Array[Byte], var ballot: MDCCBallot, var safeValue: CStruct, var newUpdates : Seq[Propose]) extends AvroRecord with MDCCProtocol
+
+object Phase2a{
+  def apply(key: Array[Byte], ballot: MDCCBallot, safeValue: CStruct, newUpdate : Propose) : Phase2a = Phase2a(key, ballot, safeValue, newUpdate :: Nil)
+  def apply(key: Array[Byte], ballot: MDCCBallot, safeValue: CStruct) : Phase2a = new Phase2a(key, ballot, safeValue, Nil )
+}
 
 case class Phase2aConflict(var key: Array[Byte], var ballot: MDCCBallot, var value: CStruct) extends AvroRecord with MDCCProtocol
 

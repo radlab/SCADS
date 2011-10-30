@@ -28,8 +28,7 @@ object Protocol2pc extends ProtocolBase {
           RecordUpdateInfo(servers, ValueUpdate(key, oldBytes, newBytes))
         }
         case LogicalUpdateInfo(ns, servers, key, value) => {
-          val md = readList.getRecord(key).map(r =>
-            MDCCMetadata(r.metadata.currentRound, r.metadata.ballots)) match {
+          val md = readList.getRecord(key).map(_.metadata) match {
               case None => Some(ns.getDefaultMeta())
               case x => x
             }

@@ -308,7 +308,7 @@ object MDCCRecordUtil {
 
   //TODO: Gene, why is metadata an option?
   def toBytes(rec: Option[Array[Byte]], metadata: Option[MDCCMetadata]): Array[Byte] = {
-    recordReaderWriter.serialize(MDCCRecord(rec, metadata.getOrElse(MDCCMetadata(0, List()))))   //TODO: Why use a defulat here?
+    recordReaderWriter.serialize(MDCCRecord(rec, metadata.getOrElse(MDCCMetadata(MDCCBallot(0, 0, null, false), List()))))   //TODO: Why use a default here?
   }
 
   def fromBytes(bytes: Array[Byte]): MDCCRecord = {
@@ -331,7 +331,7 @@ trait TransactionRecordMetadata extends SimpleRecordMetadata {
   }
 
   override def compareMetadata(lhs: Array[Byte], rhs: Array[Byte]): Int = {
-    MDCCMetaHelper.compareMetadata(MDCCRecordUtil.fromBytes(lhs).metadata,  MDCCRecordUtil.fromBytes(rhs).metadata)
+    MDCCRecordUtil.fromBytes(lhs).metadata.currentVersion.compare(MDCCRecordUtil.fromBytes(rhs).metadata.currentVersion)
   }
 
   override def extractMetadataAndRecordFromValue(value: Array[Byte]): (Array[Byte], Array[Byte]) = {
