@@ -53,6 +53,9 @@ class TpcwLoader(val numEBs : Double,
     def repartition(replicationFactor: Int): Unit =
       ns.repartition(sampleData, replicationFactor)
 
+    def repartitionForClusters(numClusters: Int): Unit =
+      ns.repartitionForClusters(sampleData, numClusters)
+
     def load(clientId: Int = 0, numLoaders: Int = 1): Unit =
       ns ++=  dataSlice(clientId, numLoaders)
 
@@ -102,6 +105,9 @@ class TpcwLoader(val numEBs : Double,
 
   def createNamespaces(client: TpcwClient, replicationFactor: Int) =
     namespaces(client).foreach(_.repartition(replicationFactor))
+
+  def createNamespacesForClusters(client: TpcwClient, numClusters: Int) =
+    namespaces(client).foreach(_.repartitionForClusters(numClusters))
 
   private def uuid() : String =
     UUID.randomUUID.toString

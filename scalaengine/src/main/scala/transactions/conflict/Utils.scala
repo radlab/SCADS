@@ -66,3 +66,45 @@ object ICChecker {
     }
   }
 }
+
+object ApplyUpdates {
+  // updates is a sequence of nonpending, committed updates, which will be
+  // applied to the base record.  The result is returned.
+  def applyUpdatesToBase(logicalRecordUpdater: LogicalRecordUpdater,
+                         origBase: Option[Array[Byte]],
+                         updates: Seq[CStructCommand]): Option[Array[Byte]] = {
+    // Just need apply last physical update, and possible additional
+    // logical updates.
+    val lastPhysical = updates.lastIndexWhere(_.command match {
+      case LogicalUpdate(_, _) => false
+      case _ => true
+    })
+
+    // If the base is empty, a physical update must exist.
+    // If the base exists, a physical update may or may not exist.
+    // base is the (optional) byte array of the record.
+    // remainingCommands is a seq of logical updates to apply to the base.
+    val (base, remainingCommands) = lastPhysical match {
+      case -1 => {
+        // If no physical update, base cannot be empty.
+        assert(!origBase.isEmpty)
+        (origBase, updates)
+      }
+      case _ => {
+        val relevantCommands = updates.drop(lastPhysical)
+        val remaining = relevantCommands.tail
+        val rec = MDCCRecordUtil.fromBytes(relevantCommands.head.asInstanceOf[PhysicalUpdate].newValue)
+        // The record value in the physical update.
+        if (rec.value.isEmpty) {
+          // If the physical update deletes the record, there should be no
+          // subsequent logical updates.
+          assert(remaining.isEmpty)
+        }
+        (rec.value, remaining)
+      }
+    }
+
+    val newBase = Some(logicalRecordUpdater.applyDeltaBytes(base, remainingCommands.map(x => MDCCRecordUtil.fromBytes(x.asInstanceOf[LogicalUpdate].delta).value)))
+    newBase
+  }
+}

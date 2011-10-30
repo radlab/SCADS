@@ -54,6 +54,14 @@ abstract trait DataLoadingTask extends ExperimentTask {
 
     (serverProcs ++ loaderProcs, new ScadsCluster(clusterRoot))
   }
+
+  // zookeeperRoot is the actual root of the cluster, and should already be
+  // created before calling this method.
+  def getLoadingTasks(implicit classpath: Seq[ClassSource], zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): Seq[JvmTask] = {
+    clusterAddress = zookeeperRoot.canonicalAddress
+    val loaderProcs = List.fill(numLoaders)(this.toJvmTask)
+    loaderProcs
+  }
 }
 
 abstract trait ReplicatedExperimentTask extends ExperimentTask {

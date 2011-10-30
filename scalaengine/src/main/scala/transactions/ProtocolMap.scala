@@ -7,10 +7,10 @@ import scala.collection.mutable.HashMap
 import net.lag.logging.Logger
 
 class ProtocolMap {
-  private val protocolMap = new HashMap[String, TxProtocol]
+  private val protocolMap = new HashMap[String, NSTxProtocol]
 
   def addNamespaceProtocol(name: String,
-                           protocol: TxProtocol) = {
+                           protocol: NSTxProtocol) = {
     protocolMap.put(name, protocol)
   }
 

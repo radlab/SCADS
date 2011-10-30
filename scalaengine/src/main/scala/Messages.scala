@@ -186,7 +186,7 @@ case class ScadsXid(var tid: Long, var bid: Long) extends AvroRecord {
   }
 }
 
-object  ScadsXid {
+object ScadsXid {
   var count = 0
   def createUniqueXid() : ScadsXid = {
     val uuid = UUID.randomUUID()

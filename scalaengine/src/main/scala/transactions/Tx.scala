@@ -7,6 +7,8 @@ import java.lang.Thread
 import java.util.Calendar
 import prot2pc.Protocol2pc
 
+import edu.berkeley.cs.avro.marker._
+
 sealed trait TxStatus { def name: String }
 case object UNKNOWN extends TxStatus { val name = "UNKNOWN" }
 case object COMMITTED extends TxStatus { val name = "COMMIT" }
@@ -18,10 +20,11 @@ case class ReadCustom(size: Int) extends ReadConsistency
 case class ReadConsistent() extends ReadConsistency
 case class ReadAll() extends ReadConsistency
 
-sealed trait TxProtocol
-case class TxProtocolNone() extends TxProtocol
-case class TxProtocol2pc() extends TxProtocol
-case class TxProtocolMDCC() extends TxProtocol
+// Types of transactions for namespaces.
+sealed trait NSTxProtocol extends AvroUnion
+case class NSTxProtocolNone() extends AvroRecord with NSTxProtocol
+case class NSTxProtocol2pc() extends AvroRecord with NSTxProtocol
+case class NSTxProtocolMDCC() extends AvroRecord with NSTxProtocol
 
 class Tx(timeout: Int, readType: ReadConsistency = ReadConsistent())(mainFn: => Unit) {
   var unknownFn = () => {}
@@ -62,9 +65,9 @@ class Tx(timeout: Int, readType: ReadConsistency = ReadConsistent())(mainFn: => 
     }
 
     protocolMap.getProtocol() match {
-      case TxProtocolNone() =>
-      case TxProtocol2pc() => Protocol2pc.RunProtocol(this)
-      case TxProtocolMDCC() => MDCCHandler.RunProtocol(this)
+      case NSTxProtocolNone() =>
+      case NSTxProtocol2pc() => Protocol2pc.RunProtocol(this)
+      case NSTxProtocolMDCC() => MDCCHandler.RunProtocol(this)
       case null => throw new RuntimeException("All namespaces in the transaction must have the same protocol.")
     }
     val endMS = java.util.Calendar.getInstance().getTimeInMillis()

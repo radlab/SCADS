@@ -57,7 +57,9 @@ trait PendingUpdates extends DBRecords {
   /**
    * Writes the new truth. Should only return false if something is messed up with the db
    */
-  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates : Seq[RecordUpdate])(implicit dbTxn: TransactionData) : Boolean
+  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[CStructCommand])(implicit dbTxn: TransactionData): Boolean
+
+  def overwriteTxn(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[CStructCommand], dbTxn: TransactionData = null): Boolean
 
   // Value is chosen (reflected in the db) and confirms trx state.
   @deprecated def commit(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean
@@ -76,8 +78,6 @@ trait PendingUpdates extends DBRecords {
   def getConflictResolver : ConflictResolver
 }
 
-// TODO: Enumerations do not work with AvroRecords. Must be changed if we want
-//       to use AvroRecords for serialization.
 // Status of a transaction.  Stores all the updates in the transaction.
 // status is the toString() of the enum.
 case class TxStatusEntry(var status: String,
@@ -174,12 +174,6 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                                override val factory: TxDBFactory,
                                val keySchema: Schema,
                                val valueSchema: Schema) extends PendingUpdates {
-
-  def getConflictResolver : ConflictResolver = throw new RuntimeException("Gene implement me") //TODO implement
-
-  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates : Seq[RecordUpdate])(implicit dbTxn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
-  def commit(xid: ScadsXid)(implicit dbTxn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
-
   // Transaction state info. Maps txid -> txstatus/decision.
   private val txStatus = factory.getNewDB[ScadsXid, TxStatusEntry](
     db.getName + ".txstatus",
@@ -199,9 +193,12 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
   private var valueICs: FieldICList = null
 
+  private var conflictResolver: ConflictResolver = null
+
   def setICs(ics: FieldICList) = {
     valueICs = ics
     newUpdateResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs)
+    conflictResolver = new ConflictResolver(valueSchema, valueICs)
     println("ics: " + valueICs)
   }
 
@@ -368,6 +365,79 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       return false
     }
   }
+
+  // TODO(kraska): This probably doesn't belong here, since the conflict
+  //               resolver is never used within PendingUpdates.  A
+  //               ConflictResolver should just be created elsewhere.
+  def getConflictResolver : ConflictResolver = conflictResolver
+
+  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[CStructCommand])(implicit dbTxn: TransactionData) : Boolean = {
+    overwriteTxn(key, safeValue, newUpdates, dbTxn)
+}
+
+  def overwriteTxn(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[CStructCommand], dbTxn: TransactionData = null): Boolean = {
+    var success = true
+    val txn = dbTxn match {
+      case null => db.txStart()
+      case x => x
+    }
+    val pendingCommandsTxn = pendingCStructs.txStart()
+
+    // Apply all nonpending commands to the base of the cstruct.
+    // TODO: This will apply all nonpending, committed updates, even if there
+    //       are pending updates inter-mixed.  Not sure if that is correct...
+    val newDBrec = ApplyUpdates.applyUpdatesToBase(
+      logicalRecordUpdater, safeValue.value,
+      safeValue.commands.filter(x => !x.pending && x.commit))
+
+    val storedMDCCRec: Option[MDCCRecord] =
+      db.get(txn, key).map(MDCCRecordUtil.fromBytes(_))
+    val newMDCCRec = storedMDCCRec match {
+      // TODO: I don't know if it is possible to not have a db record but have
+      //       a cstruct.
+      case None => throw new RuntimeException("When overwriting, db record should already exist.")
+      case Some(r) => MDCCRecord(newDBrec, r.metadata)
+    }
+
+    // Update the stored cstruct.
+    val commandsInfo = PendingCommandsInfo(safeValue.value,
+                                           new ArrayBuffer[CStructCommand],
+                                           new ArrayBuffer[PendingStateInfo])
+    commandsInfo.commands ++= safeValue.commands
+
+    // Update the pending states.
+    // Assumption: The pending updates are all logical, or there is a single
+    //             physical update.  Also, the command should already be
+    //             compatible.
+    val pending = safeValue.commands.filter(_.pending)
+    pending.foreach(c => {
+      if (!newUpdateResolver.isCompatible(c.xid, commandsInfo, newMDCCRec, c.command)) {
+        throw new RuntimeException("All of the overwriting commands should be compatible.")
+      }
+    })
+
+    // Store the new cstruct info.
+    pendingCStructs.put(pendingCommandsTxn, key, commandsInfo)
+    pendingCStructs.txCommit(pendingCommandsTxn)
+
+    // Write the record to the database.
+    db.put(txn, key, MDCCRecordUtil.toBytes(newMDCCRec))
+
+    // Try the new updates.
+    newUpdates.foreach(c => {
+      acceptOption(c.xid, c.command)(dbTxn)
+    })
+
+    if (dbTxn == null) {
+      db.txCommit(txn)
+    }
+
+    // TODO: Should the return value just be a boolean, or the cstruct, or
+    //       something else?
+    success
+  }
+
+  def commit(xid: ScadsXid)(implicit dbTxn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
 
   override def getDecision(xid: ScadsXid) = {
     txStatus.get(null, xid) match {

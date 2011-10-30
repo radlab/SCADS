@@ -20,17 +20,17 @@ object Protocol2pc extends ProtocolBase {
       update match {
         case ValueUpdateInfo(ns, servers, key, value) => {
           val (md, oldBytes) = readList.getRecord(key) match {
-            case None => (Some(ns.getDefaultMeta()), None)
-            case Some(r) => (Some(r.metadata), Some(MDCCRecordUtil.toBytes(r)))
+            case None => (ns.getDefaultMeta(), None)
+            case Some(r) => (r.metadata, Some(MDCCRecordUtil.toBytes(r)))
           }
           //TODO: Do we really need the MDCCMetadata
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           RecordUpdateInfo(servers, ValueUpdate(key, oldBytes, newBytes))
         }
         case LogicalUpdateInfo(ns, servers, key, value) => {
-          val md = readList.getRecord(key).map(_.metadata) match {
-              case None => Some(ns.getDefaultMeta())
-              case x => x
+          val md = readList.getRecord(key) match {
+              case None => ns.getDefaultMeta()
+              case Some(r) => r.metadata
             }
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           RecordUpdateInfo(servers, LogicalUpdate(key, newBytes))
