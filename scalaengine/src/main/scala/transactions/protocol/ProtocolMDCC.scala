@@ -17,10 +17,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import util.{LRUMap}
 import org.apache.avro.generic.IndexedRecord
 import conflict.ConflictResolver
-import collection.mutable.{SynchronizedSet, HashSet, HashMap}
 import actors.{TIMEOUT, Actor}
 import compat.Platform
 import java.util.concurrent.{TimeUnit, Executors}
+import collection.mutable.{ArrayBuffer, SynchronizedSet, HashSet, HashMap}
 
 //import tools.nsc.matching.ParallelMatching.MatchMatrix.VariableRule
 object MDCCHandler extends ProtocolBase {
@@ -211,9 +211,11 @@ class MCCCRecordHandler (
   implicit val remoteHandle : StorageService = StorageService(StorageRegistry.registerActor(this))
 
   private var status: RecordStatus = READY
-  private var quorum =  new HashMap[ServiceType, MDCCProtocol]()
+  private var responses =  new HashMap[ServiceType, MDCCProtocol]()
 
   private var inRecovery : Boolean = false
+
+  private var request : Envelope[StorageMessage] = null
 
   override def hashCode() = key.hashCode()
 
@@ -222,13 +224,7 @@ class MCCCRecordHandler (
      case _ => false
   }
 
-  def currentBallot() = {
-    validate(version, ballots)
-    if(confirmedBallot)
-      MDCCBallotRangeHelper.topBallot(ballots)
-    else
-      version //The version metadata is always safe as we need a quorum to propose a version
-  }
+  @inline def currentBallot() = MDCCBallotRangeHelper.topBallot(ballots)
 
   def nextBallot() : Option[MDCCBallot] = {
     validate(version, ballots)
@@ -320,7 +316,8 @@ class MCCCRecordHandler (
     loop {
       reactWithin(0) {
         //Highest priority
-        case StorageEnvelope(src, x: BeMaster) if status == READY => {
+        case msg@StorageEnvelope(src, x: BeMaster) if status == READY => {
+          request = msg
           startPhase1a(x.startRound, x.endRound, x.fast)
         }
         case StorageEnvelope(src, msg: Phase1b) => {
@@ -375,10 +372,11 @@ class MCCCRecordHandler (
         //Priority 2
         case TIMEOUT =>
           react {
-            case msg@Envelope(src, ResolveConflict(key, ballot)) if status == READY => {
+            case msg@StorageEnvelope(src, ResolveConflict(key, ballot)) if status == READY => {
               //TODO
             }
-            case msg@Envelope(src, x: Propose) if status == READY && !inRecovery=> {
+            case msg@StorageEnvelope(src, x: Propose) if status == READY && !inRecovery=> {
+              request = msg
               SendProposal(x)
             }
             case _ => throw new RuntimeException("Not supported request")
@@ -434,7 +432,7 @@ class MCCCRecordHandler (
     confirmedBallot = false
     this.ballots = ballots
     val phase1aMsg = Phase1a(key, ballots)
-    quorum.clear()
+    responses.clear()
     servers ! phase1aMsg
   }
 
@@ -446,7 +444,7 @@ class MCCCRecordHandler (
     compareRanges(msg.meta.ballots, ballots, maxRound) match {
       case 0 =>
         //The storage node accepted the new meta data
-        quorum += src -> msg
+        responses += src -> msg
       case 1 =>
         //We got an old message, we can ignore this case
       case -1  | -2 => {
@@ -457,12 +455,12 @@ class MCCCRecordHandler (
       case _ => assert(false) //should never happen
     }
     //Do we need a fast or classic quorum
-    val qM : Int = if(ballots.head.fast) fastQuorum else classicQuorum
-    if(quorum.size >= qM) {
+    val quorum : Int = if(ballots.head.fast) fastQuorum else classicQuorum
+    if(responses.size >= quorum) {
       confirmedBallot = true
       version = MDCCBallot(-1, -1,null,true)
       var values : List[CStruct] =  Nil
-      quorum.foreach( v => {
+      responses.foreach( v => {
         val msg : Phase1b  = v._2.asInstanceOf[Phase1b]
         version.compare(msg.meta.currentVersion) match {
           case -1 => {
@@ -477,13 +475,15 @@ class MCCCRecordHandler (
       })
       //We only need to consider the quorum of the version and the current round.
       //The next round will only be started, if the current one is stable
-      val tmp = resolver.provedSafe(values, if(version.fast) fastQuorum else classicQuorum, qM, servers.size)
+      val tmp = resolver.provedSafe(values, if(version.fast) fastQuorum else classicQuorum, quorum, servers.size)
       value = tmp._1
       unsafeCommands = tmp._2
       //TODO: We should already learn the value here
       confirmedVersion = false
-      if(isMaster(src))
-        src ! GotMastership(ballots)
+      request match {
+        case StorageEnvelope(src, x: BeMaster) => src ! GotMastership(ballots)
+        case _ => throw new RuntimeException("A Phase1a should always be triggered through BeMaster")
+      }
       clear()
     }
   }
@@ -493,8 +493,9 @@ class MCCCRecordHandler (
   }
 
   private def clear() = {
+    request = null
     status = READY
-    quorum.clear
+    responses.clear
   }
 
   @inline def classicQuorum = floor(servers.size.toDouble / 2.0).toInt + 1
@@ -587,15 +588,56 @@ class MCCCRecordHandler (
   def processPhase2b(src : ServiceType, msg : Phase2b) = {
     currentBallot.compare(msg.ballot) match {
       case 0 => {
-        quorum += src -> msg
+        responses += src -> msg
       }
-      case 1 => {
-        status = LEARNING
-        quorum.clear()
-
+      case -1 => {
+        //we got a newer ballot number
+        responses.clear()
+        responses += src -> msg
+        ballots = combine(msg.ballot, ballots)
+        //We do not change comfirmedBallot. Parts of it might still
+        //be not confirmed if it is a fast rpopose
       }
-      case -1 => //Old message we do nothing
+      case 1 => //Old message we do nothing
     }
+
+    val quorum = if(currentBallot.fast) fastQuorum else classicQuorum
+    if(responses.size >= quorum){
+      val values = responses.map(_._1.asInstanceOf[Phase2b].value).toSeq
+      val tmp = resolver.provedSafe(values, quorum, quorum, servers.size)
+      value = tmp._1
+      unsafeCommands = tmp._2
+      confirmedVersion = true
+      request match {
+        case msg@StorageEnvelope(src, propose: Propose)  =>  {
+          val cmd = value.commands.find(_.xid == propose.xid)
+          if(cmd.isDefined){
+            src ! Learned(propose.xid, key, cmd.get.commit)
+          }else{
+            this ! msg //We should try it again
+          }
+        }
+        case StorageEnvelope(src, req: ProposeSeq)  =>  {
+          var missing = new ArrayBuffer[Propose](1)
+          req.proposes.foreach(propose => {
+           val cmd = value.commands.find(_.xid == propose.xid)
+            if(cmd.isDefined){
+              src ! Learned(propose.xid, key, cmd.get.commit)
+            }else{
+              missing += propose
+            }
+          })
+          if(!missing.isEmpty){
+            this !  Envelope(Some(src), ProposeSeq(missing))
+          }
+        }
+        case _ => throw new RuntimeException("Should never happen")
+      }
+      clear()
+    }
+
+
+
 //
 //    val success =
 //      if(isFast(meta) && quorum.size >= fastQuorum) {

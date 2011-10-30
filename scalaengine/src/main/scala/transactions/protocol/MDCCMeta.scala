@@ -74,9 +74,7 @@ object MDCCBallotRangeHelper {
 
   def validate(currentVersion : MDCCBallot, ranges: Seq[MDCCBallotRange]) : Boolean = {
     MDCCBallotRangeHelper.validate(ranges)
-    assert(currentVersion.round == ranges.head.startRound)
-    var bR = MDCCBallotRangeHelper.topBallot(ranges)
-    assert(currentVersion.compare(bR) <= 0)
+    getBallot(ranges, currentVersion.round).map( ballot => assert(currentVersion.compare(ballot) <= 0))
     return true
   }
 
@@ -181,6 +179,12 @@ object MDCCBallotRangeHelper {
   def getOwnership(ranges: Seq[MDCCBallotRange], startRound: Long, endRound: Long, fast: Boolean)(implicit r: SCADSService): Seq[MDCCBallotRange] = {
     val newRange = MDCCBallotRange(startRound, endRound, 0, r, fast)
     replace(ranges, newRange)
+  }
+
+  def combine(ballot : MDCCBallot, ranges : Seq[MDCCBallotRange]): Seq[MDCCBallotRange] = {
+    //TODO: Quite expensive -> Maybe rewrite
+    val newRange = MDCCBallotRange(ballot.round, ballot.round, ballot.vote, ballot.server, ballot.fast)
+    combine(ranges, newRange :: Nil, ballot.round)
   }
 
   def combine(lRange : Seq[MDCCBallotRange], rRange : Seq[MDCCBallotRange], firstRound : Long): Seq[MDCCBallotRange] = {

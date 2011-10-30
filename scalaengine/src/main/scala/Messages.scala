@@ -9,7 +9,7 @@ import java.util.UUID
 import edu.berkeley.cs.scads.storage.transactions.{MDCCBallot, MDCCBallotRange, MDCCMetadata}
 
 object StorageEnvelope{
-  def unapply(e : Any) : Option[(RemoteService[StorageMessage], StorageMessage)] = e match {
+  def unapply(e : Envelope[StorageMessage]) : Option[(RemoteService[StorageMessage], StorageMessage)] = e match {
     case Envelope(src, msg) => Some((src.asInstanceOf[RemoteService[StorageMessage]], msg.asInstanceOf[StorageMessage]) )
     case _ => None
   }
@@ -230,7 +230,7 @@ case class Phase2aConflict(var key: Array[Byte], var ballot: MDCCBallot, var val
 
 //case class Phase2aClassic(var key: Array[Byte], var ballot: MDCCBallot, var command: RecordUpdate) extends AvroRecord with MDCCProtocol
 
-case class Phase2b(var ballot: MDCCBallot, var value: Option[CStruct]) extends AvroRecord with MDCCProtocol
+case class Phase2b(var ballot: MDCCBallot, var value: CStruct) extends AvroRecord with MDCCProtocol
 
 case class Learned(var xid: ScadsXid, var key: Array[Byte], var status : Boolean)  extends AvroRecord with MDCCProtocol
 
