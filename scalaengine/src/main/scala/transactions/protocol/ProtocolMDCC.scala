@@ -207,8 +207,8 @@ class MCCCRecordHandler (
 
   implicit def extractSource(src : Option[RemoteService[IndexedRecord]]) = src.get
 
-  //TODO should that really be a StorageService
-  implicit val remoteHandle : StorageService = StorageService(StorageRegistry.registerActor(this))
+  //TODO: is this really a storageservice?
+  implicit val remoteHandle = StorageService(StorageRegistry.registerActor(this))
 
   private var status: RecordStatus = READY
   private var responses =  new HashMap[ServiceType, MDCCProtocol]()
@@ -344,7 +344,17 @@ class MCCCRecordHandler (
             inRecovery = false
           }
         }
-
+        case StorageEnvelope(src, msg : Learned)  => {
+          status match {
+            case FORWARDED => {
+              request match {
+                case StorageEnvelope(src, x: Propose) => src ! msg
+                case _ => throw new RuntimeException("Should never happen")
+              }
+            }
+            case _ => //Out of order message
+          }
+        }
         case StorageEnvelope(src,  GotMastership(newBallot)) if status == READY => {
           val maxRound = max(ballots.head.startRound, newBallot.head.startRound)
           compareRanges(ballots, newBallot, maxRound) match {
@@ -377,7 +387,7 @@ class MCCCRecordHandler (
             }
             case msg@StorageEnvelope(src, x: Propose) if status == READY && !inRecovery=> {
               request = msg
-              SendProposal(x)
+              SendProposal(src, x)
             }
             case _ => throw new RuntimeException("Not supported request")
           }
@@ -385,15 +395,15 @@ class MCCCRecordHandler (
     }
   }
 
-  def SendProposal(propose : Propose) = {
+  def SendProposal(src: RemoteService[StorageMessage], propose : Propose) = {
     ballotStatus match {
      case FAST_BALLOT => {
         status = FAST_PROPOSED
         servers.foreach(_ ! propose)
       }
       case VOTED_SWITCH_TO_CLASSIC | UNVOTED_SWITCH_TO_CLASSIC => {
-        this ! ResolveConflict(key, version)
-        this ! propose
+        remoteHandle ! ResolveConflict(key, version)
+        remoteHandle.!(propose)(src)
       }
      case CSTABLE_VOTED_NEXT_CLASSIC | CSTABLE_UNVOTED_NEXT_CLASSIC => {
        val ballot = getBallot(ballots, version.round + 1).get
@@ -401,11 +411,11 @@ class MCCCRecordHandler (
             //We are the master for the next round, so lets go
             if(confirmedBallot)
               //The ballot is valid, lets move to phase2
-              startPhase2a(propose)
+              startPhase2a(src, propose)
             else
               //we might have an invalid ballot, lets renew it
               ballot.server ! BeMaster(key,  version.round + 1, version.round + 1, false)
-              this ! propose //and we try it later again
+              remoteHandle.!(propose)(src)//and we try it later again
           }else{
             //We are not the master, but we might know who is
             status = FORWARDED
@@ -413,13 +423,13 @@ class MCCCRecordHandler (
         }
      }
      case CSTABLE_NEXT_UNDEFINED => {
-       this ! BeMaster(key, version.round + 1, version.round + 1, true) //Ok lets get a fast round
-       this ! ResolveConflict(key, version) //A new fast round always starts with a conflict resolution
-       this ! propose
+       remoteHandle ! BeMaster(key, version.round + 1, version.round + 1, true) //Ok lets get a fast round
+       remoteHandle ! ResolveConflict(key, version) //A new fast round always starts with a conflict resolution
+       remoteHandle ! propose
      }
      case CUNSTABLE => {
-      this ! ResolveConflict(key, version)
-      this ! propose
+      remoteHandle ! ResolveConflict(key, version)
+      remoteHandle ! propose
      }
   }
   }
@@ -506,7 +516,10 @@ class MCCCRecordHandler (
     servers ! BeMaster(key, version.round + 1, version.round + 10, true)
   }
 
-  def startPhase2a(propose : Propose) : Unit = {
+  @inline def forwardRequest(src : RemoteService[StorageMessage], propose : ProposeSeq) =
+    remoteHandle.!(propose)(src)
+
+  def startPhase2a(src : RemoteService[StorageMessage], propose : Propose) : Unit = {
     status = PHASE2A
     assert(confirmedBallot)
     assert(value != null) //if we do a phase 2, we have at least an empty CStruct
@@ -524,7 +537,7 @@ class MCCCRecordHandler (
           //The next round is not defined, so we do not know how we can handle this one
           //Lets first create a new round and then we try it later again
           createNextBallot()
-          this ! ProposeSeq(unsafeCommands.tail :+ propose)
+          forwardRequest(src, ProposeSeq(unsafeCommands :+ propose))
           //We abort
           clear()
           return
@@ -555,7 +568,7 @@ class MCCCRecordHandler (
           }else{
             //Lets do one update at a time
             servers ! Phase2a(key, cBallot, value, unsafeCommands.head )
-            this ! ProposeSeq(unsafeCommands.tail :+ propose)
+            forwardRequest(src, ProposeSeq(unsafeCommands.tail :+ propose))//we need to ensure the right owner
           }
         }else{
           //The round is already used
@@ -571,13 +584,13 @@ class MCCCRecordHandler (
                 servers ! Phase2a(key, nextBallot, rebase, propose)
               }else{
                 servers ! Phase2a(key, nextBallot, rebase, unsafeCommands.head)
-                this ! ProposeSeq(unsafeCommands.tail :+ propose)
+                forwardRequest(src, ProposeSeq(unsafeCommands.tail :+ propose))
               }
             }
           }else{
             //The value is not stable, so we need to stabilize it first
             servers ! Phase2a(key, nextBallot, value)
-            this ! ProposeSeq(unsafeCommands :+ propose)
+            forwardRequest(src, ProposeSeq(unsafeCommands :+ propose))
           }
         }
       }

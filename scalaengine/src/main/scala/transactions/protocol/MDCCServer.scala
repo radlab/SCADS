@@ -12,14 +12,15 @@ import collection.mutable.HashMap
 import edu.berkeley.cs.scads.storage.transactions.MDCCBallotRangeHelper._
 
 
-class MDCCServer(namespace : String,
-                 db: TxDB[Array[Byte], Array[Byte]],
-                 partition : PartitionService,
-                 pendingUpdates: PendingUpdates,
-                 default : MDCCMetaDefault,
-                 recordCache : MDCCRecordCache,
-                 routingTable : MDCCRoutingTable
+class MDCCServer(val namespace : String,
+                 val db: TxDB[Array[Byte], Array[Byte]],
+                 implicit val partition : PartitionService,
+                 val pendingUpdates: PendingUpdates,
+                 val default : MDCCMetaDefault,
+                 val recordCache : MDCCRecordCache,
+                 val routingTable : MDCCRoutingTable
                  ) extends TrxManager {
+
 
   def startTrx() : TransactionData= {
     db.txStart()
@@ -45,46 +46,58 @@ class MDCCServer(namespace : String,
       return storedMDCCRec.get.metadata
   }
 
-
-  protected  def processPropose(src: Option[RemoteServiceProxy[StorageMessage]], xid: ScadsXid, update: RecordUpdate)(implicit sender: RemoteServiceProxy[StorageMessage])  = {
+  protected  def processPropose(src: RemoteServiceProxy[StorageMessage], msg : Propose) : Unit = {
     implicit val trx = startTrx()
-    val meta = getMeta(update.key)
+    val meta = getMeta(msg.update.key)
+    val ballot = meta.ballots.head.ballot
     meta.validate() //just to make sure
-    if(meta.ballots.head.fast){
-      val cstruct = pendingUpdates.acceptOption(xid, update)
+    if(ballot.fast){
+      val cstruct = pendingUpdates.acceptOption(msg.xid, msg.update)
+      src ! Phase2b(ballot, cstruct._3)
     }else{
-      //val recordHandler = recordCache.getOrCreate(update.key, routingTable.serversForKey(update.key), meta, pendingUpdates.getConflictResolver)
-      //recordHandler ! new Envelope[StorageMessage](src.asInstanceOf[Option[RemoteService[StorageMessage]]], Propose(xid, update))
+      val recordHandler = recordCache.getOrCreate(
+        msg.update.key,
+        pendingUpdates.getCStruct(msg.update.key),
+        routingTable.serversForKey(msg.update.key),
+        meta,
+        pendingUpdates.getConflictResolver)
+      recordHandler ! new Envelope[StorageMessage](Some(src.asInstanceOf[RemoteService[StorageMessage]]), msg)
     }
     commitTrx(trx)
   }
 
-  protected def processPhase1a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], newMeta: MDCCBallotRange) = {
+  protected  def processPropose(src: RemoteServiceProxy[StorageMessage], msg : ProposeSeq) : Unit = {
+   msg.proposes.foreach(processPropose(src, _))
+  }
+
+
+  protected def processPhase1a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], newMeta: MDCCBallotRange) = {
     implicit val trx = startTrx()
     val meta = getMeta(key)
     commitTrx(trx)
     //pendingUpdates.setMeta(combine(oldMeta, newMeta))
   }
 
-  protected def processPhase2a(src: Option[RemoteServiceProxy[StorageMessage]], key: Array[Byte], ballot: MDCCBallot, value: CStruct, newUpdate : Seq[Propose] ) = {
+  protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], ballot: MDCCBallot, value: CStruct, newUpdate : Seq[Propose] ) = {
 
   }
 
-  protected def processAccept(src: Option[RemoteServiceProxy[StorageMessage]], xid: ScadsXid) = {
+  protected def processAccept(src: RemoteServiceProxy[StorageMessage], xid: ScadsXid) = {
 
   }
 
 
 
 
-  def process(src: Option[RemoteServiceProxy[StorageMessage]], msg: TrxMessage)(implicit sender: RemoteServiceProxy[StorageMessage]) = {
+  def process(src: RemoteServiceProxy[StorageMessage], msg: TrxMessage) = {
     msg match {
-      case Propose(xid, update) =>  processPropose(src, xid, update)
+      case msg : Propose =>  processPropose(src, msg)
+      case msg : ProposeSeq =>  processPropose(src, msg)
       case Phase1a(key: Array[Byte], ballot: MDCCBallotRange) => processPhase1a(src, key, ballot)
       case Phase2a(key, ballot, safeValue, proposes ) => processPhase2a(src, key, ballot, safeValue, proposes)
       case Commit(xid: ScadsXid) =>
       case Abort(xid: ScadsXid) =>
-      case _ => src.map(_ ! ProcessingException("Trx Message Not Implemented", ""))
+      case _ => src ! ProcessingException("Trx Message Not Implemented", "")
     }
   }
 }

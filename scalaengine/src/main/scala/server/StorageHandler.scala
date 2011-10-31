@@ -184,7 +184,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
       case "2PC" =>
         val partition = PartitionService(handler.remoteHandle, partitionIdLock.name, StorageService(remoteHandle))
         val defaultMeta = MDCCMetaDefault.getOrCreateDefault(nsRoot, partition)
-        new Protocol2PCManager(storageMgr)
+        new Protocol2PCManager(storageMgr, PartitionService(handler.remoteHandle, partitionIdLock.name, StorageService(remoteHandle)))
       case "MDCC" => {
         assert(db != null)
         assert(factory != null)

@@ -5,7 +5,13 @@ import _root_.edu.berkeley.cs.avro.marker.AvroRecord
 import scala.math.{min, max}
 import collection.mutable.{ArrayBuffer, ArraySeq}
 
-case class MDCCBallotRange(var startRound: Long, var endRound: Long, var vote: Int, var server: SCADSService, var fast: Boolean) extends AvroRecord
+case class MDCCBallotRange(var startRound: Long, var endRound: Long, var vote: Int, var server: SCADSService, var fast: Boolean) extends AvroRecord {
+  /**
+   * Returns the first round as a ballot
+   */
+  def ballot() = MDCCBallot(startRound, vote, server, fast)
+}
+
 case class MDCCMetadata(var currentVersion: MDCCBallot, var ballots: Seq[MDCCBallotRange]) extends AvroRecord {
   def validate() =  {
     MDCCBallotRangeHelper.validate(currentVersion, ballots)

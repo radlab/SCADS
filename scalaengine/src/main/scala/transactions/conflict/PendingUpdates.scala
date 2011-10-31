@@ -67,7 +67,8 @@ trait PendingUpdates extends DBRecords {
 
   def getDecision(xid: ScadsXid): Status.Status
 
-  def getCStruct(key: Array[Byte]): Option[CStruct]
+  //Should return the CStruct or the default Cstruct
+  def getCStruct(key: Array[Byte]): CStruct
 
   def startup() = {}
 
@@ -447,7 +448,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   }
 
   override def getCStruct(key: Array[Byte]) = {
-    None
+    null
   }
 
   override def shutdown() = {
