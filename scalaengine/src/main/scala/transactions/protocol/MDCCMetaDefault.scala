@@ -41,7 +41,7 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
 
   def defaultBallot : MDCCBallot = {
     assert(_defaultMeta != null)
-    MDCCMetaHelper.currentBallot(_defaultMeta)
+    _defaultMeta.currentVersion
   }
 
 
@@ -49,7 +49,7 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
     if(!nsRoot.get(MDCC_DEFAULT_META).isDefined) {
       try {
         val createLock = nsRoot.createChild("trxLock", mode=CreateMode.EPHEMERAL)
-        _defaultMeta = MDCCMetadata(0, MDCCBallotRange(0,0,0,defaultPartition, true) :: Nil)
+        _defaultMeta = MDCCMetadata(MDCCBallot(0,0, defaultPartition, true), MDCCBallotRange(0,0,0,defaultPartition, true) :: Nil)
         logger.info("Default Metadata: " + _defaultMeta)
         val writer = new AvroSpecificReaderWriter[MDCCMetadata](None)
         val defaultBytes = writer.serialize(_defaultMeta)

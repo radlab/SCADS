@@ -253,6 +253,7 @@ with TransactionI {
     case (Some(_), None) => 1
     case (Some(lhs), Some(rhs)) => compareMetadata(lhs, rhs)
   }
+
 }
 
 trait TransactionRecordMetadata extends SimpleRecordMetadata with TransactionI {
@@ -261,7 +262,7 @@ trait TransactionRecordMetadata extends SimpleRecordMetadata with TransactionI {
   }
 
   override def compareMetadata(lhs: Array[Byte], rhs: Array[Byte]): Int = {
-    MDCCMetaHelper.compareMetadata(MDCCRecordUtil.fromBytes(lhs).metadata,  MDCCRecordUtil.fromBytes(rhs).metadata)
+    MDCCRecordUtil.fromBytes(lhs).metadata.currentVersion.compare(MDCCRecordUtil.fromBytes(rhs).metadata.currentVersion)
   }
 
   override def extractMetadataAndRecordFromValue(value: Array[Byte]): (Array[Byte], Array[Byte]) = {

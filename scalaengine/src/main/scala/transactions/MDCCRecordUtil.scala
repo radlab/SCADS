@@ -1,6 +1,6 @@
 package edu.berkeley.cs.scads.storage.transactions
 
-import edu.berkeley.cs.scads.storage.{MDCCRecord, MDCCMetadata, AvroSpecificReaderWriter}
+import edu.berkeley.cs.scads.storage.{MDCCRecord, AvroSpecificReaderWriter}
 
 object MDCCRecordUtil {
   private val recordReaderWriter = new AvroSpecificReaderWriter[MDCCRecord](None)

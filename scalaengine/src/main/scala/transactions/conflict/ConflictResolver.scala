@@ -82,15 +82,12 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
   // Assumes that the base of the cstructs are all the same.
   def isStrictSubset(cstruct1: CStruct, cstruct2: CStruct) = isSubset(cstruct1, cstruct2, true)
 
-  // TODO(kraska): How is this different from the other interface, and what does
-  //               it mean?
-  def provedSafe(cstructs: Seq[CStruct], quorum : Int): CStruct = null
 
   // Returns a tuple pair (safe, leftover), where safe is the safe cstruct, and
   // leftover is a Seq[CStructCommand] of commands proposed but not safe.
   // Assumes that the base of the cstructs are all the same.
   def provedSafe(cstructs: Seq[CStruct], fastQuorumSize: Int,
-                 classicQuorumSize: Int, N: Int): (CStruct, Seq[CStructCommand]) = {
+                 classicQuorumSize: Int, N: Int): (CStruct, Seq[Propose]) = {
     // TODO: does cstructs require fastQuorumSize number of elements?
 
     // Collect all commands
@@ -116,7 +113,7 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
     leftover.remove(lub.commands)
 
     // TODO: Check if LUB is valid w.r.t. constraints?
-    (lub, leftover.toList)
+    (lub, leftover.toList.map(c => Propose(c.xid, c.command)))
   }
 
   def compressCStruct(c: CStruct): CStruct = {

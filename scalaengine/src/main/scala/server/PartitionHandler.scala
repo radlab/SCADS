@@ -174,7 +174,12 @@ case class PartitionHandler(manager: StorageManager) extends ServiceHandler[Stor
         case AggRequest(groups, keyType, valType, filters, aggs) =>
           reply(AggReply(manager.applyAggregate(groups, keyType, valType, filters, aggs)))
 
-        case msg : TrxMessage =>  trxManager.process(src, msg)
+        case msg : TrxMessage => {
+          if(src.isEmpty)
+            src.map( _ ! ProcessingException("Trx messages need a source", ""))
+          assert(src.isDefined) //We abort for debugging purposes
+          trxManager.process(src.get, msg)
+        }
         case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
       }
     } catch {

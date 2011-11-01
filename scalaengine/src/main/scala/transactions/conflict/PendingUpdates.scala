@@ -67,7 +67,8 @@ trait PendingUpdates extends DBRecords {
 
   def getDecision(xid: ScadsXid): Status.Status
 
-  def getCStruct(key: Array[Byte]): Option[CStruct]
+  //Should return the CStruct or the default Cstruct
+  def getCStruct(key: Array[Byte]): CStruct
 
   def startup() = {}
 
@@ -447,7 +448,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   }
 
   override def getCStruct(key: Array[Byte]) = {
-    None
+    null
   }
 
   override def shutdown() = {
@@ -546,7 +547,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
           val newRec = MDCCRecordUtil.fromBytes(newValue)
           dbValue match {
             case Some(v) =>
-              (newRec.metadata.currentRound == v.metadata.currentRound + 1)
+              (newRec.metadata.currentVersion.round == v.metadata.currentVersion.round  + 1)
             case None => true
           }
         } else {
