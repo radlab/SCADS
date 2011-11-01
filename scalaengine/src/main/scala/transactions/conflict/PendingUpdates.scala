@@ -57,9 +57,9 @@ trait PendingUpdates extends DBRecords {
   /**
    * Writes the new truth. Should only return false if something is messed up with the db
    */
-  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[CStructCommand])(implicit dbTxn: TransactionData): Boolean
+  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[Propose])(implicit dbTxn: TransactionData): Boolean
 
-  def overwriteTxn(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[CStructCommand], dbTxn: TransactionData = null): Boolean
+  def overwriteTxn(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[Propose], dbTxn: TransactionData = null): Boolean
 
   // Value is chosen (reflected in the db) and confirms trx state.
   @deprecated def commit(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean
@@ -371,11 +371,11 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   //               ConflictResolver should just be created elsewhere.
   def getConflictResolver : ConflictResolver = conflictResolver
 
-  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[CStructCommand])(implicit dbTxn: TransactionData) : Boolean = {
+  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[Propose])(implicit dbTxn: TransactionData) : Boolean = {
     overwriteTxn(key, safeValue, newUpdates, dbTxn)
 }
 
-  def overwriteTxn(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[CStructCommand], dbTxn: TransactionData = null): Boolean = {
+  def overwriteTxn(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[Propose], dbTxn: TransactionData = null): Boolean = {
     var success = true
     val txn = dbTxn match {
       case null => db.txStart()
@@ -425,7 +425,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
     // Try the new updates.
     newUpdates.foreach(c => {
-      acceptOption(c.xid, c.command)(dbTxn)
+      acceptOption(c.xid, c.update)(dbTxn)
     })
 
     if (dbTxn == null) {
