@@ -137,7 +137,7 @@ with TransactionI {
   def getDefaultMeta = defaultMeta.defaultMetaData
 
   // TODO: Don't know why implicit manifest did not work.
-  val protocolType: NSTxProtocol = NSTxProtocol2pc()
+  val protocolType: NSTxProtocol = NSTxProtocolNone()
 
   override def getTxProtocolType():String = protocolType match {
     case NSTxProtocolNone() => ""
