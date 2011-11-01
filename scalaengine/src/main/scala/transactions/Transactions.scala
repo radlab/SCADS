@@ -48,10 +48,10 @@ with TransactionsBase {
     )
   }
 
-  override def getRange(start: Option[K], 
-                        end: Option[K], 
-                        limit: Option[Int] = None, 
-                        offset: Option[Int] = None, 
+  override def getRange(start: Option[K],
+                        end: Option[K],
+                        limit: Option[Int] = None,
+                        offset: Option[Int] = None,
                         ascending: Boolean = true) = {
     // Filter out records which were deleted
     getKeys(start.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal)).map(keyToBytes), end.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal)).map(keyToBytes), limit, offset, ascending).filter {
@@ -88,9 +88,33 @@ with TransactionsBase {
   def getFieldICList = icUtil.getFieldICList
 
   // TODO: implement Pair specific functionality.
-  // getRecord uses getBytes.
   // put(Pair) uses put(), which uses putBytes.
   // delete(Pair) uses put(), which uses putBytes.
+
+  override def getRecord(key: IndexedRecord): Option[R] = {
+    val keyBytes = keyToBytes(key)
+
+    getBytes(keyBytes).map(b =>
+      // Don't return a record which was deleted
+      if (b.length == 0)
+        return None
+      else
+        return Some(bytesToBulk(keyBytes, b))
+    )
+  }
+
+  override def getRange(start: Option[IndexedRecord],
+                        end: Option[IndexedRecord],
+                        limit: Option[Int] = None,
+                        offset: Option[Int] = None,
+                        ascending: Boolean = true) = {
+    // Filter out records which were deleted
+    getKeys(start.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal)).map(keyToBytes), end.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal)).map(keyToBytes), limit, offset, ascending).filter {
+      case(k,v) => v.length > 0
+    } map {
+      case (k,v) => bytesToBulk(k, v)
+    }
+  }
 }
 
 // This is the base trait with all the shared functionality between different
@@ -160,8 +184,6 @@ with TransactionI {
     }
   }
 
-  // TODO: will need the getBytes() to get metadata, similar to putBytes()
-  //       re-implement a quorum protocol?
   override def getBytes(key: Array[Byte]): Option[Array[Byte]] = {
     val servers = serversForKey(key)
     val getRequest = GetRequest(key)
