@@ -89,7 +89,7 @@ case class AggReply(var results:Seq[GroupedAgg]) extends AvroRecord with KeyValu
 
 /* Storage Handler Operations */
 sealed trait StorageServiceOperation extends StorageMessage
-case class CreatePartitionRequest(var namespace: String, var partitionType:String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None, var trxProtocol : String = "2PC") extends AvroRecord with StorageServiceOperation
+case class CreatePartitionRequest(var namespace: String, var partitionType:String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None, var trxProtocol : String = "") extends AvroRecord with StorageServiceOperation
 case class CreatePartitionResponse(var partitionActor: PartitionService) extends AvroRecord with StorageServiceOperation
 
 case class DeletePartitionRequest(var partitionId: String) extends AvroRecord with StorageServiceOperation

@@ -139,6 +139,12 @@ with TransactionI {
   // TODO: Don't know why implicit manifest did not work.
   val protocolType: NSTxProtocol = NSTxProtocol2pc()
 
+  override def getTxProtocolType():String = protocolType match {
+    case NSTxProtocolNone() => ""
+    case NSTxProtocol2pc() => "2PC"
+    case NSTxProtocolMDCC() => "MDCC"
+  }
+
   override def initRootAdditional(node: ZooKeeperProxy#ZooKeeperNode): Unit = {
     // Write the integrity constraints to zookeeper.
     val writer = new AvroSpecificReaderWriter[FieldICList](None)

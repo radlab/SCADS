@@ -197,7 +197,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
           schemasvc._1,
           schemasvc._2)
       }
-      case _ => throw new RuntimeException("Found Unsupported Transaction Support")
+      case _ => null
     }
   }
 

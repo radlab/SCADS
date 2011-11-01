@@ -81,6 +81,7 @@ case class PartitionHandler(manager: StorageManager) extends ServiceHandler[Stor
 
   def registry = StorageRegistry
 
+  // Can be null, which means the partition is NOT transactional.
   protected[storage] var trxManager : TrxManager = null
 
   // workload stats code
@@ -177,7 +178,10 @@ case class PartitionHandler(manager: StorageManager) extends ServiceHandler[Stor
         case msg : TrxMessage => {
           if(src.isEmpty)
             src.map( _ ! ProcessingException("Trx messages need a source", ""))
-          assert(src.isDefined) //We abort for debugging purposes
+          // We abort for debugging purposes
+          assert(src.isDefined)
+          // Partition must be created as part of a transactional namespace.
+          assert(trxManager != null)
           trxManager.process(src.get, msg)
         }
         case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
