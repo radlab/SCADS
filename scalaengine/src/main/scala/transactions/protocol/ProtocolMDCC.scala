@@ -39,6 +39,8 @@ class MCCCTrxHandler(tx: Tx) extends Actor {
 
   var callbacks : Seq[(Boolean) => Unit] = Nil
 
+  protected val logger = Logger("MCCCTrxHandler")
+
   implicit val remoteHandle = StorageRegistry.registerActor(this).asInstanceOf[RemoteService[StorageMessage]]
 
 
@@ -54,6 +56,7 @@ class MCCCTrxHandler(tx: Tx) extends Actor {
           val propose = Propose(Xid, ValueUpdate(key, oldRrecord.flatMap(_.value), value.get))  //TODO: We need a read-strategy
           val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), servers, md, ns.getConflictResolver)
           participants += rHandler
+          logger.info("" + Xid + ": Sending physical update propose to MCCCRecordHandler", propose)
           rHandler.remoteHandle ! propose
         }
         case LogicalUpdateInfo(ns, servers, key, value) => {
@@ -61,6 +64,7 @@ class MCCCTrxHandler(tx: Tx) extends Actor {
           val propose = Propose(Xid, LogicalUpdate(key, value.get))
           val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), servers, md, ns.getConflictResolver)  //TODO: Gene is the CStruct correct?
           participants += rHandler
+          logger.debug("" + Xid + ": Sending logical update propose to MCCCRecordHandler", propose)
           rHandler.remoteHandle ! propose
         }
       }
@@ -82,18 +86,23 @@ class MCCCTrxHandler(tx: Tx) extends Actor {
         case Learned(_, _, false) => {
           assert(status != COMMITTED)
           if(status == UNKNOWN) {
+            logger.debug("" + Xid + ": Receive record abort")
+            logger.info("Transaction " + Xid + " aborted")
             status = ABORTED
             this ! EXIT
           }
         }
         case Learned(_, _, true) => {
           count += 1
+          logger.debug("" + Xid + ": Receive record commit")
           if(count == size && status == UNKNOWN){
             status = COMMITTED
             this ! EXIT
+            logger.info("Transaction " + Xid + " committed")
           }
         }
         case EXIT => {
+          logger.debug("" + Xid + ": Exit requested")
           callbacks.foreach(_(status == COMMITTED))
           notifyAcceptors
           StorageRegistry.unregisterService(remoteHandle)
@@ -158,7 +167,8 @@ case object PHASE1A  extends RecordStatus {val name = "PHASE1A"}
 case object PHASE2A extends RecordStatus {val name = "PHASE2A"}
 case object LEARNED_ABORT extends RecordStatus {val name = "LEARNED_ABORT"}
 case object LEARNED_ACCEPT extends RecordStatus {val name = "LEARNED_ACCEPT"}
-case object LEARNING extends RecordStatus {val name = "LEARNED_ACCEPT"}
+case object LEARNING extends RecordStatus {val name = "LEARNING"}
+case object RECOVERY extends RecordStatus {val name = "RECOVERY"}
 
 sealed trait BallotStatus {def name : String}
 case object FAST_BALLOT extends BallotStatus {val name = "FAST_BALLOT"}
@@ -199,6 +209,7 @@ class MCCCRecordHandler (
        var confirmedVersion : Boolean, //Is the version confirmed by a majority?
        var resolver : ConflictResolver
   ) extends Actor {
+  protected val logger = Logger("MCCCRecordHandler")
   import ServerMessageHelper._
 
   private var unsafeCommands : Seq[Propose] = Nil
@@ -212,8 +223,6 @@ class MCCCRecordHandler (
 
   private var status: RecordStatus = READY
   private var responses =  new HashMap[ServiceType, MDCCProtocol]()
-
-  private var inRecovery : Boolean = false
 
   private var request : Envelope[StorageMessage] = null
 
@@ -316,35 +325,40 @@ class MCCCRecordHandler (
     loop {
       reactWithin(0) {
         //Highest priority
-        case msg@StorageEnvelope(src, x: BeMaster) if status == READY => {
-          request = msg
-          startPhase1a(x.startRound, x.endRound, x.fast)
+        case env@StorageEnvelope(src, msg: BeMaster) if status == READY => {
+          request = env
+          logger.debug("" + key + " Received BeMaster message", env)
+          startPhase1a(msg.startRound, msg.endRound, msg.fast)
         }
-        case StorageEnvelope(src, msg: Phase1b) => {
+        case env@StorageEnvelope(src, msg: Phase1b) => {
           //we do the phase check afterwards to empty out old messages
+          logger.debug("" + key + " status:" + status + " Phase1b message" , env)
           status match {
             case PHASE1A => processPhase1b(src, msg)
             case _ => //out of phase message
           }
         }
-        case StorageEnvelope(src, msg: Phase2b) => {
+        case env@StorageEnvelope(src, msg: Phase2b) => {
+          logger.debug("" + key + " status:" + status + " Phase2b message" , env)
           status match {
             case PHASE2A => processPhase2b(src, msg)
             case FAST_PROPOSED => processPhase2b(src, msg)
             case _ => //out of phase message
           }
         }
-        case StorageEnvelope(src, Recovered(key, value, metaData))  => {
-          if (inRecovery) {
+        case env@StorageEnvelope(src, Recovered(key, value, metaData))  => {
+          logger.debug("" + key + " status:" + status + " Recovered message", env)
+          if (status == RECOVERY) {
             this.value = value
             this.version = metaData.currentVersion
             this.ballots = metaData.ballots
             confirmedBallot = true
             confirmedVersion = true
-            inRecovery = false
+            status = READY
           }
         }
-        case StorageEnvelope(src, msg : Learned)  => {
+        case env@StorageEnvelope(src, msg : Learned)  => {
+          logger.debug("" + key + " status:" + status + " Learned message", env)
           status match {
             case FORWARDED => {
               request match {
@@ -355,7 +369,8 @@ class MCCCRecordHandler (
             case _ => //Out of order message
           }
         }
-        case StorageEnvelope(src,  GotMastership(newBallot)) if status == READY => {
+        case env@StorageEnvelope(src,  GotMastership(newBallot)) if status == READY => {
+          logger.debug("" + key + " status:" + status + " GotMastership message", env)
           val maxRound = max(ballots.head.startRound, newBallot.head.startRound)
           compareRanges(ballots, newBallot, maxRound) match {
             case -1 => {
@@ -373,26 +388,37 @@ class MCCCRecordHandler (
 
           }
         }
-        case EXIT => {
+        case EXIT if status == READY => {
+          logger.debug("" + key + " status:" + status + " EXIT request")
           StorageRegistry.unregisterService(remoteHandle)
           exit()
         }
         case Envelope(src, msg: Commit) => servers ! msg
         case Envelope(src, msg: Abort) => servers ! msg
         //Priority 2
-        case TIMEOUT =>
-          react {
-            case msg@StorageEnvelope(src, ResolveConflict(key, ballot)) if status == READY => {
+        case TIMEOUT =>  {
+          reactWithin(0) {
+            case env@StorageEnvelope(src, ResolveConflict(key, ballot)) if status == READY => {
+              logger.debug("" + key + " status:" + status + " ResolveConflict request", env)
               //TODO
             }
-            case msg@StorageEnvelope(src, x: Propose) if status == READY && !inRecovery=> {
-              request = msg
-              SendProposal(src, x)
+            case TIMEOUT =>
+             react {
+              case env@StorageEnvelope(src, x: Propose) if status == READY=> {
+                logger.debug("" + key + " status:" + status + " Propose request", env)
+                request = env
+                SendProposal(src, x)
+              }
+              case _ => throw new RuntimeException("Not supported request")
             }
-            case _ => throw new RuntimeException("Not supported request")
           }
+        }
       }
     }
+  }
+
+  def resolveConflict(){
+
   }
 
   def SendProposal(src: RemoteService[StorageMessage], propose : Propose) = {
@@ -402,8 +428,8 @@ class MCCCRecordHandler (
         servers.foreach(_ ! propose)
       }
       case VOTED_SWITCH_TO_CLASSIC | UNVOTED_SWITCH_TO_CLASSIC => {
-        remoteHandle ! ResolveConflict(key, version)
-        remoteHandle.!(propose)(src)
+       remoteHandle ! ResolveConflict(key, version)
+       forwardRequest(src, propose)
       }
      case CSTABLE_VOTED_NEXT_CLASSIC | CSTABLE_UNVOTED_NEXT_CLASSIC => {
        val ballot = getBallot(ballots, version.round + 1).get
@@ -415,7 +441,7 @@ class MCCCRecordHandler (
             else
               //we might have an invalid ballot, lets renew it
               ballot.server ! BeMaster(key,  version.round + 1, version.round + 1, false)
-              remoteHandle.!(propose)(src)//and we try it later again
+              forwardRequest(src, propose)//and we try it later again
           }else{
             //We are not the master, but we might know who is
             status = FORWARDED
@@ -516,8 +542,8 @@ class MCCCRecordHandler (
     servers ! BeMaster(key, version.round + 1, version.round + 10, true)
   }
 
-  @inline def forwardRequest(src : RemoteService[StorageMessage], propose : ProposeSeq) =
-    remoteHandle.!(propose)(src)
+  @inline def forwardRequest(src : RemoteService[StorageMessage], propose : Propose) = remoteHandle.!(propose)(src)
+  @inline def forwardRequest(src : RemoteService[StorageMessage], propose : ProposeSeq) = remoteHandle.!(propose)(src)
 
   def startPhase2a(src : RemoteService[StorageMessage], propose : Propose) : Unit = {
     status = PHASE2A
