@@ -232,6 +232,9 @@ case class Phase2aConflict(var key: Array[Byte], var ballot: MDCCBallot, var val
 
 case class Phase2b(var ballot: MDCCBallot, var value: CStruct) extends AvroRecord with MDCCProtocol
 
+//Used to indicate that the ballot was not valid
+case class Phase2bMasterFailure(var ballots: Seq[MDCCBallotRange])  extends AvroRecord with MDCCProtocol
+
 case class Learned(var xid: ScadsXid, var key: Array[Byte], var status : Boolean)  extends AvroRecord with MDCCProtocol
 
 case class Commit(var xid: ScadsXid) extends AvroRecord with MDCCProtocol

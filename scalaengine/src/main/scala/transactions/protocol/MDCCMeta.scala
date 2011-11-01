@@ -282,7 +282,7 @@ object MDCCBallotRangeHelper {
    * -2 if it is undefined
    */
   def compareRanges(metaL: Seq[MDCCBallotRange], metaR: Seq[MDCCBallotRange], round : Long): Int = {
-    compareRanges(metaL.filter(_.startRound >= round), metaR.filter(_.startRound >= round))
+    compareRanges(metaL.filter(_.startRound >= round), metaR.filter(_.startRound >= round)) //TODO we need to adjust the first round
   }
 
   /**
@@ -291,7 +291,7 @@ object MDCCBallotRangeHelper {
    * 1  if metaL is bigger
    * -2 if it is undefined
    */
-  private def compareRanges(metaL: Seq[MDCCBallotRange], metaR: Seq[MDCCBallotRange]): Int = {
+  def compareRanges(metaL: Seq[MDCCBallotRange], metaR: Seq[MDCCBallotRange]): Int = {
     var status : Int = 0
     val validationPairs = metaL.zip(metaR)
     validationPairs.foreach(p => {

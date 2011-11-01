@@ -10,6 +10,7 @@ import org.apache.avro.Schema
 import java.util.concurrent.ConcurrentHashMap
 import collection.mutable.HashMap
 import edu.berkeley.cs.scads.storage.transactions.MDCCBallotRangeHelper._
+import scala.math.max
 
 
 class MDCCServer(val namespace : String,
@@ -38,12 +39,28 @@ class MDCCServer(val namespace : String,
     return true
   }
 
-  def getMeta(key : Array[Byte])(implicit txn : TransactionData) : MDCCMetadata  = {
-     val storedMDCCRec: Option[MDCCRecord] = db.get(txn, key).map(MDCCRecordUtil.fromBytes(_))
-     if(storedMDCCRec.isEmpty)
+  @inline def getRecord(key : Array[Byte])(implicit txn : TransactionData) : Option[MDCCRecord]  = {
+     db.get(txn, key).map(MDCCRecordUtil.fromBytes(_))
+
+  }
+
+  @inline def putRecord(key : Array[Byte], record : MDCCRecord)(implicit txn : TransactionData) = {
+    db.put(txn, key, MDCCRecordUtil.toBytes(record))
+  }
+
+  @inline def getMeta(key : Array[Byte])(implicit txn : TransactionData) : MDCCMetadata = {
+    extractMeta(getRecord(key))
+  }
+
+  @inline def extractMeta(record : Option[MDCCRecord])(implicit txn : TransactionData) : MDCCMetadata = {
+     if(record.isEmpty)
       return default.defaultMetaData
      else
-      return storedMDCCRec.get.metadata
+      return record.get.metadata
+  }
+
+  @inline def putMeta(key : Array[Byte], value : Option[Array[Byte]], meta : MDCCMetadata)(implicit txn : TransactionData) : Boolean  = {
+    db.put(txn, key, MDCCRecordUtil.toBytes(value, meta))
   }
 
   protected  def processPropose(src: RemoteServiceProxy[StorageMessage], msg : Propose) : Unit = {
@@ -67,23 +84,52 @@ class MDCCServer(val namespace : String,
   }
 
   protected  def processPropose(src: RemoteServiceProxy[StorageMessage], msg : ProposeSeq) : Unit = {
+    //TODO we should do everything in a single transaction
    msg.proposes.foreach(processPropose(src, _))
   }
 
 
-  protected def processPhase1a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], newMeta: MDCCBallotRange) = {
+  protected def processPhase1a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], newMeta: Seq[MDCCBallotRange]) = {
     implicit val trx = startTrx()
-    val meta = getMeta(key)
+    val record = getRecord(key)
+    val meta = extractMeta(record)
+    val maxRound = max(meta.ballots.head.startRound, newMeta.head.startRound)
+    compareRanges(meta.ballots, newMeta, maxRound) match {
+      case -1 => meta.ballots = newMeta
+      case 2 => meta.ballots = combine(meta.ballots, newMeta, max(meta.ballots.head.startRound, newMeta.head.startRound))
+      case _ => //The meta data is old or the same, so we do need to do nothing
+    }
+    val r = record.getOrElse(new MDCCRecord(None, null))
+    r.metadata = meta
+    putRecord(key, r)
+    src ! Phase1a(key, meta.ballots)
     commitTrx(trx)
-    //pendingUpdates.setMeta(combine(oldMeta, newMeta))
   }
 
-  protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], ballot: MDCCBallot, value: CStruct, newUpdate : Seq[Propose] ) = {
-
+  protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, newUpdates : Seq[Propose] ) = {
+    implicit val trx = startTrx()
+    var record = getRecord(key)
+    val meta = extractMeta(record)
+    val myBallot = getBallot(meta.ballots, reqBallot.round)
+    if(myBallot.isEmpty || myBallot.get.compare(reqBallot) != 0){
+      src ! Phase2bMasterFailure(meta.ballots)
+    }else{
+      pendingUpdates.overwrite(key, value, newUpdates)
+      val r = getRecord(key).get
+      r.metadata.currentVersion = myBallot.get
+      putRecord(key, r)
+      src ! Phase2b(myBallot.get, pendingUpdates.getCStruct(key)) //TODO Ask Gene if this is correct
+    }
+    commitTrx(trx)
   }
 
-  protected def processAccept(src: RemoteServiceProxy[StorageMessage], xid: ScadsXid) = {
-
+  protected def processAccept(src: RemoteServiceProxy[StorageMessage], xid: ScadsXid, commit : Boolean) = {
+    implicit val trx = startTrx()
+    if(commit)
+      pendingUpdates.commit(xid)
+    else
+      pendingUpdates.abort(xid)
+    commitTrx(trx)
   }
 
 
@@ -95,8 +141,8 @@ class MDCCServer(val namespace : String,
       case msg : ProposeSeq =>  processPropose(src, msg)
       case Phase1a(key: Array[Byte], ballot: MDCCBallotRange) => processPhase1a(src, key, ballot)
       case Phase2a(key, ballot, safeValue, proposes ) => processPhase2a(src, key, ballot, safeValue, proposes)
-      case Commit(xid: ScadsXid) =>
-      case Abort(xid: ScadsXid) =>
+      case Commit(xid: ScadsXid) => processAccept(src, xid, true)
+      case Abort(xid: ScadsXid) =>  processAccept(src, xid, false)
       case _ => src ! ProcessingException("Trx Message Not Implemented", "")
     }
   }
