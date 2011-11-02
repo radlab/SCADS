@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
 import collection.mutable.HashMap
 import edu.berkeley.cs.scads.storage.transactions.MDCCBallotRangeHelper._
 import scala.math.max
+import net.lag.logging.Logger
 
 
 class MDCCServer(val namespace : String,
@@ -21,6 +22,8 @@ class MDCCServer(val namespace : String,
                  val recordCache : MDCCRecordCache,
                  val routingTable : MDCCRoutingTable
                  ) extends TrxManager {
+  protected val logger = Logger("MDCCServer")
+  @inline def debug(key : Array[Byte], msg : String, items : scala.Any*) = logger.debug(namespace + ":" + key + ":" + msg, items)
 
 
   def startTrx() : TransactionData= {
@@ -64,14 +67,17 @@ class MDCCServer(val namespace : String,
   }
 
   protected  def processPropose(src: RemoteServiceProxy[StorageMessage], msg : Propose) : Unit = {
+    debug(msg.update.key, "Process propose", src, msg)
     implicit val trx = startTrx()
     val meta = getMeta(msg.update.key)
     val ballot = meta.ballots.head.ballot
     meta.validate() //just to make sure
     if(ballot.fast){
+      debug(msg.update.key, "Fast ballot")
       val cstruct = pendingUpdates.acceptOption(msg.xid, msg.update)
       src ! Phase2b(ballot, cstruct._3)
     }else{
+      debug(msg.update.key, "Classic ballot: We start our own MDCCRecordHandler")
       val recordHandler = recordCache.getOrCreate(
         msg.update.key,
         pendingUpdates.getCStruct(msg.update.key),
@@ -90,14 +96,21 @@ class MDCCServer(val namespace : String,
 
 
   protected def processPhase1a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], newMeta: Seq[MDCCBallotRange]) = {
+    debug(key, "Process Phase1a", src, newMeta)
     implicit val trx = startTrx()
     val record = getRecord(key)
     val meta = extractMeta(record)
     val maxRound = max(meta.ballots.head.startRound, newMeta.head.startRound)
     compareRanges(meta.ballots, newMeta, maxRound) match {
-      case -1 => meta.ballots = newMeta
-      case 2 => meta.ballots = combine(meta.ballots, newMeta, max(meta.ballots.head.startRound, newMeta.head.startRound))
-      case _ => //The meta data is old or the same, so we do need to do nothing
+      case -1 => {
+        debug(key, "Setting new meta", meta.ballots, newMeta, maxRound)
+        meta.ballots = newMeta
+      }
+      case 2 => meta.ballots = {
+        debug(key, "Combining meta", meta.ballots, newMeta, maxRound)
+        combine(meta.ballots, newMeta, max(meta.ballots.head.startRound, newMeta.head.startRound))
+      }
+      case _ => debug(key, "Ignoring message")//The meta data is old or the same, so we do need to do nothing
     }
     val r = record.getOrElse(new MDCCRecord(None, null))
     r.metadata = meta
@@ -107,13 +120,16 @@ class MDCCServer(val namespace : String,
   }
 
   protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, newUpdates : Seq[Propose] ) = {
+    debug(key, "Process Phase2a", src, value, newUpdates)
     implicit val trx = startTrx()
     var record = getRecord(key)
     val meta = extractMeta(record)
     val myBallot = getBallot(meta.ballots, reqBallot.round)
     if(myBallot.isEmpty || myBallot.get.compare(reqBallot) != 0){
+      debug(key, "Sending Master Failure")
       src ! Phase2bMasterFailure(meta.ballots)
     }else{
+      debug(key, "Writing new value")
       pendingUpdates.overwrite(key, value, newUpdates)
       val r = getRecord(key).get
       r.metadata.currentVersion = myBallot.get
