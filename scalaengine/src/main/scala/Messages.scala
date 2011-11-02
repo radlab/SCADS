@@ -9,8 +9,8 @@ import java.util.UUID
 import edu.berkeley.cs.scads.storage.transactions.{MDCCBallot, MDCCBallotRange, MDCCMetadata}
 
 object StorageEnvelope{
-  def unapply(e : Envelope[StorageMessage]) : Option[(RemoteService[StorageMessage], StorageMessage)] = e match {
-    case Envelope(src, msg) => Some((src.get.asInstanceOf[RemoteService[StorageMessage]], msg.asInstanceOf[StorageMessage]) )
+  def unapply(e : Envelope[StorageMessage]) : Option[(RemoteServiceProxy[StorageMessage], StorageMessage)] = e match {
+    case Envelope(src, msg) => Some((src.get.asInstanceOf[RemoteServiceProxy[StorageMessage]], msg.asInstanceOf[StorageMessage]) )
     case _ => None
   }
 }
