@@ -14,14 +14,15 @@ import deploylib._
 import deploylib.mesos._
 
 import edu.berkeley.cs.scads.piql.tpcw._
+import edu.berkeley.cs.scads.piql.exec._
 import edu.berkeley.cs.scads.storage.transactions._
 
 // MDCC version of TpcwLoaderTask.
 case class MDCCTpcwLoaderTask(var numServers: Int,
-                              var numClusters: Int,
                               var numLoaders: Int,
                               var numEBs: Double,
                               var numItems: Int,
+                              var numClusters: Int,
                               var txProtocol: NSTxProtocol) extends DataLoadingTask with AvroRecord {
   var clusterAddress: String = _
   
@@ -36,7 +37,7 @@ case class MDCCTpcwLoaderTask(var numServers: Int,
     if (clientId == 0) retry(5) {
       logger.info("Awaiting scads cluster startup")
       cluster.blockUntilReady(numServers)
-      val client = new MDCCTpcwClient(cluster, new ParallelExecutor, txProtocol)
+      val client = new MDCCTpcwClient(cluster, new SimpleExecutor, txProtocol)
       loader.createNamespacesForClusters(client, numClusters)
       import client._
       List(addresses,
@@ -50,7 +51,7 @@ case class MDCCTpcwLoaderTask(var numServers: Int,
     }
     coordination.registerAndAwait("namespacesReady", numLoaders)
 
-    val tpcwClient = new MDCCTpcwClient(cluster, new ParallelExecutor, txProtocol)
+    val tpcwClient = new MDCCTpcwClient(cluster, new SimpleExecutor, txProtocol)
     coordination.registerAndAwait("startBulkLoad", numLoaders)
     logger.info("Begining bulk loading of data")
     loader.namespaces(tpcwClient).foreach(_.load(clientId, numLoaders))
