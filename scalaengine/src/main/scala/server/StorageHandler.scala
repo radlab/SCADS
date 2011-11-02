@@ -268,7 +268,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
 
       /* Make partition handler */
       val db      = makeDatabase(request.namespace, keySchemaFor(request.namespace), None)
-      val handler = makeBdbPartitionHandler(db, request.namespace, partitionIdLock, request.startKey, request.endKey, "2PC")  //TODO we need to store the trx protocol type
+      val handler = makeBdbPartitionHandler(db, request.namespace, partitionIdLock, request.startKey, request.endKey, request.trxProtocol)  //TODO we need to store the trx protocol type
 			//val handler = makePartitionHandlerWithAC(db, acdb, request.namespace, partitionIdLock, request.startKey, request.endKey)
 
       /* Add to our list of open partitions */
