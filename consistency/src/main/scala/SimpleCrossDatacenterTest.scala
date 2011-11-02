@@ -37,13 +37,24 @@ object Experiment extends ExperimentBase {
     c.foreach(_.restart)
   }
 
+  var task: Task = null
+
   def run(c: Seq[deploylib.mesos.Cluster] = clusters): Unit = {
+    stopCluster
     if (c.size < 1) {
       logger.error("cluster list must not be empty")
     } else if (c.head.slaves.size < 2) {
       logger.error("first cluster must have at least 2 slaves")
     } else {
-      Task().schedule(resultClusterAddress, c)
+      task = Task()
+      task.schedule(resultClusterAddress, c)
+    }
+  }
+
+  def stopCluster() = {
+    if (task != null) {
+      task.stopCluster
+      task = null
     }
   }
 }
@@ -84,12 +95,25 @@ case class Task()
     clusterAddress = scadsCluster.root.canonicalAddress
 
     // Start loaders.
-    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, numClusters, 1, numEBs=15, numItems=1000, txProtocol=NSTxProtocol2pc()).getLoadingTasks(clusters.head.classSource, scadsCluster.root)
+    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, 1, numEBs=15, numItems=1000, numClusters=numClusters, txProtocol=NSTxProtocol2pc()).getLoadingTasks(clusters.head.classSource, scadsCluster.root)
     clusters.head.serviceScheduler.scheduleExperiment(loaderTasks)
+
+    // Start clients.
+    val tpcwTasks = MDCCTpcwWorkflowTask(
+      numClients=1,
+      executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
+      iterations=1,
+      runLengthMin=1).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress)
+    clusters.head.serviceScheduler.scheduleExperiment(tpcwTasks)
 
     // Start the task.
 //    val task1 = this.toJvmTask(clusters.head.classSource)
 //    clusters.head.serviceScheduler.scheduleExperiment(task1 :: Nil)
+  }
+
+  def stopCluster() = {
+    val cluster = new ExperimentalScadsCluster(ZooKeeperNode(clusterAddress))
+    cluster.shutdown
   }
 
   def run(): Unit = {

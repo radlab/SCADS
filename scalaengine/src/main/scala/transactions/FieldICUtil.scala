@@ -2,13 +2,13 @@ package edu.berkeley.cs.scads.storage.transactions
 
 import edu.berkeley.cs.scads.storage._
 
-import org.apache.avro.specific.SpecificRecord
+import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.Schema
 import edu.berkeley.cs.avro.marker.{AvroRecord, AvroPair}
 
 // This class parses annotations and creates field integrity constraint lists.
 // This works for both AvroPair and AvroRecord.
-class FieldICUtil[V <: SpecificRecord](implicit valueManifest: Manifest[V]) {
+class FieldICUtil[V <: IndexedRecord](implicit valueManifest: Manifest[V]) {
 
   private val valueSchema = valueManifest.erasure.asInstanceOf[Class[V]].newInstance match {
     case p: AvroPair => p.value.getSchema

@@ -55,10 +55,10 @@ abstract trait DataLoadingTask extends ExperimentTask {
     (serverProcs ++ loaderProcs, new ScadsCluster(clusterRoot))
   }
 
-  // zookeeperRoot is the actual root of the cluster, and should already be
+  // scadsClusterRoot is the actual root of the cluster, and should already be
   // created before calling this method.
-  def getLoadingTasks(implicit classpath: Seq[ClassSource], zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): Seq[JvmTask] = {
-    clusterAddress = zookeeperRoot.canonicalAddress
+  def getLoadingTasks(implicit classpath: Seq[ClassSource], scadsClusterRoot: ZooKeeperProxy#ZooKeeperNode): Seq[JvmTask] = {
+    clusterAddress = scadsClusterRoot.canonicalAddress
     val loaderProcs = List.fill(numLoaders)(this.toJvmTask)
     loaderProcs
   }
@@ -91,6 +91,18 @@ abstract trait ReplicatedExperimentTask extends ExperimentTask {
     experimentAddress = experimentRoot.canonicalAddress
     clusterAddress = cluster.root.canonicalAddress
     resultClusterAddress = resultCluster.root.canonicalAddress
+
+    val task = this.toJvmTask
+    Array.fill(numClients)(task)
+  }
+
+  // scadsClusterRoot is the actual root of the cluster, and should already be
+  // created before calling this method.
+  def getExperimentTasks(implicit classpath: Seq[ClassSource], scadsClusterRoot: ZooKeeperProxy#ZooKeeperNode, resultClusterAddress: String): Seq[JvmTask] = {
+    val experimentRoot = scadsClusterRoot.getOrCreate("experiments").createChild("experiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
+    experimentAddress = experimentRoot.canonicalAddress
+    clusterAddress = scadsClusterRoot.canonicalAddress
+    this.resultClusterAddress = resultClusterAddress
 
     val task = this.toJvmTask
     Array.fill(numClients)(task)
