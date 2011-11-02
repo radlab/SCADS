@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
 import collection.mutable.HashMap
 import edu.berkeley.cs.scads.storage.transactions.MDCCBallotRangeHelper._
 import scala.math.max
-import net.lag.logging.Logger
+import edu.berkeley.cs.scads.util.Logger
 
 
 class MDCCServer(val namespace : String,
@@ -22,8 +22,8 @@ class MDCCServer(val namespace : String,
                  val recordCache : MDCCRecordCache,
                  val routingTable : MDCCRoutingTable
                  ) extends TrxManager {
-  protected val logger = Logger("MDCCServer")
-  @inline def debug(key : Array[Byte], msg : String, items : scala.Any*) = logger.debug(namespace + ":" + key + ":" + msg, items)
+  protected val logger = Logger(classOf[MDCCServer])
+  @inline def debug(key : Array[Byte], msg : String, items : scala.Any*) = logger.debug(msg + " -> " + namespace + ":" + key, items)
 
 
   def startTrx() : TransactionData= {

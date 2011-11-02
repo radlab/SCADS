@@ -8,7 +8,7 @@ import comm._
 import scala.math.{floor, ceil, min, max}
 import MDCCBallotRangeHelper._
 
-import net.lag.logging.Logger
+import edu.berkeley.cs.scads.util.Logger
 
 import java.lang.Thread
 import java.util.Calendar
@@ -39,7 +39,7 @@ class MCCCTrxHandler(tx: Tx) extends Actor {
 
   var callbacks : Seq[(Boolean) => Unit] = Nil
 
-  protected val logger = Logger("MCCCTrxHandler")
+  protected val logger = Logger(classOf[MCCCTrxHandler])
 
   implicit val remoteHandle = StorageRegistry.registerActor(this).asInstanceOf[RemoteService[StorageMessage]]
 
@@ -209,7 +209,7 @@ class MCCCRecordHandler (
        var confirmedVersion : Boolean, //Is the version confirmed by a majority?
        var resolver : ConflictResolver
   ) extends Actor {
-  protected val logger = Logger("MCCCRecordHandler")
+  protected val logger = Logger(classOf[MCCCRecordHandler])
   @inline def debug(msg : String, items : scala.Any*) = logger.debug("" + key + ":" + status + " " + msg, items)
 
   import ServerMessageHelper._
