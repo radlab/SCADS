@@ -58,7 +58,7 @@ class TestTx {
     dr.id = 2
     nsPair.put(dr)
 
-    new Tx(100) ({
+    new Tx(300) ({
       List.range(3, 3 + 2).foreach(x => {
         dr.s = "b"
         dr.id = x

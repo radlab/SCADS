@@ -1,11 +1,12 @@
 package edu.berkeley.cs.scads.storage.transactions
 
-import mdcc.MDCCHandler
+import mdcc.MDCCTrxHandler
 import net.lag.logging.Logger
 
 import java.lang.Thread
 import java.util.Calendar
 import prot2pc.Protocol2pc
+import mdcc.MDCCProtocol
 
 import edu.berkeley.cs.avro.marker._
 
@@ -26,7 +27,7 @@ case class NSTxProtocolNone() extends AvroRecord with NSTxProtocol
 case class NSTxProtocol2pc() extends AvroRecord with NSTxProtocol
 case class NSTxProtocolMDCC() extends AvroRecord with NSTxProtocol
 
-class Tx(timeout: Int, readType: ReadConsistency = ReadConsistent())(mainFn: => Unit) {
+class Tx(val timeout: Int, val readType: ReadConsistency = ReadConsistent())(mainFn: => Unit) {
   var unknownFn = () => {}
   var acceptFn = () => {}
   var commitFn = (status: TxStatus) => {}
@@ -67,7 +68,7 @@ class Tx(timeout: Int, readType: ReadConsistency = ReadConsistent())(mainFn: => 
     protocolMap.getProtocol() match {
       case NSTxProtocolNone() =>
       case NSTxProtocol2pc() => Protocol2pc.RunProtocol(this)
-      case NSTxProtocolMDCC() => MDCCHandler.RunProtocol(this)
+      case NSTxProtocolMDCC() => MDCCProtocol.RunProtocol(this)
       case null => throw new RuntimeException("All namespaces in the transaction must have the same protocol.")
     }
     val endMS = java.util.Calendar.getInstance().getTimeInMillis()

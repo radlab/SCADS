@@ -3,159 +3,15 @@ package storage
 package transactions
 package mdcc
 
-import _root_.edu.berkeley.cs.avro.marker.AvroRecord
 import comm._
 import scala.math.{floor, ceil, min, max}
 import MDCCBallotRangeHelper._
 
-import edu.berkeley.cs.scads.util.Logger
-
-import java.lang.Thread
-import java.util.Calendar
-
-import java.util.concurrent.atomic.AtomicInteger
-import util.{LRUMap}
+import edu.berkeley.cs.scads.util.{Logger, Scheduler}
 import org.apache.avro.generic.IndexedRecord
 import conflict.ConflictResolver
 import actors.{TIMEOUT, Actor}
-import compat.Platform
-import java.util.concurrent.{TimeUnit, Executors}
-import collection.mutable.{ArrayBuffer, SynchronizedSet, HashSet, HashMap}
-
-//import tools.nsc.matching.ParallelMatching.MatchMatrix.VariableRule
-object MDCCHandler extends ProtocolBase {
-  def RunProtocol(tx: Tx) = {
-    val trxHandler = new MCCCTrxHandler(tx)
-    trxHandler.start()
-  }
-}
-
-class MCCCTrxHandler(tx: Tx) extends Actor {
-  var status: TxStatus = UNKNOWN
-  var Xid = ScadsXid.createUniqueXid()
-  var count = 0
-  var size = 0
-  var participants = HashSet[MCCCRecordHandler]()
-
-  var callbacks : Seq[(Boolean) => Unit] = Nil
-
-  protected val logger = Logger(classOf[MCCCTrxHandler])
-
-  implicit val remoteHandle = StorageRegistry.registerActor(this).asInstanceOf[RemoteService[StorageMessage]]
-
-
-
-  protected def startTrx(updateList: UpdateList, readList: ReadList) = {
-    updateList.getUpdateList.foreach(update => {
-      size += 1
-      update match {
-        case ValueUpdateInfo(ns, servers, key, value) => {
-          val oldRrecord = readList.getRecord(key)
-          val md : MDCCMetadata = oldRrecord.map(_.metadata).getOrElse(ns.getDefaultMeta())
-          //TODO: Do we really need the MDCCMetadata
-          val propose = Propose(Xid, ValueUpdate(key, oldRrecord.flatMap(_.value), value.get))  //TODO: We need a read-strategy
-          val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), servers, md, ns.getConflictResolver)
-          participants += rHandler
-          logger.info("" + Xid + ": Sending physical update propose to MCCCRecordHandler", propose)
-          rHandler.remoteHandle ! propose
-        }
-        case LogicalUpdateInfo(ns, servers, key, value) => {
-          val md = readList.getRecord(key).map(_.metadata).getOrElse(ns.getDefaultMeta())
-          val propose = Propose(Xid, LogicalUpdate(key, value.get))
-          val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), servers, md, ns.getConflictResolver)  //TODO: Gene is the CStruct correct?
-          participants += rHandler
-          logger.debug("" + Xid + ": Sending logical update propose to MCCCRecordHandler", propose)
-          rHandler.remoteHandle ! propose
-        }
-      }
-    })
-  }
-
-  def notifyAcceptors() = {
-    if (status == COMMITTED)
-      participants.foreach(_.remoteHandle !  edu.berkeley.cs.scads.storage.Commit(Xid))
-    else if(status == ABORTED)
-      participants.foreach(_.remoteHandle !  edu.berkeley.cs.scads.storage.Abort(Xid))
-    else assert(false)
-  }
-
-  def act() {
-    startTrx(tx.updateList, tx.readList)
-    loop {
-      react {
-        case Learned(_, _, false) => {
-          assert(status != COMMITTED)
-          if(status == UNKNOWN) {
-            logger.debug("" + Xid + ": Receive record abort")
-            logger.info("Transaction " + Xid + " aborted")
-            status = ABORTED
-            this ! EXIT
-          }
-        }
-        case Learned(_, _, true) => {
-          count += 1
-          logger.debug("" + Xid + ": Receive record commit")
-          if(count == size && status == UNKNOWN){
-            status = COMMITTED
-            this ! EXIT
-            logger.info("Transaction " + Xid + " committed")
-          }
-        }
-        case EXIT => {
-          logger.debug("" + Xid + ": Exit requested")
-          callbacks.foreach(_(status == COMMITTED))
-          notifyAcceptors
-          StorageRegistry.unregisterService(remoteHandle)
-          exit()
-        }
-        case _ =>
-          throw new RuntimeException("Unknown message")
-
-      }
-    }
-  }
-}
-
-
-class MDCCRecordCache() {
-
-  val CACHE_SIZE = 500
-
-  //TODO: If we wanna use the cache for reads, we should use a lock-free structure
-  lazy val cache = new LRUMap[Array[Byte], MCCCRecordHandler](CACHE_SIZE, None, killHandler){
-      protected override def canExpire(k: Array[Byte], v: MCCCRecordHandler): Boolean = v.getStatus == READY
-    }
-
-  def killHandler (key : Array[Byte], handler :  MCCCRecordHandler) = handler ! EXIT
-
-  def get(key : Array[Byte]) : Option[MCCCRecordHandler] = {
-    cache.synchronized{
-      cache.get(key)
-    }
-  }
-
-  def getOrCreate(key : Array[Byte],
-                  value : CStruct,
-                  servers: Seq[PartitionService],
-                  mt: MDCCMetadata,
-                  conflictResolver : ConflictResolver,
-                  confirmedBallot : Boolean = false,
-                  confirmedVersion : Boolean = false
-                  ) : MCCCRecordHandler = {
-    cache.synchronized{
-      cache.get(key) match {
-        case None => {
-          var handler = new MCCCRecordHandler(key, value, servers, mt.currentVersion, mt.ballots, confirmedBallot, confirmedVersion, conflictResolver)
-          handler.start()
-          cache.update(key, handler)
-          handler
-        }
-        case Some(v) => v
-      }
-    }
-  }
-
-}
+import collection.mutable.{HashMap, ArrayBuffer}
 
 
 sealed trait RecordStatus {def name: String}
@@ -181,14 +37,6 @@ case object CSTABLE_UNVOTED_NEXT_CLASSIC extends BallotStatus {val name = "CSTAB
 case object CSTABLE_UNVOTED_NEXT_FAST extends BallotStatus {val name = "CSTABLE_UNVOTED_NEXT_FAST"}
 case object CSTABLE_NEXT_UNDEFINED extends BallotStatus {val name = "CSTABLE_NEXT_UNDEFINED"}
 case object CUNSTABLE extends BallotStatus {val name = "CUNSTABLE"}
-
-
-//
-//case object CUNSTABLE_VOTED_NEXT_FAST extends BallotStatus {val name = "CUNSTABLE_VOTED_NEXT_FAST"}
-//case object CUNSTABLE_UNVOTED_NEXT_FAST extends BallotStatus {val name = "CUNSTABLE_UNVOTED_NEXT_FAST"}
-//case object CUNSTABLE_UNVOTED_NEXT_CLASSIC extends BallotStatus {val name = "CUNSTABLE_UNVOTED_NEXT_CLASSIC"}
-//case object CUNSTABLE_VOTED_NEXT_UNDEFINED extends BallotStatus {val name = "CUNSTABLE_VOTED_NEXT_UNDEFINED"}
-//case object CUNSTABLE_UNVOTED_NEXT_UNDEFINED extends BallotStatus {val name = "CUNSTABLE_UNVOTED_NEXT_UNDEFINED"}
 
 object ServerMessageHelper {
   class SMH(s: Seq[PartitionService]) {
@@ -229,6 +77,7 @@ class MCCCRecordHandler (
   private var request : Envelope[StorageMessage] = null
 
   override def hashCode() = key.hashCode()
+
 
   override def equals(that: Any): Boolean = that match {
      case other: MCCCRecordHandler => key == other.key
@@ -287,30 +136,6 @@ class MCCCRecordHandler (
           }
         }else{
           return CUNSTABLE
-//          //Current round is not stable and not fast. So we need to do something
-//          val nextRange = topBallot(ballots, version.round + 1)
-//          if (nextRange.isDefined) {
-//            if(nextRange.get.fast){
-//              if(confirmedBallot){
-//                return CUNSTABLE_VOTED_NEXT_FAST
-//              }else{
-//                return CUNSTABLE_UNVOTED_NEXT_FAST
-//              }
-//            }else{
-//              //OK, so we have a next classic round
-//              if(confirmedBallot){
-//                return CUNSTABLE_VOTED_NEXT_CLASSIC
-//              }else{
-//                return CUNSTABLE_UNVOTED_NEXT_CLASSIC
-//              }
-//            }
-//          }else{
-//            if(confirmedBallot){
-//                return CUNSTABLE_VOTED_NEXT_UNDEFINED
-//              }else{
-//                return CUNSTABLE_UNVOTED_NEXT_UNDEFINED
-//            }
-//          }
         }
       }
     }
@@ -421,7 +246,6 @@ class MCCCRecordHandler (
   def resolveConflict(){
 
   }
-
 
 
   def SendProposal(src: ServiceType, propose : Propose) = {
@@ -687,40 +511,7 @@ class MCCCRecordHandler (
       }
       clear()
     }
-
-
-
-//
-//    val success =
-//      if(isFast(meta) && quorum.size >= fastQuorum) {
-//        learnedValue = resolver.provedSafe(quorum.map(v => v._2.asInstanceOf[Phase2b].value), fastQuorum)
-//        true
-//      }else if(!isFast(meta) && quorum.size >= classicQuorum){
-//        learnedValue = resolver.provedSafe(quorum.map(v => v._2.asInstanceOf[Phase2b].value), classicQuorum)
-//        true
-//      }else{
-//        false
-//      }
-//    if(success) {
-//      initRequest match {
-//        case Envelope(src, Propose(xid, update)) => checkAndNotify(src, xid)
-//        case _ => //nobody to inform
-//      }
-//    }
   }
-
-//  def checkAndNotify(src : Option[RemoteService[IndexedRecord]], xid : ScadsXid ) = {
-//    val cmd = learnedValue.commands.find(_.xid == xid)
-//    if(cmd.isDefined){
-//      assert(src.isDefined)
-//      src.get ! Learned(xid, key, cmd.get.commit)
-//      clear()
-//    }else{
-//      throw new RuntimeException("What should we do? Restart?")
-//    }
-//  }
-
-
 }
 
 object MCCCRecordHandler {
@@ -728,13 +519,3 @@ object MCCCRecordHandler {
 }
 
 
-object Scheduler {
-    private lazy val sched = Executors.newSingleThreadScheduledExecutor();
-    def schedule(f: => Unit, time : Long) {
-        sched.schedule(new Runnable {
-          def run = {
-            actors.Scheduler.execute(f)
-          }
-        }, time - Platform.currentTime, TimeUnit.MILLISECONDS);
-    }
-}

@@ -194,7 +194,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
   private var valueICs: FieldICList = null
 
-  private var conflictResolver: ConflictResolver = null
+  private var conflictResolver: ConflictResolver = null //TODO Gene, is this value ever set?
 
   def setICs(ics: FieldICList) = {
     valueICs = ics
