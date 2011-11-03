@@ -10,6 +10,7 @@ import java.util.Arrays
 import java.io._
 import org.apache.avro.Schema
 import edu.berkeley.cs.avro.marker._
+import edu.berkeley.cs.scads.util.Logger
 
 // TODO: Make thread-safe.  It might already be, by using TxDB
 
@@ -175,6 +176,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                                override val factory: TxDBFactory,
                                val keySchema: Schema,
                                val valueSchema: Schema) extends PendingUpdates {
+
+  protected val logger = Logger(classOf[PendingUpdatesController])
+
   // Transaction state info. Maps txid -> txstatus/decision.
   private val txStatus = factory.getNewDB[ScadsXid, TxStatusEntry](
     db.getName + ".txstatus",
@@ -238,10 +242,11 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
           // Add the updates to the pending list, if compatible.
           if (newUpdateResolver.isCompatible(xid, commandsInfo, storedMDCCRec, r)) {
-            // No conflict
+            logger.debug("Update is compatible %s %s %s %s", xid, commandsInfo, storedMDCCRec, r)
             commandsInfo.appendCommand(CStructCommand(xid, r, true, true))
             pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
           } else {
+            logger.debug("Update is not compatible  %s %s %s %s", xid, commandsInfo, storedMDCCRec, r)
             success = false
           }
           (r.key, CStruct(commandsInfo.base, commandsInfo.commands))
@@ -250,8 +255,10 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
         }
       })
     } catch {
-      case e: Exception => {}
-      success = false
+      case e: Exception => {
+        logger.debug("acceptOptionTxn Exception %s", e)
+        success = false
+      }
     }
     if (success) {
       pendingCStructs.txCommit(pendingCommandsTxn)
@@ -461,6 +468,8 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
                         val ics: FieldICList) {
   val avroUtil = new SpecificRecordUtil(valueSchema)
   val logicalRecordUpdater = new LogicalRecordUpdater(valueSchema)
+
+  protected val logger = Logger(classOf[NewUpdateResolver])
 
   def isCompatible(xid: ScadsXid,
                    commandsInfo: PendingCommandsInfo,

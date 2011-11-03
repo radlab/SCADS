@@ -58,7 +58,7 @@ class MCCCRecordHandler (
        var resolver : ConflictResolver
   ) extends Actor {
   protected val logger = Logger(classOf[MCCCRecordHandler])
-  @inline def debug(msg : String, items : scala.Any*) = logger.debug("" + key + ":" + status + " " + msg, items)
+  @inline def debug(msg : String, items : scala.Any*) = logger.debug("" + key + ":" + status + " " + msg, items:_*)
 
   import ServerMessageHelper._
 
@@ -230,12 +230,13 @@ class MCCCRecordHandler (
               //TODO
             }
             case TIMEOUT =>
-             react {
+             reactWithin(0) {
               case env@StorageEnvelope(src, x: Propose) if status == READY=> {
                 debug("Propose request", env)
                 request = env
                 SendProposal(src, x)
-              }
+                }
+              case TIMEOUT =>
             }
           }
         }
@@ -253,7 +254,7 @@ class MCCCRecordHandler (
     ballotStatus match {
      case FAST_BALLOT => {
         status = FAST_PROPOSED
-        debug("Sending fast propose")
+        debug("Sending fast propose from " + remoteHandle + " to " + servers.mkString(":"))
         servers.foreach(_ ! propose)
       }
       case VOTED_SWITCH_TO_CLASSIC | UNVOTED_SWITCH_TO_CLASSIC => {
@@ -310,7 +311,7 @@ class MCCCRecordHandler (
 
   //TODO: At the moment we agree on the full meta data, we could also just agree on the new value
   def processPhase1b(src : ServiceType, msg : Phase1b) = {
-    debug("Processing Phase1b", src, msg)
+    debug("Processing Phase1b: src:%s msg:%s", src, msg)
     assert(status == PHASE1A)
     //We take the max for comparing/combining ranges, as it only can mean, we are totally outdated
     val maxRound = max(msg.meta.currentVersion.round, version.round)
@@ -462,6 +463,7 @@ class MCCCRecordHandler (
 
 
   def processPhase2b(src : ServiceType, msg : Phase2b) = {
+    debug("Received 2b message %s %s", msg, src)
     currentBallot.compare(msg.ballot) match {
       case 0 => {
         responses += src -> msg
@@ -479,8 +481,11 @@ class MCCCRecordHandler (
 
     val quorum = if(currentBallot.fast) fastQuorum else classicQuorum
     if(responses.size >= quorum){
-      val values = responses.map(_._1.asInstanceOf[Phase2b].value).toSeq
+      debug("We got a quorum")
+      val values = responses.map(_._2.asInstanceOf[Phase2b].value).toSeq
       val tmp = resolver.provedSafe(values, quorum, quorum, servers.size)
+      debug("ProvedSafe CStruct: %s", tmp._1)
+      debug("Unsafe commands:s %s", tmp._2)
       value = tmp._1
       unsafeCommands = tmp._2
       confirmedVersion = true
@@ -488,8 +493,10 @@ class MCCCRecordHandler (
         case msg@StorageEnvelope(src, propose: Propose)  =>  {
           val cmd = value.commands.find(_.xid == propose.xid)
           if(cmd.isDefined){
+            debug("We learned the value, lets inform the requester")
             src ! Learned(propose.xid, key, cmd.get.commit)
           }else{
+            debug("We did not learn our transaction, so we trying it again")
             this ! msg //We should try it again
           }
         }

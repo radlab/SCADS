@@ -23,7 +23,7 @@ class MDCCServer(val namespace : String,
                  val routingTable : MDCCRoutingTable
                  ) extends TrxManager {
   protected val logger = Logger(classOf[MDCCServer])
-  @inline def debug(key : Array[Byte], msg : String, items : scala.Any*) = logger.debug(msg + " -> " + namespace + ":" + key, items)
+  @inline def debug(key : Array[Byte], msg : String, items : scala.Any*) = logger.debug(msg + " -> " + namespace + ":" + key, items:_*)
 
 
   def startTrx() : TransactionData= {
@@ -73,8 +73,8 @@ class MDCCServer(val namespace : String,
     val ballot = meta.ballots.head.ballot
     meta.validate() //just to make sure
     if(ballot.fast){
-      debug(msg.update.key, "Fast ballot")
       val cstruct = pendingUpdates.acceptOption(msg.xid, msg.update)
+      debug(msg.update.key, "Replying with 2b to fast ballot source:%s cstruct:cstruct", src, cstruct)
       src ! Phase2b(ballot, cstruct._3)
     }else{
       debug(msg.update.key, "Classic ballot: We start our own MDCCRecordHandler")

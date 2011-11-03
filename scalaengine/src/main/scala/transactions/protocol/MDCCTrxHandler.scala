@@ -86,32 +86,30 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
   def act() {
     logger.debug("Starting to wait for messages. Setting timeout:" + tx.timeout)
     Scheduler.schedule(() => {
-      println("Timeout requested")
       this ! TIMEOUT}, tx.timeout)
     startTrx(tx.updateList, tx.readList)
     loop {
       react {
-        case Learned(_, _, false) => {
-          assert(status != COMMITTED)
-          if(status == UNKNOWN) {
-            logger.debug("" + Xid + ": Receive record abort")
-            logger.info("Transaction " + Xid + " aborted")
-            status = ABORTED
-            this ! EXIT
-            sema.release()
-          }
-        }
-        case Learned(_, _, true) => {
-          count += 1
-          logger.debug("" + Xid + ": Receive record commit")
-          if(count == size && status == UNKNOWN){
-            logger.info("Transaction " + Xid + " committed")
-            status = COMMITTED
-            this ! EXIT
-            sema.release()
+        case StorageEnvelope(src, msg@Learned(_, _, success)) => {
+          if(success) {
+            count += 1
+            logger.debug("" + Xid + ": Receive record commit")
+            if(count == size && status == UNKNOWN){
+              logger.info("Transaction " + Xid + " committed")
+              status = COMMITTED
+              this ! EXIT
+            }
+          }else{
+            if(status == UNKNOWN) {
+              logger.debug("" + Xid + ": Receive record abort")
+              logger.info("Transaction " + Xid + " aborted")
+              status = ABORTED
+              this ! EXIT
+            }
           }
         }
         case EXIT => {
+          sema.release()
           logger.debug("" + Xid + ": Exit requested")
           notifyAcceptors
           StorageRegistry.unregisterService(remoteHandle)
@@ -121,8 +119,8 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
           logger.debug("" + Xid + "Time out")
           sema.release()
         }
-        case _ =>
-          throw new RuntimeException("Unknown message")
+        case msg@_ =>
+          throw new RuntimeException("Unknown message" + msg)
 
       }
     }

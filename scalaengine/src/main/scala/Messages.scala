@@ -133,9 +133,14 @@ case class RoutingTableMessage(var partitions: Seq[KeyRange]) extends AvroRecord
 
 
 // Pending means the command is not decided yet.
-case class CStructCommand(var xid: ScadsXid, var command: RecordUpdate, var pending: Boolean, var commit: Boolean) extends AvroRecord
+case class CStructCommand(var xid: ScadsXid, var command: RecordUpdate, var pending: Boolean, var commit: Boolean) extends AvroRecord {
+  override def toString = "(" + xid + ":" + command + " p:" + pending + " c:" + commit + ")"
+}
+
 // TODO: Does 'value' need to be an MDCCRecord?
-case class CStruct(var value: Option[Array[Byte]], var commands: Seq[CStructCommand]) extends AvroRecord
+case class CStruct(var value: Option[Array[Byte]], var commands: Seq[CStructCommand]) extends AvroRecord {
+  override def toString = "CStruct[" + value + "->" + commands.mkString(",") + "]"
+}
 // TODO: For now, split out the cstructs from the actual record.
 // The value is the serialized version of the namespace's value type.
 case class MDCCRecord(var value: Option[Array[Byte]], var metadata: MDCCMetadata) extends AvroRecord with StorageMessage
@@ -184,6 +189,7 @@ case class ScadsXid(var tid: Long, var bid: Long) extends AvroRecord {
     // Long is 8 bytes
     ByteBuffer.allocate(16).putLong(tid).putLong(bid).array
   }
+  override def toString = "TID:"  + tid % 100 + ":" + bid % 100
 }
 
 object ScadsXid {
@@ -203,7 +209,9 @@ sealed trait MDCCProtocol extends TrxMessage
 
 case class ResolveConflict(var key: Array[Byte], var ballots: MDCCBallot) extends AvroRecord with MDCCProtocol
 
-case class Recovered(var key: Array[Byte], var value: CStruct, var ballots: MDCCMetadata) extends AvroRecord with MDCCProtocol
+case class Recovered(var key: Array[Byte], var value: CStruct, var ballots: MDCCMetadata) extends AvroRecord with MDCCProtocol {
+
+}
 
 case class BeMaster(var key: Array[Byte], var startRound: Long, var endRound: Long, var fast : Boolean) extends AvroRecord with MDCCProtocol
 
