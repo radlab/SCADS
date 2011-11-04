@@ -508,18 +508,6 @@ class BdbStorageManager(val db: Database,
     })
   }
 
-  override def accept(xid: ScadsXid, updates: Seq[RecordUpdate]): (Boolean, Seq[(Array[Byte], CStruct)]) = {
-    pendingUpdates.acceptOptionTxn(xid, updates)
-  }
-
-  override def commit(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean = {
-    pendingUpdates.commit(xid, updates)
-  }
-
-  override def abort(xid: ScadsXid) = {
-    pendingUpdates.abortTxn(xid)
-  }
-
   private def initCursor(cursor: Cursor) = {
     val dbeKey = new DatabaseEntry
     val dbeValue = new DatabaseEntry

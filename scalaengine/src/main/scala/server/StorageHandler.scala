@@ -21,6 +21,7 @@ import scala.collection.mutable.{ Set => MSet, HashSet }
 
 import org.apache.zookeeper.KeeperException.NodeExistsException
 import transactions._
+import transactions.conflict._
 import transactions.mdcc._
 object StorageHandler {
   val idGen = new AtomicLong
@@ -132,6 +133,23 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     (new Schema.Parser().parse(keySchema),new Schema.Parser().parse(valueSchema),valueClass)
   }
 
+  private def makeBDBPendingUpdates(database: Database, namespace: String) = {
+    val schemasvc = schemasAndValueClassFor(namespace)
+    val pu = new PendingUpdatesController(
+      new BDBTxDB[Array[Byte], Array[Byte]](
+        database,
+        new ByteArrayKeySerializer[Array[Byte]],
+        new ByteArrayValueSerializer[Array[Byte]]),
+      new BDBTxDBFactory(database.getEnvironment),
+      schemasvc._1, schemasvc._2)
+
+    getNamespaceRoot(namespace).get("valueICs").foreach(icBytes => {
+      val reader = new AvroSpecificReaderWriter[FieldICList](None)
+      pu.setICs(reader.deserialize(icBytes.data))
+    })
+    pu
+  }
+
   /** 
    * Preconditions:
    *   (1) namespace is a valid namespace in zookeeper
@@ -151,10 +169,10 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
         database,
         new ByteArrayKeySerializer[Array[Byte]],
         new ByteArrayValueSerializer[Array[Byte]]),
-      new BDBTxDBFactory(database.getEnvironment),
       trxMgrType,
       handler,
-      storageMgr
+      storageMgr,
+      makeBDBPendingUpdates(database, namespace)
     )
     handler
   }
@@ -166,17 +184,17 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     val schemasvc = schemasAndValueClassFor(namespace)
     val storageMgr = new InMemStorageManager(partitionIdLock, startKey, endKey, getNamespaceRoot(namespace),schemasvc._1, schemasvc._2, schemasvc._3)
     val handler = new PartitionHandler(storageMgr)
-    handler.trxManager = makeTrxMgr(namespace, partitionIdLock, null, null, trxMgrType, null, storageMgr)  //TODO create TxDB and factory
+    handler.trxManager = makeTrxMgr(namespace, partitionIdLock, null, trxMgrType, null, storageMgr, null)  //TODO create TxDB and factory
     handler
   }
 
   private def makeTrxMgr(namespace:String,
                          partitionIdLock:ZooKeeperProxy#ZooKeeperNode,
                          db: TxDB[Array[Byte], Array[Byte]],
-                         factory: TxDBFactory,
                          trxMgrType : String,
                          handler : PartitionHandler,
-                         storageMgr : StorageManager) : TrxManager = {
+                         storageMgr : StorageManager,
+                         pu: PendingUpdates) : TrxManager = {
       //TODO The protocol should be a singleton per namespace not partitonHandler
     val schemasvc = schemasAndValueClassFor(namespace)
     val nsRoot = getNamespaceRoot(namespace)
@@ -184,18 +202,16 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
       case "2PC" =>
         val partition = PartitionService(handler.remoteHandle, partitionIdLock.name, StorageService(remoteHandle))
         val defaultMeta = MDCCMetaDefault.getOrCreateDefault(nsRoot, partition)
-        new Protocol2PCManager(storageMgr, PartitionService(handler.remoteHandle, partitionIdLock.name, StorageService(remoteHandle)))
+        new Protocol2PCManager(pu, storageMgr, PartitionService(handler.remoteHandle, partitionIdLock.name, StorageService(remoteHandle)))
       case "MDCC" => {
         assert(db != null)
-        assert(factory != null)
         ProtocolMDCCServer.createMDCCProtocol(
           namespace,
           nsRoot,
           db,
-          factory,
           PartitionService(handler.remoteHandle, partitionIdLock.name, StorageService(remoteHandle)),
           schemasvc._1,
-          schemasvc._2)
+          pu)
       }
       case _ => null
     }

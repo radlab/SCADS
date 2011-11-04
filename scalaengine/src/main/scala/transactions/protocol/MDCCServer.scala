@@ -166,26 +166,12 @@ class MDCCServer(val namespace : String,
 
 object ProtocolMDCCServer {
 
-  protected lazy val PUControllers = new HashMap[String, PendingUpdates]
-
-
   def createMDCCProtocol(namespace : String,
-                 nsRoot : ZooKeeperProxy#ZooKeeperNode,
-                 db: TxDB[Array[Byte], Array[Byte]],
-                 factory: TxDBFactory,
-                 partition : PartitionService,
-                 keySchema: Schema,
-                 valueSchema: Schema) : MDCCServer = {
-    var puController : PendingUpdates = null
-    PUControllers.synchronized{
-      PUControllers.get(namespace) match {
-        case None => {
-          puController = new PendingUpdatesController(db, factory, keySchema, valueSchema)
-          PUControllers.put(namespace, puController)
-        }
-        case Some(controller) => puController = controller
-      }
-    }
+                         nsRoot : ZooKeeperProxy#ZooKeeperNode,
+                         db: TxDB[Array[Byte], Array[Byte]],
+                         partition : PartitionService,
+                         keySchema: Schema,
+                         puController: PendingUpdates) : MDCCServer = {
     val defaultMeta = MDCCMetaDefault.getOrCreateDefault(nsRoot, partition)
 
     new MDCCServer(namespace, db, partition, puController, defaultMeta, new MDCCRecordCache, new MDCCRoutingTable(nsRoot, keySchema))

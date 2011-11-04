@@ -59,13 +59,6 @@ abstract trait StorageManager {
                      filters: Seq[AggFilter],
                      aggregates: Seq[AggOp]): Seq[GroupedAgg]
 
-  // For transactions
-  def accept(xid: ScadsXid, updates: Seq[RecordUpdate]): (Boolean, Seq[(Array[Byte], CStruct)]) = (false, Nil)
-
-  def commit(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean = false
-
-  def abort(xid: ScadsXid) = {}
-
   def startup(): Unit
 
   def shutdown(): Unit
@@ -77,7 +70,12 @@ case class PartitionHandler(manager: StorageManager) extends ServiceHandler[Stor
 
   protected def startup(): Unit = manager.startup()
 
-  protected def shutdown(): Unit = manager.shutdown()
+  protected def shutdown(): Unit = {
+    manager.shutdown()
+    if (trxManager != null) {
+      trxManager.shutdown
+    }
+  }
 
   def registry = StorageRegistry
 

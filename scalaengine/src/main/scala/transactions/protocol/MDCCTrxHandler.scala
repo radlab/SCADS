@@ -54,18 +54,25 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
       size += 1
       update match {
         case ValueUpdateInfo(ns, servers, key, value) => {
-          val oldRrecord = readList.getRecord(key)
-          val md : MDCCMetadata = oldRrecord.map(_.metadata).getOrElse(ns.getDefaultMeta())
+          val (md, oldBytes) = readList.getRecord(key) match {
+            case None => (ns.getDefaultMeta(), None)
+            case Some(r) => (r.metadata, Some(MDCCRecordUtil.toBytes(r)))
+          }
+          val newBytes = MDCCRecordUtil.toBytes(value, md)
           //TODO: Do we really need the MDCCMetadata
-          val propose = Propose(Xid, ValueUpdate(key, oldRrecord.flatMap(_.value), value.get))  //TODO: We need a read-strategy
+          val propose = Propose(Xid, ValueUpdate(key, oldBytes, newBytes))  //TODO: We need a read-strategy
           val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), servers, md, ns.getConflictResolver)
           participants += rHandler
           logger.info("" + Xid + ": Sending physical update propose to MCCCRecordHandler", propose)
           rHandler.remoteHandle ! propose
         }
         case LogicalUpdateInfo(ns, servers, key, value) => {
-          val md = readList.getRecord(key).map(_.metadata).getOrElse(ns.getDefaultMeta())
-          val propose = Propose(Xid, LogicalUpdate(key, value.get))
+          val md = readList.getRecord(key) match {
+            case None => ns.getDefaultMeta()
+            case Some(r) => r.metadata
+          }
+          val newBytes = MDCCRecordUtil.toBytes(value, md)
+          val propose = Propose(Xid, LogicalUpdate(key, newBytes))
           val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), servers, md, ns.getConflictResolver)  //TODO: Gene is the CStruct correct?
           participants += rHandler
           logger.debug("" + Xid + ": Sending logical update propose to MCCCRecordHandler", propose)
