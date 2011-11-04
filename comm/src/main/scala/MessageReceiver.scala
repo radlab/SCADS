@@ -2,11 +2,10 @@ package edu.berkeley.cs.scads.comm
 
 import scala.actors.Actor
 
-import java.util.concurrent.{BlockingQueue, ArrayBlockingQueue, CountDownLatch, ThreadPoolExecutor, TimeUnit}
-
 import net.lag.logging.Logger
 import org.apache.avro.generic.IndexedRecord
-import org.fusesource.hawtdispatch.Dispatch
+import java.util.concurrent.{ArrayBlockingQueue, PriorityBlockingQueue, ThreadPoolExecutor, CountDownLatch, TimeUnit}
+import _root_.org.fusesource.hawtdispatch._
 
 trait MessageReceiver[MessageType <: IndexedRecord] {
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit
@@ -15,12 +14,34 @@ trait MessageReceiver[MessageType <: IndexedRecord] {
 
 //TODO: remove extra envelope object creation
 case class Envelope[MessageType <: IndexedRecord](src: Option[RemoteService[MessageType]], msg: MessageType)
+case class PrioEnvelope[MessageType <: IndexedRecord](src: Option[RemoteService[MessageType]], msg: MessageType, priority : Short) extends Comparable[PrioEnvelope[MessageType]] {
+  def compareTo(other : PrioEnvelope[MessageType]) : Int = priority.compare(other.priority)
+}
+
 class ActorReceiver[MessageType <: IndexedRecord](actor: Actor) extends MessageReceiver[MessageType] {
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
     actor ! Envelope(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
   }
 
   def unregistered = null
+}
+
+class FastDispatchReceiver[MessageType <: IndexedRecord](f: (PriorityBlockingQueue[PrioEnvelope[MessageType]],  Int) => Unit) extends MessageReceiver[MessageType] {
+  val mailbox = new PriorityBlockingQueue[PrioEnvelope[MessageType]]
+
+  val queue = createQueue()
+  val source = createSource(EventAggregators.INTEGER_ADD, queue)
+  source.onEvent(f(mailbox, source.getData))
+
+
+  source.resume();
+
+  def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
+    mailbox.add(PrioEnvelope(src.asInstanceOf[Option[RemoteService[MessageType]]], msg, 0))
+    source.merge(1)
+  }
+
+  def unregistered = queue.suspend()
 }
 
 class DispatchReceiver[MessageType <: IndexedRecord](f: (Envelope[MessageType]) => Unit) extends MessageReceiver[MessageType] {

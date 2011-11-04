@@ -4,7 +4,6 @@ package comm
 
 import config._
 
-import java.util.concurrent.{ConcurrentHashMap, CopyOnWriteArrayList, Executors, TimeUnit}
 import scala.actors._
 
 import net.lag.logging.Logger
@@ -22,6 +21,7 @@ import scala.collection.JavaConversions._
 import edu.berkeley.cs.avro.runtime._
 import org.apache.avro.Schema.Field
 import org.apache.avro.specific.SpecificRecord
+import java.util.concurrent._
 
 /* General message types */
 sealed trait ServiceId extends AvroUnion
@@ -208,6 +208,10 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
   def registerActor(actor: actors.Actor): RemoteServiceProxy[MessageType] = {
     val receiver = new ActorReceiver[MessageType](actor)
     registerService(receiver)
+  }
+
+  def registerBatchActor(f: (PriorityBlockingQueue[PrioEnvelope[MessageType]], Int) => Unit ) : RemoteServiceProxy[MessageType] = {
+    registerService(new FastDispatchReceiver[MessageType](f))
   }
 
   def registerActorFunc(f: PartialFunction[Envelope[MessageType],Unit]): RemoteServiceProxy[MessageType] = {
