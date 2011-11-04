@@ -2,6 +2,7 @@ package edu.berkeley.cs.scads.storage.transactions
 
 import conflict.ConflictResolver
 import edu.berkeley.cs.scads.storage._
+import edu.berkeley.cs.scads.storage.client.index._
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.scads.comm._
 
@@ -81,6 +82,7 @@ with TransactionsBase {
 // This works with PairNamespace.
 trait PairTransactions[R <: AvroPair]
 extends RecordStore[R]
+with client.index.IndexManager[R]
 with TransactionsBase {
 
   implicit protected def pairManifest: Manifest[R]
@@ -92,6 +94,54 @@ with TransactionsBase {
   // delete(Pair) uses put(), which uses putBytes.
 
   override def getRecord(key: IndexedRecord): Option[R] = {
+    val keyBytes = keyToBytes(key)
+
+    getBytes(keyBytes).map(b =>
+      // Don't return a record which was deleted
+      if (b.length == 0)
+        return None
+      else
+        return Some(bytesToBulk(keyBytes, b))
+    )
+  }
+
+  override def getRange(start: Option[IndexedRecord],
+                        end: Option[IndexedRecord],
+                        limit: Option[Int] = None,
+                        offset: Option[Int] = None,
+                        ascending: Boolean = true) = {
+    // Filter out records which were deleted
+    getKeys(start.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal)).map(keyToBytes), end.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal)).map(keyToBytes), limit, offset, ascending).filter {
+      case(k,v) => v.length > 0
+    } map {
+      case (k,v) => bytesToBulk(k, v)
+    }
+  }
+
+  private val protType = protocolType
+
+  override def newIndexNamespace(name: String,
+                                 cluster: ScadsCluster,
+                                 root: ZooKeeperProxy#ZooKeeperNode,
+                                 keySchema: Schema): IndexNamespace = {
+    new IndexNamespace(name, cluster, root, keySchema) with IndexTransactions {
+      override val protocolType = protType
+    }
+  }
+}
+
+// This works with IndexNamespace.
+trait IndexTransactions
+extends RecordStore[IndexedRecord]
+with TransactionsBase {
+
+  def getFieldICList = FieldICList(List())
+
+  // TODO: implement Pair specific functionality.
+  // put(Pair) uses put(), which uses putBytes.
+  // delete(Pair) uses put(), which uses putBytes.
+
+  override def getRecord(key: IndexedRecord): Option[IndexedRecord] = {
     val keyBytes = keyToBytes(key)
 
     getBytes(keyBytes).map(b =>

@@ -192,6 +192,13 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
     "%s_%s".format(namespace, indexName)
   }
 
+  protected def newIndexNamespace(name: String,
+                                  cluster: ScadsCluster,
+                                  root: ZooKeeperProxy#ZooKeeperNode,
+                                  keySchema: Schema): IndexNamespace = {
+    new IndexNamespace(name, cluster, root, keySchema)
+  }
+
   protected def updateIndexNamespaceCache(indexNodes: Seq[ZooKeeperProxy#ZooKeeperNode]): Unit = {
     // update the cache. 
     // 1) namespaces in the cache which are not in indexCatalogue.children need to
@@ -203,7 +210,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
     // into the cache
     indexNamespacesCache ++= indexNodes.filterNot(n => indexNamespacesCache.contains(n.name)).map(n => {
       val ks = new Schema.Parser().parse(new String(root("%s/keySchema".format(toGlobalName(n.name))).data))
-      val ns = new IndexNamespace(toGlobalName(n.name), cluster, root, ks)
+      val ns = newIndexNamespace(toGlobalName(n.name), cluster, root, ks)
       ns.open()
 
       (n.name, (ns, classOf[IndexDefinition].newInstance.parse(ns.getMetadata(indexDefinition).getOrElse(throw new RuntimeException("Invalid index definition in ns: " + namespace + ", " + n.name)))))
@@ -266,7 +273,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
     indexKeySchema.setFields(prefixFields ++ suffixFields)
 
 
-    val indexNs = new IndexNamespace(toGlobalName(name), cluster, root, indexKeySchema)
+    val indexNs = newIndexNamespace(toGlobalName(name), cluster, root, indexKeySchema)
     // create the actual namespace with no partition strategy here 
     indexNs.open
     val idxDef = IndexDefinition(fields ++ suffixFields.map(f => AttributeIndex(f.name)))
