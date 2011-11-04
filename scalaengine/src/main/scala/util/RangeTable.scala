@@ -19,7 +19,7 @@ class RangeTable[KeyType, ValueType](
   require(rTable.length > 0 , "At least the startKey (None) has to exist at any time")
   require(rTable.head.startKey == None, "First key has to be None, but was " + rTable.head.startKey )
 
-  protected lazy val logger = Logger()
+  protected lazy val logger = net.lag.logging.Logger()
 
   /**
    *  Helper constructor for creating the Comparator

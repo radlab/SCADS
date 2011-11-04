@@ -70,34 +70,20 @@ trait ServiceManager extends RemoteMachine {
     }
 
     def start = self ! "start-stop-daemon --make-pidfile --start --background --pidfile %s --exec %s >> %s 2>&1".format(pidFile, runScript, logFile)
+
     def stop = self.executeCommand("start-stop-daemon --stop --pidfile %s".format(pidFile))
-    def restart = {stop; start}
+
+    def restart = {
+      stop; start
+    }
   }
+
   def getService(name: String, cmd: String) = RemoteService(name).setCmd(cmd)
 }
 
-/**
- * Provides a framework for interacting (running commands, uploading/downloading files, etc) with a generic remote machine.
- */
-abstract class RemoteMachine {
-  self =>
 
-  /**
-   * The hostname that the ssh connection is established with
-   */
-  val hostname: String
-
-  /**
-   * The username used to authenticate with the remote ssh server
-   */
-  val username: String
-
-  /**
-   * The private key used to authenticate with the remote ssh server
-   */
-  val privateKey: File = findPrivateKey
-
-  protected def findPrivateKey: File = {
+object RemoteMachine {
+  def findPrivateKey: File = {
     def defaultKeyFiles = {
       val specifiedKey = System.getenv("DEPLOYLIB_SSHKEY")
       val rsa = new File(System.getProperty("user.home"), ".ssh/id_rsa")
@@ -116,6 +102,33 @@ abstract class RemoteMachine {
       case None => defaultKeyFiles
     }
   }
+
+  def findPublicKey: File =
+    new File(findPrivateKey.getCanonicalPath + ".pub")
+}
+
+/**
+ * Provides a framework for interacting (running commands, uploading/downloading files, etc) with a generic remote machine.
+ */
+abstract class RemoteMachine {
+  self =>
+
+  import RemoteMachine._
+
+  /**
+   * The hostname that the ssh connection is established with
+   */
+  val hostname: String
+
+  /**
+   * The username used to authenticate with the remote ssh server
+   */
+  val username: String
+
+  /**
+   * The private key used to authenticate with the remote ssh server
+   */
+  val privateKey: File = findPrivateKey
 
   /**
    * The default root directory for operations (The user should have read write permissions to this directory)
@@ -279,6 +292,11 @@ abstract class RemoteMachine {
       session.getStdin().close()
       session.close()
     })
+
+    // HACK: For some reason, this sleep() avoids the bug of not finding
+    //       /user/ubuntu/console file in the west region.
+
+    Thread.sleep(10 * 1000)
     this ! "chmod %s %s".format(mode, file)
   }
 
@@ -544,8 +562,8 @@ abstract class RemoteMachine {
       rp(10)))
 
 
-
   case class FreeStats(total: Int, used: Int, free: Int, shared: Int, buffers: Int, cached: Int)
+
   val freeResponse = """.*Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+).*""".r
   /**
    * Returns the result of the command free.

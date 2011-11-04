@@ -91,6 +91,9 @@ trait KeyRoutable {
   // type of partition this routable talks to
   def partitionType:String
 
+  // Empty string means partition is not part of a transactional namespace.
+  def getTxProtocolType():String = ""
+
   protected def onRoutingTableChanged(newTable: Array[Byte]): Unit
   protected def convertToRoutingKey(key: Array[Byte]): Array[Byte]
 }

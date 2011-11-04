@@ -1,6 +1,7 @@
 package edu.berkeley.cs.scads.storage
 
-import com.sleepycat.je.{Cursor,Database, DatabaseConfig, CursorConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
+import com.sleepycat.je
+import je.{Cursor,Database, DatabaseConfig, CursorConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability}
 import org.apache.avro.Schema
 import net.lag.logging.Logger
 
@@ -22,7 +23,8 @@ import atomic._
 
 import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
 
-
+import edu.berkeley.cs.scads.storage.transactions._
+import edu.berkeley.cs.scads.storage.transactions.conflict._
 
 /**
  * Handles a partition from [startKey, endKey). Refuses to service any
@@ -32,12 +34,14 @@ class BdbStorageManager(val db: Database,
                         val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, 
                         val startKey: Option[Array[Byte]], 
                         val endKey: Option[Array[Byte]], 
-                        val nsRoot: ZooKeeperProxy#ZooKeeperNode, 
+                        newNSRoot: ZooKeeperProxy#ZooKeeperNode,
                         val keySchema: Schema, valueSchema: Schema) 
                        extends StorageManager
                        with    AvroComparator {
   protected val logger = Logger()
   protected val config = Config.config
+
+  override def nsRoot() = newNSRoot
 
   protected lazy val copyIteratorCtor = 
     config.getString("scads.storage.copy.iteratorType").flatMap(tpe => tpe.toLowerCase match {
@@ -60,7 +64,7 @@ class BdbStorageManager(val db: Database,
 
   protected val cursorTimeout = 3 * 60 * 1000 // 3 minutes (in ms)
 
-  case class CursorContext(cursorId: Int, cursor: Cursor, txn: Transaction) {
+  case class CursorContext(cursorId: Int, cursor: Cursor, txn: je.Transaction) {
     private var lastActivity = System.currentTimeMillis
     private var valid = true
     def updateActivity(): Unit =
@@ -105,7 +109,25 @@ class BdbStorageManager(val db: Database,
     cursorTimeoutThread.execute(runnable)
   }
 
-  def startup() { /* No-op */ }
+  //TODO All the Trx protocol should be factored out like done for MDCC
+  private lazy val pendingUpdates = new PendingUpdatesController(
+    new BDBTxDB[Array[Byte], Array[Byte]](
+      db,
+      new ByteArrayKeySerializer[Array[Byte]],
+      new ByteArrayValueSerializer[Array[Byte]]),
+    new BDBTxDBFactory(db.getEnvironment),
+    keySchema, valueSchema)
+
+  def startup() {
+    // TODO: crash recovery
+    pendingUpdates.startup()
+
+    nsRoot.get("valueICs").foreach(icBytes => {
+      val reader = new AvroSpecificReaderWriter[FieldICList](None)
+      pendingUpdates.setICs(reader.deserialize(icBytes.data))
+    })
+  }
+
   def shutdown() {
     // stop the cursor tasks
     cursorTimeoutThread.shutdownNow()
@@ -123,6 +145,7 @@ class BdbStorageManager(val db: Database,
     }
     openCursors.clear()
     db.close()
+    pendingUpdates.shutdown()
   }
 
   private val iterateRangeBreakable = new Breaks
@@ -473,16 +496,28 @@ class BdbStorageManager(val db: Database,
   /**
    * Delete [startKey, endKey)
    */
-  def deleteEntireRange(txn: Option[Transaction]) { deleteRange(startKey, endKey, txn) }
+  def deleteEntireRange(txn: Option[je.Transaction]) { deleteRange(startKey, endKey, txn) }
 
   /**
    * Delete [lowerKey, upperKey)
    */
-  def deleteRange(lowerKey: Option[Array[Byte]], upperKey: Option[Array[Byte]], txn: Option[Transaction]) {
+  def deleteRange(lowerKey: Option[Array[Byte]], upperKey: Option[Array[Byte]], txn: Option[je.Transaction]) {
     assert(isStartKeyLEQ(lowerKey) && isEndKeyGEQ(upperKey), "startKey <= lowerKey && endKey >= upperKey required")
     iterateOverRange(lowerKey, upperKey, txn = txn)((_, _, cursor) => {
       cursor.delete()
     })
+  }
+
+  override def accept(xid: ScadsXid, updates: Seq[RecordUpdate]): (Boolean, Seq[(Array[Byte], CStruct)]) = {
+    pendingUpdates.acceptOptionTxn(xid, updates)
+  }
+
+  override def commit(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean = {
+    pendingUpdates.commit(xid, updates)
+  }
+
+  override def abort(xid: ScadsXid) = {
+    pendingUpdates.abortTxn(xid)
   }
 
   private def initCursor(cursor: Cursor) = {
@@ -520,7 +555,7 @@ class BdbStorageManager(val db: Database,
                                limit: Option[Int] = None, 
                                offset: Option[Int] = None, 
                                ascending: Boolean = true, 
-                               txn: Option[Transaction] = None)
+                               txn: Option[je.Transaction] = None)
       (func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit): Unit = {
     val (dbeKey, dbeValue) = (new DatabaseEntry, new DatabaseEntry)
     val cur = db.openCursor(txn.orNull, CursorConfig.READ_UNCOMMITTED)

@@ -20,15 +20,15 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   protected implicit val exec = executor
 
   /* Relations */
-  val addresses = cluster.getNamespace[Address]("addresses")
-  val authors = cluster.getNamespace[Author]("authors")
-  val xacts = cluster.getNamespace[CcXact]("xacts")
-  val countries = cluster.getNamespace[Country]("countries")
-  val customers = cluster.getNamespace[Customer]("customers")
-  val items = cluster.getNamespace[Item]("items")
-  val orderLines = cluster.getNamespace[OrderLine]("orderLines")
-  val orders = cluster.getNamespace[Order]("orders")
-  val shoppingCartItems = cluster.getNamespace[ShoppingCartItem]("shoppingCartItems")
+  lazy val addresses = cluster.getNamespace[Address]("addresses")
+  lazy val authors = cluster.getNamespace[Author]("authors")
+  lazy val xacts = cluster.getNamespace[CcXact]("xacts")
+  lazy val countries = cluster.getNamespace[Country]("countries")
+  lazy val customers = cluster.getNamespace[Customer]("customers")
+  lazy val items = cluster.getNamespace[Item]("items")
+  lazy val orderLines = cluster.getNamespace[OrderLine]("orderLines")
+  lazy val orders = cluster.getNamespace[Order]("orders")
+  lazy val shoppingCartItems = cluster.getNamespace[ShoppingCartItem]("shoppingCartItems")
 
   val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems)
   //def allNamespaces = namespaces.flatMap(ns => ns +: ns.listIndexes.map(_._2).toSeq)

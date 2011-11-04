@@ -1,6 +1,7 @@
 package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.scads.comm._
+import edu.berkeley.cs.scads.storage.transactions._
 
 import org.apache.avro._
 import generic._
@@ -148,6 +149,13 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) { self =>
     val namespace = new PairNamespace[PairType](ns, self, namespaces)
     namespace.create()
     namespace.setPartitionScheme(servers.map { case (optRec, seq) => (optRec.map(namespace.keyToBytes), seq) })
+    namespace
+  }
+
+  // Transactional namespace.
+  def getNamespace[PairType <: AvroPair : Manifest](ns: String, txProtocol: NSTxProtocol): PairNamespace[PairType] = {
+    val namespace = new PairNamespace[PairType](ns, self, namespaces) with PairTransactions[PairType] { override val protocolType = txProtocol }
+    namespace.open()
     namespace
   }
 

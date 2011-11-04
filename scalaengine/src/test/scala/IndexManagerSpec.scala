@@ -23,6 +23,8 @@ class IndexManagerSpec extends Spec with ShouldMatchers with BeforeAndAfterAll {
 
   describe("getRange Method") {
     it("implment tokenized indexes") {
+      pending
+/*
       val ns = cluster.getNamespace[IndexedRecord]("tokenTest")
       val idx = ns.getOrCreateIndex(AttributeIndex("f2") :: Nil)
       val tokenIdx = ns.getOrCreateIndex(TokenIndex("f2" :: Nil) :: Nil)
@@ -35,6 +37,7 @@ class IndexManagerSpec extends Spec with ShouldMatchers with BeforeAndAfterAll {
 
       tokenIdx.lookupRecord("a", 1).isDefined should equal(true)
       tokenIdx.lookupRecord("b", 1).isDefined should equal(true)
+*/
     }
   }
 }
