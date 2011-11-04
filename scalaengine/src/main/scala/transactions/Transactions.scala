@@ -118,16 +118,18 @@ with TransactionsBase {
     }
   }
 
-  private val protType = protocolType
+  private val protType2 = protocolType
 
   override def newIndexNamespace(name: String,
                                  cluster: ScadsCluster,
                                  root: ZooKeeperProxy#ZooKeeperNode,
                                  keySchema: Schema): IndexNamespace = {
     new IndexNamespace(name, cluster, root, keySchema) with IndexTransactions {
-      override val protocolType = protType
+      val localProtType = protType2
+      override lazy val protocolType = localProtType
     }
   }
+
 }
 
 // This works with IndexNamespace.
@@ -187,7 +189,7 @@ with TransactionI {
   def getDefaultMeta = defaultMeta.defaultMetaData
 
   // TODO: Don't know why implicit manifest did not work.
-  val protocolType: NSTxProtocol = NSTxProtocolNone()
+  lazy val protocolType: NSTxProtocol = NSTxProtocolNone()
 
   override def getTxProtocolType():String = protocolType match {
     case NSTxProtocolNone() => ""

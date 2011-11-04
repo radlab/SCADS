@@ -129,7 +129,7 @@ case class Task()
 //    val results = resultCluster.getNamespace[Result]("singleDataCenterTest")
 
     val ns = new SpecificNamespace[KeyRec, ValueRec]("testns", cluster, cluster.namespaces) with Transactions[KeyRec, ValueRec] {
-      override val protocolType = NSTxProtocol2pc()
+      override lazy val protocolType = NSTxProtocol2pc()
     }
     ns.open()
     ns.setPartitionScheme(List((None, cluster.getAvailableServers)))

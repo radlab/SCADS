@@ -41,7 +41,7 @@ class TestTx {
     val cluster = TestScalaEngine.newScadsCluster(4)
 
     //val ns = new SpecificNamespace[KeyRec, ValueRec]("testns", cluster, cluster.namespaces) with Transactions[KeyRec, ValueRec] {
-    //  override val protocolType = NSTxProtocolMDCC()
+    //  override lazy val protocolType = NSTxProtocolMDCC()
     //}
     //ns.open()
     //ns.setPartitionScheme(List((None, cluster.getAvailableServers)))
