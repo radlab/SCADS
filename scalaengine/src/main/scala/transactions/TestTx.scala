@@ -46,10 +46,7 @@ class TestTx {
     //ns.open()
     //ns.setPartitionScheme(List((None, cluster.getAvailableServers)))
 
-    val nsPair = new PairNamespace[DataRecord]("testnsPair", cluster, cluster.namespaces) with PairTransactions[DataRecord] {
-      override val protocolType = NSTxProtocolMDCC()
-    }
-    nsPair.open()
+    val nsPair = cluster.getNamespace[DataRecord]("testnsPair", NSTxProtocolMDCC())
     nsPair.setPartitionScheme(List((None, cluster.getAvailableServers)))
 
     var dr = DataRecord(1)
