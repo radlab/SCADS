@@ -66,13 +66,13 @@ class Tx(val timeout: Int, val readType: ReadConsistency = ReadConsistent())(mai
     }
 
     protocolMap.getProtocol() match {
-      case NSTxProtocolNone() =>
+      case NSTxProtocolNone() => ProtocolNone.RunProtocol(this)
       case NSTxProtocol2pc() => Protocol2pc.RunProtocol(this)
       case NSTxProtocolMDCC() => MDCCProtocol.RunProtocol(this)
       case null => throw new RuntimeException("All namespaces in the transaction must have the same protocol.")
     }
     val endMS = java.util.Calendar.getInstance().getTimeInMillis()
-    println("latency: " + (endMS - startMS))
+//    println("latency: " + (endMS - startMS))
     endMS - startMS
   }
 
