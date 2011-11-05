@@ -32,5 +32,24 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
   override lazy val orders = cluster.getNamespace[Order]("orders", txProtocol)
   override lazy val shoppingCartItems = cluster.getNamespace[ShoppingCartItem]("shoppingCartItems", txProtocol)
 
-//  override val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems)
+  override def shoppingCartWI(c_uname: String, newItems: Seq[(String, Int)]) = {
+    new Tx(10000, ReadLocal()) ({
+      super.shoppingCartWI(c_uname, newItems)
+    }).Execute()
+  }
+
+  override def buyConfirmWI(c_uname: String,
+                            cc_type: String,
+                            cc_number: Int,
+                            cc_name: String,
+                            cc_expiry: Long,
+                            shipping: String): String = {
+    var result = ""
+    new Tx(10000, ReadLocal()) ({
+      result = super.buyConfirmWI(c_uname, cc_type, cc_number, cc_name,
+                                  cc_expiry, shipping)
+    }).Execute()
+    result
+  }
+
 }
