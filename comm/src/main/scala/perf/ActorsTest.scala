@@ -10,8 +10,9 @@ import com.sun.xml.internal.ws.developer.MemberSubmissionAddressing.Validation
 import java.awt.image.PixelInterleavedSampleModel
 import java.lang.RuntimeException
 import javax.management.remote.rmi._RMIConnection_Stub
-import java.util.concurrent.{CountDownLatch, PriorityBlockingQueue}
 import performance.ActorPerfTest.{BatchSender, BatchReceiver}
+import _root_.org.fusesource.hawtdispatch._
+import java.util.concurrent.{ArrayBlockingQueue, CountDownLatch, PriorityBlockingQueue}
 
 sealed trait PerfMessage extends AvroUnion
 case class Ping(var x: Int) extends PerfMessage with AvroRecord
@@ -41,51 +42,67 @@ object ActorPerfTest {
     actor.remoteHandle !? Ping(1)
   }
 
-  class BatchReceiver(){
+  class BatchReceiver(fast : Boolean){
     var counter = 0
 
-    implicit val actor = PerfRegistry.registerBatchActor(process)
+    implicit val actor = if(fast)
+        PerfRegistry.registerFastMailboxFunc(_ => 0, process)
+      else
+        PerfRegistry.registerMailboxFunc(_ => 0, process)
 
-    def process(mailbox : PriorityBlockingQueue[PrioEnvelope[PerfMessage]], interrupts : Int) : Unit = {
-      val iter = mailbox.iterator()
-      while(iter.hasNext){
-        val msg = iter.next()
+    def process(mailbox : Mailbox[PerfMessage]) : Unit = {
+      //println("BatchReceiver Start size" + mailbox.size() + " total:" + counter )
+      val it = mailbox.iter
+      while(it.hasNext){
+        val msg = it.next()
         msg.src.get.!(Pong(1))(actor)
         counter += 1
-        iter.remove()
+        it.remove()
       }
-      println("BatchReceiver size" + mailbox.size() + " total:" + counter + " i:" + interrupts)
+      //println("BatchReceiver End size" + mailbox.size() + " total:" + counter )
     }
 
-    def unregister = PerfRegistry.unregisterService(actor)
+    def unregister = {
+      PerfRegistry.unregisterService(actor)
+
+    }
   }
 
-  class BatchSender(){
+  class BatchSender(fast : Boolean){
 
     val barrier = new CountDownLatch(1)
 
     @volatile var counter : Int= 0
     def send(target : RemoteServiceProxy[PerfMessage], msgCount : Int) = {
       counter = msgCount
-      (1 to msgCount).foreach(j => {
-        target.!(Ping(1))(actor)
-      })
+      (1 to msgCount).foreach(j => target.!(Ping(1))(actor))
+
+//      (1 to msgCount).foreach(j => {
+//        globalQueue {
+//          (1 to 100).foreach(i => target.!(Ping(1))(actor))
+//        }
+//      })
 
     }
 
-    implicit val actor = PerfRegistry.registerBatchActor(process)
+    implicit val actor = if(fast)
+        PerfRegistry.registerFastMailboxFunc(_ => 0, process)
+      else
+        PerfRegistry.registerMailboxFunc(_ => 0, process)
 
-    def process(mailbox : PriorityBlockingQueue[PrioEnvelope[PerfMessage]], interrupts : Int) : Unit = {
-      val iter = mailbox.iterator()
-      while(iter.hasNext){
-        val msg = iter.next()
+    def process(mailbox : Mailbox[PerfMessage]) : Unit = {
+      //println("BatchSender Start size" + mailbox.size() + " counter" + counter )
+      val it = mailbox.iter
+      while(it.hasNext){
+        val msg = it.next()
         counter -= 1
-        iter.remove()
+        it.remove()
         if(counter == 0){
           barrier.countDown()
+          //println("Releasing barrier")
         }
       }
-      println("BatchSender End size" + mailbox.size() + " counter" + counter + " i:" + interrupts)
+      //println("BatchSender End size" + mailbox.size() + " counter" + counter )
     }
 
     def unregister = PerfRegistry.unregisterService(actor)
@@ -110,38 +127,48 @@ object ActorPerfTest {
   }
 
   def main(args: Array[String]): Unit = {
-    val msgCount = 1000000
+    val msgCount = 100000 //1000000
     (1 to  10).foreach(i => {
-//      val actStart = System.nanoTime()
-//      (1 to msgCount).foreach(j => {
-//         actorMessage
-//      })
-//      val actEnd = System.nanoTime()
-//      println("actors: " + 2 * (msgCount / ((actEnd - actStart) / 1000000000.0)))
-//
-//      val distStart = System.nanoTime()
-//      (1 to msgCount).foreach(j => {
-//         dispatchMessage
-//      })
-//      val distEnd = System.nanoTime()
-//      println("hawt: " + 2 * (msgCount / ((distEnd - distStart)/ 1000000000.0)))
-//
-//      val futureStart = System.nanoTime()
-//      (1 to msgCount).foreach(j => {
-//         futureMessage
-//      })
-//      val futureEnd = System.nanoTime()
-//      println("future: " + 2 * (msgCount / ((futureEnd - futureStart)/ 1000000000.0)))
+      val actStart = System.nanoTime()
+      (1 to msgCount).foreach(j => {
+         actorMessage
+      })
+      val actEnd = System.nanoTime()
+      println("actors: " + 2 * (msgCount / ((actEnd - actStart) / 1000000000.0)))
+
+      val distStart = System.nanoTime()
+      (1 to msgCount).foreach(j => {
+         dispatchMessage
+      })
+      val distEnd = System.nanoTime()
+      println("hawt: " + 2 * (msgCount / ((distEnd - distStart)/ 1000000000.0)))
+
+      val futureStart = System.nanoTime()
+      (1 to msgCount).foreach(j => {
+         futureMessage
+      })
+      val futureEnd = System.nanoTime()
+      println("future: " + 2 * (msgCount / ((futureEnd - futureStart)/ 1000000000.0)))
 
       val batchStart = System.nanoTime()
-      val batchReceiver = new BatchReceiver
-      val batchSender = new BatchSender
+      val batchReceiver = new BatchReceiver(false)
+      val batchSender = new BatchSender(false)
       batchSender.send(batchReceiver.actor, msgCount)
       batchSender.barrier.await()
       batchSender.unregister
       batchReceiver.unregister
       val batchEnd = System.nanoTime()
-      println("Batch: " + 2 * (msgCount / ((batchEnd - batchStart)/ 1000000000.0)))
+      println("Mailbox: " + 2 * (msgCount / ((batchEnd - batchStart)/ 1000000000.0)))
+
+      val mbSourceStart = System.nanoTime()
+      val mbSourceReceiver = new BatchReceiver(true)
+      val mbSourceSender = new BatchSender(true)
+      mbSourceSender.send(mbSourceReceiver.actor, msgCount)
+      mbSourceSender.barrier.await()
+      mbSourceSender.unregister
+      mbSourceReceiver.unregister
+      val mbSourceEnd = System.nanoTime()
+      println("Mailbox Fast: " + 2 * (msgCount / ((mbSourceEnd - mbSourceStart)/ 1000000000.0)))
     })
   }
 }

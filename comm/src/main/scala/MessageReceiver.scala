@@ -14,9 +14,7 @@ trait MessageReceiver[MessageType <: IndexedRecord] {
 
 //TODO: remove extra envelope object creation
 case class Envelope[MessageType <: IndexedRecord](src: Option[RemoteService[MessageType]], msg: MessageType)
-case class PrioEnvelope[MessageType <: IndexedRecord](src: Option[RemoteService[MessageType]], msg: MessageType, priority : Short) extends Comparable[PrioEnvelope[MessageType]] {
-  def compareTo(other : PrioEnvelope[MessageType]) : Int = priority.compare(other.priority)
-}
+
 
 class ActorReceiver[MessageType <: IndexedRecord](actor: Actor) extends MessageReceiver[MessageType] {
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
@@ -26,19 +24,60 @@ class ActorReceiver[MessageType <: IndexedRecord](actor: Actor) extends MessageR
   def unregistered = null
 }
 
-class FastDispatchReceiver[MessageType <: IndexedRecord](f: (PriorityBlockingQueue[PrioEnvelope[MessageType]],  Int) => Unit) extends MessageReceiver[MessageType] {
-  val mailbox = new PriorityBlockingQueue[PrioEnvelope[MessageType]]
 
-  val queue = createQueue()
-  val source = createSource(EventAggregators.INTEGER_ADD, queue)
-  source.onEvent(f(mailbox, source.getData))
+class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](prioFn : MessageType => Int,
+                                                            processFn: Mailbox[MessageType] => Unit) extends MessageReceiver[MessageType] {
+  val senderMailbox = new PlainMailbox[MessageType](prioFn)
+  val receiverMailbox = new PlainMailbox[MessageType](prioFn)
+  val newMessages : Boolean = false
 
+  val dispatcher = createQueue()
 
-  source.resume();
+  class MessageReceive() extends Runnable{
+    def run(): Unit = {
+      processFn(getMailbox())
+    }
+  }
+
+  def getMailbox() : Mailbox[MessageType]  = {
+    senderMailbox.synchronized{
+      senderMailbox.drainTo(receiverMailbox)
+      //println(this.toString + ": Draining Queue " +  receiverMailbox.size)
+    }
+    receiverMailbox.sort()
+    receiverMailbox
+  }
 
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
-    mailbox.add(PrioEnvelope(src.asInstanceOf[Option[RemoteService[MessageType]]], msg, 0))
-    source.merge(1)
+    senderMailbox.synchronized{
+      if(senderMailbox.isEmpty){
+       //println(this.toString + ": First message in senderMailboy" + senderMailbox.size )
+       senderMailbox.add(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
+       dispatcher.execute(new MessageReceive())
+      }else{
+        //println(this.toString + ": Sender Mailbox " + senderMailbox.size)
+        senderMailbox.add(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
+        //dispatcher.execute(new MessageReceive())
+      }
+    }
+  }
+
+  def unregistered = dispatcher.suspend()
+}
+
+class MailboxDispatchReceiver[MessageType <: IndexedRecord](prioFn : MessageType => Int,
+                                                            processFn: Mailbox[MessageType] => Unit) extends MessageReceiver[MessageType] {
+  val mailbox = new PriorityBlockingMailbox[MessageType](prioFn)
+
+  val queue = createQueue()
+
+  class MessageReceive() extends Runnable{
+    def run(): Unit = processFn(mailbox)
+  }
+
+  def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
+    mailbox.add(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
+    queue.execute(new MessageReceive())
   }
 
   def unregistered = queue.suspend()
