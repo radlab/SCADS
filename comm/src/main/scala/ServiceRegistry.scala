@@ -179,9 +179,10 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
   }
 
   def unregisterService(service: RemoteServiceProxy[MessageType]) = {
+    println("unregister service-id:" + service.id)
     val svc = serviceRegistry.remove(service.id)
-    svc.unregistered
-    svc
+    if(svc != null)
+      svc.unregistered
   }
 
   def registerService(service: MessageReceiver[MessageType]): RemoteServiceProxy[MessageType] = {

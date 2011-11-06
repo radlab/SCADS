@@ -11,6 +11,7 @@ import edu.berkeley.cs.avro.marker._
 
 import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.scads.storage.transactions.conflict._
+import transactions.MDCCMetadata
 
 case class ConflictKeyRec(var i: Int, var s: String) extends AvroRecord
 case class ConflictValueRec(var s: String, var i: Int) extends AvroRecord
@@ -28,57 +29,57 @@ with BeforeAndAfterEach {
 
   private val resolver = new ConflictResolver(valueSchema, FieldICList(List()))
 
-  // Returns a value record.
-  private def singleValueRecord(value: Int, version: Long) = {
-    val m = MDCCMetadata(version, List())
-    val v = ConflictValueRec(value.toString, value)
-    valueBuilder.toBytes(m, v)
-  }
-  // Returns single Version update list
-  private def singleVersionUpdate(key: Int, value: Int, version: Long) = {
-    val k = ConflictKeyRec(key, key.toString)
-    val m = MDCCMetadata(version, List())
-    val v = ConflictValueRec(value.toString, value)
-    VersionUpdate(keyBuilder.toBytes(k), valueBuilder.toBytes(m, v))
-  }
-  // Returns single Logical update list
-  private def singleLogicalUpdate(key: Int, value: Int, version: Long) = {
-    val k = ConflictKeyRec(key, key.toString)
-    val m = MDCCMetadata(version, List())
-    val v = ConflictValueRec(value.toString, value)
-    LogicalUpdate(keyBuilder.toBytes(k), valueBuilder.toBytes(m, v))
-  }
+//  // Returns a value record.
+//  private def singleValueRecord(value: Int, version: Long) = {
+//    val m = MDCCMetadata(version, List())
+//    val v = ConflictValueRec(value.toString, value)
+//    valueBuilder.toBytes(m, v)
+//  }
+//  // Returns single Version update list
+//  private def singleVersionUpdate(key: Int, value: Int, version: Long) = {
+//    val k = ConflictKeyRec(key, key.toString)
+//    val m = MDCCMetadata(version, List())
+//    val v = ConflictValueRec(value.toString, value)
+//    VersionUpdate(keyBuilder.toBytes(k), valueBuilder.toBytes(m, v))
+//  }
+//  // Returns single Logical update list
+//  private def singleLogicalUpdate(key: Int, value: Int, version: Long) = {
+//    val k = ConflictKeyRec(key, key.toString)
+//    val m = MDCCMetadata(version, List())
+//    val v = ConflictValueRec(value.toString, value)
+//    LogicalUpdate(keyBuilder.toBytes(k), valueBuilder.toBytes(m, v))
+//  }
 
-
-  // returns Version update lists
-  private def insertVersionUpdates(numKeys: Int) = {
-    0 until numKeys map (i => {
-      val k = ConflictKeyRec(i, i.toString)
-      val m = MDCCMetadata(0, List())
-      val v = ConflictValueRec(i.toString, i)
-      VersionUpdate(keyBuilder.toBytes(k), valueBuilder.toBytes(m, v))
-    })
-  }
-  // returns Value update lists
-  private def insertValueUpdates(numKeys: Int) = {
-    0 until numKeys map (i => {
-      val k = ConflictKeyRec(i, i.toString)
-      val m = MDCCMetadata(0, List())
-      val v = ConflictValueRec(i.toString, i)
-      ValueUpdate(keyBuilder.toBytes(k), None, valueBuilder.toBytes(m, v))
-    })
-  }
-  // Returns single Value update list
-  private def singleValueUpdate(key: Int, value: Int, oldValue: Option[Int]) = {
-    val k = ConflictKeyRec(key, key.toString)
-    // The version is not compared with ValueUpdate
-    val m = MDCCMetadata(0, List())
-    val v = ConflictValueRec(value.toString, value)
-    val oldV = oldValue.map(i => ConflictValueRec(i.toString, i))
-    List(ValueUpdate(keyBuilder.toBytes(k),
-                     oldV.map(valueBuilder.toBytes(m, _)),
-                     valueBuilder.toBytes(m, v)))
-  }
+//
+//  // returns Version update lists
+//  private def insertVersionUpdates(numKeys: Int) = {
+//    0 until numKeys map (i => {
+//      val k = ConflictKeyRec(i, i.toString)
+//      val m = MDCCMetadata(0, List())
+//      val v = ConflictValueRec(i.toString, i)
+//      VersionUpdate(keyBuilder.toBytes(k), valueBuilder.toBytes(m, v))
+//    })
+//  }
+//  // returns Value update lists
+//  private def insertValueUpdates(numKeys: Int) = {
+//    0 until numKeys map (i => {
+//      val k = ConflictKeyRec(i, i.toString)
+//      val m = MDCCMetadata(0, List())
+//      val v = ConflictValueRec(i.toString, i)
+//      ValueUpdate(keyBuilder.toBytes(k), None, valueBuilder.toBytes(m, v))
+//    })
+//  }
+//  // Returns single Value update list
+//  private def singleValueUpdate(key: Int, value: Int, oldValue: Option[Int]) = {
+//    val k = ConflictKeyRec(key, key.toString)
+//    // The version is not compared with ValueUpdate
+//    val m = MDCCMetadata(0, List())
+//    val v = ConflictValueRec(value.toString, value)
+//    val oldV = oldValue.map(i => ConflictValueRec(i.toString, i))
+//    List(ValueUpdate(keyBuilder.toBytes(k),
+//                     oldV.map(valueBuilder.toBytes(m, _)),
+//                     valueBuilder.toBytes(m, v)))
+//  }
 
   // Shorthand for physical and logical updates.
   sealed trait UpdateType
