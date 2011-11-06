@@ -62,7 +62,6 @@ class TestTx {
         nsPair.put(dr)
       })
     }).Execute()
-
     nsPair.getRange(None, None).foreach(x => println(x))
     println("nsPair.getRecord: " + nsPair.getRecord(DataRecord(2)))
 //
