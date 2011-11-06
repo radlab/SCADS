@@ -1,24 +1,100 @@
 package edu.berkeley.cs.scads.comm
 
 import scala.actors.Actor
-import scala.concurrent.SyncVar
-
-import java.util.concurrent.{BlockingQueue, ArrayBlockingQueue,
-CountDownLatch, ThreadPoolExecutor, TimeUnit}
 
 import net.lag.logging.Logger
 import org.apache.avro.generic.IndexedRecord
-import java.awt.TrayIcon.MessageType
+import java.util.concurrent.{ArrayBlockingQueue, PriorityBlockingQueue, ThreadPoolExecutor, CountDownLatch, TimeUnit}
+import _root_.org.fusesource.hawtdispatch._
 
 trait MessageReceiver[MessageType <: IndexedRecord] {
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit
+  def unregistered: Unit
 }
 
+//TODO: remove extra envelope object creation
 case class Envelope[MessageType <: IndexedRecord](src: Option[RemoteService[MessageType]], msg: MessageType)
+
+
 class ActorReceiver[MessageType <: IndexedRecord](actor: Actor) extends MessageReceiver[MessageType] {
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
     actor ! Envelope(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
   }
+
+  def unregistered = null
+}
+
+
+class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](prioFn : MessageType => Int,
+                                                            processFn: Mailbox[MessageType] => Unit) extends MessageReceiver[MessageType] {
+  val senderMailbox = new PlainMailbox[MessageType](prioFn)
+  val receiverMailbox = new PlainMailbox[MessageType](prioFn)
+  val newMessages : Boolean = false
+
+  val dispatcher = createQueue()
+
+  class MessageReceive() extends Runnable{
+    def run(): Unit = {
+      processFn(getMailbox())
+    }
+  }
+
+  def getMailbox() : Mailbox[MessageType]  = {
+    senderMailbox.synchronized{
+      senderMailbox.drainTo(receiverMailbox)
+      //println(this.toString + ": Draining Queue " +  receiverMailbox.size)
+    }
+    receiverMailbox.sort()
+    receiverMailbox
+  }
+
+  def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
+    senderMailbox.synchronized{
+      if(senderMailbox.isEmpty){
+       //println(this.toString + ": First message in senderMailboy" + senderMailbox.size )
+       senderMailbox.add(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
+       dispatcher.execute(new MessageReceive())
+      }else{
+        //println(this.toString + ": Sender Mailbox " + senderMailbox.size)
+        senderMailbox.add(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
+        //dispatcher.execute(new MessageReceive())
+      }
+    }
+  }
+
+  def unregistered = dispatcher.suspend()
+}
+
+class MailboxDispatchReceiver[MessageType <: IndexedRecord](prioFn : MessageType => Int,
+                                                            processFn: Mailbox[MessageType] => Unit) extends MessageReceiver[MessageType] {
+  val mailbox = new PriorityBlockingMailbox[MessageType](prioFn)
+
+  val queue = createQueue()
+
+  class MessageReceive() extends Runnable{
+    def run(): Unit = processFn(mailbox)
+  }
+
+  def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
+    mailbox.add(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
+    queue.execute(new MessageReceive())
+  }
+
+  def unregistered = queue.suspend()
+}
+
+class DispatchReceiver[MessageType <: IndexedRecord](f: (Envelope[MessageType]) => Unit) extends MessageReceiver[MessageType] {
+  val queue = Dispatch.createQueue()
+
+  class MessageReceive(msg: Envelope[MessageType]) extends Runnable{
+    def run(): Unit = f(msg)
+  }
+
+  def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
+    queue.execute(new MessageReceive(Envelope(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)))
+  }
+
+  def unregistered = queue.suspend()
 }
 
 /**
@@ -37,6 +113,8 @@ class ActorReceiver[MessageType <: IndexedRecord](actor: Actor) extends MessageR
 abstract trait ServiceHandler[MessageType <: IndexedRecord] extends MessageReceiver[MessageType] {
   protected val logger: Logger
   def registry: ServiceRegistry[MessageType]
+
+  def unregistered = null
 
   /* Threadpool for execution of incoming requests */
   protected val outstandingRequests = new ArrayBlockingQueue[Runnable](1024) // TODO: read from config

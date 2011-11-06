@@ -40,16 +40,19 @@ abstract class NioAvroChannelManagerBase[SendMsgType <: IndexedRecord, RecvMsgTy
   private val msgReader = new SpecificDatumReader[RecvMsgType](recvSchema)
   private val msgWriter = new SpecificDatumWriter[SendMsgType](sendSchema)
 
-  protected val endpoint: NioEndpoint = new NioEndpoint(this)
-  endpoint.acceptEventHandler = new NioAcceptEventHandler {
-    override def acceptEvent(channel: SocketChannel) = {
-      registerReverseMap(channel)
+  protected lazy val endpoint: NioEndpoint = {
+    val e = new NioEndpoint(this)
+    e.acceptEventHandler = new NioAcceptEventHandler {
+      override def acceptEvent(channel: SocketChannel) = {
+        registerReverseMap(channel)
+      }
     }
-  }
-  endpoint.connectEventHandler = new NioConnectEventHandler {
-    override def connectEvent(channel: SocketChannel) = {
-      registerReverseMap(channel)
+    e.connectEventHandler = new NioConnectEventHandler {
+      override def connectEvent(channel: SocketChannel) = {
+        registerReverseMap(channel)
+      }
     }
+    e
   }
 
   private val socketAddrReverseMap = new ConcurrentHashMap[SocketChannel, RemoteNode]
@@ -92,24 +95,8 @@ abstract class NioAvroChannelManagerBase[SendMsgType <: IndexedRecord, RecvMsgTy
     endpoint.flushAllBulk
   }
 
-  def startListener(): Unit = {
-    var port = 9000
-    synchronized {
-      var open = false
-      while (!open) {
-        try {
-          startListener(port)
-          open = true
-        } catch {
-          case bn: java.net.BindException => port += 1
-        }
-      }
-    }
-  }
-
   override def startListener(port: Int): Unit = {
     endpoint.serve(new InetSocketAddress(port))
-    logger.info("Listener started on port: %d", port)
   }
 
   override def processData(socket: SocketChannel, data: Array[Byte], count: Int) = {
@@ -128,8 +115,4 @@ abstract class NioAvroChannelManagerBase[SendMsgType <: IndexedRecord, RecvMsgTy
   def getLocalAddress: InetAddress = endpoint.getListeningAddr
 
   def getLocalPort: Int = endpoint.getListeningPort
-
-  def remoteNode = {
-    RemoteNode(getLocalAddress.getCanonicalHostName(), getLocalPort)
-  }
 }

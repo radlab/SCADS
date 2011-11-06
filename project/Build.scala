@@ -160,8 +160,9 @@ object ScadsBuild extends Build {
 
   def useAvroPlugin = Seq(avroPluginDep, avroPluginCompile)
 
-  def commDeps = Seq(netty, zookeeper, commonsHttpClient, log4j, avroPluginDep, avroPluginCompile) ++ testDeps
+  def commDeps = Seq(netty, zookeeper, commonsHttpClient, log4j, avroPluginDep, avroPluginCompile, hawtDispatch) ++ testDeps
 
+  val hawtDispatch = "org.fusesource.hawtdispatch" % "hawtdispatch-scala" % "1.4"
   val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
   val log4j = "log4j" % "log4j" % "1.2.15"
   val zookeeper = "org.apache.zookeeper" % "zookeeper" % "3.3.1"

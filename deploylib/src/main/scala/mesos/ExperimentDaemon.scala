@@ -9,7 +9,7 @@ import org.apache.mesos.Protos._
 
 import net.lag.logging.Logger
 
-case class RemoteServiceScheduler(var host: String, var port: Int, var id: ServiceId) extends AvroRecord with RemoteServiceProxy[Message] with ExperimentScheduler  {
+case class RemoteServiceScheduler(var remoteNode: RemoteNode, var id: ServiceId) extends AvroRecord with RemoteServiceProxy[Message] with ExperimentScheduler  {
   registry = MsgHandler
 
   def scheduleExperiment(processes: Seq[JvmTask]): Unit = {

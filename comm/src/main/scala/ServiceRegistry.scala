@@ -1,11 +1,12 @@
-package edu.berkeley.cs.scads.comm
+package edu.berkeley.cs
+package scads
+package comm
 
-import java.util.concurrent.{ConcurrentHashMap, CopyOnWriteArrayList, Executors, TimeUnit}
+import config._
+
 import scala.actors._
 
 import net.lag.logging.Logger
-
-import edu.berkeley.cs.scads.config._
 
 import org.apache.commons.httpclient._
 import org.apache.commons.httpclient.methods._
@@ -20,6 +21,7 @@ import scala.collection.JavaConversions._
 import edu.berkeley.cs.avro.runtime._
 import org.apache.avro.Schema.Field
 import org.apache.avro.specific.SpecificRecord
+import java.util.concurrent._
 
 /* General message types */
 sealed trait ServiceId extends AvroUnion
@@ -34,7 +36,6 @@ case class ServiceName(var name: String) extends AvroRecord with ServiceId
  * careful to unregister themselves to avoid memory leaks.
  */
 class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema[MessageType]) {
-
   private val config = Config.config
   val logger = Logger()
 
@@ -45,19 +46,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
 
   def futureCount = curActorId.get()
 
-  private val hostname = 
-    if(System.getProperty("scads.comm.externalip") == null) {
-      logger.debug("Using ip address from java.net.InetAddress.getLocalHost")
-      java.net.InetAddress.getLocalHost.getCanonicalHostName()
-    }
-    else {
-      val httpClient = new HttpClient()
-      val getMethod = new GetMethod("http://instance-data/latest/meta-data/public-hostname")
-      httpClient.executeMethod(getMethod)
-      val externalIP = getMethod.getResponseBodyAsString
-      logger.info("Using external ip address on EC2: %s", externalIP)
-      externalIP
-    }
+  def remoteNode = impl.remoteNode
 
   private val listeners = new CopyOnWriteArrayList[MessageHandlerListener]
 
@@ -71,13 +60,13 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
    * Manually created schema for
    * case class MessageEnvelope[MessageType](var src: Option[ActorId], var dest: ActorId, var id: Option[Long], var body: MessageType) extends AvroRecord
    */
-  protected val envelopeSchema = new TypedSchema[MessageEnvelope](Schema.createRecord(
+  protected lazy val envelopeSchema = new TypedSchema[MessageEnvelope](Schema.createRecord(
     new Schema.Field("src", schemaOf[ServiceId], null, null) ::
     new Schema.Field("dest", schemaOf[ServiceId], null, null) ::
     new Schema.Field("msg", schema, null, null) :: Nil),
     this.getClass.getClassLoader)
 
-  private lazy val impl =
+  private val impl =
     try getImpl
     catch {
       case e: Exception =>
@@ -154,10 +143,6 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     }
   }
 
-  def startListener(port: Int) {
-    impl.startListener(port)
-  }
-
   @deprecated("shouldn't be called", "v2.1.2")
   def receiveMessage(src: RemoteNode, msg: MessageType) {
     throw new AssertionError("Should not be called- doReceiveMessage should be called instead")
@@ -183,7 +168,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     logger.trace("Delivering Message: %s from %s", msg, src)
 
     if (service != null) {
-      val srcProxy = if(msg.get(0) == null) None else Some(RemoteService[MessageType](src.hostname, src.port, msg.get(0).asInstanceOf[ServiceId]))
+      val srcProxy = if(msg.get(0) == null) None else Some(RemoteService[MessageType](src, msg.get(0).asInstanceOf[ServiceId]))
       srcProxy.foreach(_.registry = this)
       service.receiveMessage(srcProxy, msg.get(2).asInstanceOf[MessageType])
     }
@@ -193,39 +178,16 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     }
   }
 
-  /**Immediately start listener on instantiation */
-  private val localPort = initListener()
-
-  /**Naively increments port until a valid one is found */
-  private def initListener() = {
-    var port = config.getInt("scads.comm.listen", 9000)
-    var numTries = 0
-    var found = false
-    while (!found && numTries < 500) {
-      try {
-        startListener(port)
-        found = true
-      } catch {
-        case ex: org.jboss.netty.channel.ChannelException =>
-          logger.debug("Could not listen on port %d, trying %d".format(port, port + 1))
-          port += 1
-      } finally {
-        numTries += 1
-      }
-    }
-    if (found)
-      port
-    else throw new RuntimeException("Could not initialize listening port in 50 tries")
-  }
-
   def unregisterService(service: RemoteServiceProxy[MessageType]) = {
-    serviceRegistry.remove(service.id)
+    val svc = serviceRegistry.remove(service.id)
+    svc.unregistered
+    svc
   }
 
   def registerService(service: MessageReceiver[MessageType]): RemoteServiceProxy[MessageType] = {
     val id = ServiceNumber(curActorId.getAndIncrement)
     serviceRegistry.put(id, service)
-    val svc = RemoteService[MessageType](hostname, localPort, id)
+    val svc = RemoteService[MessageType](remoteNode, id)
     svc.registry = this
     svc
   }
@@ -235,7 +197,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     val value0 = serviceRegistry.putIfAbsent(key, service)
     if (value0 ne null)
       throw new IllegalArgumentException("Service with %s already registered: %s".format(id, service))
-    val svc = RemoteService[MessageType](hostname, localPort, key)
+    val svc = RemoteService[MessageType](remoteNode, key)
     svc.registry = this
     svc
   }
@@ -246,6 +208,18 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
   def registerActor(actor: actors.Actor): RemoteServiceProxy[MessageType] = {
     val receiver = new ActorReceiver[MessageType](actor)
     registerService(receiver)
+  }
+
+  def registerMailboxFunc(priorityFn : MessageType => Int, processFn: Mailbox[MessageType] => Unit ) : RemoteServiceProxy[MessageType] = {
+    registerService(new MailboxDispatchReceiver[MessageType](priorityFn, processFn))
+  }
+
+   def registerFastMailboxFunc(priorityFn : MessageType => Int, processFn: Mailbox[MessageType] => Unit ) : RemoteServiceProxy[MessageType] = {
+    registerService(new FastMailboxDispatchReceiver[MessageType](priorityFn, processFn))
+  }
+
+  def registerActorFunc(f: PartialFunction[Envelope[MessageType],Unit]): RemoteServiceProxy[MessageType] = {
+    registerService(new DispatchReceiver[MessageType](f))
   }
 
   def getService(id: String): MessageReceiver[MessageType] =
