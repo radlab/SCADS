@@ -233,6 +233,34 @@ with TransactionI {
     addNSProtocol
   }
 
+  override def asyncPutBytes(key: Array[Byte], value: Option[Array[Byte]]): ScadsFuture[Unit] = {
+    val servers = serversForKey(key)
+    addNSProtocol
+    ThreadLocalStorage.updateList.value match {
+      case None => {
+        // TODO: what does it mean to do puts outside of a tx?
+        //       for now, just writes to all servers
+        val putRequest = PutRequest(key,
+                                    Some(MDCCRecordUtil.toBytes(value, getDefaultMeta)))
+        val responses = servers.map(_ !! putRequest)
+        new ComputationFuture[Unit] {
+          def compute(timeoutHint: Long, unit: TimeUnit) = {
+            responses.blockFor(servers.length)
+          }
+          def cancelComputation = sys.error("NOT IMPLEMENTED")
+        }
+      }
+      case Some(updateList) => {
+        updateList.appendValueUpdateInfo(this, servers, key, value)
+        // This future does nothing, since the protocol will work later.
+        new ComputationFuture[Unit] {
+          def compute(timeoutHint: Long, unit: TimeUnit) = {}
+          def cancelComputation = sys.error("NOT IMPLEMENTED")
+        }
+      }
+    }
+  }
+
   private def getReadQuorumSize(numServers: Int): Int = {
     ThreadLocalStorage.readConsistency.value match {
       case ReadLocal() => 1

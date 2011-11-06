@@ -5,38 +5,12 @@ package prot2pc
 import net.lag.logging.Logger
 import java.util.Calendar
 
-sealed case class RecordUpdateInfo(servers: Seq[PartitionService], update: RecordUpdate)
-
 object Protocol2pc extends ProtocolBase {
   def RunProtocol(tx: Tx) {
     println("***** 2pc protocol *****")
     val tid = Calendar.getInstance().getTimeInMillis()
     val commitTest = PrepareTest(tx, tid)
     CommitTest(tx, tid, commitTest)
-  }
-
-  protected def transformUpdateList(updateList: UpdateList, readList: ReadList): Seq[RecordUpdateInfo] = {
-    updateList.getUpdateList.map(update => {
-      update match {
-        case ValueUpdateInfo(ns, servers, key, value) => {
-          val (md, oldBytes) = readList.getRecord(key) match {
-            case None => (ns.getDefaultMeta(), None)
-            case Some(r) => (r.metadata, Some(MDCCRecordUtil.toBytes(r)))
-          }
-          //TODO: Do we really need the MDCCMetadata
-          val newBytes = MDCCRecordUtil.toBytes(value, md)
-          RecordUpdateInfo(servers, ValueUpdate(key, oldBytes, newBytes))
-        }
-        case LogicalUpdateInfo(ns, servers, key, value) => {
-          val md = readList.getRecord(key) match {
-            case None => ns.getDefaultMeta()
-            case Some(r) => r.metadata
-          }
-          val newBytes = MDCCRecordUtil.toBytes(value, md)
-          RecordUpdateInfo(servers, LogicalUpdate(key, newBytes))
-        }
-      }
-    })
   }
 
   def PrepareTest(tx: Tx, tid: Long) = {

@@ -213,7 +213,10 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
           schemasvc._1,
           pu)
       }
-      case _ => null
+      case _ =>
+        val partition = PartitionService(handler.remoteHandle, partitionIdLock.name, StorageService(remoteHandle))
+        val defaultMeta = MDCCMetaDefault.getOrCreateDefault(nsRoot, partition)
+        null
     }
   }
 
