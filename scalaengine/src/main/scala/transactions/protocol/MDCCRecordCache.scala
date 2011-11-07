@@ -15,7 +15,7 @@ class MDCCRecordCache() {
       protected override def canExpire(k: Array[Byte], v: MCCCRecordHandler): Boolean = v.getStatus == READY
     }
 
-  def killHandler (key : Array[Byte], handler :  MCCCRecordHandler) = handler ! EXIT
+  def killHandler (key : Array[Byte], handler :  MCCCRecordHandler) = handler.kill
 
   def get(key : Array[Byte]) : Option[MCCCRecordHandler] = {
     cache.synchronized{
@@ -35,7 +35,6 @@ class MDCCRecordCache() {
       cache.get(key) match {
         case None => {
           var handler = new MCCCRecordHandler(key, value, servers, mt.currentVersion, mt.ballots, confirmedBallot, confirmedVersion, conflictResolver)
-          handler.start()
           cache.update(key, handler)
           handler
         }

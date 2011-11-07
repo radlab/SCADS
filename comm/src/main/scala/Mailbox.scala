@@ -15,6 +15,8 @@ import util.Sorting._
 trait Mailbox[MessageType <: IndexedRecord] {
   def add(msg : Envelope[MessageType])  : Boolean
 
+  @volatile var keepMsgInMailbox = false
+
   def add(src : Option[RemoteService[MessageType]],  msg: MessageType) : Boolean = {
     this.add(Envelope(src, msg))
   }
@@ -42,11 +44,13 @@ trait Mailbox[MessageType <: IndexedRecord] {
     buffer
   }
 
-  def apply(fn : PartialFunction[Envelope[MessageType], Boolean]) = {
+  def apply(fn : PartialFunction[Envelope[MessageType], Unit]) = {
     var it = iter
-    while(iter.hasNext){
-      if (fn(iter.next())) {
-        iter.remove()
+    while(it.hasNext){
+      keepMsgInMailbox = false
+      fn(it.next())
+      if (!keepMsgInMailbox) {
+        it.remove()
       }
     }
   }

@@ -111,7 +111,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
               logger.debug("" + Xid + ": Receive record abort")
               logger.info("Transaction " + Xid + " aborted")
               status = ABORTED
-              this ! EXIT
+              this ! Exit
             }
           }
         }

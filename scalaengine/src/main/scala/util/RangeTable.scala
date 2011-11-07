@@ -1,7 +1,6 @@
 package edu.berkeley.cs.scads.util
 
 import java.util.{Comparator, Arrays}
-import net.lag.logging.Logger
 
 /**
  * Range Table data structure. Allows to split the range -inf to inf in arbitrary sub-ranges and assign values per sub-range.

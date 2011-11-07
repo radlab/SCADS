@@ -247,6 +247,7 @@ case class Learned(var xid: ScadsXid, var key: Array[Byte], var status : Boolean
 
 case class Commit(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
 case class Abort(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
+case class Exit() extends AvroRecord with MDCCProtocol
 
 /* Transaction KVStore Operations */
 sealed trait TxProtocol2pc extends TrxMessage

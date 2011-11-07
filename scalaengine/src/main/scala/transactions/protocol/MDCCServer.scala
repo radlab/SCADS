@@ -84,7 +84,7 @@ class MDCCServer(val namespace : String,
         routingTable.serversForKey(msg.update.key),
         meta,
         pendingUpdates.getConflictResolver)
-      recordHandler ! new Envelope[StorageMessage](Some(src.asInstanceOf[RemoteService[StorageMessage]]), msg)
+      recordHandler.forwardRequest(src, msg)
     }
     commitTrx(trx)
   }
