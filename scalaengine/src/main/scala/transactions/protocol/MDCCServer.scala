@@ -140,6 +140,7 @@ class MDCCServer(val namespace : String,
   }
 
   protected def processAccept(src: RemoteServiceProxy[StorageMessage], xid: ScadsXid, commit : Boolean) = {
+    logger.debug("Trx-Id: %s Process commit message. Status: %s", xid, commit )
     implicit val trx = startTrx()
     if(commit)
       pendingUpdates.commit(xid)

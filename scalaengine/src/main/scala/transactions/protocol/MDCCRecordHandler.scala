@@ -187,15 +187,17 @@ class MCCCRecordHandler (
             case _ =>
           }
         }
-        case env@StorageEnvelope(src, Recovered(key, value, metaData))  => {
+        case env@StorageEnvelope(src, msg : Recovered) => {
           debug("Recovered message", env)
           if (status == RECOVERY) {
-            this.value = value
-            this.version = metaData.currentVersion
-            this.ballots = metaData.ballots
+            this.value = msg.value
+            this.version = msg.meta.currentVersion
+            this.ballots = msg.meta.ballots
             confirmedBallot = true
             confirmedVersion = true
             status = READY
+            if(src != remoteHandle)
+              remoteHandle ! msg
           }
         }
         case env@StorageEnvelope(src, msg : Learned)  => {
@@ -240,6 +242,7 @@ class MCCCRecordHandler (
         }
         case env@StorageEnvelope(src, msg:ResolveConflict) if status == READY => {
           debug("ResolveConflict request", env)
+          request = env
           resolveConflict(src, msg)
         }
         case env@StorageEnvelope(src, x: Propose) if status == READY=> {
@@ -255,16 +258,21 @@ class MCCCRecordHandler (
   }
 
   def resolveConflict(src : ServiceType, msg : ResolveConflict){
-    if(confirmedVersion && this.confirmedBallot && value.commands.find(_.xid == msg.propose.xid).isDefined){
+    if(currentBallot.server != remoteHandle){
+      //We are not responsible for doing the conflict resolution
+      //So we go in Recovery mode
+      currentBallot.server ! msg
+      status = RECOVERY
+    }else if(confirmedVersion && this.confirmedBallot && value.commands.find(_.xid == msg.propose.xid).isDefined){
       //The resolve conflict is a duplicate and was already resolved
-      src ! Recovered(key, value, ballots)
+      src ! Recovered(key, value, MDCCMetadata(version, ballots))
       return
-    }else if(unsafeCommands.find(_.xid == msg.propose.xid)){
+    }else if(unsafeCommands.find(_.xid == msg.propose.xid).isDefined){
       //We already have it on our todo list, so we just store the propose to be on the save side
       forwardRequest(src, msg.propose)
     }else{
-      //First we nee}d a new ballot
-      val maxRound = max(msg.ballot.round, version.round)
+      //First we need a new ballot
+      val maxRound = max(msg.ballots.head.startRound, ballots.head.startRound)
       confirmedBallot = false
       ballots = compareRanges(ballots, msg.ballots, maxRound) match {
         case 0 =>
@@ -274,7 +282,7 @@ class MCCCRecordHandler (
         case -1  | -2 => {
           combine(msg.ballots, ballots, maxRound)
         }
-        case _ => assert(false) //should never happen
+        case _ => throw new RuntimeException("Unvalid compare type")
       }
       startPhase1a(getOwnership(ballots, maxRound, maxRound, ballots.head.fast))
     }
@@ -290,18 +298,17 @@ class MCCCRecordHandler (
       }
       case VOTED_SWITCH_TO_CLASSIC => {
         //We are in a classic round
-        if(topBallot.server == this.remoteHandle){
+        if(currentBallot.server == this.remoteHandle){
           startPhase2a(src, propose)
         }else{
           status = FORWARDED
-          topBallot.server ! propose
+          currentBallot.server ! propose
         }
       }
       case UNVOTED_SWITCH_TO_CLASSIC => {
         //TODO store ResolveConflict status
-       remoteHandle ! ResolveConflict(key, version)
+       remoteHandle ! ResolveConflict(key, ballots, propose)
        debug("Request ResolveConflict " + version)
-       forwardRequest(src, propose)
       }
      case CSTABLE_VOTED_NEXT_CLASSIC | CSTABLE_UNVOTED_NEXT_CLASSIC => {
        val ballot = getBallot(ballots, version.round + 1).get
@@ -325,13 +332,11 @@ class MCCCRecordHandler (
      case CSTABLE_NEXT_UNDEFINED => {
        debug("React to CSTABLE_NEXT_UNDEFINED")
        remoteHandle ! BeMaster(key, version.round + 1, version.round + 1, true) //Ok lets get a fast round
-       remoteHandle ! ResolveConflict(key, version) //A new fast round always starts with a conflict resolution
        forwardRequest(src, propose)
      }
      case CUNSTABLE => {
       debug("React to CUNSTABLE")
-      remoteHandle ! ResolveConflict(key, version)
-      forwardRequest(src, propose)
+      remoteHandle ! ResolveConflict(key, ballots, propose)
      }
   }
   }
@@ -396,7 +401,7 @@ class MCCCRecordHandler (
       confirmedVersion = false
       request match {
         case StorageEnvelope(src, x: BeMaster) => src ! GotMastership(ballots)
-        case ResolveConflict(src, propose : Propose) => startPhase2a(src, propose)
+        case StorageEnvelope(src, ResolveConflict(_,_, propose)) => startPhase2a(src, propose)
         case _ => throw new RuntimeException("A Phase1a should always be triggered through BeMaster")
       }
       clear()
@@ -425,14 +430,14 @@ class MCCCRecordHandler (
 
   def kill = remoteHandle.notify(Exit())
 
-  @inline def forwardRequest(src : ServiceType, msg : StorageMessage) = remoteHandle.!(msg)(src)
+  @inline def forwardRequest(src : ServiceType, msg : StorageMessage) : Unit = remoteHandle.!(msg)(src)
 
   /**
    * Forwards a request and unsafe proposes
    */
-  @inline def forwardRequest(src, propose : Propose,  unsafeCommands : Seq[Propose] ) = {
-    if(!propSeq.isEmpty)
-       forwardRequest(src, unsafeCommands)
+  @inline def forwardRequest(src : ServiceType, propose : Propose,  unsafeCommands : Seq[Propose] ) : Unit = {
+    if(!unsafeCommands.isEmpty)
+       forwardRequest(src, ProposeSeq(unsafeCommands))
     forwardRequest(src, propose)
   }
 
@@ -567,6 +572,8 @@ class MCCCRecordHandler (
             forwardRequest(src, ProposeSeq(missing))
           }
         }
+        case msg : ResolveConflict =>
+          src ! Recovered(key, value, MDCCMetadata(version, ballots))
         case _ => throw new RuntimeException("Should never happen")
       }
       clear()
