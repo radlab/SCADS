@@ -247,14 +247,38 @@ class MCCCRecordHandler (
           request = env
           SendProposal(src, x)
         }
-        case _ => mailbox.keepMsgInMailbox = true
+        case msg@_ => {
+          logger.debug("Ignoring message in mailbox: %s", msg)
+          mailbox.keepMsgInMailbox = true
+        }
       }
   }
 
   def resolveConflict(src : ServiceType, msg : ResolveConflict){
-
+    if(confirmedVersion && this.confirmedBallot && value.commands.find(_.xid == msg.propose.xid).isDefined){
+      //The resolve conflict is a duplicate and was already resolved
+      src ! Recovered(key, value, ballots)
+      return
+    }else if(unsafeCommands.find(_.xid == msg.propose.xid)){
+      //We already have it on our todo list, so we just store the propose to be on the save side
+      forwardRequest(src, msg.propose)
+    }else{
+      //First we nee}d a new ballot
+      val maxRound = max(msg.ballot.round, version.round)
+      confirmedBallot = false
+      ballots = compareRanges(ballots, msg.ballots, maxRound) match {
+        case 0 =>
+          ballots
+        case 1 =>
+          ballots
+        case -1  | -2 => {
+          combine(msg.ballots, ballots, maxRound)
+        }
+        case _ => assert(false) //should never happen
+      }
+      startPhase1a(getOwnership(ballots, maxRound, maxRound, ballots.head.fast))
+    }
   }
-
 
   def SendProposal(src: ServiceType, propose : Propose) : Unit = {
     debug("Processing proposal", src, propose)
@@ -264,7 +288,17 @@ class MCCCRecordHandler (
         debug("Sending fast propose from " + remoteHandle + " to " + servers.mkString(":"))
         servers.foreach(_ ! propose)
       }
-      case VOTED_SWITCH_TO_CLASSIC | UNVOTED_SWITCH_TO_CLASSIC => {
+      case VOTED_SWITCH_TO_CLASSIC => {
+        //We are in a classic round
+        if(topBallot.server == this.remoteHandle){
+          startPhase2a(src, propose)
+        }else{
+          status = FORWARDED
+          topBallot.server ! propose
+        }
+      }
+      case UNVOTED_SWITCH_TO_CLASSIC => {
+        //TODO store ResolveConflict status
        remoteHandle ! ResolveConflict(key, version)
        debug("Request ResolveConflict " + version)
        forwardRequest(src, propose)
@@ -275,7 +309,6 @@ class MCCCRecordHandler (
             //We are the master for the next round, so lets go
             if(confirmedBallot) {
               //The ballot is valid, lets move to phase2
-              debug("Request ResolveConflict " + version)
               startPhase2a(src, propose)
             }else{
               //we might have an invalid ballot, lets renew it
@@ -293,12 +326,12 @@ class MCCCRecordHandler (
        debug("React to CSTABLE_NEXT_UNDEFINED")
        remoteHandle ! BeMaster(key, version.round + 1, version.round + 1, true) //Ok lets get a fast round
        remoteHandle ! ResolveConflict(key, version) //A new fast round always starts with a conflict resolution
-       remoteHandle ! propose
+       forwardRequest(src, propose)
      }
      case CUNSTABLE => {
       debug("React to CUNSTABLE")
       remoteHandle ! ResolveConflict(key, version)
-      remoteHandle ! propose
+      forwardRequest(src, propose)
      }
   }
   }
@@ -322,7 +355,7 @@ class MCCCRecordHandler (
     assert(status == PHASE1A)
     //We take the max for comparing/combining ranges, as it only can mean, we are totally outdated
     val maxRound = max(msg.meta.currentVersion.round, version.round)
-    compareRanges(msg.meta.ballots, ballots, maxRound) match {
+    compareRanges(ballots, msg.meta.ballots, maxRound) match {
       case 0 =>
         //The storage node accepted the new meta data
         responses += src -> msg
@@ -363,6 +396,7 @@ class MCCCRecordHandler (
       confirmedVersion = false
       request match {
         case StorageEnvelope(src, x: BeMaster) => src ! GotMastership(ballots)
+        case ResolveConflict(src, propose : Propose) => startPhase2a(src, propose)
         case _ => throw new RuntimeException("A Phase1a should always be triggered through BeMaster")
       }
       clear()
@@ -393,6 +427,15 @@ class MCCCRecordHandler (
 
   @inline def forwardRequest(src : ServiceType, msg : StorageMessage) = remoteHandle.!(msg)(src)
 
+  /**
+   * Forwards a request and unsafe proposes
+   */
+  @inline def forwardRequest(src, propose : Propose,  unsafeCommands : Seq[Propose] ) = {
+    if(!propSeq.isEmpty)
+       forwardRequest(src, unsafeCommands)
+    forwardRequest(src, propose)
+  }
+
   def startPhase2a(src : ServiceType, propose : Propose) : Unit = {
     status = PHASE2A
     assert(confirmedBallot)
@@ -411,7 +454,7 @@ class MCCCRecordHandler (
           //The next round is not defined, so we do not know how we can handle this one
           //Lets first create a new round and then we try it later again
           createNextBallot()
-          forwardRequest(src, ProposeSeq(unsafeCommands :+ propose))
+          forwardRequest(src, propose, unsafeCommands)
           //We abort
           clear()
           return
@@ -442,7 +485,7 @@ class MCCCRecordHandler (
           }else{
             //Lets do one update at a time
             servers ! Phase2a(key, cBallot, value, unsafeCommands.head )
-            forwardRequest(src, ProposeSeq(unsafeCommands.tail :+ propose))//we need to ensure the right owner
+            forwardRequest(src, propose, unsafeCommands.tail)
           }
         }else{
           //The round is already used
@@ -458,13 +501,13 @@ class MCCCRecordHandler (
                 servers ! Phase2a(key, nextBallot, rebase, propose)
               }else{
                 servers ! Phase2a(key, nextBallot, rebase, unsafeCommands.head)
-                forwardRequest(src, ProposeSeq(unsafeCommands.tail :+ propose))
+                forwardRequest(src, propose, unsafeCommands.tail)
               }
             }
           }else{
             //The value is not stable, so we need to stabilize it first
             servers ! Phase2a(key, nextBallot, value)
-            forwardRequest(src, ProposeSeq(unsafeCommands :+ propose))
+            forwardRequest(src, propose, unsafeCommands)
           }
         }
       }

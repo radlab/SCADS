@@ -207,11 +207,14 @@ sealed trait TrxMessage extends KeyValueStoreOperation
 /* Transaction MDCC Paxos */
 sealed trait MDCCProtocol extends TrxMessage
 
-case class ResolveConflict(var key: Array[Byte], var ballots: MDCCBallot) extends AvroRecord with MDCCProtocol
+/**
+ * Request a conflict resolution
+ * Proposes are the critical updates
+ * Init indicates if only a fast round has to be opened up
+ */
+case class ResolveConflict(var key: Array[Byte], var ballots: Seq[MDCCBallotRange], var propose : Propose) extends AvroRecord with MDCCProtocol
 
-case class Recovered(var key: Array[Byte], var value: CStruct, var ballots: MDCCMetadata) extends AvroRecord with MDCCProtocol {
-
-}
+case class Recovered(var key: Array[Byte], var value: CStruct, var ballots: MDCCMetadata) extends AvroRecord with MDCCProtocol
 
 case class BeMaster(var key: Array[Byte], var startRound: Long, var endRound: Long, var fast : Boolean) extends AvroRecord with MDCCProtocol
 
@@ -220,7 +223,6 @@ case class GotMastership(var ballots: Seq[MDCCBallotRange]) extends AvroRecord w
 case class Propose(var xid: ScadsXid, var update: RecordUpdate) extends AvroRecord with MDCCProtocol
 
 case class ProposeSeq(var proposes : Seq[Propose])  extends AvroRecord with MDCCProtocol
-
 
 case class Phase1a(var key: Array[Byte], var ballots: Seq[MDCCBallotRange]) extends AvroRecord with MDCCProtocol
 
