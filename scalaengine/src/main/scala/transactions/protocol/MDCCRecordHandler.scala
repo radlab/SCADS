@@ -238,9 +238,9 @@ class MCCCRecordHandler (
         case Envelope(src, msg: Abort) => {
           servers ! msg
         }
-        case env@StorageEnvelope(src, ResolveConflict(key, ballot)) if status == READY => {
+        case env@StorageEnvelope(src, msg:ResolveConflict) if status == READY => {
           debug("ResolveConflict request", env)
-              //TODO
+          resolveConflict(src, msg)
         }
         case env@StorageEnvelope(src, x: Propose) if status == READY=> {
           debug("Propose request", env)
@@ -251,7 +251,7 @@ class MCCCRecordHandler (
       }
   }
 
-  def resolveConflict(){
+  def resolveConflict(src : ServiceType, msg : ResolveConflict){
 
   }
 
