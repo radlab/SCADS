@@ -248,7 +248,10 @@ class BDBTxDB[K <: AnyRef, V <: AnyRef](val db: Database,
     val txn = getTransaction(tx, "BDB.get()")
     val (dbeKey, dbeValue) = (new DatabaseEntry(keyToBytes(key)),
                               new DatabaseEntry)
-    val opStatus = db.get(txn, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+    val opStatus = txn match {
+      case null => db.get(txn, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+      case _ => db.get(txn, dbeKey, dbeValue, LockMode.RMW)
+    }
     if (opStatus == OperationStatus.SUCCESS) {
       // Record found in db
       Some(valueFromBytes(dbeValue.getData()))
