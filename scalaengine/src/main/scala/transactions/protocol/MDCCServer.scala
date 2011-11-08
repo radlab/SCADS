@@ -67,7 +67,7 @@ class MDCCServer(val namespace : String,
   }
 
   protected  def processPropose(src: RemoteServiceProxy[StorageMessage], msg : Propose) : Unit = {
-    debug(msg.update.key, "Process propose", src, msg)
+    debug(msg.update.key, "Process propose %s %s %s", src, msg, pendingUpdates)
     implicit val trx = startTrx()
     val meta = getMeta(msg.update.key)
     val ballot = meta.ballots.head.ballot
