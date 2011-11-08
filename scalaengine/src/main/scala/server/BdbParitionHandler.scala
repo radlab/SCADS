@@ -109,24 +109,7 @@ class BdbStorageManager(val db: Database,
     cursorTimeoutThread.execute(runnable)
   }
 
-  //TODO All the Trx protocol should be factored out like done for MDCC
-  private lazy val pendingUpdates = new PendingUpdatesController(
-    new BDBTxDB[Array[Byte], Array[Byte]](
-      db,
-      new ByteArrayKeySerializer[Array[Byte]],
-      new ByteArrayValueSerializer[Array[Byte]]),
-    new BDBTxDBFactory(db.getEnvironment),
-    keySchema, valueSchema)
-
-  def startup() {
-    // TODO: crash recovery
-    pendingUpdates.startup()
-
-    nsRoot.get("valueICs").foreach(icBytes => {
-      val reader = new AvroSpecificReaderWriter[FieldICList](None)
-      pendingUpdates.setICs(reader.deserialize(icBytes.data))
-    })
-  }
+  def startup() {}
 
   def shutdown() {
     // stop the cursor tasks
@@ -145,7 +128,6 @@ class BdbStorageManager(val db: Database,
     }
     openCursors.clear()
     db.close()
-    pendingUpdates.shutdown()
   }
 
   private val iterateRangeBreakable = new Breaks
