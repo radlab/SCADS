@@ -44,6 +44,7 @@ trait PendingUpdates extends DBRecords {
    * The transaction was successful (we will never decide otherwise)
    */
   def commit(xid: ScadsXid)(implicit dbTxn: TransactionData): Boolean
+  def commitTxn(xid: ScadsXid, dbTxn: TransactionData = null): Boolean
 
   /**
    * The transaction was learned as aborted (we will never decide otherwise)
@@ -61,10 +62,6 @@ trait PendingUpdates extends DBRecords {
   def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[Propose])(implicit dbTxn: TransactionData): Boolean
 
   def overwriteTxn(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[Propose], dbTxn: TransactionData = null): Boolean
-
-  // Value is chosen (reflected in the db) and confirms trx state.
-  @deprecated def commit(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean
-
 
   def getDecision(xid: ScadsXid): Status.Status
 
@@ -198,7 +195,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
   private var valueICs: FieldICList = null
 
-  private var conflictResolver: ConflictResolver = null //TODO Gene, is this value ever set?
+  private var conflictResolver: ConflictResolver = null
 
   def setICs(ics: FieldICList) = {
     valueICs = ics
@@ -265,8 +262,6 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       if (dbTxn == null) {
         db.txCommit(txn)
       }
-      // TODO: Handle the case when the commit arrives before the prepare.
-      txStatus.putNoOverwrite(null, xid, TxStatusEntry(Status.Accept.toString, updates))
     } else {
       pendingCStructs.txAbort(pendingCommandsTxn)
 
@@ -288,58 +283,106 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       if (dbTxn == null) {
         db.txAbort(txn)
       }
-      // TODO: Handle the case when the commit arrives before the prepare.
-      txStatus.putNoOverwrite(null, xid, TxStatusEntry(Status.Reject.toString, updates))
     }
+
+    val entryStatus = success match {
+      case true => Status.Accept.toString
+      case false => Status.Reject.toString
+    }
+
+    // Merge the updates to the state of tx, in a transaction.
+    val txStatusTxn = txStatus.txStart()
+    val (newUpdates, emptyGet) = txStatus.get(txStatusTxn, xid) match {
+      case None => (updates, true)
+      case Some(s) => (s.updates ++ updates, false)
+    }
+    val noOverwrite = txStatus.putNoOverwrite(txStatusTxn, xid, TxStatusEntry(entryStatus, newUpdates))
+    txStatus.txCommit(txStatusTxn)
+
+    if (emptyGet && !noOverwrite) {
+      // Failed to write the tx.  Try again, since the key exists now.
+      val txStatusTxn2 = txStatus.txStart()
+      val newUpdates2 = txStatus.get(txStatusTxn2, xid) match {
+        case None => updates
+        case Some(s) => s.updates ++ updates
+      }
+      txStatus.put(txStatusTxn2, xid, TxStatusEntry(entryStatus, newUpdates2))
+      txStatus.txCommit(txStatusTxn2)
+    }
+
     (success, cstructs)
   }
 
-  override def commit(xid: ScadsXid, updates: Seq[RecordUpdate]) = {
+  override def commit(xid: ScadsXid)(implicit dbTxn : TransactionData) : Boolean = {
+    commitTxn(xid, dbTxn)
+  }
+
+  override def commitTxn(xid: ScadsXid, dbTxn : TransactionData = null) : Boolean = {
     // TODO: Handle out of order commits to same records.
     var success = true
-    val txn = db.txStart()
+    val txn = dbTxn match {
+      case null => db.txStart()
+      case x => x
+    }
     val pendingCommandsTxn = pendingCStructs.txStart()
-    try {
-      updates.foreach(r => {
-        // TODO: These updates overwrite the metadata.  Probably have to
-        //       selectively update only the value part of the record.
-        r match {
-          case LogicalUpdate(key, delta) => {
-            db.get(txn, key) match {
-              case None => db.put(txn, key, delta)
-              case Some(recBytes) => {
-                val deltaRec = MDCCRecordUtil.fromBytes(delta)
-                val dbRec = MDCCRecordUtil.fromBytes(recBytes)
-                val newBytes = logicalRecordUpdater.applyDeltaBytes(dbRec.value, deltaRec.value)
-                val newRec = MDCCRecordUtil.toBytes(MDCCRecord(Some(newBytes), dbRec.metadata))
-                db.put(txn, key, newRec)
+    val txStatusTxn = txStatus.txStart()
+
+    txStatus.get(txStatusTxn, xid) match {
+      case None => success = false
+      case Some(s) => try {
+        val decision = Status.withName(s.status)
+        if (decision == Status.Commit || decision == Status.Abort) {
+          // This tx is already committed or aborted.
+          success = true
+        } else {
+          s.updates.foreach(r => {
+            // TODO: These updates overwrite the metadata.  Probably have to
+            //       selectively update only the value part of the record.
+            r match {
+              case LogicalUpdate(key, delta) => {
+                db.get(txn, key) match {
+                  case None => db.put(txn, key, delta)
+                  case Some(recBytes) => {
+                    val deltaRec = MDCCRecordUtil.fromBytes(delta)
+                    val dbRec = MDCCRecordUtil.fromBytes(recBytes)
+                    val newBytes = logicalRecordUpdater.applyDeltaBytes(dbRec.value, deltaRec.value)
+                    val newRec = MDCCRecordUtil.toBytes(MDCCRecord(Some(newBytes), dbRec.metadata))
+                    db.put(txn, key, newRec)
+                  }
+                }
+              }
+              case ValueUpdate(key, oldValue, newValue) => {
+                db.put(txn, key, newValue)
+              }
+              case VersionUpdate(key, newValue) => {
+                db.put(txn, key, newValue)
               }
             }
-          }
-          case ValueUpdate(key, oldValue, newValue) => {
-            db.put(txn, key, newValue)
-          }
-          case VersionUpdate(key, newValue) => {
-            db.put(txn, key, newValue)
+
+            // Commit the updates in the pending list.
+            val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key).getOrElse(PendingCommandsInfo(None, new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
+            commandsInfo.commitCommand(CStructCommand(xid, r, false, true), logicalRecordUpdater)
+
+            pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
+          })
+
+          txStatus.put(txStatusTxn, xid, TxStatusEntry(Status.Commit.toString, s.updates))
+          txStatus.txCommit(txStatusTxn)
+          pendingCStructs.txCommit(pendingCommandsTxn)
+          if (dbTxn == null) {
+            db.txCommit(txn)
           }
         }
-
-        // Commit the updates in the pending list.
-        val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key).getOrElse(PendingCommandsInfo(None, new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
-        commandsInfo.commitCommand(CStructCommand(xid, r, false, true), logicalRecordUpdater)
-
-        pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
-      })
-      db.txCommit(txn)
-      pendingCStructs.txCommit(pendingCommandsTxn)
-    } catch {
-      case e: Exception => {}
-      db.txAbort(txn)
-      pendingCStructs.txAbort(pendingCommandsTxn)
-      success = false
+      } catch {
+        case e: Exception => {println(e)}
+        pendingCStructs.txAbort(pendingCommandsTxn)
+        if (dbTxn == null) {
+          db.txAbort(txn)
+        }
+        success = false
+      }
     }
 
-    txStatus.put(null, xid, TxStatusEntry(Status.Commit.toString, updates))
     success
   }
 
@@ -444,8 +487,6 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     //       something else?
     success
   }
-
-  def commit(xid: ScadsXid)(implicit dbTxn : TransactionData) : Boolean = throw new RuntimeException("Gene implement me")
 
   override def getDecision(xid: ScadsXid) = {
     txStatus.get(null, xid) match {

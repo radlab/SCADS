@@ -24,7 +24,7 @@ class Protocol2PCManager(val pu: PendingUpdates, val manager: StorageManager, im
       case CommitRequest(xid, updates, commit) => {
         var success = true
         if (commit) {
-          success = pu.commit(xid, updates)
+          success = pu.commitTxn(xid)
         } else {
           // Abort
           pu.abortTxn(xid)
