@@ -1,11 +1,11 @@
 package edu.berkeley.cs.scads.piql
 package viz
 
-import plans._
 import java.io.File
-import sun.awt.SunHints.Value
+import plans._
 
 object Test {
+
   import edu.berkeley.cs.scads.piql.test.Relations._
 
   def main(args: Array[String]): Unit = {
@@ -25,6 +25,7 @@ object Test {
 
 trait GraphViz extends FileGenerator {
   private val curId = new java.util.concurrent.atomic.AtomicInteger
+
   protected def nextId = curId.getAndIncrement()
 
   protected def digraph[A](name: String)(f: => A): A = {
@@ -35,7 +36,8 @@ trait GraphViz extends FileGenerator {
   }
 
   case class DotNode(id: String)
-  protected def outputNode(label: String, shape: String = "box", fillcolor: String = "azure3", style: String = "none", children:List[DotNode]= Nil): DotNode = {
+
+  protected def outputNode(label: String, shape: String = "box", fillcolor: String = "azure3", style: String = "none", children: List[DotNode] = Nil): DotNode = {
     val node = DotNode("node" + nextId)
     output(node.id, "[label=", quote(label), ", shape=", shape, ", fillcolor=", fillcolor, ", style=", style, "];")
     children.foreach(outputEdge(_, node))
@@ -71,19 +73,53 @@ protected class GraphLogicalPlan(val file: File) extends GraphViz {
     }
   }
 
+  val joinSym = "&#9285;"
+  val selectionSym = "&#963;"
+
   /* Recursive function to draw individual plan nodes */
   protected def generatePlan(plan: LogicalPlan): DotNode = plan match {
+    case Selection(predicate, child) =>
+      val childNode = generatePlan(child)
+      val thisNode = outputNode(selectionSym + "\n" + prettyPrint(predicate))
+      outputEdge(childNode, thisNode)
+      thisNode
+    case Sort(attributes, ascending, child) =>
+      val childNode = generatePlan(child)
+      val thisNode = outputNode("sort " + (if (ascending) "asc" else "desc") + "\n" + attributes.map(prettyPrint).mkString(","))
+      outputEdge(childNode, thisNode)
+      thisNode
+    case StopAfter(count, child) =>
+      val childNode = generatePlan (child)
+      val thisNode = outputNode ("stop\n" + prettyPrint (count) )
+      outputEdge (childNode, thisNode)
+      thisNode
+    case DataStopAfter(count, child) =>
+      val childNode = generatePlan(child)
+      val thisNode = outputNode("data stop\n" + prettyPrint(count))
+      outputEdge(childNode, thisNode)
+      thisNode
     case in: InnerNode =>
       val child = generatePlan(in.child)
       val thisNode = outputNode(in.toString)
       outputEdge(child, thisNode)
       thisNode
-    case Join(left,right) =>
-      outputNode(left.toString)
-      outputNode(right.toString)
-      generatePlan(left)
-      generatePlan(right)
+    case Join(left, right) =>
+      val thisNode = outputNode(joinSym)
+      val leftNode = generatePlan(left)
+      val rightNode = generatePlan(right)
+      outputEdge(leftNode, thisNode)
+      outputEdge(rightNode, thisNode)
+      thisNode
     case Relation(ns) =>
       outputNode(ns.name)
+  }
+
+  protected def prettyPrint(p: Predicate): String = p match {
+    case EqualityPredicate(v1, v2) => prettyPrint(v1) + " = " + prettyPrint(v2)
+  }
+
+  protected def prettyPrint(v: Value): String = v match {
+    case UnboundAttributeValue(name) => name
+    case ConstantValue(c) => c.toString
   }
 }
