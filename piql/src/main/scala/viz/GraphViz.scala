@@ -84,13 +84,13 @@ protected class GraphLogicalPlan extends GraphViz {
   /* Recursive function to draw individual plan nodes */
   protected def generatePlan(plan: LogicalPlan): DotNode = plan match {
     case Project(values, child) =>
-      outputNode(projectSym + " " + values.map(prettyPrint).mkString(","),
+      outputNode(projectSym + " " + values.map(prettyPrint).mkString(", "),
         children = Seq(generatePlan(child)))
     case Selection(predicate, child) =>
       outputNode(selectionSym + " " + prettyPrint(predicate),
         children = Seq(generatePlan(child)))
     case Sort(attributes, ascending, child) =>
-      outputNode("sort " + (if (ascending) "asc" else "desc") + "\n" + attributes.map(prettyPrint).mkString(","),
+      outputNode("sort " + (if (ascending) "asc" else "desc") + "\n" + attributes.map(prettyPrint).mkString(", "),
         children = Seq(generatePlan(child)))
     case StopAfter(count, child) =>
       outputNode("stop\n" + prettyPrint(count),
