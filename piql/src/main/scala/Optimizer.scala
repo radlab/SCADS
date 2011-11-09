@@ -18,7 +18,7 @@ object OptimizedQuery {
   val physicalPlans = new java.util.concurrent.ConcurrentHashMap[Int, QueryPlan]()
 }
 
-class OptimizedQuery(val name: Option[String], val physicalPlan: QueryPlan, executor: QueryExecutor) {
+class OptimizedQuery(val name: Option[String], val logicalPlan: LogicalPlan, val physicalPlan: QueryPlan, executor: QueryExecutor) {
   def apply(args: Any*): QueryResult = {
     val encodedArgs = args.map {
       case s: String => new Utf8(s)

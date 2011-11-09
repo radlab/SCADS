@@ -61,7 +61,7 @@ package object piql {
       logger.info("Begining Optimization of query %s: %s", queryName, logicalPlan)
       val physicalPlan = Optimizer(logicalPlan).physicalPlan
       logger.info("Optimized piql query %s: %s", queryName, physicalPlan)
-      new OptimizedQuery(queryName, physicalPlan, executor)
+      new OptimizedQuery(queryName, logicalPlan,  physicalPlan, executor)
     }
   }
 
