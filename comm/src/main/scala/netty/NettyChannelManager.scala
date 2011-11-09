@@ -58,15 +58,18 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
   }
 
   /**TODO: configure thread pools */
-  private lazy val serverBootstrap = new ServerBootstrap(
+  private lazy val serverBootstrap = {
+    val sb = new ServerBootstrap(
     new NioServerSocketChannelFactory(
       Executors.newCachedThreadPool(DaemonThreadFactory),
       Executors.newCachedThreadPool(DaemonThreadFactory)))
 
-  serverBootstrap.setParentHandler(new NettyServerParentHandler)
-  serverBootstrap.setPipelineFactory(pipelineFactory(new NettyServerChildHandler))
-  serverBootstrap.setOption("child.tcpNoDelay", useTcpNoDelay)
-  // disable nagle's algorithm
+    sb.setParentHandler(new NettyServerParentHandler)
+    sb.setPipelineFactory(pipelineFactory(new NettyServerChildHandler))
+    // disable nagle's algorithm
+    sb.setOption("child.tcpNoDelay", useTcpNoDelay)
+    sb
+  }
 
   /**TODO: configure thread pools */
   private val clientBootstrap = new ClientBootstrap(
