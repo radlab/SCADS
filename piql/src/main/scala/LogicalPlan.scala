@@ -41,6 +41,11 @@ abstract trait InnerNode {
 }
 
 /**
+ * Project a subset of the fields from the child
+ */
+case class Project(values: Seq[Value], child: LogicalPlan) extends LogicalPlan with InnerNode
+
+/**
  * Filters child by predicate.
  */
 case class Selection(predicate: Predicate, child: LogicalPlan) extends LogicalPlan with InnerNode
@@ -56,6 +61,11 @@ case class Sort(attributes: Seq[Value], ascending: Boolean, child: LogicalPlan) 
 trait StopOperator extends InnerNode {
   val count: Limit
 }
+
+/**
+ * Returns tuples page by page, count tuples per page
+ */
+case class Paginate(count: Limit, child: LogicalPlan) extends LogicalPlan with StopOperator
 
 /**
  * Returns the first count tuples from child.
