@@ -54,7 +54,7 @@ class RemoteServiceSpec extends Spec with ShouldMatchers {
     it("should send message across handlers") {
       val networkService = new RemoteService[TestMessages](TestService.remoteHandle.remoteNode, TestService.remoteHandle.id)
       networkService.registry = TestRegistry2
-      (networkService !? TestMsg1(2)) should equal(TestMsg2(2))
+      (networkService !? TestMsg1(4)) should equal(TestMsg2(4))
     }
   }
 }

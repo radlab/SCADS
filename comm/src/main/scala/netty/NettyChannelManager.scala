@@ -101,7 +101,9 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
     override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
       val msg = e.getMessage.asInstanceOf[R]
       val node = e.getRemoteAddress.asInstanceOf[InetSocketAddress]
-      receiveMessage(RemoteNode(node.getHostName, node.getPort), msg)
+      val remoteNode = RemoteNode(node.getHostName, node.getPort)
+      logger.debug("Recieved message over wire from %s: %s", remoteNode, msg)
+      receiveMessage(remoteNode, msg)
     }
   }
 
@@ -162,8 +164,11 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
   override def sendMessage(dest: RemoteNode, msg: S) {
     if(dest == remoteNode)
       receiveMessage(remoteNode, msg.asInstanceOf[R])
-    else
-      getConnectionFor(dest).write(msg) // encoding done in channel handlers
+    else {
+      val channel = getConnectionFor(dest)
+      logger.debug("writing message %s to channel %s", msg, channel)
+      channel.write(msg) // encoding done in channel handlers
+    }
   }
 
   override def sendMessageBulk(dest: RemoteNode, msg: S) {
