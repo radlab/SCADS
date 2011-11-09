@@ -58,11 +58,24 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new Paral
   val thoughtstream = (
     subscriptions.where("subscriptions.owner".a === (0.?))
 		 .dataLimit(maxSubscriptions)
+     .where("subscriptions.approved".a === true)
 		 .join(thoughts)
 		 .where("thoughts.owner".a === "subscriptions.target".a)
 		 .sort("thoughts.timestamp".a :: Nil, false)
 		 .limit(1.?, maxResultsPerPage)
   ).toPiql("thoughtstream")
+
+  val tsAddThoughtDelta =
+    subscriptions.where("subscriptions.target".a === "@t.owner".a)
+      .where("subscriptions.approved".a === true)
+      .select("subscription.owner".a, "@t.timestamp".a, "@t.owner".a)
+
+  val tsAddSubscriptionDelta =
+    thoughts.where("thoughts.owner".a === "@s.target".a)
+      .where("@s.approved".a === true)
+      .select("@s.owner".a, "thoughts.timestamp".a, "thoughts.owner".a)
+      .sort("thoughts.timestamp".a :: Nil, false)
+      .limit(1.?, maxResultsPerPage)
 
   /**
    * Who is following ME?
