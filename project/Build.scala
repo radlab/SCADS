@@ -76,7 +76,11 @@ object ScadsBuild extends Build {
   lazy val piql = Project(
     "piql", file("piql"),
     settings = deploySettings ++ Seq(
-      libraryDependencies ++= useAvroPlugin)
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands in console += (
+        "import edu.berkeley.cs.scads.piql._\n" +
+          "import edu.berkeley.cs.scads.piql.viz._\n"
+        ))
   ) dependsOn (config, comm, scalaEngine)
 
   lazy val perf = Project(
@@ -100,14 +104,19 @@ object ScadsBuild extends Build {
       libraryDependencies ++= useAvroPlugin,
       initialCommands in console += (
         "import edu.berkeley.cs.scads.piql.modeling._\n" +
-          "import edu.berkeley.cs.scads.piql.modeling.Experiments._")
-    )
+          "import edu.berkeley.cs.scads.piql.modeling.Experiments._"))
   ) dependsOn (piql, perf, deploylib, scadr, tpcw)
 
   lazy val scadr = Project(
     "scadr",
     file("piql/scadr"),
-    settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
+    settings = deploySettings ++ Seq(
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands in console += (
+        "import edu.berkeley.cs.scads.piql._\n" +
+          "import edu.berkeley.cs.scads.piql.viz._\n" +
+          "import edu.berkeley.cs.scads.piql.scadr._\n" +
+          "object testScadrClient extends ScadrClient(edu.berkeley.cs.scads.storage.TestScalaEngine.newScadsCluster(), new ParallelExecutor)"))
   ) dependsOn (piql % "compile;test->test", perf)
 
   lazy val tpcw = Project(
