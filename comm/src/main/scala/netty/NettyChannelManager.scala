@@ -58,15 +58,18 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
   }
 
   /**TODO: configure thread pools */
-  private lazy val serverBootstrap = new ServerBootstrap(
+  private lazy val serverBootstrap = {
+    val sb = new ServerBootstrap(
     new NioServerSocketChannelFactory(
       Executors.newCachedThreadPool(DaemonThreadFactory),
       Executors.newCachedThreadPool(DaemonThreadFactory)))
 
-  serverBootstrap.setParentHandler(new NettyServerParentHandler)
-  serverBootstrap.setPipelineFactory(pipelineFactory(new NettyServerChildHandler))
-  serverBootstrap.setOption("child.tcpNoDelay", useTcpNoDelay)
-  // disable nagle's algorithm
+    sb.setParentHandler(new NettyServerParentHandler)
+    sb.setPipelineFactory(pipelineFactory(new NettyServerChildHandler))
+    // disable nagle's algorithm
+    sb.setOption("child.tcpNoDelay", useTcpNoDelay)
+    sb
+  }
 
   /**TODO: configure thread pools */
   private val clientBootstrap = new ClientBootstrap(
@@ -101,7 +104,9 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
     override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
       val msg = e.getMessage.asInstanceOf[R]
       val node = e.getRemoteAddress.asInstanceOf[InetSocketAddress]
-      receiveMessage(RemoteNode(node.getHostName, node.getPort), msg)
+      val remoteNode = RemoteNode(node.getHostName, node.getPort)
+      logger.debug("Recieved message over wire from %s: %s", remoteNode, msg)
+      receiveMessage(remoteNode, msg)
     }
   }
 
@@ -162,8 +167,11 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
   override def sendMessage(dest: RemoteNode, msg: S) {
     if(dest == remoteNode)
       receiveMessage(remoteNode, msg.asInstanceOf[R])
-    else
-      getConnectionFor(dest).write(msg) // encoding done in channel handlers
+    else {
+      val channel = getConnectionFor(dest)
+      logger.debug("writing message %s to channel %s", msg, channel)
+      channel.write(msg) // encoding done in channel handlers
+    }
   }
 
   override def sendMessageBulk(dest: RemoteNode, msg: S) {

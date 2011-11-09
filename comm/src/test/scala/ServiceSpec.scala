@@ -19,6 +19,8 @@ case class TestMsg2(var f2: Int) extends TestMessages with AvroRecord
 @RunWith(classOf[JUnitRunner])
 class RemoteServiceSpec extends Spec with ShouldMatchers {
   implicit object TestRegistry extends ServiceRegistry[TestMessages]
+  object TestRegistry2 extends ServiceRegistry[TestMessages]
+
 
   object TestService extends ServiceHandler[TestMessages] {
     val logger = net.lag.logging.Logger()
@@ -47,6 +49,12 @@ class RemoteServiceSpec extends Spec with ShouldMatchers {
 
     it("should send messages and return a future") {
       (TestService.remoteHandle !! TestMsg1(3)).get(1000) should equal(Some(TestMsg2(3)))
+    }
+
+    it("should send message across handlers") {
+      val networkService = new RemoteService[TestMessages](TestService.remoteHandle.remoteNode, TestService.remoteHandle.id)
+      networkService.registry = TestRegistry2
+      (networkService !? TestMsg1(4)) should equal(TestMsg2(4))
     }
   }
 }
