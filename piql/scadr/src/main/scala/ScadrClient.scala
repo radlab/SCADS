@@ -43,27 +43,27 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new Paral
 
   val myThoughts = (
     thoughts.where("thoughts.owner".a === (0.?))
-	    .sort("thoughts.timestamp".a :: Nil, false)
-	    .limit(1.?, maxResultsPerPage)
-  ).toPiql("myThoughts")
+      .sort("thoughts.timestamp".a :: Nil, false)
+      .limit(1.?, maxResultsPerPage)
+    ).toPiql("myThoughts")
 
   val usersFollowedBy = (
     subscriptions.where("subscriptions.owner".a === (0.?))
-	 .limit(1.?, maxResultsPerPage)
-	 .join(users)
-	 .where("subscriptions.target".a === "users.username".a)
-  ).toPiql("usersFollowedBy")
+      .limit(1.?, maxResultsPerPage)
+      .join(users)
+      .where("subscriptions.target".a === "users.username".a)
+    ).toPiql("usersFollowedBy")
 
 
   val thoughtstream = (
     subscriptions.where("subscriptions.owner".a === (0.?))
-		 .dataLimit(maxSubscriptions)
-     .where("subscriptions.approved".a === true)
-		 .join(thoughts)
-		 .where("thoughts.owner".a === "subscriptions.target".a)
-		 .sort("thoughts.timestamp".a :: Nil, false)
-		 .limit(1.?, maxResultsPerPage)
-  ).toPiql("thoughtstream")
+      .dataLimit(maxSubscriptions)
+      .where("subscriptions.approved".a === true)
+      .join(thoughts)
+      .where("thoughts.owner".a === "subscriptions.target".a)
+      .sort("thoughts.timestamp".a :: Nil, false)
+      .limit(1.?, maxResultsPerPage)
+    ).toPiql("thoughtstream")
 
   val tsAddThoughtDelta =
     subscriptions.where("subscriptions.target".a === "@t.owner".a)
@@ -82,13 +82,13 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new Paral
    */
   val usersFollowing = (
     subscriptions.where("subscriptions.target".a === (0.?))
-		 .limit(1.?, maxResultsPerPage)
-		 .join(users)
-		 .where("users.username".a === "subscriptions.owner".a)
+      .limit(1.?, maxResultsPerPage)
+      .join(users)
+      .where("users.username".a === "subscriptions.owner".a)
     ).toPiql("usersFollowing")
-  
+
   val findSubscription = (
     subscriptions.where("subscriptions.owner".a === (0.?))
-		 .where("subscriptions.target".a === (1.?))
+      .where("subscriptions.target".a === (1.?))
     ).toPiql("findSubscription")
 }
