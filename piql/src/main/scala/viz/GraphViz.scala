@@ -4,29 +4,37 @@ package viz
 import java.io.File
 import plans._
 
-object Test {
 
+object Test {
   import edu.berkeley.cs.scads.piql.test.Relations._
 
-  def main(args: Array[String]): Unit = {
-    val query = (
+      val query: LogicalPlan = (
       r2.where("f1".a === 0)
         .dataLimit(5)
         .join(r2Prime)
         .where("r2.f2".a === "r2Prime.f1".a)
         .sort("r2Prime.f2".a :: Nil)
-        .limit(10)
+        .select("r2.f2".a)
+        .paginate(10)
       )
 
-    println(GraphLogicalPlan(query))
+  def main(args: Array[String]): Unit = {
+    query.graphViz
     sys.exit()
   }
 }
 
 trait GraphViz extends FileGenerator {
+  protected val svgFile = File.createTempFile("queryPlan", ".svg")
   private val curId = new java.util.concurrent.atomic.AtomicInteger
 
   protected def nextId = curId.getAndIncrement()
+
+  abstract override def finish(): File = {
+    val dotFile = super.finish()
+    Runtime.getRuntime.exec(Array("dot", "-o" + svgFile, "-Tsvg", dotFile.getCanonicalPath))
+    svgFile
+  }
 
   protected def digraph[A](name: String)(f: => A): A = {
     outputBraced("digraph %s".format(name)) {
@@ -40,7 +48,7 @@ trait GraphViz extends FileGenerator {
 
   protected def outputNode(label: String, shape: String = "plaintext", fillcolor: String = "azure3", style: String = "none", fontSize: Int = 12, children: Seq[DotNode] = Nil): DotNode = {
     val node = DotNode("node" + nextId)
-    output(node.id, "[label=", quote(label), ", shape=", shape, ", fillcolor=", fillcolor, ", style=", style,  ", fontsize=" + fontSize + "];")
+    output(node.id, "[label=", quote(label), ", shape=", shape, ", fillcolor=", fillcolor, ", style=", style, ", fontsize=" + fontSize + "];")
     children.foreach(outputEdge(_, node))
     return node
   }
@@ -58,17 +66,12 @@ trait GraphViz extends FileGenerator {
   }
 }
 
-object GraphLogicalPlan {
-  def apply(plan: LogicalPlan): Unit = {
-    val grapher = new GraphLogicalPlan(new File("test.dot"))
-    grapher.generate(plan)
-    grapher.finish
-  }
-}
 
-protected class GraphLogicalPlan(val file: File) extends GraphViz {
+protected class GraphLogicalPlan extends GraphViz {
+  lazy val file = File.createTempFile("queryPlan", ".dot")
+
   /* Need a function with return type Unit for Generator */
-  protected def generate(plan: LogicalPlan): Unit = {
+  def generate(plan: LogicalPlan): Unit = {
     digraph("QueryPlan") {
       generatePlan(plan)
     }
@@ -76,11 +79,15 @@ protected class GraphLogicalPlan(val file: File) extends GraphViz {
 
   val joinSym = "&#9285;"
   val selectionSym = "&#963;"
+  val projectSym = "&#960;"
 
   /* Recursive function to draw individual plan nodes */
   protected def generatePlan(plan: LogicalPlan): DotNode = plan match {
+    case Project(values, child) =>
+      outputNode(projectSym + " " + values.map(prettyPrint).mkString(","),
+        children = Seq(generatePlan(child)))
     case Selection(predicate, child) =>
-      outputNode(selectionSym + "\n" + prettyPrint(predicate),
+      outputNode(selectionSym + " " + prettyPrint(predicate),
         children = Seq(generatePlan(child)))
     case Sort(attributes, ascending, child) =>
       outputNode("sort " + (if (ascending) "asc" else "desc") + "\n" + attributes.map(prettyPrint).mkString(","),
@@ -91,13 +98,16 @@ protected class GraphLogicalPlan(val file: File) extends GraphViz {
     case DataStopAfter(count, child) =>
       outputNode("data stop\n" + prettyPrint(count),
         children = Seq(generatePlan(child)))
+    case Paginate(count, child) =>
+      outputNode("paginate\n" + prettyPrint(count),
+        children = Seq(generatePlan(child)))
     case Join(left, right) =>
       outputNode(joinSym,
-        fontSize =36,
+        fontSize = 36,
         children = Seq(generatePlan(left), generatePlan(right)))
     case Relation(ns) =>
       outputNode(ns.name,
-        shape="box")
+        shape = "box")
   }
 
   protected def prettyPrint(p: Predicate): String = p match {
@@ -107,9 +117,11 @@ protected class GraphLogicalPlan(val file: File) extends GraphViz {
   protected def prettyPrint(v: Value): String = v match {
     case UnboundAttributeValue(name) => name
     case ConstantValue(c) => c.toString
+    case ParameterValue(n) => "[" + n.toString + "]"
   }
 
   protected def prettyPrint(v: Limit): String = v match {
     case FixedLimit(n) => n.toString
+    case ParameterLimit(n, max) => "[" + n.toString + "]"
   }
 }
