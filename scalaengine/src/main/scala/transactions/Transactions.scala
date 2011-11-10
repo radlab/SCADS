@@ -172,7 +172,7 @@ with TransactionsBase {
 // This is the base trait with all the shared functionality between different
 // types of namespaces.
 trait TransactionsBase
-extends RangeProtocol
+extends QuorumRangeProtocol
 with KeyRoutable
 with ZooKeeperGlobalMetadata
 with TransactionRecordMetadata
@@ -289,6 +289,18 @@ with TransactionI {
         }
       }
     }
+  }
+
+  override def processRangeRecord(key: Array[Byte], value: Array[Byte]) = {
+    val mdccRec = MDCCRecordUtil.fromBytes(value)
+    ThreadLocalStorage.txReadList.value.map(readList =>
+      readList.addRecord(key, mdccRec))
+    val realValue = mdccRec.value match {
+      // Deleted records have zero length byte arrays
+      case None => new Array[Byte](0)
+      case Some(v) => v
+    }
+    (key, realValue)
   }
 
   // putBulkBytes calls createMetadata, so the records will have the

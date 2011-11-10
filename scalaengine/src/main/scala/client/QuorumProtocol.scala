@@ -405,7 +405,7 @@ trait QuorumRangeProtocol
         result.appendAll(records.flatMap(rec =>
           if (openRec > 0) {
             openRec -= 1
-            rec.value.map(v => (rec.key, extractRecordFromValue(v))).toList
+            rec.value.map(v => processRangeRecord(rec.key, v)).toList
           } else
             Nil
           )
@@ -414,6 +414,10 @@ trait QuorumRangeProtocol
     }
     handlers.foreach(QuorumProtocol.awaitingReadRepair.offer)
     result
+  }
+
+  def processRangeRecord(key: Array[Byte], value: Array[Byte]) = {
+    (key, extractRecordFromValue(value))
   }
 
   override def getKeys(start: Option[Array[Byte]], 
