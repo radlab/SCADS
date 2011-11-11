@@ -45,8 +45,8 @@ object Optimizer {
           logger.info("Using secondary index for predicates: %s", equalityPreds)
 
           //TODO: Fix type hack
-          val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(equalityPreds.map(p => AttributeIndex(p.attribute.unqualifiedName)))
-          val tupleSchema = idx :: ns :: Nil
+          val idx: Namespace = ns.getOrCreateIndex(equalityPreds.map(p => AttributeIndex(p.attribute.unqualifiedName)))
+          val tupleSchema: TupleSchema = idx :: ns :: Nil
           val idxScanPlan = IndexScan(idx, makeKeyGenerator(idx, tupleSchema, equalityPreds), count, true)
           val derefedPlan = derefPlan(ns, idxScanPlan)
 
@@ -66,12 +66,12 @@ object Optimizer {
         val prefixAttrs = equalityPreds.map(_.attribute.unqualifiedName) ++ attrs.map(_.unqualifiedName)
         val (idxScanPlan, tupleSchema) =
           if (isPrefix(prefixAttrs, ns)) {
-            val tupleSchema = ns :: Nil
+            val tupleSchema: TupleSchema = ns :: Nil
             (IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), limitHint, asc), tupleSchema)
           }
           else {
             logger.debug("Creating index for attributes: %s", prefixAttrs)
-            val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(prefixAttrs.map(p => AttributeIndex(p)))
+            val idx: Namespace = ns.getOrCreateIndex(prefixAttrs.map(p => AttributeIndex(p)))
             val tupleSchema = idx :: ns :: Nil
             (derefPlan(ns,
               IndexScan(idx,
@@ -112,7 +112,7 @@ object Optimizer {
               optChild.physicalPlan),
               tupleSchema)
           } else {
-            val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(prefixAttrs.map(p => AttributeIndex(p)))
+            val idx: Namespace = ns.getOrCreateIndex(prefixAttrs.map(p => AttributeIndex(p)))
             val tupleSchema = idx :: ns :: Nil
 
             val idxJoinPlan = IndexScanJoin(idx,
@@ -138,7 +138,7 @@ object Optimizer {
     }
   }
 
-  protected def derefPlan(ns: Namespace, idxPlan: RemotePlan): QueryPlan = {
+  protected def derefPlan(ns: IndexedNamespace, idxPlan: RemotePlan): QueryPlan = {
     val keyFields = ns.keySchema.getFields
     val idxFields = idxPlan.namespace.schema.getFields
     val keyGenerator = keyFields.map(kf => AttributeValue(0, idxFields.indexWhere(_.name equals kf.name)))
@@ -149,7 +149,7 @@ object Optimizer {
    * Returns true only if the given equality predicates can be satisfied by a prefix scan
    * over the given namespace
    */
-  protected def isPrefix(attrNames: Seq[String], ns: Namespace): Boolean = {
+  protected def isPrefix(attrNames: Seq[String], ns: IndexedNamespace): Boolean = {
     val primaryKeyAttrs = ns.keySchema.getFields.take(attrNames.size).map(_.name)
     attrNames.map(primaryKeyAttrs.contains(_)).reduceLeft(_ && _)
   }

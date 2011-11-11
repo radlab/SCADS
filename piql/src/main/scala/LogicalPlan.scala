@@ -97,4 +97,4 @@ case class Join(left: LogicalPlan, right: LogicalPlan) extends LogicalPlan with 
 /**
  * A source of tuples.
  */
-case class Relation(ns: Namespace, alias: Option[String] = None) extends LogicalPlan
+case class Relation(ns: IndexedNamespace, alias: Option[String] = None) extends LogicalPlan

@@ -7,9 +7,11 @@ import net.lag.logging.Logger
 import avro.marker._
 import storage._
 import storage.client._
+import org.apache.avro.util.Utf8
 
 
 package object piql {
+
   import language._
   import exec._
   import opt._
@@ -18,7 +20,7 @@ package object piql {
   protected val logger = Logger()
 
   type Namespace = storage.Namespace with RecordStore[IndexedRecord] with GlobalMetadata
-  type IndexedNamespace = storage.Namespace with RecordStore[AvroPair] with GlobalMetadata with index.IndexManager[AvroPair]
+  type IndexedNamespace = storage.Namespace with RecordStore[IndexedRecord] with GlobalMetadata with index.IndexManager[AvroPair]
 
   type KeyGenerator = Seq[Value]
 
@@ -29,7 +31,6 @@ package object piql {
   type Field = org.apache.avro.Schema.Field
 
   type QueryResult = Seq[Tuple]
-  type OptimizedQuery = opt.OptimizedQuery
   type QueryExecutor = exec.QueryExecutor
   type ParallelExecutor = exec.ParallelExecutor
 
@@ -40,10 +41,11 @@ package object piql {
 
   //TODO: Remove hack
   //HACK: to deal with problem in namespace variance
-  implicit def pairToNamespace[T <: AvroPair](ns: PairNamespace[T]) = ns.asInstanceOf[Namespace]
+  implicit def pairToNamespace[T <: AvroPair](ns: PairNamespace[T]) = ns.asInstanceOf[IndexedNamespace]
 
   //PIQL Scala Language Integration
-  implicit def namespaceToRelation[T <: AvroPair](ns: PairNamespace[T]) = Relation(ns.asInstanceOf[Namespace])
+  implicit def namespaceToRelation[T <: AvroPair](ns: PairNamespace[T]) = Relation(ns.asInstanceOf[IndexedNamespace])
+
   implicit def toAttr(s: String) = new {
     def a = UnboundAttributeValue(s)
   }
