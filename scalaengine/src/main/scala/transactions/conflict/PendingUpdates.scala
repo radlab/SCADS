@@ -375,7 +375,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
         }
       } catch {
         case e: Exception => {
-          println("commitTxn Exception %s", e)
+          println("commitTxn Exception " + e)
           e.printStackTrace()
         }
         txStatus.txAbort(txStatusTxn)
