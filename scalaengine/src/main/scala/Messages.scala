@@ -189,7 +189,7 @@ case class ScadsXid(var tid: Long, var bid: Long) extends AvroRecord {
     // Long is 8 bytes
     ByteBuffer.allocate(16).putLong(tid).putLong(bid).array
   }
-  override def toString = "TID:"  + tid % 100 + ":" + bid % 100
+  override def toString = "TID:"  + tid % 10000 + ":" + bid % 10000
 }
 
 object ScadsXid {
