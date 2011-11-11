@@ -11,7 +11,7 @@ import language.Queryable
 abstract class LogicalPlan extends Queryable {
   def walkPlan[A](f: LogicalPlan => A): A = {
     this match {
-      case in: InnerNode => {
+      case in: SingleChildNode => {
         f(this)
         in.child.walkPlan(f)
       }
@@ -24,7 +24,7 @@ abstract class LogicalPlan extends Queryable {
       return (Nil, Some(this))
 
     this match {
-      case in: InnerNode => {
+      case in: SingleChildNode => {
         val childRes = in.child.gatherUntil(f)
         (f(this) +: childRes._1, childRes._2)
       }
@@ -33,32 +33,42 @@ abstract class LogicalPlan extends Queryable {
   }
 }
 
+
+
 /**
- * An non-leaf node of a query plan, guaranteed to have a child.
+ * An non-leaf operator in a query plan, guaranteed to have children.
  */
 abstract trait InnerNode {
+  def children: Seq[LogicalPlan]
+}
+
+/**
+ * An non-leaf operator in a query plan, guaranteed to have children.
+ */
+abstract trait SingleChildNode extends InnerNode {
   val child: LogicalPlan
+  def children: Seq[LogicalPlan] = child :: Nil
 }
 
 /**
  * Project a subset of the fields from the child
  */
-case class Project(values: Seq[Value], child: LogicalPlan) extends LogicalPlan with InnerNode
+case class Project(values: Seq[Value], child: LogicalPlan) extends LogicalPlan with SingleChildNode
 
 /**
  * Filters child by predicate.
  */
-case class Selection(predicate: Predicate, child: LogicalPlan) extends LogicalPlan with InnerNode
+case class Selection(predicate: Predicate, child: LogicalPlan) extends LogicalPlan with SingleChildNode
 
 /**
  * Sorts child by the values specified in attributes.
  */
-case class Sort(attributes: Seq[Value], ascending: Boolean, child: LogicalPlan) extends LogicalPlan with InnerNode
+case class Sort(attributes: Seq[Value], ascending: Boolean, child: LogicalPlan) extends LogicalPlan with SingleChildNode
 
 /**
  * An operator that returns no more than count tuples
  */
-trait StopOperator extends InnerNode {
+trait StopOperator extends SingleChildNode {
   val count: Limit
 }
 
@@ -80,9 +90,11 @@ case class DataStopAfter(count: Limit, child: LogicalPlan) extends LogicalPlan w
 /**
  * Compute the join of the two child query plans.
  */
-case class Join(left: LogicalPlan, right: LogicalPlan) extends LogicalPlan
+case class Join(left: LogicalPlan, right: LogicalPlan) extends LogicalPlan with InnerNode {
+  def children = Vector(left, right)
+}
 
 /**
  * A source of tuples.
  */
-case class Relation(ns: Namespace) extends LogicalPlan
+case class Relation(ns: Namespace, alias: Option[String] = None) extends LogicalPlan
