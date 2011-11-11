@@ -18,8 +18,10 @@ class OptimizerSpec extends Spec with ShouldMatchers {
 
   import Relations._
 
+  implicit val executor = new exec.SimpleExecutor
+
   implicit def opt(logicalPlan: LogicalPlan) = new {
-    def opt = Optimizer(logicalPlan).physicalPlan
+    def opt = logicalPlan.toPiql().physicalPlan
   }
 
   implicit def bind(logicalPlan: LogicalPlan) = new {
