@@ -22,6 +22,10 @@ class OptimizerSpec extends Spec with ShouldMatchers {
     def opt = Optimizer(logicalPlan).physicalPlan
   }
 
+  implicit def bind(logicalPlan: LogicalPlan) = new {
+    def bind = new Binder(logicalPlan).qualifiedPlan
+  }
+
   describe("The PIQL Optimizer") {
     it("single primary key lookup") {
       val query = r1.where("f1".a === (0.?))
@@ -44,12 +48,18 @@ class OptimizerSpec extends Spec with ShouldMatchers {
     val query = (
       r2.where("f1".a === (0.?))
         .limit(10))
+
+    val boundQuery = (
+      r2.where(QualifiedAttributeValue(r2, r2.pairSchema.getField("f1")) === (0.?))
+        .limit(10))
+
     val plan = LocalStopAfter(FixedLimit(10),
       IndexScan(r2,
         ParameterValue(0) :: Nil,
         FixedLimit(10),
         true))
 
+    query.bind should equal(boundQuery)
     query.opt should equal(plan)
   }
 
@@ -112,13 +122,23 @@ class OptimizerSpec extends Spec with ShouldMatchers {
 
   it("simple merge sort join") {
     val query = (
-      r2.where("f1".a === 0)
+      r2.where("r2.f1".a === 0)
         .dataLimit(5)
         .join(r2Prime)
         .where("r2.f2".a === "r2Prime.f1".a)
         .sort("r2Prime.f2".a :: Nil)
         .limit(10)
       )
+
+    val boundQuery = (
+      r2.where(QualifiedAttributeValue(Relation(r2), r2.schema.getField("f1")) === 0)
+        .dataLimit(5)
+        .join(r2Prime)
+        .where(QualifiedAttributeValue(Relation(r2), r2.schema.getField("f2")) === QualifiedAttributeValue(Relation(r2Prime), r2Prime.schema.getField("f1")))
+        .sort(QualifiedAttributeValue(Relation(r2Prime), r2Prime.schema.getField("f2")) :: Nil)
+        .limit(10)
+      )
+
     val plan =
       LocalStopAfter(FixedLimit(10),
         IndexMergeJoin(r2Prime,
@@ -128,6 +148,7 @@ class OptimizerSpec extends Spec with ShouldMatchers {
           true,
           IndexScan(r2, ConstantValue(0) :: Nil, FixedLimit(5), true)))
 
+    query.bind should equal(boundQuery)
     query.opt should equal(plan)
   }
 }
