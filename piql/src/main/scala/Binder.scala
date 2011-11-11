@@ -6,6 +6,10 @@ import plans._
 import collection.JavaConversions._
 import java.lang.RuntimeException
 
+/**
+ * Checks a logical query plan for invalid attributes and binds attribute strings to the
+ * corresponding ns/field.
+ */
 class Binder(plan: LogicalPlan) {
 
   lazy val relations = getRelations(plan)
