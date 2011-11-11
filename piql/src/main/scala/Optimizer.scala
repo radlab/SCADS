@@ -164,7 +164,7 @@ object Optimizer {
 
   protected def derefPlan(ns: Namespace, idxPlan: RemotePlan): QueryPlan = {
     val keyFields = ns.keySchema.getFields
-    val idxFields = getFields(idxPlan.namespace)
+    val idxFields = idxPlan.namespace.schema.getFields
     val keyGenerator = keyFields.map(kf => AttributeValue(0, idxFields.indexWhere(_.name equals kf.name)))
     IndexLookupJoin(ns, keyGenerator, idxPlan)
   }
@@ -177,13 +177,6 @@ object Optimizer {
     val primaryKeyAttrs = ns.keySchema.getFields.take(attrNames.size).map(_.name)
     attrNames.map(primaryKeyAttrs.contains(_)).reduceLeft(_ && _)
   }
-
-  /**
-   * Returns the key/value schemas concatenated
-   * TODO: push into storage client
-   */
-  protected def getFields(ns: Namespace): Seq[Field] =
-    ns.keySchema.getFields.toSeq ++ ns.valueSchema.getFields
 
   /**
    * Given a list of predicates, replace all UnboundAttributeValues with Attribute values
@@ -200,7 +193,7 @@ object Optimizer {
       logger.debug("attempting to bind qualified attribute: %s.%s in %s", relationName, attrName, schema)
       val relationNames = schema.map(_.namespace)
       val recordPosition = relationNames.indexWhere(_ equals relationName)
-      val fields = getFields(schema(recordPosition))
+      val fields = schema(recordPosition).schema.getFields
       val fieldPosition = fields.indexWhere(_.name equals attrName)
       logger.debug("selecting position (%s):%d, (%s):%d ", relationNames.mkString(","), recordPosition, fields.mkString(","), fieldPosition)
       AttributeValue(recordPosition, fieldPosition)
@@ -208,7 +201,7 @@ object Optimizer {
     case UnboundAttributeValue(name: String) => {
       //TODO: Throw execption when ambiguious
       logger.info("attempting to bind %s in %s", name, schema)
-      val recordSchemas = schema.map(getFields)
+      val recordSchemas = schema.map(_.schema.getFields)
       val recordPosition = recordSchemas.indexWhere(_.map(_.name) contains name)
       val fieldPosition = recordSchemas(recordPosition).indexWhere(_.name equals name)
       AttributeValue(recordPosition, fieldPosition)
@@ -272,7 +265,7 @@ object Optimizer {
         }
       }
 
-      val fields = getFields(ns)
+      val fields = ns.schema.getFields
 
       val idxEqPreds = predicates.map {
         case EqualityPredicate(v: Value, u@UnboundAttributeValue(qualifiedAttribute(relName, attrName))) if relName.equals(ns.namespace) && fields.map(_.name).contains(attrName) =>
