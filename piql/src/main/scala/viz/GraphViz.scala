@@ -105,8 +105,8 @@ protected class GraphLogicalPlan extends GraphViz {
       outputNode(joinSym,
         fontSize = 36,
         children = Seq(generatePlan(left), generatePlan(right)))
-    case Relation(ns) =>
-      outputNode(ns.name,
+    case Relation(ns, alias) =>
+      outputNode(ns.name + alias.map(a => " " + a).getOrElse(""),
         shape = "box")
   }
 

@@ -48,14 +48,14 @@ object Optimizer {
     logger.info("Optimizing subplan: %s", logicalPlan)
 
     logicalPlan match {
-      case IndexRange(equalityPreds, None, None, Relation(ns)) if ((equalityPreds.size == ns.keySchema.getFields.size) &&
+      case IndexRange(equalityPreds, None, None, Relation(ns, _)) if ((equalityPreds.size == ns.keySchema.getFields.size) &&
         isPrefix(equalityPreds.map(_.attribute.unqualifiedName), ns)) => {
         val tupleSchema = ns :: Nil
         OptimizedSubPlan(
           IndexLookup(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds)),
           tupleSchema)
       }
-      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, Relation(ns)) => {
+      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, Relation(ns, _)) => {
         if (isPrefix(equalityPreds.map(_.attribute.unqualifiedName), ns)) {
           logger.info("Using primary index for predicates: %s", equalityPreds)
           val tupleSchema = ns :: Nil
@@ -81,7 +81,7 @@ object Optimizer {
           OptimizedSubPlan(fullPlan, tupleSchema)
         }
       }
-      case IndexRange(equalityPreds, bound, Some(Ordering(attrs, asc)), Relation(ns)) => {
+      case IndexRange(equalityPreds, bound, Some(Ordering(attrs, asc)), Relation(ns, _)) => {
         val limitHint = bound.map(_.count).getOrElse {
           logger.warning("UnboundedPlan %s: %s", ns, logicalPlan)
           FixedLimit(defaultFetchSize)
@@ -111,7 +111,7 @@ object Optimizer {
         }
         OptimizedSubPlan(fullPlan, tupleSchema)
       }
-      case IndexRange(equalityPreds, None, None, Join(child, Relation(ns))) if (equalityPreds.size == ns.keySchema.getFields.size) &&
+      case IndexRange(equalityPreds, None, None, Join(child, Relation(ns, _))) if (equalityPreds.size == ns.keySchema.getFields.size) &&
         isPrefix(equalityPreds.map(_.attribute.unqualifiedName), ns) => {
         val optChild = apply(child)
         val tupleSchema = optChild.schema :+ ns
@@ -119,7 +119,7 @@ object Optimizer {
           IndexLookupJoin(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), optChild.physicalPlan),
           tupleSchema)
       }
-      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), Join(child, Relation(ns))) => {
+      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), Join(child, Relation(ns, _))) => {
         val prefixAttrs = equalityPreds.map(_.attribute.unqualifiedName) ++ attrs.map(_.unqualifiedName)
         val optChild = apply(child)
 
@@ -264,8 +264,8 @@ object Optimizer {
       }
 
       val ns = basePlan match {
-        case Relation(ns) => ns
-        case Join(_, Relation(ns)) => ns
+        case Relation(ns, _) => ns
+        case Join(_, Relation(ns, _)) => ns
         case otherOp => {
           logger.info("IndexRange match failed.  Invalid base plan: %s", otherOp)
           return None

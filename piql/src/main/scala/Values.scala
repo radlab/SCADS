@@ -15,7 +15,7 @@ case class ParameterValue(ordinal: Int) extends FixedValue
 case class AttributeValue(recordPosition: Int, fieldPosition: Int) extends Value
 
 //TODO: write qualifier.
-case class QualifiedAttributeValue(ns: Namespace, field: Field)
+case class QualifiedAttributeValue(relation: Relation, field: Field) extends Value
 
 case class UnboundAttributeValue(name: String) extends Value {
   protected val qualifiedAttribute = """([^\.]+)\.([^\.]+)""".r
