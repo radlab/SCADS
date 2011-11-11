@@ -260,7 +260,9 @@ class BDBTxDB[K <: AnyRef, V <: AnyRef](val db: Database,
     }
   }
   override def txStart() = {
-    BDBTransactionData(db.getEnvironment.beginTransaction(null, null))
+    val tx = db.getEnvironment.beginTransaction(null, null)
+    tx.setLockTimeout(1, java.util.concurrent.TimeUnit.SECONDS)
+    BDBTransactionData(tx)
   }
   override def txCommit(tx: TransactionData) { 
     val txn = getTransaction(tx, "BDB.txCommit()")
