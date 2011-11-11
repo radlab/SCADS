@@ -367,14 +367,18 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
           })
 
           txStatus.put(txStatusTxn, xid, TxStatusEntry(Status.Commit.toString, s.updates))
-          txStatus.txCommit(txStatusTxn)
-          pendingCStructs.txCommit(pendingCommandsTxn)
-          if (dbTxn == null) {
-            db.txCommit(txn)
-          }
+        }
+        txStatus.txCommit(txStatusTxn)
+        pendingCStructs.txCommit(pendingCommandsTxn)
+        if (dbTxn == null) {
+          db.txCommit(txn)
         }
       } catch {
-        case e: Exception => {println(e)}
+        case e: Exception => {
+          println("commitTxn Exception %s", e)
+          e.printStackTrace()
+        }
+        txStatus.txAbort(txStatusTxn)
         pendingCStructs.txAbort(pendingCommandsTxn)
         if (dbTxn == null) {
           db.txAbort(txn)
