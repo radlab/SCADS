@@ -57,6 +57,8 @@ class IndexNamespace(
 { 
   import IndexManager._
 
+  def schema: Schema = keySchema
+
   val valueClass = classOf[IndexedRecord].getName
 
   private lazy val keyReaderWriter = new AvroGenericReaderWriter[IndexedRecord](Some(remoteKeySchema), keySchema)

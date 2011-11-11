@@ -156,6 +156,8 @@ trait RecordStore[RecType <: IndexedRecord] extends Namespace
   with GlobalMetadata
   with BaseRangeKeyValueStoreImpl[IndexedRecord, IndexedRecord, RecType] {
 
+  def schema: Schema
+
   def asyncGetRecord(key: IndexedRecord): ScadsFuture[Option[RecType]]
   def getRecord(key: IndexedRecord): Option[RecType]
 
