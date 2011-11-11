@@ -46,7 +46,7 @@ class Binder(plan: LogicalPlan) {
     case Selection(pred, child) =>
       Selection(qualifyAttributes(pred), qualifyAttributes(child))
     case Sort(attrs, asc, child) =>
-      Sort(attrs.map(qualifyAttributes(_)), asc, child)
+      Sort(attrs.map(qualifyAttributes(_)), asc, qualifyAttributes(child))
     case StopAfter(count, child) =>
       StopAfter(count, qualifyAttributes(child))
     case DataStopAfter(count, child) =>
