@@ -56,12 +56,37 @@ package object piql {
 
   implicit def toOption[A](a: A) = Option(a)
 
+
+  /* Helper functions for running logical plans through optimizer pipeline */
+
+  class OptimizedQuery(val name: Option[String], val logicalPlan: LogicalPlan, val physicalPlan: QueryPlan, executor: QueryExecutor) {
+    def apply(args: Any*): QueryResult = {
+      val encodedArgs = args.map {
+        case s: String => new Utf8(s)
+        case o => o
+      }
+      val iterator = executor(physicalPlan, encodedArgs: _*)
+      iterator.open
+      val ret = iterator.toList
+      iterator.close
+      ret
+    }
+
+    def toHtml: xml.NodeSeq = {
+      <b>
+        {physicalPlan}
+      </b>
+    }
+  }
+
   implicit def toPiql(logicalPlan: LogicalPlan)(implicit executor: QueryExecutor) = new {
     def toPiql(queryName: Option[String] = None) = {
       logger.info("Begining Optimization of query %s: %s", queryName, logicalPlan)
-      val physicalPlan = Optimizer(logicalPlan).physicalPlan
+      val boundPlan = new Binder(logicalPlan).qualifiedPlan
+      logger.info("Plan after binding: %s", boundPlan)
+      val physicalPlan = Optimizer(boundPlan).physicalPlan
       logger.info("Optimized piql query %s: %s", queryName, physicalPlan)
-      new OptimizedQuery(queryName, logicalPlan,  physicalPlan, executor)
+      new OptimizedQuery(queryName, logicalPlan, physicalPlan, executor)
     }
   }
 

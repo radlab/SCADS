@@ -14,30 +14,6 @@ import net.lag.logging.Logger
 
 case class ImplementationLimitation(desc: String) extends Exception
 
-object OptimizedQuery {
-  val physicalPlans = new java.util.concurrent.ConcurrentHashMap[Int, QueryPlan]()
-}
-
-class OptimizedQuery(val name: Option[String], val logicalPlan: LogicalPlan, val physicalPlan: QueryPlan, executor: QueryExecutor) {
-  def apply(args: Any*): QueryResult = {
-    val encodedArgs = args.map {
-      case s: String => new Utf8(s)
-      case o => o
-    }
-    val iterator = executor(physicalPlan, encodedArgs: _*)
-    iterator.open
-    val ret = iterator.toList
-    iterator.close
-    ret
-  }
-
-  def toHtml: xml.NodeSeq = {
-    <b>
-      {physicalPlan}
-    </b>
-  }
-}
-
 object Optimizer {
   val logger = Logger()
   val defaultFetchSize = 10
