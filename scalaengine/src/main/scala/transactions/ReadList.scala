@@ -8,6 +8,7 @@ import net.lag.logging.Logger
 class ReadList {
   val readList = new HashMap[List[Byte], MDCCRecord]
 
+  // TODO: does the namespace have to be considered?
   def addRecord(key: Array[Byte], record: MDCCRecord) = {
     readList.put(key.toList, record)
   }
