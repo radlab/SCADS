@@ -60,7 +60,7 @@ sealed trait TxDB[K <: AnyRef, V <: AnyRef] {
 
   def shutdown() = {}
 
-  def getName()
+  def getName = "empty"
 
   def keyToBytes(k: K): Array[Byte] = keySerializer.keyToBytes(k)
   def keyFromBytes(b: Array[Byte]): K = keySerializer.keyFromBytes(b)
@@ -277,7 +277,7 @@ class BDBTxDB[K <: AnyRef, V <: AnyRef](val db: Database,
     db.close()
   }
 
-  override def getName() = db.getDatabaseName()
+  override def getName = db.getDatabaseName
 }
 
 // Transactional db using a hashmap as the underlying store.
@@ -347,7 +347,7 @@ class MapTxDB[K <: AnyRef, V <: AnyRef](val map: ByteArrayHashMap[K, V], val nam
     lock.release
   }
 
-  override def getName() = name
+  override def getName = name
 }
 
 // This is like ConcurrentHashMap, but automatically converts keys of type
