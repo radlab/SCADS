@@ -97,4 +97,19 @@ case class Join(left: LogicalPlan, right: LogicalPlan) extends LogicalPlan with 
 /**
  * A source of tuples.
  */
-case class Relation(ns: IndexedNamespace, alias: Option[String] = None) extends LogicalPlan
+trait TupleProvider {
+  def schema: Schema
+  def keySchema: Schema
+  def provider: Namespace
+}
+case class Relation(ns: IndexedNamespace, alias: Option[String] = None) extends LogicalPlan with TupleProvider{
+  def schema = ns.schema
+  def keySchema = ns.keySchema
+  def provider = ns
+}
+
+case class Index(ns: Namespace) extends LogicalPlan with TupleProvider {
+  def schema = ns.schema
+  def keySchema = ns.keySchema
+  def provider = ns
+}

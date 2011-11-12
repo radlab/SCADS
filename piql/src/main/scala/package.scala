@@ -27,7 +27,8 @@ package object piql {
   type Key = IndexedRecord
   type Record = IndexedRecord
   type Tuple = IndexedSeq[Record]
-  type TupleSchema = Seq[Namespace]
+  type TupleSchema = Seq[TupleProvider]
+  type Schema = org.apache.avro.Schema
   type Field = org.apache.avro.Schema.Field
 
   type QueryResult = Seq[Tuple]
