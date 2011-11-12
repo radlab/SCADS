@@ -207,12 +207,18 @@ sealed trait TrxMessage extends KeyValueStoreOperation
 /* Transaction MDCC Paxos */
 sealed trait MDCCProtocol extends TrxMessage
 
+sealed trait Propose extends MDCCProtocol
+
+case class SinglePropose(var xid: ScadsXid, var update: RecordUpdate) extends AvroRecord with Propose
+
+case class MultiPropose(var proposes : Seq[SinglePropose]) extends AvroRecord with Propose
+
 /**
  * Request a conflict resolution
  * Proposes are the critical updates
  * Init indicates if only a fast round has to be opened up
  */
-case class ResolveConflict(var key: Array[Byte], var ballots: Seq[MDCCBallotRange], var propose : Propose) extends AvroRecord with MDCCProtocol
+case class ResolveConflict(var key: Array[Byte], var ballots: Seq[MDCCBallotRange], var propose : Propose, var requester : RemoteService[StorageMessage]) extends AvroRecord with MDCCProtocol
 
 case class Recovered(var key: Array[Byte], var value: CStruct, var meta: MDCCMetadata) extends AvroRecord with MDCCProtocol
 
@@ -220,30 +226,22 @@ case class BeMaster(var key: Array[Byte], var startRound: Long, var endRound: Lo
 
 case class GotMastership(var ballots: Seq[MDCCBallotRange]) extends AvroRecord with MDCCProtocol
 
-case class Propose(var xid: ScadsXid, var update: RecordUpdate) extends AvroRecord with MDCCProtocol
-
-case class ProposeSeq(var proposes : Seq[Propose])  extends AvroRecord with MDCCProtocol
 
 case class Phase1a(var key: Array[Byte], var ballots: Seq[MDCCBallotRange]) extends AvroRecord with MDCCProtocol
 
 case class Phase1b(var meta: MDCCMetadata, var value: CStruct) extends AvroRecord with MDCCProtocol
 
 //TODO we could make the updates part of te CStruct, if we would have the chance to execute accepts locally
-case class Phase2a(var key: Array[Byte], var ballot: MDCCBallot, var safeValue: CStruct, var newUpdates : Seq[Propose]) extends AvroRecord with MDCCProtocol
+case class Phase2a(var key: Array[Byte], var ballot: MDCCBallot, var safeValue: CStruct, var newUpdates : Seq[SinglePropose]) extends AvroRecord with MDCCProtocol
 
 object Phase2a{
-  def apply(key: Array[Byte], ballot: MDCCBallot, safeValue: CStruct, newUpdate : Propose) : Phase2a = Phase2a(key, ballot, safeValue, newUpdate :: Nil)
   def apply(key: Array[Byte], ballot: MDCCBallot, safeValue: CStruct) : Phase2a = new Phase2a(key, ballot, safeValue, Nil )
 }
 
-case class Phase2aConflict(var key: Array[Byte], var ballot: MDCCBallot, var value: CStruct) extends AvroRecord with MDCCProtocol
-
-//case class Phase2aClassic(var key: Array[Byte], var ballot: MDCCBallot, var command: RecordUpdate) extends AvroRecord with MDCCProtocol
-
-case class Phase2b(var ballot: MDCCBallot, var value: CStruct) extends AvroRecord with MDCCProtocol
+case class Phase2b(var ballot : MDCCBallot, var value: CStruct) extends AvroRecord with MDCCProtocol
 
 //Used to indicate that the ballot was not valid
-case class Phase2bMasterFailure(var ballots: Seq[MDCCBallotRange])  extends AvroRecord with MDCCProtocol
+case class Phase2bMasterFailure(var ballots: Seq[MDCCBallotRange], var confirmed : Boolean)  extends AvroRecord with MDCCProtocol
 
 case class Learned(var xid: ScadsXid, var key: Array[Byte], var status : Boolean)  extends AvroRecord with MDCCProtocol
 

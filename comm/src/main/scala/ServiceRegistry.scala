@@ -214,8 +214,8 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     registerService(new MailboxDispatchReceiver[MessageType](priorityFn, processFn))
   }
 
-   def registerFastMailboxFunc(priorityFn : MessageType => Int, processFn: Mailbox[MessageType] => Unit ) : RemoteServiceProxy[MessageType] = {
-    registerService(new FastMailboxDispatchReceiver[MessageType](priorityFn, processFn))
+   def registerFastMailboxFunc(processFn: Mailbox[MessageType] => Unit, mailbox : Mailbox[MessageType] = new PlainMailbox[MessageType]()) : RemoteServiceProxy[MessageType] = {
+    registerService(new FastMailboxDispatchReceiver[MessageType](processFn, mailbox))
   }
 
   def registerActorFunc(f: PartialFunction[Envelope[MessageType],Unit]): RemoteServiceProxy[MessageType] = {

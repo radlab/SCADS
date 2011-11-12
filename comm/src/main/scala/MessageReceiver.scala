@@ -25,10 +25,9 @@ class ActorReceiver[MessageType <: IndexedRecord](actor: Actor) extends MessageR
 }
 
 
-class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](prioFn : MessageType => Int,
-                                                            processFn: Mailbox[MessageType] => Unit) extends MessageReceiver[MessageType] {
-  val senderMailbox = new PlainMailbox[MessageType](prioFn)
-  val receiverMailbox = new PlainMailbox[MessageType](prioFn)
+class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](processFn: Mailbox[MessageType] => Unit,
+                                                                val receiverMailbox : Mailbox[MessageType] = new PlainMailbox[MessageType]() ) extends MessageReceiver[MessageType] {
+  val senderMailbox = new PlainMailbox[MessageType]()
   val newMessages : Boolean = false
 
   val dispatcher = createQueue()
@@ -44,7 +43,6 @@ class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](prioFn : Message
       senderMailbox.drainTo(receiverMailbox)
       //println(this.toString + ": Draining Queue " +  receiverMailbox.size)
     }
-    receiverMailbox.sort()
     receiverMailbox
   }
 

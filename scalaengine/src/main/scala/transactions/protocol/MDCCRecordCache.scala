@@ -10,12 +10,12 @@ class MDCCRecordCache() {
 
   val CACHE_SIZE = 500
 
+  def killHandler (key : Array[Byte], handler :  MCCCRecordHandler) = handler.kill
+
   //TODO: If we wanna use the cache for reads, we should use a lock-free structure
   lazy val cache = new LRUMap[Array[Byte], MCCCRecordHandler](CACHE_SIZE, None, killHandler){
       protected override def canExpire(k: Array[Byte], v: MCCCRecordHandler): Boolean = v.getStatus == READY
     }
-
-  def killHandler (key : Array[Byte], handler :  MCCCRecordHandler) = handler.kill
 
   def get(key : Array[Byte]) : Option[MCCCRecordHandler] = {
     cache.synchronized{

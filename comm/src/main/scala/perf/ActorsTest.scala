@@ -46,18 +46,17 @@ object ActorPerfTest {
     var counter = 0
 
     implicit val actor = if(fast)
-        PerfRegistry.registerFastMailboxFunc(_ => 0, process)
+        PerfRegistry.registerFastMailboxFunc(process)
       else
         PerfRegistry.registerMailboxFunc(_ => 0, process)
 
     def process(mailbox : Mailbox[PerfMessage]) : Unit = {
       //println("BatchReceiver Start size" + mailbox.size() + " total:" + counter )
-      val it = mailbox.iter
-      while(it.hasNext){
-        val msg = it.next()
+      while(mailbox.hasNext){
+        val msg = mailbox.next()
         msg.src.get.!(Pong(1))(actor)
         counter += 1
-        it.remove()
+        mailbox.remove()
       }
       //println("BatchReceiver End size" + mailbox.size() + " total:" + counter )
     }
@@ -86,17 +85,16 @@ object ActorPerfTest {
     }
 
     implicit val actor = if(fast)
-        PerfRegistry.registerFastMailboxFunc(_ => 0, process)
+        PerfRegistry.registerFastMailboxFunc(process)
       else
         PerfRegistry.registerMailboxFunc(_ => 0, process)
 
     def process(mailbox : Mailbox[PerfMessage]) : Unit = {
       //println("BatchSender Start size" + mailbox.size() + " counter" + counter )
-      val it = mailbox.iter
-      while(it.hasNext){
-        val msg = it.next()
+      while(mailbox.hasNext){
+        val msg = mailbox.next()
         counter -= 1
-        it.remove()
+        mailbox.remove()
         if(counter == 0){
           barrier.countDown()
           //println("Releasing barrier")

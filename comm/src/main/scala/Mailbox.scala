@@ -21,56 +21,111 @@ trait Mailbox[MessageType <: IndexedRecord] {
     this.add(Envelope(src, msg))
   }
 
+  def addFirst(msg : Envelope[MessageType]) : Unit
+
   def peek : Envelope[MessageType]
 
   def poll : Envelope[MessageType]
 
-  def iter : java.util.Iterator[Envelope[MessageType]]
+  def hasNext : Boolean
+
+  def next() : Envelope[MessageType]
+
+  def remove() : Unit
+
+  def reset() : Unit
 
   def isEmpty  : Boolean
 
-  def size() : Int
-
-  def pollAll(f: Envelope[MessageType] => Boolean) : Seq[Envelope[MessageType]] = {
-    val it = iter
-    var buffer = new collection.mutable.ArrayBuffer[Envelope[MessageType]]()
-    while(it.hasNext){
-      val item = it.next()
-      if (f(item)){
-        buffer += item
-        it.remove()
-      }
-    }
-    buffer
+  def drainTo(c : Mailbox[MessageType]) = {
+    addAll(this)
+    clear()
   }
 
+  def clear() : Unit
+
+  def addAll(c : Mailbox[MessageType]) : Unit
+
+  def size() : Int
+
   def apply(fn : PartialFunction[Envelope[MessageType], Unit]) = {
-    var it = iter
-    while(it.hasNext){
+    reset()
+    while(hasNext){
       keepMsgInMailbox = false
-      fn(it.next())
+      fn(next())
       if (!keepMsgInMailbox) {
-        it.remove()
+        remove()
       }
     }
   }
 }
 
 class PriorityBlockingMailbox[MessageType <: IndexedRecord](prioFn : MessageType => Int)
-  extends PriorityBlockingQueue[Envelope[MessageType]](5, PriorityGenerator(prioFn)) with Mailbox[MessageType]{
+  extends  Mailbox[MessageType]{
 
-  def iter = iterator
+  var queue = new PriorityBlockingQueue[Envelope[MessageType]](5, PriorityGenerator(prioFn))
 
-  override def isEmpty = peek() == null
+  var iter = queue.iterator
+
+  override def size() : Int = queue.size()
+
+  override def clear() : Unit = queue.clear()
+
+  override def peek : Envelope[MessageType] = queue.peek()
+
+  override def poll : Envelope[MessageType] = queue.poll()
+
+  override def add(msg : Envelope[MessageType]) : Boolean  = queue.add(msg)
+
+  override def hasNext : Boolean  = iter.hasNext
+
+  override def next() : Envelope[MessageType]  = iter.next()
+
+  override def remove() : Unit = iter.remove
+
+
+  override def reset() = iter = queue.iterator
+
+  override def addAll(c : Mailbox[MessageType])  = throw new RuntimeException("Not Implemented")
+
+  override def addFirst(msg : Envelope[MessageType]) = throw new RuntimeException("Not Implemented")
+
+  override def isEmpty = queue.peek() == null
 }
 
 
-class PlainMailbox[MessageType <: IndexedRecord](prioFn : MessageType => Int)
+class PlainMailbox[MessageType <: IndexedRecord]()
   extends ArrayBuffer[Envelope[MessageType]](5) with Mailbox[MessageType]  {
 
-  def iter = new  ArrayIter(this)
+  private var pos : Int = -1
+  private var nextReset : Boolean = false
 
-  def add(msg : Envelope[MessageType]) = {
+  /**
+   * No motification to the mailbox are allowed during the apply
+   * except addPrio and add
+   */
+  override def apply(fn : PartialFunction[Envelope[MessageType], Unit]) = {
+    reset()
+    while(hasNext){
+      keepMsgInMailbox = false
+      fn(next())
+      if (!keepMsgInMailbox) {
+        remove()
+      }
+    }
+  }
+
+  override def addAll(c : Mailbox[MessageType]) : Unit   = {
+    ++=(c.asInstanceOf[PlainMailbox[MessageType]])
+  }
+
+  override def addFirst(msg : Envelope[MessageType]) = {
+   +=:(msg)
+   pos += 1
+   nextReset = true
+  }
+
+  override def add(msg : Envelope[MessageType]) = {
     append(msg)
     true
   }
@@ -85,46 +140,49 @@ class PlainMailbox[MessageType <: IndexedRecord](prioFn : MessageType => Int)
    else apply(0)
   }
 
-  class ArrayIter (var buffer : ArrayBuffer[Envelope[MessageType]]) extends java.util.Iterator[Envelope[MessageType]] {
-    var pos = -1
-    def hasNext: Boolean = pos + 1< buffer.length
-
-    def next: Envelope[MessageType] = {
-      pos += 1
-      buffer(pos)
+  override def hasNext: Boolean = {
+    if(nextReset){
+      reset()
     }
-    def remove: Unit = {
-      buffer.remove(pos)
-      pos -= 1
-    }
+    pos + 1< length
   }
 
-  def drainTo(c : PlainMailbox[MessageType]) = {
-    c.++=(this)
-    clear()
+  override def next: Envelope[MessageType] = {
+    pos += 1
+    apply(pos)
+  }
+
+  override def remove(): Unit = {
+    remove(pos)
+    pos -= 1
+  }
+
+  override def reset() = {
+    pos = -1
+    nextReset = false
   }
 
   /**
    * Compare should return true iff its first parameter is strictly less than its second parameter.
    */
-  @inline private def less(m1 : AnyRef, m2 : AnyRef) = {
+  @inline private def less(prioFn : MessageType => Int, m1 : AnyRef, m2 : AnyRef) = {
     prioFn(m1.asInstanceOf[Envelope[MessageType]].msg) < prioFn(m1.asInstanceOf[Envelope[MessageType]].msg)
   }
 
 
-  def sort() = {
-    stableSort(array, 0, size0 - 1, new Array[AnyRef](size0 ))
+  def sort(prioFn : MessageType => Int) = {
+    stableSort(prioFn, array, 0, size0 - 1, new Array[AnyRef](size0 ))
   }
 
-  private def stableSort(a: Array[AnyRef], lo: Int, hi: Int, scratch: Array[AnyRef])  {
+  private def stableSort(prioFn : MessageType => Int, a: Array[AnyRef], lo: Int, hi: Int, scratch: Array[AnyRef])  {
     if (lo < hi) {
       val mid = (lo+hi) / 2
-      stableSort(a, lo, mid, scratch)
-      stableSort(a, mid+1, hi, scratch)
+      stableSort(prioFn, a, lo, mid, scratch)
+      stableSort(prioFn, a, mid+1, hi, scratch)
       var k, t_lo = lo
       var t_hi = mid + 1
       while (k <= hi) {
-        if ((t_lo <= mid) && ((t_hi > hi) || (!less(a(t_hi), a(t_lo))))) {
+        if ((t_lo <= mid) && ((t_hi > hi) || (!less(prioFn, a(t_hi), a(t_lo))))) {
           scratch(k) = a(t_lo)
           t_lo += 1
         } else {
