@@ -87,7 +87,7 @@ package object piql {
       logger.info("Begining Optimization of query %s: %s", queryName, logicalPlan)
       val qualifiedPlan = new Qualifier(logicalPlan).qualifiedPlan
       logger.debug("Plan after qualifing: %s", qualifiedPlan)
-      val physicalPlan = Optimizer(qualifiedPlan).physicalPlan
+      val physicalPlan = Optimizer(qualifiedPlan)
       logger.info("Optimized piql query %s: %s", queryName, physicalPlan)
       val boundPlan = new Binder(physicalPlan).boundPlan
       logger.debug("Bound piql query %s: %s", queryName, boundPlan)
