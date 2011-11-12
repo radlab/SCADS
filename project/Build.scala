@@ -252,7 +252,7 @@ object DeployConsole extends BuildCommon {
           "implicit def serviceScheduler = cluster.serviceScheduler"
         ).mkString("\n") + "\n" + initCmds
 
-        (new Console(cs.scalac))(Build.data(cp), options, cmds, s.log).foreach(msg => error(msg))
+        (new Console(cs.scalac))(Build.data(cp), options, cmds, "", s.log).foreach(msg => error(msg))
         println()
       }
     }
