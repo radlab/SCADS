@@ -24,15 +24,15 @@ object Optimizer {
     logger.info("Optimizing subplan: %s", logicalPlan)
 
     logicalPlan match {
-      case IndexRange(equalityPreds, None, None, Relation(ns, _)) if ((equalityPreds.size == ns.keySchema.getFields.size) &&
-        isPrefix(equalityPreds.map(_.attribute.unqualifiedName), ns)) => {
-        val tupleSchema = ns :: Nil
+      case IndexRange(equalityPreds, None, None, r: Relation) if ((equalityPreds.size == ns.keySchema.getFields.size) &&
+                                                                       isPrefix(equalityPreds.map(_.attribute.fieldName), ns)) => {
+        val tupleSchema = r :: Nil
         OptimizedSubPlan(
-          IndexLookup(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds)),
+          IndexLookup(ns, makeKeyGenerator(r.ns, tupleSchema, equalityPreds)),
           tupleSchema)
       }
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, Relation(ns, _)) => {
-        if (isPrefix(equalityPreds.map(_.attribute.unqualifiedName), ns)) {
+        if (isPrefix(equalityPreds.map(_.attribute.fieldName), ns)) {
           logger.info("Using primary index for predicates: %s", equalityPreds)
           val tupleSchema = ns :: Nil
           val idxScanPlan = IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), count, true)
@@ -45,7 +45,7 @@ object Optimizer {
           logger.info("Using secondary index for predicates: %s", equalityPreds)
 
           //TODO: Fix type hack
-          val idx: Namespace = ns.getOrCreateIndex(equalityPreds.map(p => AttributeIndex(p.attribute.unqualifiedName)))
+          val idx: Namespace = ns.getOrCreateIndex(equalityPreds.map(p => AttributeIndex(p.attribute.fieldName)))
           val tupleSchema: TupleSchema = idx :: ns :: Nil
           val idxScanPlan = IndexScan(idx, makeKeyGenerator(idx, tupleSchema, equalityPreds), count, true)
           val derefedPlan = derefPlan(ns, idxScanPlan)
@@ -63,7 +63,7 @@ object Optimizer {
           FixedLimit(defaultFetchSize)
         }
         val isDataStop = bound.map(_.isDataStop).getOrElse(true)
-        val prefixAttrs = equalityPreds.map(_.attribute.unqualifiedName) ++ attrs.map(_.unqualifiedName)
+        val prefixAttrs = equalityPreds.map(_.attribute.fieldName) ++ attrs.map(_.fieldName)
         val (idxScanPlan, tupleSchema) =
           if (isPrefix(prefixAttrs, ns)) {
             val tupleSchema: TupleSchema = ns :: Nil
@@ -88,7 +88,7 @@ object Optimizer {
         OptimizedSubPlan(fullPlan, tupleSchema)
       }
       case IndexRange(equalityPreds, None, None, Join(child, Relation(ns, _))) if (equalityPreds.size == ns.keySchema.getFields.size) &&
-        isPrefix(equalityPreds.map(_.attribute.unqualifiedName), ns) => {
+        isPrefix(equalityPreds.map(_.attribute.fieldName), ns) => {
         val optChild = apply(child)
         val tupleSchema = optChild.schema :+ ns
         OptimizedSubPlan(
@@ -96,7 +96,7 @@ object Optimizer {
           tupleSchema)
       }
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), Join(child, Relation(ns, _))) => {
-        val prefixAttrs = equalityPreds.map(_.attribute.unqualifiedName) ++ attrs.map(_.unqualifiedName)
+        val prefixAttrs = equalityPreds.map(_.attribute.fieldName) ++ attrs.map(_.fieldName)
         val optChild = apply(child)
 
         val (joinPlan, tupleSchema) =
@@ -163,25 +163,12 @@ object Optimizer {
   }
 
   protected val qualifiedAttribute = """([^\.]+)\.([^\.]+)""".r
-88
+
   protected def bindValue(value: Value, schema: TupleSchema): Value = value match {
-    case UnboundAttributeValue(qualifiedAttribute(relationName, attrName)) => {
-      logger.debug("attempting to bind qualified attribute: %s.%s in %s", relationName, attrName, schema)
-      val relationNames = schema.map(_.namespace)
-      val recordPosition = relationNames.indexWhere(_ equals relationName)
-      val fields = schema(recordPosition).schema.getFields
-      val fieldPosition = fields.indexWhere(_.name equals attrName)
-      logger.debug("selecting position (%s):%d, (%s):%d ", relationNames.mkString(","), recordPosition, fields.mkString(","), fieldPosition)
-      AttributeValue(recordPosition, fieldPosition)
-    }
-    case UnboundAttributeValue(name: String) => {
-      //TODO: Throw execption when ambiguious
-      logger.info("attempting to bind %s in %s", name, schema)
-      val recordSchemas = schema.map(_.schema.getFields)
-      val recordPosition = recordSchemas.indexWhere(_.map(_.name) contains name)
-      val fieldPosition = recordSchemas(recordPosition).indexWhere(_.name equals name)
-      AttributeValue(recordPosition, fieldPosition)
-    }
+    case QualifiedAttributeValue(r, f) =>
+      val recPos = schema.indexOf(r)
+      assert(recPos >= 0, "Couldn't find " + r + " in " + schema)
+      AttributeValue(schema.indexOf(r), f.pos)
     case otherValue => otherValue
   }
 
@@ -192,14 +179,14 @@ object Optimizer {
   protected def makeKeyGenerator(ns: Namespace, schema: TupleSchema, equalityPreds: Seq[AttributeEquality]): KeyGenerator = {
     ns.keySchema.getFields.take(equalityPreds.size).map(f => {
       logger.info("Looking for key generator value for field %s in %s", f.name, equalityPreds)
-      val value = equalityPreds.find(_.attribute.unqualifiedName equals f.name).getOrElse(throw new ImplementationLimitation("Invalid prefix")).value
+      val value = equalityPreds.find(_.attribute.fieldName equals f.name).getOrElse(throw new ImplementationLimitation("Invalid prefix")).value
       bindValue(value, schema)
     })
   }
 
-  case class AttributeEquality(attribute: UnboundAttributeValue, value: Value)
+  case class AttributeEquality(attribute: QualifiedAttributeValue, value: Value)
 
-  case class Ordering(attributes: Seq[UnboundAttributeValue], ascending: Boolean)
+  case class Ordering(attributes: Seq[QualifiedAttributeValue], ascending: Boolean)
 
   case class TupleLimit(count: Limit, isDataStop: Boolean)
 
@@ -217,8 +204,8 @@ object Optimizer {
 
       //TODO: check to make sure these are fields in the base relation
       val (ordering, planWithoutSort) = planWithoutStop match {
-        case Sort(attrs, asc, child) if (attrs.map(_.isInstanceOf[UnboundAttributeValue]).reduceLeft(_ && _)) => {
-          (Some(Ordering(attrs.asInstanceOf[Seq[UnboundAttributeValue]], asc)), child)
+        case Sort(attrs, asc, child) if (attrs.map(_.isInstanceOf[QualifiedAttributeValue]).reduceLeft(_ && _)) => {
+          (Some(Ordering(attrs.asInstanceOf[Seq[QualifiedAttributeValue]], asc)), child)
         }
         case otherOp => (None, otherOp)
       }
@@ -232,28 +219,24 @@ object Optimizer {
         return None
       }
 
-      val ns = basePlan match {
-        case Relation(ns, _) => ns
-        case Join(_, Relation(ns, _)) => ns
+      val relation = basePlan match {
+        case r: Relation => r
+        case Join(_, r: Relation) => r
         case otherOp => {
           logger.info("IndexRange match failed.  Invalid base plan: %s", otherOp)
           return None
         }
       }
 
-      val fields = ns.schema.getFields
+      val fields = relation.ns.schema.getFields
 
       val idxEqPreds = predicates.map {
-        case EqualityPredicate(v: Value, u@UnboundAttributeValue(qualifiedAttribute(relName, attrName))) if relName.equals(ns.namespace) && fields.map(_.name).contains(attrName) =>
-          AttributeEquality(u, v)
-        case EqualityPredicate(u@UnboundAttributeValue(qualifiedAttribute(relName, attrName)), v: Value) if relName.equals(ns.namespace) && fields.map(_.name).contains(attrName) =>
-          AttributeEquality(u, v)
-        case EqualityPredicate(v: Value, u@UnboundAttributeValue(attrName)) if fields.map(_.name).contains(attrName) =>
-          AttributeEquality(u, v)
-        case EqualityPredicate(u@UnboundAttributeValue(attrName), v: Value) if fields.map(_.name).contains(attrName) =>
-          AttributeEquality(u, v)
+        case EqualityPredicate(v: Value, a@QualifiedAttributeValue(r,f)) if r == relation =>
+          AttributeEquality(a, v)
+        case EqualityPredicate(a@QualifiedAttributeValue(r,f), v: Value) if r == relation =>
+          AttributeEquality(a, v)
         case otherPred => {
-          logger.info("IndexScan match failed.  Can't apply %s to index scan of %s.{%s}", otherPred, ns.namespace, ns.keySchema.getFields.map(_.name))
+          logger.info("IndexScan match failed.  Can't apply %s to index scan of %s.{%s}", otherPred, relation, relation.ns.keySchema.getFields.map(_.name))
           return None
         }
       }

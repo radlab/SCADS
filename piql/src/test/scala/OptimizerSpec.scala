@@ -80,7 +80,7 @@ class OptimizerSpec extends Spec with ShouldMatchers {
 
   it("lookup join") {
     val query = (
-      r2.where("f1".a === (0.?))
+      r2.where("r2.f1".a === (0.?))
         .dataLimit(10)
         .join(r1)
         .where("r1.f1".a === "r2.f2".a))

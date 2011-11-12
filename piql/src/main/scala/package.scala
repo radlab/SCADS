@@ -34,7 +34,7 @@ package object piql {
   type QueryExecutor = exec.QueryExecutor
   type ParallelExecutor = exec.ParallelExecutor
 
-  //Query State Serailization
+  //Query State Sterilization
   type CursorPosition = Seq[Any]
 
   implicit def toRichTuple(t: Tuple) = new debug.RichTuple(t)

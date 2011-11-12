@@ -14,8 +14,9 @@ case class ParameterValue(ordinal: Int) extends FixedValue
 /* Attibute Values */
 case class AttributeValue(recordPosition: Int, fieldPosition: Int) extends Value
 
-//TODO: write qualifier.
-case class QualifiedAttributeValue(relation: Relation, field: Field) extends Value
+case class QualifiedAttributeValue(relation: Relation, field: Field) extends Value {
+  def fieldName = field.name
+}
 
 case class UnboundAttributeValue(name: String) extends Value {
   protected val qualifiedAttribute = """([^\.]+)\.([^\.]+)""".r
