@@ -25,17 +25,17 @@ object Optimizer {
 
     logicalPlan match {
       case IndexRange(equalityPreds, None, None, r: Relation) if ((equalityPreds.size == r.keySchema.getFields.size) &&
-                                                                       isPrefix(equalityPreds.map(_.attribute.fieldName), r)) => {
+        isPrefix(equalityPreds.map(_.attribute.fieldName), r)) => {
         val tupleSchema = r :: Nil
         OptimizedSubPlan(
-          IndexLookup(r.ns,  makeKeyGenerator(r, tupleSchema, equalityPreds)),
+          IndexLookup(r, makeKeyGenerator(r, tupleSchema, equalityPreds)),
           tupleSchema)
       }
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, r: Relation) => {
         if (isPrefix(equalityPreds.map(_.attribute.fieldName), r)) {
           logger.info("Using primary index for predicates: %s", equalityPreds)
           val tupleSchema = r :: Nil
-          val idxScanPlan = IndexScan(r.ns,  makeKeyGenerator(r,  tupleSchema, equalityPreds), count, true)
+          val idxScanPlan = IndexScan(r, makeKeyGenerator(r, tupleSchema, equalityPreds), count, true)
           val fullPlan = dataStop match {
             case true => idxScanPlan
             case false => LocalStopAfter(count, idxScanPlan)
@@ -44,11 +44,10 @@ object Optimizer {
         } else {
           logger.info("Using secondary index for predicates: %s", equalityPreds)
 
-          //TODO: move index code into piql
           val idx = Index(r.ns.getOrCreateIndex(equalityPreds.map(p => AttributeIndex(p.attribute.fieldName))))
           val tupleSchema: TupleSchema = idx :: r :: Nil
-          val idxScanPlan = IndexScan(idx.ns, makeKeyGenerator(idx, tupleSchema, equalityPreds), count, true)
-          val derefedPlan = derefPlan(r,  idxScanPlan)
+          val idxScanPlan = IndexScan(idx, makeKeyGenerator(idx, tupleSchema, equalityPreds), count, true)
+          val derefedPlan = derefPlan(r, idxScanPlan)
 
           val fullPlan = dataStop match {
             case true => derefedPlan
@@ -67,14 +66,14 @@ object Optimizer {
         val (idxScanPlan, tupleSchema) =
           if (isPrefix(prefixAttrs, r)) {
             val tupleSchema: TupleSchema = r :: Nil
-            (IndexScan(r.ns,  makeKeyGenerator(r,  tupleSchema, equalityPreds), limitHint, asc), tupleSchema)
+            (IndexScan(r, makeKeyGenerator(r, tupleSchema, equalityPreds), limitHint, asc), tupleSchema)
           }
           else {
             logger.debug("Creating index for attributes: %s", prefixAttrs)
             val idx = Index(r.ns.getOrCreateIndex(prefixAttrs.map(p => AttributeIndex(p))))
             val tupleSchema = idx :: r :: Nil
-            (derefPlan(r, 
-              IndexScan(idx.ns,
+            (derefPlan(r,
+              IndexScan(idx,
                 makeKeyGenerator(idx, tupleSchema, equalityPreds),
                 limitHint,
                 asc)),
@@ -87,12 +86,13 @@ object Optimizer {
         }
         OptimizedSubPlan(fullPlan, tupleSchema)
       }
-      case IndexRange(equalityPreds, None, None, Join(child, r: Relation)) if (equalityPreds.size == r.keySchema.getFields.size) &&
-        isPrefix(equalityPreds.map(_.attribute.fieldName), r) => {
+      case IndexRange(equalityPreds, None, None, Join(child, r: Relation))
+        if (equalityPreds.size == r.keySchema.getFields.size) &&
+          isPrefix(equalityPreds.map(_.attribute.fieldName), r) => {
         val optChild = apply(child)
         val tupleSchema = optChild.schema :+ r
         OptimizedSubPlan(
-          IndexLookupJoin(r.ns,  makeKeyGenerator(r,  tupleSchema, equalityPreds), optChild.physicalPlan),
+          IndexLookupJoin(r, makeKeyGenerator(r, tupleSchema, equalityPreds), optChild.physicalPlan),
           tupleSchema)
       }
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), Join(child, r: Relation)) => {
@@ -104,9 +104,9 @@ object Optimizer {
             val tupleSchema = optChild.schema :+ r
             logger.debug("Using index special orders for %s", attrs)
 
-            (IndexMergeJoin(r.ns,
-              makeKeyGenerator(r,  tupleSchema, equalityPreds),
-              attrs.map(bindValue(_, tupleSchema)),
+            (IndexMergeJoin(r,
+              makeKeyGenerator(r, tupleSchema, equalityPreds),
+              attrs,
               count,
               asc,
               optChild.physicalPlan),
@@ -115,12 +115,12 @@ object Optimizer {
             val idx = Index(r.ns.getOrCreateIndex(prefixAttrs.map(p => AttributeIndex(p))))
             val tupleSchema = idx :: r :: Nil
 
-            val idxJoinPlan = IndexScanJoin(idx.ns,
+            val idxJoinPlan = IndexScanJoin(idx,
               makeKeyGenerator(idx, tupleSchema, equalityPreds),
               count,
               asc,
               optChild.physicalPlan)
-            (derefPlan(r,  idxJoinPlan), tupleSchema)
+            (derefPlan(r, idxJoinPlan), tupleSchema)
           }
 
         val fullPlan = dataStop match {
@@ -132,7 +132,7 @@ object Optimizer {
       }
       case Selection(pred, child) => {
         val optChild = apply(child)
-        val boundPred = bindPredicate(pred, optChild.schema)
+        val boundPred = pred
         optChild.copy(physicalPlan = LocalSelection(boundPred, optChild.physicalPlan))
       }
     }
@@ -142,7 +142,7 @@ object Optimizer {
     val keyFields = r.keySchema.getFields
     val idxFields = idxPlan.namespace.schema.getFields
     val keyGenerator = keyFields.map(kf => AttributeValue(0, idxFields.indexWhere(_.name equals kf.name)))
-    IndexLookupJoin(r.provider,  keyGenerator, idxPlan)
+    IndexLookupJoin(r, keyGenerator, idxPlan)
   }
 
   /**
@@ -154,23 +154,7 @@ object Optimizer {
     attrNames.map(primaryKeyAttrs.contains(_)).reduceLeft(_ && _)
   }
 
-  /**
-   * Given a list of predicates, replace all UnboundAttributeValues with Attribute values
-   * with the correct record/field positions
-   */
-  protected def bindPredicate(predicate: Predicate, schema: TupleSchema): Predicate = predicate match {
-    case EqualityPredicate(l, r) => EqualityPredicate(bindValue(l, schema), bindValue(r, schema))
-  }
 
-  protected val qualifiedAttribute = """([^\.]+)\.([^\.]+)""".r
-
-  protected def bindValue(value: Value, schema: TupleSchema): Value = value match {
-    case QualifiedAttributeValue(r, f) =>
-      val recPos = schema.indexOf(r)
-      assert(recPos >= 0, "Couldn't find " + r + " in " + schema)
-      AttributeValue(schema.indexOf(r), f.pos)
-    case otherValue => otherValue
-  }
 
   /**
    * Given a namespace and a set of attribute equality predicates return
@@ -180,7 +164,7 @@ object Optimizer {
     ns.keySchema.getFields.take(equalityPreds.size).map(f => {
       logger.info("Looking for key generator value for field %s in %s", f.name, equalityPreds)
       val value = equalityPreds.find(_.attribute.fieldName equals f.name).getOrElse(throw new ImplementationLimitation("Invalid prefix")).value
-      bindValue(value, schema)
+      value
     })
   }
 
@@ -231,9 +215,9 @@ object Optimizer {
       val fields = relation.ns.schema.getFields
 
       val idxEqPreds = predicates.map {
-        case EqualityPredicate(v: Value, a@QualifiedAttributeValue(r,f)) if r == relation =>
+        case EqualityPredicate(v: Value, a@QualifiedAttributeValue(r, f)) if r == relation =>
           AttributeEquality(a, v)
-        case EqualityPredicate(a@QualifiedAttributeValue(r,f), v: Value) if r == relation =>
+        case EqualityPredicate(a@QualifiedAttributeValue(r, f), v: Value) if r == relation =>
           AttributeEquality(a, v)
         case otherPred => {
           logger.info("IndexScan match failed.  Can't apply %s to index scan of %s.{%s}", otherPred, relation, relation.ns.keySchema.getFields.map(_.name))

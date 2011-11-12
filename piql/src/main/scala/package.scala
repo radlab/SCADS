@@ -85,11 +85,13 @@ package object piql {
   implicit def toPiql(logicalPlan: LogicalPlan)(implicit executor: QueryExecutor) = new {
     def toPiql(queryName: Option[String] = None) = {
       logger.info("Begining Optimization of query %s: %s", queryName, logicalPlan)
-      val boundPlan = new Binder(logicalPlan).qualifiedPlan
-      logger.info("Plan after binding: %s", boundPlan)
-      val physicalPlan = Optimizer(boundPlan).physicalPlan
+      val qualifiedPlan = new Qualifier(logicalPlan).qualifiedPlan
+      logger.debug("Plan after qualifing: %s", qualifiedPlan)
+      val physicalPlan = Optimizer(qualifiedPlan).physicalPlan
       logger.info("Optimized piql query %s: %s", queryName, physicalPlan)
-      new OptimizedQuery(queryName, logicalPlan, physicalPlan, executor)
+      val boundPlan = new Binder(physicalPlan).boundPlan
+      logger.debug("Bound piql query %s: %s", queryName, boundPlan)
+      new OptimizedQuery(queryName, logicalPlan, boundPlan, executor)
     }
   }
 

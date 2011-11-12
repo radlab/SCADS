@@ -25,7 +25,7 @@ class OptimizerSpec extends Spec with ShouldMatchers {
   }
 
   implicit def bind(logicalPlan: LogicalPlan) = new {
-    def bind = new Binder(logicalPlan).qualifiedPlan
+    def bind = new Qualifier(logicalPlan).qualifiedPlan
   }
 
   describe("The PIQL Optimizer") {
@@ -112,7 +112,7 @@ class OptimizerSpec extends Spec with ShouldMatchers {
 
     //Optimize query first so index is created
     val optQuery = query.opt
-    val idx = r2.getOrCreateIndex(AttributeIndex("f2") :: Nil)
+    val idx = Index(r2.getOrCreateIndex(AttributeIndex("f2") :: Nil))
 
     val plan =
       LocalStopAfter(FixedLimit(10),

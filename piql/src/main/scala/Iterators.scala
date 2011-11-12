@@ -49,7 +49,7 @@ trait QueryExecutor {
     }
   }
 
-  final protected def bindKey(ns: Namespace, key: KeyGenerator, currentTuple: Tuple = null)(implicit ctx: Context): Key = {
+  final protected def bindKey(ns: TupleProvider, key: KeyGenerator, currentTuple: Tuple = null)(implicit ctx: Context): Key = {
     val boundKey = new GenericData.Record(ns.keySchema)
 
     key.map(bindValue(_, currentTuple)).zipWithIndex.foreach {
@@ -118,7 +118,7 @@ class SimpleExecutor extends QueryExecutor {
         private var result: Option[Record] = None
 
         def open: Unit =
-          result = namespace.getRecord(boundKey)
+          result = namespace.provider.getRecord(boundKey)
 
         def close: Unit =
           result = None
@@ -144,7 +144,7 @@ class SimpleExecutor extends QueryExecutor {
 
         @inline private def doFetch() {
           logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
-          result = namespace.getRange(boundKeyPrefix, boundKeyPrefix, offset = offset, limit = boundLimit, ascending = ascending)
+          result = namespace.provider.getRange(boundKeyPrefix, boundKeyPrefix, offset = offset, limit = boundLimit, ascending = ascending)
           logger.debug("IndexScan Prefetch Returned %s, with offset %d, limit %d", result, offset, boundLimit)
           offset += result.size
           pos = 0
@@ -200,7 +200,7 @@ class SimpleExecutor extends QueryExecutor {
           while (childIterator.hasNext) {
             val childTuple = childIterator.next
             val boundKey = bindKey(namespace, key, childTuple)
-            val value = namespace.getRecord(boundKey)
+            val value = namespace.provider.getRecord(boundKey)
 
             if (value.isDefined) {
               nextTuple = childTuple ++ Array[Record](value.get) //TODO: Why does it return the boundKey???
@@ -233,7 +233,7 @@ class SimpleExecutor extends QueryExecutor {
 
           val tupleDatum = childIterator.map(childValue => {
             val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
-            val records = namespace.getRange(boundKeyPrefix, boundKeyPrefix, limit = boundLimit, ascending = ascending)
+            val records = namespace.provider.getRange(boundKeyPrefix, boundKeyPrefix, limit = boundLimit, ascending = ascending)
             logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", boundKeyPrefix, records)
 
             val recIdxSeq = records.map(r => childValue :+ r).toIndexedSeq
@@ -263,7 +263,7 @@ class SimpleExecutor extends QueryExecutor {
         private def fillBuffer(i: Int) {
           val (key, tup, offset, limitReached) = tupleData(i)
           assert(!limitReached)
-          val records = namespace.getRange(key, key, offset = offset, limit = boundLimit, ascending = ascending)
+          val records = namespace.provider.getRange(key, key, offset = offset, limit = boundLimit, ascending = ascending)
           logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", key, records)
           tupleBuffers(i) ++= records.map(r => tup :+ r).toIndexedSeq
           tupleData(i) = ((key, tup, offset + records.size, records.size < boundLimit))
@@ -409,7 +409,7 @@ class ParallelExecutor extends SimpleExecutor {
         private var ftch: Option[ScadsFuture[Option[Record]]] = None
 
         def open: Unit =
-          ftch = Some(namespace.asyncGetRecord(boundKey))
+          ftch = Some(namespace.provider.asyncGetRecord(boundKey))
 
         def close: Unit =
           ftch = None
@@ -440,7 +440,7 @@ class ParallelExecutor extends SimpleExecutor {
 
         @inline private def doFetch() {
           logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
-          ftch = namespace.asyncGetRange(boundKeyPrefix, boundKeyPrefix, offset = offset, limit = boundLimit, ascending = ascending)
+          ftch = namespace.provider.asyncGetRange(boundKeyPrefix, boundKeyPrefix, offset = offset, limit = boundLimit, ascending = ascending)
           ftchInvoked = false
         }
 
@@ -529,7 +529,7 @@ class ParallelExecutor extends SimpleExecutor {
           while (childIterator.hasNext && ftchs.size < windowSize) {
             val childTuple = childIterator.next
             val boundKey = bindKey(namespace, key, childTuple)
-            val valueFtch = namespace.asyncGetRecord(boundKey)
+            val valueFtch = namespace.provider.asyncGetRecord(boundKey)
             ftchs += ((childTuple, boundKey, valueFtch))
           }
         }
@@ -554,7 +554,7 @@ class ParallelExecutor extends SimpleExecutor {
 
           tupleData = childIterator.map(childValue => {
             val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
-            val ftch = namespace.asyncGetRange(boundKeyPrefix, boundKeyPrefix, limit = boundLimit, ascending = ascending)
+            val ftch = namespace.provider.asyncGetRange(boundKeyPrefix, boundKeyPrefix, limit = boundLimit, ascending = ascending)
             (boundKeyPrefix, childValue, 0, false, ftch)
           }).toArray
 
@@ -629,7 +629,7 @@ class ParallelExecutor extends SimpleExecutor {
           } else {
             // still can ask for more records
             //val newOffset = records.size + offset
-            //val newFtch = namespace.asyncGetRange(key, key, offset=newOffset, limit=boundLimit, ascending=ascending)
+            //val newFtch = namespace.provider.asyncGetRange(key, key, offset=newOffset, limit=boundLimit, ascending=ascending)
             //tupleData(i) = ((key, tup, newOffset, limitReached, newFtch))
           }
         }
@@ -666,7 +666,7 @@ class LazyExecutor extends SimpleExecutor {
         private val boundKey = bindKey(namespace, key)
 
         private var accessed = false
-        private lazy val result = namespace.getRecord(boundKey)
+        private lazy val result = namespace.provider.getRecord(boundKey)
 
         def open {}
 
@@ -701,7 +701,7 @@ class LazyExecutor extends SimpleExecutor {
 
         @inline private def doFetch() {
           logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
-          val res = namespace.getRange(boundKeyPrefix, boundKeyPrefix, offset = offset, limit = 1, ascending = ascending)
+          val res = namespace.provider.getRange(boundKeyPrefix, boundKeyPrefix, offset = offset, limit = 1, ascending = ascending)
           logger.debug("IndexScan Fetch Returned %s, with offset %d, limit %d", res, offset, 1)
           offset += res.size
           if (res.isEmpty) {
@@ -770,7 +770,7 @@ class LazyExecutor extends SimpleExecutor {
           while (childIterator.hasNext) {
             val childTuple = childIterator.next
             val boundKey = bindKey(namespace, key, childTuple)
-            val value = namespace.getRecord(boundKey)
+            val value = namespace.provider.getRecord(boundKey)
 
             if (value.isDefined) {
               nextTuple = childTuple ++ Array[Record](value.get)
@@ -803,7 +803,7 @@ class LazyExecutor extends SimpleExecutor {
 
           val tupleDatum = childIterator.map(childValue => {
             val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
-            val records = namespace.getRange(boundKeyPrefix, boundKeyPrefix, limit = 1, ascending = ascending)
+            val records = namespace.provider.getRange(boundKeyPrefix, boundKeyPrefix, limit = 1, ascending = ascending)
             logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", boundKeyPrefix, records)
 
             val recIdxSeq = records.map(childValue :+ _).toIndexedSeq
@@ -844,7 +844,7 @@ class LazyExecutor extends SimpleExecutor {
         private def fillBuffer(i: Int) {
           val (key, tup, offset, limitReached) = tupleData(i)
           assert(!limitReached)
-          val records = namespace.getRange(key, key, offset = offset, limit = 1, ascending = ascending)
+          val records = namespace.provider.getRange(key, key, offset = offset, limit = 1, ascending = ascending)
           logger.debug("IndexMergeJoin Fetch Using Key %s: %s", key, records)
           tupleBuffers(i) ++= records.map(tup :+ _).toIndexedSeq
           tupleData(i) = ((key, tup, offset + records.size, records.size < 1))

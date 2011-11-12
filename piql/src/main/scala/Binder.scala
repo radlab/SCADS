@@ -10,7 +10,7 @@ import java.lang.RuntimeException
  * Checks a logical query plan for invalid attributes and binds attribute strings to the
  * corresponding ns/field.
  */
-class Binder(plan: LogicalPlan) {
+class Qualifier(plan: LogicalPlan) {
 
   lazy val relations = getRelations(plan)
 
@@ -20,7 +20,9 @@ class Binder(plan: LogicalPlan) {
   }
 
   trait NamedAttribute
+
   case class UniqueAttribute(attr: QualifiedAttributeValue) extends NamedAttribute
+
   object AmbiguousAttribute extends NamedAttribute
 
   lazy val attributeMap =
@@ -33,7 +35,9 @@ class Binder(plan: LogicalPlan) {
     }.toMap
 
   trait NamedRelation
+
   case class UniqueRelation(r: Relation) extends NamedRelation
+
   object AmbiguousRelation extends NamedRelation
 
   lazy val relationMap =
@@ -75,13 +79,67 @@ class Binder(plan: LogicalPlan) {
     case UnboundAttributeValue(qualifiedAttribute(relationName, attrName)) =>
       relationMap.get(relationName).getOrElse(throw new RuntimeException("No such relation: " + relationName)) match {
         case UniqueRelation(r) => QualifiedAttributeValue(r, r.ns.schema.getField(attrName))
-        case AmbiguousRelation => throw new RuntimeException("Ambiguous reference to relation: "+ relationName)
+        case AmbiguousRelation => throw new RuntimeException("Ambiguous reference to relation: " + relationName)
       }
     case UnboundAttributeValue(name: String) =>
       attributeMap.get(name).getOrElse(throw new RuntimeException("No such attribute:" + name)) match {
         case UniqueAttribute(a) => a
         case AmbiguousAttribute => throw new RuntimeException("Ambiguous reference to attribute: " + name)
+      }
+    case otherValue => otherValue
+  }
+}
+
+class Binder(plan: QueryPlan) {
+  lazy val tupleSchema: TupleSchema = getTupleSchema(plan).reverse
+
+  protected def getTupleSchema(plan: QueryPlan): TupleSchema = {
+    val t: TupleSchema = plan match {
+      case rp: RemotePlan => rp.namespace :: Nil
+      case lp => Nil
+    }
+    val c: TupleSchema = plan match {
+      case in: InnerPlan => getTupleSchema(in.child)
+      case _ => Nil
+    }
+    t ++ c
+  }
+
+  lazy val boundPlan = bindPlan(plan)
+
+  protected def bindPlan(plan: QueryPlan): QueryPlan = plan match {
+    case IndexLookup(ns, kp) =>
+      IndexLookup(ns, kp.map(bindValue))
+    case IndexScan(ns, kp, l, asc) =>
+      IndexScan(ns, kp.map(bindValue), l, asc)
+    case IndexLookupJoin(ns, kp, c) =>
+      IndexLookupJoin(ns, kp.map(bindValue), bindPlan(c))
+    case IndexScanJoin(ns, kp, l, asc, c) =>
+      IndexScanJoin(ns, kp.map(bindValue), l, asc, c)
+    case IndexMergeJoin(ns, kp, sf, l, asc, c) =>
+      IndexMergeJoin(ns, kp.map(bindValue), sf.map(bindValue), l, asc, bindPlan(c))
+    case LocalSelection(p, c) =>
+      LocalSelection(bindPredicate(p), bindPlan(c))
+    case LocalSort(sf, asc, c) =>
+      LocalSort(sf.map(bindValue), asc, bindPlan(c))
+    case LocalStopAfter(cnt, c) =>
+      LocalStopAfter(cnt, bindPlan(c))
+  }
+
+  protected def bindValue(v: Value): Value = v match {
+    case QualifiedAttributeValue(r, f) => {
+      val recPos = tupleSchema.indexOf(r)
+      assert(recPos >= 0, "invalid relation in value " + r)
+      AttributeValue(recPos, f.pos)
     }
     case otherValue => otherValue
+  }
+
+    /**
+   * Given a  predicate, replace all UnboundAttributeValues with Attribute values
+   * with the correct record/field positions
+   */
+  protected def bindPredicate(predicate: Predicate): Predicate = predicate match {
+    case EqualityPredicate(l, r) => EqualityPredicate(bindValue(l), bindValue(r))
   }
 }
