@@ -2,7 +2,7 @@ import sbt._
 import Keys._
 
 object ScadsBuild extends Build {
-  val buildVersion = "2.1.3-SNAPSHOT"
+  val buildVersion = "2.1.4-SNAPSHOT"
   val defaultScalaVersion = "2.9.1"
 
   val buildSettings = Defaults.defaultSettings ++ GhPages.ghpages.settings ++ Seq(
@@ -150,8 +150,8 @@ object ScadsBuild extends Build {
 
   def avroPluginDeps = Seq(avroJava, avroIpc, scalaCompiler, configgy) ++ testDeps
 
-  val avroJava = "org.apache.avro" % "avro" % "1.6.0-SNAPSHOT"
-  val avroIpc = "org.apache.avro" % "avro-ipc" % "1.6.0-SNAPSHOT"
+  val avroJava = "org.apache.avro" % "avro" % "1.6.0"
+  val avroIpc = "org.apache.avro" % "avro-ipc" % "1.6.0"
   val scalaCompiler = "org.scala-lang" % "scala-compiler" % defaultScalaVersion
   val avroPluginDep = "edu.berkeley.cs" %% "avro-plugin" % buildVersion % "plugin"
   val avroPluginCompile = "edu.berkeley.cs" %% "avro-plugin" % buildVersion
@@ -261,7 +261,7 @@ object DeployConsole extends BuildCommon {
           "implicit def serviceScheduler = cluster.serviceScheduler"
         ).mkString("\n") + "\n" + initCmds
 
-        (new Console(cs.scalac))(Build.data(cp), options, cmds, s.log).foreach(msg => error(msg))
+        (new Console(cs.scalac))(Build.data(cp), options, cmds, "", s.log).foreach(msg => error(msg))
         println()
       }
     }
