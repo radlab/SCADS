@@ -19,6 +19,7 @@ case class AttributeValue(recordPosition: Int, fieldPosition: Int) extends Value
 
 case class QualifiedAttributeValue(relation: TupleProvider, field: Field) extends Value {
   def fieldName = field.name
+  override def toString = relation.name + "." + field.name
 }
 
 case class UnboundAttributeValue(name: String) extends Value {
