@@ -59,6 +59,8 @@ class Qualifier(plan: LogicalPlan) {
       StopAfter(count, qualifyAttributes(child))
     case DataStopAfter(count, child) =>
       DataStopAfter(count, qualifyAttributes(child))
+    case Paginate(cnt, c) =>
+      Paginate(cnt, qualifyAttributes(c))
     case Join(left, right) =>
       Join(qualifyAttributes(left), qualifyAttributes(right))
     case r: Relation => r

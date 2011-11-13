@@ -3,20 +3,50 @@ package viz
 
 import java.io.File
 import plans._
+import opt._
 
 
 object Test {
+
   import edu.berkeley.cs.scads.piql.test.Relations._
 
-      val query: LogicalPlan = (
-      r2.where("f1".a === 0)
-        .dataLimit(5)
-        .join(r2Prime)
-        .where("r2.f2".a === "r2Prime.f1".a)
-        .sort("r2Prime.f2".a :: Nil)
-        .select("r2.f2".a)
-        .paginate(10)
-      )
+  val query = (
+    r2.where("r2.f1".a === (0.?))
+      .dataLimit(5)
+      .join(r2Prime)
+      .where("r2.f2".a === "r2Prime.f1".a)
+      .sort("r2Prime.f2".a :: Nil)
+      .paginate(10)
+    )
+
+  val deltas = new QueryDeltas(new Qualifier(query).qualifiedPlan)
+
+  val boundQuery = (
+    r2.where(QualifiedAttributeValue(Relation(r2), r2.schema.getField("f1")) === (0.?))
+      .dataLimit(5)
+      .join(r2Prime)
+      .where(QualifiedAttributeValue(Relation(r2), r2.schema.getField("f2")) === QualifiedAttributeValue(Relation(r2Prime), r2Prime.schema.getField("f1")))
+      .sort(QualifiedAttributeValue(Relation(r2Prime), r2Prime.schema.getField("f2")) :: Nil)
+      .paginate(10)
+    )
+
+  val deltaR2 = (
+    LocalTuples(0, "@r2", r2.keySchema, r2.schema)
+      .dataLimit(1)
+      .join(r2Prime)
+      .where("@r2.f2".a === "r2Prime.f1".a)
+      .sort("r2Prime.f2".a :: Nil)
+      .select("@r2.f1", "r2Prime.f2", "r2Prime.f1")
+      .paginate(10)
+    )
+
+  val deltaR2Prime = (
+    LocalTuples(0, "@r2Prime", r2Prime.keySchema, r2.schema)
+      .dataLimit(1)
+      .join(r2)
+      .where("@r2Prime.f1".a === "r2.f2".a)
+      .select("r2.f1", "@r2Prime.f2", "@r2Prime.f1")
+    )
 
   def main(args: Array[String]): Unit = {
     query.graphViz
@@ -108,6 +138,8 @@ protected class GraphLogicalPlan extends GraphViz {
     case Relation(ns, alias) =>
       outputNode(ns.name + alias.map(a => " " + a).getOrElse(""),
         shape = "box")
+    case LocalTuples(_, alias, _, _) =>
+      outputNode(alias, shape = "box")
   }
 
   protected def prettyPrint(p: Predicate): String = p match {
@@ -116,6 +148,7 @@ protected class GraphLogicalPlan extends GraphViz {
 
   protected def prettyPrint(v: Value): String = v match {
     case UnboundAttributeValue(name) => name
+    case QualifiedAttributeValue(r,f) => r.name + "." + f.name
     case ConstantValue(c) => c.toString
     case ParameterValue(n) => "[" + n.toString + "]"
   }

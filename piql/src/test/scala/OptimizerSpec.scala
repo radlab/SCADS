@@ -129,7 +129,7 @@ class OptimizerSpec extends Spec with ShouldMatchers {
         .join(r2Prime)
         .where("r2.f2".a === "r2Prime.f1".a)
         .sort("r2Prime.f2".a :: Nil)
-        .limit(10)
+        .paginate(10)
       )
 
     val boundQuery = (
@@ -138,7 +138,25 @@ class OptimizerSpec extends Spec with ShouldMatchers {
         .join(r2Prime)
         .where(QualifiedAttributeValue(Relation(r2), r2.schema.getField("f2")) === QualifiedAttributeValue(Relation(r2Prime), r2Prime.schema.getField("f1")))
         .sort(QualifiedAttributeValue(Relation(r2Prime), r2Prime.schema.getField("f2")) :: Nil)
-        .limit(10)
+        .paginate(10)
+      )
+
+    val deltaR2 = (
+      LocalTuples(0, "@r2", r2.keySchema, r2.schema)
+        .dataLimit(1)
+        .join(r2Prime)
+        .where("@r2.f2".a === "r2Prime.f1".a)
+        .sort("r2Prime.f2".a :: Nil)
+        .select("@r2.f1", "r2Prime.f2", "r2Prime.f1")
+        .paginate(10)
+      )
+
+    val deltaR2Prime = (
+      LocalTuples(0, "@r2Prime", r2Prime.keySchema, r2.schema)
+        .dataLimit(1)
+        .join(r2)
+        .where("@r2Prime.f1".a === "r2.f2".a)
+        .select("r2.f1", "@r2Prime.f2", "@r2Prime.f1")
       )
 
     val plan =

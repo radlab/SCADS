@@ -16,7 +16,7 @@ case class ParameterValue(ordinal: Int) extends FixedValue
 /* Attibute Values */
 case class AttributeValue(recordPosition: Int, fieldPosition: Int) extends Value
 
-case class QualifiedAttributeValue(relation: Relation, field: Field) extends Value {
+case class QualifiedAttributeValue(relation: TupleProvider, field: Field) extends Value {
   def fieldName = field.name
 }
 
@@ -111,17 +111,25 @@ trait TupleProvider {
   def schema: Schema
   def keySchema: Schema
   def provider: Namespace
+  def name: String
 }
-case class Relation(ns: IndexedNamespace, alias: Option[String] = None) extends LogicalPlan with TupleProvider{
+case class Relation(ns: IndexedNamespace, alias: Option[String] = None) extends LogicalPlan with TupleProvider {
+  def name = alias.getOrElse(ns.name)
   def schema = ns.schema
   def keySchema = ns.keySchema
   def provider = ns
 }
 
 case class Index(ns: Namespace) extends LogicalPlan with TupleProvider {
+  def name = ns.name
   def schema = ns.schema
   def keySchema = ns.keySchema
   def provider = ns
+}
+
+case class LocalTuples(ordinal: Int, alias: String, keySchema: Schema, schema: Schema) extends LogicalPlan with TupleProvider {
+  def name = alias
+  def provider = null
 }
 
 /* Physical Query Plan Nodes */
