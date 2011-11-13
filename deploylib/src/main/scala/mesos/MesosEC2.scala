@@ -108,7 +108,7 @@ class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
    * The ami used when launching new instances
    */
   val mesosAmi = region match {
-    case USWest1 => "ami-13653956"
+    case USWest1 => "ami-112f7054"
 //    case USWest1 => "ami-1f08545a"
 //    case EUWest1 => "ami-43b38137"
 //    case APNortheast1 => "ami-04912505"
