@@ -1,6 +1,7 @@
 package edu.berkeley.cs.scads.piql
 package plans
 
+import collection.JavaConversions._
 import org.apache.avro.generic.{GenericData, IndexedRecord}
 
 abstract class Value {
@@ -112,6 +113,8 @@ trait TupleProvider {
   def keySchema: Schema
   def provider: Namespace
   def name: String
+
+  lazy val keyAttributes = keySchema.getFields.map(f => QualifiedAttributeValue(this, f))
 }
 case class Relation(ns: IndexedNamespace, alias: Option[String] = None) extends LogicalPlan with TupleProvider {
   def name = alias.getOrElse(ns.name)

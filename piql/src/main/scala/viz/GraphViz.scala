@@ -19,7 +19,7 @@ object Test {
       .paginate(10)
     )
 
-  val deltas = new QueryDeltas(new Qualifier(query).qualifiedPlan)
+  def deltas = new QueryDeltas(new Qualifier(query).qualifiedPlan)
 
   val boundQuery = (
     r2.where(QualifiedAttributeValue(Relation(r2), r2.schema.getField("f1")) === (0.?))
