@@ -218,7 +218,7 @@ case class MultiPropose(var proposes : Seq[SinglePropose]) extends AvroRecord wi
  * Proposes are the critical updates
  * Init indicates if only a fast round has to be opened up
  */
-case class ResolveConflict(var key: Array[Byte], var ballots: Seq[MDCCBallotRange], var propose : Propose, var requester : RemoteService[StorageMessage]) extends AvroRecord with MDCCProtocol
+case class ResolveConflict(var key: Array[Byte], var ballots: Seq[MDCCBallotRange], var propose : Propose, var requester : SCADSService) extends AvroRecord with MDCCProtocol
 
 case class Recovered(var key: Array[Byte], var value: CStruct, var meta: MDCCMetadata) extends AvroRecord with MDCCProtocol
 

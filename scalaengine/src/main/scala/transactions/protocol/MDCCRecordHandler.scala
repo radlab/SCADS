@@ -81,6 +81,8 @@ class MCCCRecordHandler (
 
   override def hashCode() = key.hashCode()
 
+  implicit def toStorageService(service : RemoteServiceProxy[StorageMessage]) : StorageService = StorageService(service)
+
 
   override def equals(that: Any): Boolean = that match {
      case other: MCCCRecordHandler => key == other.key
