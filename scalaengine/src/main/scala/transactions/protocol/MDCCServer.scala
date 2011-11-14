@@ -67,33 +67,35 @@ class MDCCServer(val namespace : String,
   }
 
   protected  def processPropose(src: RemoteServiceProxy[StorageMessage], msg : Propose) : Unit = {
-    debug(msg.update.key, "Process propose %s %s %s", src, msg, pendingUpdates)
+    val proposes = msg match {
+      case s : SinglePropose => s :: Nil
+      case MultiPropose(seq) => seq
+    }
+    val key = proposes.head.update.key
+    assert(!proposes.isEmpty, "The propose has to contain at least one update")
+    assert(proposes.map(_.update.key).distinct.size == 1, "Currenty we only support multi proposes for the same key")
+    debug(key, "Process propose %s %s %s", src, msg, pendingUpdates)
     implicit val trx = startTrx()
-    val meta = getMeta(msg.update.key)
+    val meta = getMeta(proposes.head.update.key)
     val ballot = meta.ballots.head.ballot
     meta.validate() //just to make sure
     if(ballot.fast){
-      val cstruct = pendingUpdates.acceptOption(msg.xid, msg.update)
-      debug(msg.update.key, "Replying with 2b to fast ballot source:%s cstruct:cstruct", src, cstruct)
-      src ! Phase2b(ballot, cstruct._3)
+      //TODO can we optimize the accept?
+      val cstruct = proposes.map(prop => pendingUpdates.acceptOption(prop.xid, prop.update)).last._3
+      debug(key, "Replying with 2b to fast ballot source:%s cstruct:cstruct", src, cstruct)
+      src ! Phase2b(ballot, cstruct)
     }else{
-      debug(msg.update.key, "Classic ballot: We start our own MDCCRecordHandler")
+      debug(key, "Classic ballot: We start our own MDCCRecordHandler")
       val recordHandler = recordCache.getOrCreate(
-        msg.update.key,
-        pendingUpdates.getCStruct(msg.update.key),
-        routingTable.serversForKey(msg.update.key),
+        key,
+        pendingUpdates.getCStruct(key),
+        routingTable.serversForKey(key),
         meta,
         pendingUpdates.getConflictResolver)
       recordHandler.forwardRequest(src, msg)
     }
     commitTrx(trx)
   }
-
-  protected  def processPropose(src: RemoteServiceProxy[StorageMessage], msg : ProposeSeq) : Unit = {
-    //TODO we should do everything in a single transaction
-   msg.proposes.foreach(processPropose(src, _))
-  }
-
 
   protected def processPhase1a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], newMeta: Seq[MDCCBallotRange]) = {
     debug(key, "Process Phase1a", src, newMeta)
@@ -119,7 +121,7 @@ class MDCCServer(val namespace : String,
     commitTrx(trx)
   }
 
-  protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, newUpdates : Seq[Propose] ) = {
+  protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, newUpdates : Seq[SinglePropose] ) = {
     debug(key, "Process Phase2a", src, value, newUpdates)
     implicit val trx = startTrx()
     var record = getRecord(key)
@@ -127,7 +129,7 @@ class MDCCServer(val namespace : String,
     val myBallot = getBallot(meta.ballots, reqBallot.round)
     if(myBallot.isEmpty || myBallot.get.compare(reqBallot) != 0){
       debug(key, "Sending Master Failure")
-      src ! Phase2bMasterFailure(meta.ballots)
+      src ! Phase2bMasterFailure(meta.ballots, false)
     }else{
       debug(key, "Writing new value")
       pendingUpdates.overwrite(key, value, newUpdates)
@@ -155,7 +157,6 @@ class MDCCServer(val namespace : String,
   def process(src: RemoteServiceProxy[StorageMessage], msg: TrxMessage) = {
     msg match {
       case msg : Propose =>  processPropose(src, msg)
-      case msg : ProposeSeq =>  processPropose(src, msg)
       case Phase1a(key: Array[Byte], ballot: MDCCBallotRange) => processPhase1a(src, key, ballot)
       case Phase2a(key, ballot, safeValue, proposes ) => processPhase2a(src, key, ballot, safeValue, proposes)
       case Commit(xid: ScadsXid) => processAccept(src, xid, true)
