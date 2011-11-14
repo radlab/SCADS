@@ -207,7 +207,7 @@ sealed trait TrxMessage extends KeyValueStoreOperation
 /* Transaction MDCC Paxos */
 sealed trait MDCCProtocol extends TrxMessage
 
-sealed trait Propose extends MDCCProtocol
+sealed trait Propose extends MDCCProtocol with AvroUnion
 
 case class SinglePropose(var xid: ScadsXid, var update: RecordUpdate) extends AvroRecord with Propose
 
