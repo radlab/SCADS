@@ -41,7 +41,6 @@ class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](processFn: Mailb
   def getMailbox() : Mailbox[MessageType]  = {
     senderMailbox.synchronized{
       senderMailbox.drainTo(receiverMailbox)
-      //println(this.toString + ": Draining Queue " +  receiverMailbox.size)
     }
     receiverMailbox
   }
@@ -49,7 +48,6 @@ class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](processFn: Mailb
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
     senderMailbox.synchronized{
       if(senderMailbox.isEmpty){
-       //println(this.toString + ": First message in senderMailboy" + senderMailbox.size )
        senderMailbox.add(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
        dispatcher.execute(new MessageReceive())
       }else{

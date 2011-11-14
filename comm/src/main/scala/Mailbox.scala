@@ -38,7 +38,7 @@ trait Mailbox[MessageType <: IndexedRecord] {
   def isEmpty  : Boolean
 
   def drainTo(c : Mailbox[MessageType]) = {
-    addAll(this)
+    c.addAll(this)
     clear()
   }
 
@@ -52,7 +52,7 @@ trait Mailbox[MessageType <: IndexedRecord] {
     reset()
     while(hasNext){
       keepMsgInMailbox = false
-      fn(next())
+      fn(next() )
       if (!keepMsgInMailbox) {
         remove()
       }
@@ -144,7 +144,7 @@ class PlainMailbox[MessageType <: IndexedRecord]()
     if(nextReset){
       reset()
     }
-    pos + 1< length
+    pos + 1 < length
   }
 
   override def next: Envelope[MessageType] = {

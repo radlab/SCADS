@@ -157,18 +157,19 @@ class MCCCRecordHandler (
 
   //TODO We should create a proper priority queue
   def processMailbox(mailbox : Mailbox[StorageMessage]) {
-      mailbox {
-        case Envelope(src, msg: Commit) => {
+      mailbox{
+        case StorageEnvelope(src, msg: Commit) => {
+          debug("Received commit")
           servers ! msg
         }
-        case Envelope(src, msg: Abort) => {
+        case StorageEnvelope(src, msg: Abort) => {
+          debug("Received abort")
           servers ! msg
         }
-        case Envelope(src, msg: Exit)  if status == READY => {
+        case StorageEnvelope(src, msg: Exit)  if status == READY => {
           debug("EXIT request")
           StorageRegistry.unregisterService(remoteHandle)
         }
-        //Highest priority
         case env@StorageEnvelope(src, msg: BeMaster) if status == READY => {
           request = env
           debug("Received BeMaster message", env)
@@ -244,20 +245,18 @@ class MCCCRecordHandler (
             case _ => { }
           }
         }
-
-
         case env@StorageEnvelope(src, msg:ResolveConflict) if status == READY => {
           debug("ResolveConflict request", env)
           request = env
           resolveConflict(src, msg)
         }
-        case env@StorageEnvelope(src, msg: Propose) if status == READY=> {
+        case env@StorageEnvelope(src, msg: Propose) => {
           debug("Propose request", env)
           request = env
           processProposal(src, msg)
         }
         case msg@_ => {
-          logger.debug("Ignoring message in mailbox: %s", msg)
+          logger.debug("Ignoring message in mailbox: %s %s", msg, status )
           mailbox.keepMsgInMailbox = true
         }
       }
