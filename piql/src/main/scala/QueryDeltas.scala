@@ -23,19 +23,19 @@ class QueryDeltas(plan: LogicalPlan) {
       logger.debug("key attrs: %s", keyAttrs)
       val viewAttrs = delta.equalityAttributes ++ delta.ordering
       logger.debug("equality attrs: %s ordering attrs: %s", delta.equalityAttributes, delta.ordering)
-      logger.debug("view attrs: %s", viewAttrs)
+
       val unityMap =
         delta.unified
-          .collect {case e@EqualityPredicate(v1: QualifiedAttributeValue, v2: QualifiedAttributeValue) => e }
           .flatMap { case EqualityPredicate(v1, v2) => (v1, v2) :: (v2, v1) :: Nil }
           .groupBy(_._1)
           .map { case (v1, v2s) => (v1, v2s.map(_._2).toSet) }
           .toMap
-
       logger.debug("unity map: %s", unityMap)
+
       /* append remaining key fields to gurnatee uniqueness */
       val suffixAttrs = keyAttrs.filterNot(viewAttrs contains _)
       logger.debug("suffix attrs: %s", suffixAttrs)
+
       /* filter unified attributes */
       val projAttrs =
         (viewAttrs ++ suffixAttrs)
