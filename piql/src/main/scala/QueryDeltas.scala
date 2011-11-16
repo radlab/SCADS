@@ -32,7 +32,7 @@ class QueryDeltas(plan: LogicalPlan) {
           .toMap
       logger.debug("unity map: %s", unityMap)
 
-      /* append remaining key fields to gurnatee uniqueness */
+      /* append remaining key fields to guarantee uniqueness */
       val suffixAttrs = keyAttrs.filterNot(viewAttrs contains _)
       logger.debug("suffix attrs: %s", suffixAttrs)
 

@@ -112,7 +112,7 @@ class OptimizerSpec extends Spec with ShouldMatchers {
 
     //Optimize query first so index is created
     val optQuery = query.opt
-    val idx = Index(r2.getOrCreateIndex(AttributeIndex("f2") :: Nil))
+    val idx = r2.index(r2.attribute("f2") :: Nil)
 
     val plan =
       LocalStopAfter(FixedLimit(10),
@@ -133,11 +133,11 @@ class OptimizerSpec extends Spec with ShouldMatchers {
       )
 
     val boundQuery = (
-      r2.where(QualifiedAttributeValue(Relation(r2), r2.schema.getField("f1")) === 0)
+      r2.where(QualifiedAttributeValue(r2, r2.schema.getField("f1")) === 0)
         .dataLimit(5)
         .join(r2Prime)
-        .where(QualifiedAttributeValue(Relation(r2), r2.schema.getField("f2")) === QualifiedAttributeValue(Relation(r2Prime), r2Prime.schema.getField("f1")))
-        .sort(QualifiedAttributeValue(Relation(r2Prime), r2Prime.schema.getField("f2")) :: Nil)
+        .where(QualifiedAttributeValue(r2, r2.schema.getField("f2")) === QualifiedAttributeValue(r2Prime, r2Prime.schema.getField("f1")))
+        .sort(QualifiedAttributeValue(r2Prime, r2Prime.schema.getField("f2")) :: Nil)
         .paginate(10)
       )
 

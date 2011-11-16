@@ -2,6 +2,7 @@ package edu.berkeley.cs.scads.piql
 package plans
 
 import collection.JavaConversions._
+import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, IndexedRecord}
 
 abstract class Value {
@@ -116,15 +117,33 @@ trait TupleProvider {
   def name: String
 
   lazy val keyAttributes = keySchema.getFields.map(f => QualifiedAttributeValue(this, f))
+  def attribute(f: String) = QualifiedAttributeValue(this, schema.getField(f))
 }
-case class Relation(ns: IndexedNamespace, alias: Option[String] = None) extends LogicalPlan with TupleProvider {
+
+trait Relation extends TupleProvider {
+  def index(attrs: Seq[QualifiedAttributeValue]) = Index(attrs, this)
+}
+
+case class Index(attrs: Seq[QualifiedAttributeValue], relation: Relation) extends TupleProvider {
+  def name = "Idx" + relation.name + "(" + attrs.map(_.field.name).mkString(",") + ")"
+  lazy val schema =
+    Schema.createRecord(
+      attrs.map(_.field)
+        .zipWithIndex.map { case (f,i) => new Schema.Field(f.name, f.schema, null, null)})
+
+  def keySchema = schema
+
+  def provider = null
+}
+
+case class ScadsRelation(ns: IndexedNamespace, alias: Option[String] = None) extends Relation with LogicalPlan with TupleProvider {
   def name = alias.getOrElse(ns.name)
   def schema = ns.schema
   def keySchema = ns.keySchema
   def provider = ns
 }
 
-case class Index(ns: Namespace) extends LogicalPlan with TupleProvider {
+case class ScadsIndex(ns: Namespace) extends LogicalPlan with TupleProvider {
   def name = ns.name
   def schema = ns.schema
   def keySchema = ns.keySchema

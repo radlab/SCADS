@@ -22,11 +22,11 @@ object Test {
   def deltas = new QueryDeltas(new Qualifier(query).qualifiedPlan)
 
   val boundQuery = (
-    r2.where(QualifiedAttributeValue(Relation(r2), r2.schema.getField("f1")) === (0.?))
+    r2.where(QualifiedAttributeValue(r2, r2.schema.getField("f1")) === (0.?))
       .dataLimit(5)
       .join(r2Prime)
-      .where(QualifiedAttributeValue(Relation(r2), r2.schema.getField("f2")) === QualifiedAttributeValue(Relation(r2Prime), r2Prime.schema.getField("f1")))
-      .sort(QualifiedAttributeValue(Relation(r2Prime), r2Prime.schema.getField("f2")) :: Nil)
+      .where(QualifiedAttributeValue(r2, r2.schema.getField("f2")) === QualifiedAttributeValue(r2Prime, r2Prime.schema.getField("f1")))
+      .sort(QualifiedAttributeValue(r2Prime, r2Prime.schema.getField("f2")) :: Nil)
       .paginate(10)
     )
 
@@ -135,7 +135,7 @@ protected class GraphLogicalPlan extends GraphViz {
       outputNode(joinSym,
         fontSize = 36,
         children = Seq(generatePlan(left), generatePlan(right)))
-    case Relation(ns, alias) =>
+    case ScadsRelation(ns, alias) =>
       outputNode(ns.name + alias.map(a => " " + a).getOrElse(""),
         shape = "box")
     case LocalTuples(_, alias, _, _) =>

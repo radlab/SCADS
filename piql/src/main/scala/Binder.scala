@@ -27,7 +27,7 @@ class Qualifier(plan: LogicalPlan) {
 
   lazy val attributeMap =
     relations
-      .flatMap(r => r.ns.schema.getFields.map(QualifiedAttributeValue(r, _)))
+      .flatMap(r => r.schema.getFields.map(QualifiedAttributeValue(r, _)))
       .groupBy(a => a.field.name)
       .map {
       case (name, attrs) if attrs.size == 1 => (name, UniqueAttribute(attrs.head))
@@ -42,7 +42,7 @@ class Qualifier(plan: LogicalPlan) {
 
   lazy val relationMap =
     relations
-      .groupBy(r => r.alias.getOrElse(r.ns.name))
+      .groupBy(r => r.name)
       .map {
       case (name, rs) if rs.size == 1 => (name, UniqueRelation(rs.head))
       case (name, _) => (name, AmbiguousRelation)
@@ -80,7 +80,7 @@ class Qualifier(plan: LogicalPlan) {
   protected def qualifyAttributes(plan: Value): Value = plan match {
     case UnboundAttributeValue(qualifiedAttribute(relationName, attrName)) =>
       relationMap.get(relationName).getOrElse(throw new RuntimeException("No such relation: " + relationName)) match {
-        case UniqueRelation(r) => QualifiedAttributeValue(r, r.ns.schema.getField(attrName))
+        case UniqueRelation(r) => QualifiedAttributeValue(r, r.schema.getField(attrName))
         case AmbiguousRelation => throw new RuntimeException("Ambiguous reference to relation: " + relationName)
       }
     case UnboundAttributeValue(name: String) =>

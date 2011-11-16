@@ -23,11 +23,11 @@ object Optimizer {
 
     logicalPlan match {
       case IndexRange(equalityPreds, None, None, r: Relation) if ((equalityPreds.size == r.keySchema.getFields.size) &&
-        isPrefix(equalityPreds.map(_.attribute.fieldName), r)) => {
+        isPrefix(equalityPreds.map(_.attribute), r)) => {
           IndexLookup(r, makeKeyGenerator(r, equalityPreds))
       }
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, r: Relation) => {
-        if (isPrefix(equalityPreds.map(_.attribute.fieldName), r)) {
+        if (isPrefix(equalityPreds.map(_.attribute), r)) {
           logger.info("Using primary index for predicates: %s", equalityPreds)
           val idxScanPlan = IndexScan(r, makeKeyGenerator(r, equalityPreds), count, true)
           val fullPlan = dataStop match {
@@ -38,7 +38,7 @@ object Optimizer {
         } else {
           logger.info("Using secondary index for predicates: %s", equalityPreds)
 
-          val idx = Index(r.ns.getOrCreateIndex(equalityPreds.map(p => AttributeIndex(p.attribute.fieldName))))
+          val idx = r.index(equalityPreds.map(_.attribute))
           val idxScanPlan = IndexScan(idx, makeKeyGenerator(idx, equalityPreds), count, true)
           val derefedPlan = derefPlan(r, idxScanPlan)
 
@@ -55,14 +55,14 @@ object Optimizer {
           FixedLimit(defaultFetchSize)
         }
         val isDataStop = bound.map(_.isDataStop).getOrElse(true)
-        val prefixAttrs = equalityPreds.map(_.attribute.fieldName) ++ attrs.map(_.fieldName)
+        val prefixAttrs = equalityPreds.map(_.attribute) ++ attrs
         val idxScanPlan =
           if (isPrefix(prefixAttrs, r)) {
             IndexScan(r, makeKeyGenerator(r, equalityPreds), limitHint, asc)
           }
           else {
             logger.debug("Creating index for attributes: %s", prefixAttrs)
-            val idx = Index(r.ns.getOrCreateIndex(prefixAttrs.map(p => AttributeIndex(p))))
+            val idx = r.index(prefixAttrs)
             derefPlan(
               r,
               IndexScan(idx,
@@ -79,12 +79,12 @@ object Optimizer {
       }
       case IndexRange(equalityPreds, None, None, Join(child, r: Relation))
         if (equalityPreds.size == r.keySchema.getFields.size) &&
-          isPrefix(equalityPreds.map(_.attribute.fieldName), r) => {
+          isPrefix(equalityPreds.map(_.attribute), r) => {
         val optChild = apply(child)
           IndexLookupJoin(r, makeKeyGenerator(r, equalityPreds), optChild)
       }
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), Join(child, r: Relation)) => {
-        val prefixAttrs = equalityPreds.map(_.attribute.fieldName) ++ attrs.map(_.fieldName)
+        val prefixAttrs = equalityPreds.map(_.attribute) ++ attrs
         val optChild = apply(child)
 
         val joinPlan =
@@ -97,7 +97,7 @@ object Optimizer {
               asc,
               optChild)
           } else {
-            val idx = Index(r.ns.getOrCreateIndex(prefixAttrs.map(p => AttributeIndex(p))))
+            val idx = r.index(prefixAttrs)
             val idxJoinPlan = IndexScanJoin(idx,
               makeKeyGenerator(idx, equalityPreds),
               count,
@@ -130,9 +130,9 @@ object Optimizer {
    * Returns true only if the given equality predicates can be satisfied by a prefix scan
    * over the given namespace
    */
-  protected def isPrefix(attrNames: Seq[String], ns: Relation): Boolean = {
-    val primaryKeyAttrs = ns.keySchema.getFields.take(attrNames.size).map(_.name)
-    attrNames.map(primaryKeyAttrs.contains(_)).reduceLeft(_ && _)
+  protected def isPrefix(attrs: Seq[Value], ns: Relation): Boolean = {
+    val primaryKeyAttrs = ns.keyAttributes.take(attrs.size)
+    attrs.map(primaryKeyAttrs.contains(_)).reduceLeft(_ && _)
   }
 
 
@@ -199,7 +199,7 @@ object Optimizer {
         case EqualityPredicate(a@QualifiedAttributeValue(r, f), v: Value) if r == relation =>
           AttributeEquality(a, v)
         case otherPred => {
-          logger.info("IndexScan match failed.  Can't apply %s to index scan of %s.{%s}", otherPred, relation, relation.ns.keySchema.getFields.map(_.name))
+          logger.info("IndexScan match failed.  Can't apply %s to index scan of %s.{%s}", otherPred, relation, relation.keyAttributes)
           return None
         }
       }
