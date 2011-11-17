@@ -150,7 +150,7 @@ trait DefaultKeyRoutableLike
 
   private def createPartitions(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], servers: Seq[StorageService]): Seq[PartitionService] = {
     val createReq = CreatePartitionRequest(name, partitionType, startKey, endKey, getTxProtocolType)
-    waitForAndThrowException(servers.map(server => (server !! createReq, server))) {
+    waitForAndThrowException(servers.map(server => (server !! createReq, server)), timeout=timeoutCreatePartition) {
       case (CreatePartitionResponse(partitionActor), _) => partitionActor
     }
   }

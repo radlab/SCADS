@@ -56,6 +56,10 @@ trait Namespace {
   def close(): Unit = closeHandler.execCallbacks() 
   def delete(): Unit = deleteHandler.execCallbacks()
 
+  // Default timeout values.
+  val timeoutZooKeeper = 5 * 1000
+  val timeoutCreatePartition = 15 * 1000
+
   override def toString = protToString
   protected def protToString: String = 
     "<Namespace: %s>".format(name)
