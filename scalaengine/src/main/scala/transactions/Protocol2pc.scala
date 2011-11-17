@@ -7,21 +7,20 @@ import java.util.Calendar
 
 object Protocol2pc extends ProtocolBase {
   def RunProtocol(tx: Tx) {
-    println("***** 2pc protocol *****")
-    val tid = Calendar.getInstance().getTimeInMillis()
-    val commitTest = PrepareTest(tx, tid)
-    CommitTest(tx, tid, commitTest)
+    val xid = ScadsXid.createUniqueXid
+    val updateList = transformUpdateList(tx.updateList, tx.readList)
+    if (updateList.size > 0) {
+      val commitTest = PrepareTest(tx, xid, updateList)
+      CommitTest(tx, xid, updateList, commitTest)
+    }
   }
 
-  def PrepareTest(tx: Tx, tid: Long) = {
-    var count = 0
-
-    val responses = transformUpdateList(tx.updateList, tx.readList).map(t => {
+  def PrepareTest(tx: Tx, xid: ScadsXid, updateList: Seq[RecordUpdateInfo]) = {
+    val responses = updateList.map(t => {
       val servers = t.servers
       val recordUpdate = t.update
-      val putRequest = PrepareRequest(ScadsXid(tid, count),
+      val putRequest = PrepareRequest(xid,
                                       List(recordUpdate))
-      count += 1
       (servers.map(_ !! putRequest), servers.length)
     })
 
@@ -37,15 +36,14 @@ object Protocol2pc extends ProtocolBase {
     commitTest
   }
 
-  def CommitTest(tx: Tx, tid: Long, commitTest: Boolean) {
-    var count = 0
-    val commitResponses = transformUpdateList(tx.updateList, tx.readList).map(t => {
+  def CommitTest(tx: Tx, xid: ScadsXid, updateList: Seq[RecordUpdateInfo],
+                 commitTest: Boolean) {
+    val commitResponses = updateList.map(t => {
       val servers = t.servers
       val recordUpdate = t.update
-      val commitRequest = CommitRequest(ScadsXid(tid, count),
+      val commitRequest = CommitRequest(xid,
                                         List(recordUpdate),
                                         commitTest)
-      count += 1
       (servers.map(_ !! commitRequest), servers.length)
     })
     commitResponses.foreach(x => x._1.blockFor(x._2))
