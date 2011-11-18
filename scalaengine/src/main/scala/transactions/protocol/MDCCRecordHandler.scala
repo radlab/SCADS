@@ -20,9 +20,6 @@ case object FORWARDED extends RecordStatus {val name = "PROPOSED"}    //TODO act
 case object FAST_PROPOSED extends RecordStatus {val name = "FAST_PROPOSED"}
 case object PHASE1A  extends RecordStatus {val name = "PHASE1A"}
 case object PHASE2A extends RecordStatus {val name = "PHASE2A"}
-case object LEARNED_ABORT extends RecordStatus {val name = "LEARNED_ABORT"}
-case object LEARNED_ACCEPT extends RecordStatus {val name = "LEARNED_ACCEPT"}
-case object LEARNING extends RecordStatus {val name = "LEARNING"}
 case object RECOVERY extends RecordStatus {val name = "RECOVERY"}
 
 sealed trait BallotStatus {def name : String}
@@ -61,6 +58,7 @@ class MCCCRecordHandler (
 
   import ServerMessageHelper._
 
+  //TODO check if we can pass unsafe through methods
   private var unsafeCommands : Seq[SinglePropose] = Nil
 
   type ServiceType =  RemoteServiceProxy[StorageMessage]
@@ -71,6 +69,7 @@ class MCCCRecordHandler (
 
   //TODO: is this really a storageservice?
   val mailbox = new PlainMailbox[StorageMessage]()
+  //TODO Define mastership with one single actor
   implicit val remoteHandle = StorageService(StorageRegistry.registerFastMailboxFunc(processMailbox, mailbox))
 
   private var status: RecordStatus = READY
@@ -213,6 +212,7 @@ class MCCCRecordHandler (
         }
         case env@StorageEnvelope(src, msg : Learned)  => {
           debug("Learned message", env)
+          //TODO update my value and version
           status match {
             case FORWARDED => {
               request match {
@@ -227,6 +227,7 @@ class MCCCRecordHandler (
           }
         }
         case env@StorageEnvelope(src,  GotMastership(newBallot)) if status == READY => {
+          //TODO Block in the case of remote BeMaster
           debug("GotMastership message", env)
           val maxRound = max(ballots.head.startRound, newBallot.head.startRound)
           compareRanges(ballots, newBallot, maxRound) match {
@@ -369,7 +370,7 @@ class MCCCRecordHandler (
     debug("Processing Phase1b: src:%s msg:%s", src, msg)
     assert(status == PHASE1A)
     //We take the max for comparing/combining ranges, as it only can mean, we are totally outdated
-    val maxRound = max(msg.meta.currentVersion.round, version.round)
+    val maxRound = max(msg.meta.ballots.head.startRound, ballots.head.startRound)
     compareRanges(ballots, msg.meta.ballots, maxRound) match {
       case 0 =>
         //The storage node accepted the new meta data
@@ -447,7 +448,7 @@ class MCCCRecordHandler (
 
   def !(msg : StorageMessage)(implicit sender: RemoteServiceProxy[StorageMessage]) = remoteHandle.!(msg)(sender)
 
-  def kill = remoteHandle.notify(Exit())
+  def kill = remoteHandle ! Exit()
 
 
 

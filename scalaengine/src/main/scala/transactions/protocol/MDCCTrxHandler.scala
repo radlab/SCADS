@@ -30,9 +30,9 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
   @volatile var status: TxStatus = UNKNOWN
   var Xid = ScadsXid.createUniqueXid()
   var count = 0
-  var size = 0
   var participants = collection.mutable.HashSet[MCCCRecordHandler]()
 
+  //Semaphore is used for the programming model timeout SLO 300ms
   private val sema = new Semaphore(0, false)
 
   protected val logger = Logger(classOf[MDCCTrxHandler])
@@ -54,7 +54,6 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
 
   protected def startTrx(updateList: UpdateList, readList: ReadList) = {
     updateList.getUpdateList.foreach(update => {
-      size += 1
       update match {
         case ValueUpdateInfo(ns, servers, key, value) => {
           val (md, oldBytes) = readList.getRecord(key) match {
@@ -102,9 +101,10 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
       react {
         case StorageEnvelope(src, msg@Learned(_, _, success)) => {
           if(success) {
+            //TODO Take care of duplicate messages
             count += 1
             logger.debug("" + Xid + ": Receive record commit")
-            if(count == size && status == UNKNOWN){
+            if(count == participants.size && status == UNKNOWN){
               logger.info("Transaction " + Xid + " committed")
               status = COMMITTED
               this ! TRX_EXIT
@@ -123,6 +123,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
           logger.debug("" + Xid + ": TRX_EXIT requested")
           notifyAcceptors
           StorageRegistry.unregisterService(remoteHandle)
+          //TODO Add finally remote
           exit()
         }
         case TRX_TIMEOUT => {
