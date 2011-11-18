@@ -197,6 +197,9 @@ with TransactionI {
     case NSTxProtocolMDCC() => "MDCC"
   }
 
+  override val timeoutZooKeeper = 2 * 60 * 1000
+  override val timeoutCreatePartition = 2 * 60 * 1000
+
   override def initRootAdditional(node: ZooKeeperProxy#ZooKeeperNode): Unit = {
     // Write the integrity constraints to zookeeper.
     val writer = new AvroSpecificReaderWriter[FieldICList](None)
@@ -224,7 +227,7 @@ with TransactionI {
         val putRequest = PutRequest(key,
                                     Some(MDCCRecordUtil.toBytes(value, getDefaultMeta)))
         val responses = servers.map(_ !! putRequest)
-        responses.blockFor(servers.length, 500, TimeUnit.MILLISECONDS)
+        responses.blockFor(servers.length, 5000, TimeUnit.MILLISECONDS)
       }
       case Some(updateList) => {
         updateList.appendValueUpdateInfo(this, servers, key, value)

@@ -57,13 +57,13 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
         /* Someone else has the create lock, so we should wait until they finish */
         case e: KeeperException if e.code == KeeperException.Code.NODEEXISTS => {
           logger.info("Failed to grab create lock. Waiting for creation for finish.")
-          nsRoot.awaitChild("initialized", timeout=5 * 1000)
+          nsRoot.awaitChild("initialized", timeout=timeoutZooKeeper)
           false
         }
       }
     }
     else {
-      nsRoot.awaitChild("initialized", timeout=5* 1000)
+      nsRoot.awaitChild("initialized", timeout=timeoutZooKeeper)
       false
     }
 

@@ -59,8 +59,9 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * from CUSTOMER
    * where C_UNAME=@C_UNAME
    */
-  val homeWI = customers.where("C_UNAME".a === (0.?))
-		                    .toPiql("homeWI")
+  def homeWI(args: Any*) = homeWIQuery(args:_*)
+  val homeWIQuery = customers.where("C_UNAME".a === (0.?))
+                    .toPiql("homeWI")
 
   /**
    * New Products web interaction
@@ -71,7 +72,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    *       I_SUBJECT LIKE @CategoryID
    * order by I_PUB_DATE desc,I_TITLE
    */
-  val newProductWI =
+  def newProductWI(args: Any*) = newProductWIQuery(args:_*)
+  val newProductWIQuery =
     new OptimizedQuery(
       "newProductWI",
       IndexLookupJoin(
@@ -115,7 +117,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * SELECT DISTINCT * FROM ITEM,AUTHOR
    * WHERE AUTHOR.A_ID = ITEM.I_A_ID AND ITEM.I_ID = @BookID
    */
-  val productDetailWI =
+  def productDetailWI(args: Any*) = productDetailWIQuery(args:_*)
+  val productDetailWIQuery =
       items.where("I_ID".a === (0.?))
 			     .join(authors)
 			     .where("A_ID".a === "I_A_ID".a)
@@ -132,7 +135,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * order by I_TITLE
   */
 
-  val searchByAuthorWI =
+  def searchByAuthorWI(args: Any*) = searchByAuthorWIQuery(args:_*)
+  val searchByAuthorWIQuery =
     new OptimizedQuery(
       "searchByAuthorWI",
       LocalStopAfter(
@@ -166,7 +170,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * order by I_TITLE
    */
 
-  val searchByTitleWI =
+  def searchByTitleWI(args: Any*) = searchByTitleWIQuery(args:_*)
+  val searchByTitleWIQuery =
     new OptimizedQuery(
       "searchByTitleWI",
       IndexLookupJoin(
@@ -191,7 +196,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * WHERE I_A_ID = A_ID AND I_SUBJECT LIKE @CategoryID
    * order by I_TITLE
    */
-  val searchBySubjectWI = newProductWI
+  def searchBySubjectWI(args: Any*) = searchBySubjectWIQuery(args:_*)
+  val searchBySubjectWIQuery = newProductWIQuery
 
   /**
    * Order Display web interaction
@@ -315,7 +321,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * where C_ADDR_ID=ADDR_ID and ADDR_CO_ID=CO_ID and C_ID = @C_ID
    */
 
-  val buyRequestExistingCustomerWI =
+  def buyRequestExistingCustomerWI(args: Any*) = buyRequestExistingCustomerWIQuery(args:_*)
+  val buyRequestExistingCustomerWIQuery =
     customers.where("C_UNAME".a === (0.?))
              .join(addresses)
              .where("C_ADDR_ID".a === "ADDR_ID".a)
@@ -467,5 +474,6 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     order.O_ID
   }
 
-  val adminRequestWI = productDetailWI
+  def adminRequestWI(args: Any*) = adminRequestWIQuery(args:_*)
+  val adminRequestWIQuery = productDetailWIQuery
 }

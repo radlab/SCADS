@@ -40,6 +40,10 @@ class UpdateList {
     updateList.readOnly
   }
 
+  def size() = {
+    updateList.size
+  }
+
   def print() {
     println("len: " + updateList.length)
     updateList.foreach(x => println(x))

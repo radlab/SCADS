@@ -32,6 +32,7 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
   override lazy val orders = cluster.getNamespace[Order]("orders", txProtocol)
   override lazy val shoppingCartItems = cluster.getNamespace[ShoppingCartItem]("shoppingCartItems", txProtocol)
 
+  // Write transactions.
   override def shoppingCartWI(c_uname: String, newItems: Seq[(String, Int)]) = {
     new Tx(10000, ReadLocal()) ({
       super.shoppingCartWI(c_uname, newItems)
@@ -48,6 +49,79 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
     new Tx(10000, ReadLocal()) ({
       result = super.buyConfirmWI(c_uname, cc_type, cc_number, cc_name,
                                   cc_expiry, shipping)
+    }).Execute()
+    result
+  }
+
+  // Read only transactions.
+  override def homeWI(args: Any*) = {
+    var result: QueryResult = List()
+    new Tx(10000, ReadLocal()) ({
+      result = homeWIQuery(args:_*)
+    }).Execute()
+    result
+  }
+
+  override def newProductWI(args: Any*) = {
+    var result: QueryResult = List()
+    new Tx(10000, ReadLocal()) ({
+      result = newProductWIQuery(args:_*)
+    }).Execute()
+    result
+  }
+
+  override def productDetailWI(args: Any*) = {
+    var result: QueryResult = List()
+    new Tx(10000, ReadLocal()) ({
+      result = productDetailWIQuery(args:_*)
+    }).Execute()
+    result
+  }
+
+  override def searchByAuthorWI(args: Any*) = {
+    var result: QueryResult = List()
+    new Tx(10000, ReadLocal()) ({
+      result = searchByAuthorWIQuery(args:_*)
+    }).Execute()
+    result
+  }
+
+  override def searchByTitleWI(args: Any*) = {
+    var result: QueryResult = List()
+    new Tx(10000, ReadLocal()) ({
+      result = searchByTitleWIQuery(args:_*)
+    }).Execute()
+    result
+  }
+
+  override def searchBySubjectWI(args: Any*) = {
+    var result: QueryResult = List()
+    new Tx(10000, ReadLocal()) ({
+      result = searchBySubjectWIQuery(args:_*)
+    }).Execute()
+    result
+  }
+
+  override def orderDisplayWI(c_uname: String, c_passwd: String, numOrderLinesPerPage: Int) = {
+    var result: (Customer, Option[Order], Option[QueryResult]) = (Customer(""), None, None)
+    new Tx(10000, ReadLocal()) ({
+      result = super.orderDisplayWI(c_uname, c_passwd, numOrderLinesPerPage)
+    }).Execute()
+    (result._1, result._2, result._3)
+  }
+
+  override def buyRequestExistingCustomerWI(args: Any*) = {
+    var result: QueryResult = List()
+    new Tx(10000, ReadLocal()) ({
+      result = buyRequestExistingCustomerWIQuery(args:_*)
+    }).Execute()
+    result
+  }
+
+  override def adminRequestWI(args: Any*) = {
+    var result: QueryResult = List()
+    new Tx(10000, ReadLocal()) ({
+      result = adminRequestWIQuery(args:_*)
     }).Execute()
     result
   }
