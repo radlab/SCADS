@@ -15,7 +15,6 @@ import collection.mutable.{HashMap, ArrayBuffer}
 
 
 sealed trait RecordStatus {def name: String}
-case object EXIT
 case object READY extends RecordStatus {val name = "READY"}
 case object FORWARDED extends RecordStatus {val name = "PROPOSED"}    //TODO actually we do not need a Forwarded status --> Future work remove
 case object FAST_PROPOSED extends RecordStatus {val name = "FAST_PROPOSED"}

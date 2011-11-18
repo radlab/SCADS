@@ -15,6 +15,9 @@ import actors.TIMEOUT
 import java.util.concurrent.Semaphore
 import collection.mutable.HashSet
 
+case object TRX_EXIT
+case object TRX_TIMEOUT
+
 //import tools.nsc.matching.ParallelMatching.MatchMatrix.VariableRule
 object MDCCProtocol extends ProtocolBase {
   def RunProtocol(tx: Tx) = {
@@ -93,7 +96,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
   def act() {
     logger.debug("Starting to wait for messages. Setting timeout:" + tx.timeout)
     Scheduler.schedule(() => {
-      this ! TIMEOUT}, tx.timeout)
+      this ! TRX_TIMEOUT}, tx.timeout)
     startTrx(tx.updateList, tx.readList)
     loop {
       react {
@@ -104,30 +107,30 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
             if(count == size && status == UNKNOWN){
               logger.info("Transaction " + Xid + " committed")
               status = COMMITTED
-              this ! EXIT
+              this ! TRX_EXIT
             }
           }else{
             if(status == UNKNOWN) {
               logger.debug("" + Xid + ": Receive record abort")
               logger.info("Transaction " + Xid + " aborted")
               status = ABORTED
-              this ! Exit
+              this ! TRX_EXIT
             }
           }
         }
-        case EXIT => {
+        case TRX_EXIT => {
           sema.release()
-          logger.debug("" + Xid + ": Exit requested")
+          logger.debug("" + Xid + ": TRX_EXIT requested")
           notifyAcceptors
           StorageRegistry.unregisterService(remoteHandle)
           exit()
         }
-        case TIMEOUT => {
+        case TRX_TIMEOUT => {
           logger.debug("" + Xid + "Time out")
           sema.release()
         }
         case msg@_ =>
-          throw new RuntimeException("Unknown message" + msg)
+          throw new RuntimeException("Unknown message: " + msg)
 
       }
     }
