@@ -31,7 +31,7 @@ case object APSoutheast1 extends EC2Region("https://ec2.ap-southeast-1.amazonaws
 class EC2Region(val endpoint: String, val location: String, val defaultAMI: String) extends AWSConnection {
   protected val logger = Logger()
 
-  var keyName = System.getenv("AWS_KEY_NAME")
+  var keyName = Option(System.getenv("AWS_KEY_NAME")).getOrElse(System.getenv("USER"))
   val client = new AmazonEC2Client(credentials, config)
   client.setEndpoint(endpoint)
 
