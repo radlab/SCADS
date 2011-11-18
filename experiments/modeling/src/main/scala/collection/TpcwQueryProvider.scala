@@ -283,16 +283,16 @@ class TpcwQueryProvider extends QueryProvider {
 		)
     
     // queries
-    QuerySpec(tpcwClient.buyRequestExistingCustomerWI, randomCustomer :: Nil) :: // indexLookupJoinCountries, indexLookupJoinAddresses, indexLookupCustomers
-    QuerySpec(tpcwClient.homeWI, randomCustomer :: Nil) ::  // indexLookupCustomers
-    QuerySpec(tpcwClient.newProductWI, RandomCategory :: perPage :: Nil) :: // indexLookupJoinAuthors, indexLookupJoinItems, indexScanItemsIdx
+    QuerySpec(tpcwClient.buyRequestExistingCustomerWIQuery, randomCustomer :: Nil) :: // indexLookupJoinCountries, indexLookupJoinAddresses, indexLookupCustomers
+    QuerySpec(tpcwClient.homeWIQuery, randomCustomer :: Nil) ::  // indexLookupCustomers
+    QuerySpec(tpcwClient.newProductWIQuery, RandomCategory :: perPage :: Nil) :: // indexLookupJoinAuthors, indexLookupJoinItems, indexScanItemsIdx
     QuerySpec(tpcwClient.orderDisplayGetCustomer, randomCustomer :: Nil) :: // indexLookupCustomers
     QuerySpec(tpcwClient.orderDisplayGetLastOrder, randomCustomer :: Nil) ::  // indexLookupJoinCountries, indexLookupJoinAddresses, (repeat both), indexLookupJoinOrders, indexScanOrdersIdx
     QuerySpec(tpcwClient.orderDisplayGetOrderLines, randomOrder :: perPage :: Nil) :: // indexLookupJoinItems, indexScanOrderLines
-    QuerySpec(tpcwClient.productDetailWI, randomItem :: Nil) :: // indexLookupJoinAuthors, indexLookupItems
+    QuerySpec(tpcwClient.productDetailWIQuery, randomItem :: Nil) :: // indexLookupJoinAuthors, indexLookupItems
     QuerySpec(tpcwClient.retrieveShoppingCart, randomCustomer :: Nil) :: // indexLookupJoinItems, indexScanShoppingCartItems
-    QuerySpec(tpcwClient.searchByAuthorWI, randomAuthorName :: perPage :: Nil) :: // indexMergeJoinItemsIdx, indexLookupJoinAuthors, indexScanAuthorsIdx
-    QuerySpec(tpcwClient.searchByTitleWI, randomTitle :: perPage :: Nil) :: // indexLookupJoinAuthors, indexScanItemsIdx
+    QuerySpec(tpcwClient.searchByAuthorWIQuery, randomAuthorName :: perPage :: Nil) :: // indexMergeJoinItemsIdx, indexLookupJoinAuthors, indexScanAuthorsIdx
+    QuerySpec(tpcwClient.searchByTitleWIQuery, randomTitle :: perPage :: Nil) :: // indexLookupJoinAuthors, indexScanItemsIdx
     // iterators
     QuerySpec(indexLookupCustomers, randomCustomer :: Nil) ::
     QuerySpec(indexLookupItems, randomItem :: Nil) ::
