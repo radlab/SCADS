@@ -156,7 +156,7 @@ class OptimizerSpec extends Spec with ShouldMatchers {
         .dataLimit(1)
         .join(r2)
         .where("@r2Prime.f1".a === "r2.f2".a)
-        .select("r2.f1", "@r2Prime.f2", "@r2Prime.f1")
+        .select("r2.f1".a, "@r2Prime.f2".a, "@r2Prime.f1".a)
       )
 
     val plan =
