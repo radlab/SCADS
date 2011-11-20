@@ -15,7 +15,7 @@ abstract class FixedValue extends Value
 case class ConstantValue(v: Any) extends FixedValue
 case class ParameterValue(ordinal: Int) extends FixedValue
 
-/* Attibute Values */
+/* Attribute Values */
 case class AttributeValue(recordPosition: Int, fieldPosition: Int) extends Value
 
 case class QualifiedAttributeValue(relation: TupleProvider, field: Field) extends Value {
