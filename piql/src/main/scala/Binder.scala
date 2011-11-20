@@ -132,6 +132,7 @@ class Binder(plan: QueryPlan) {
     case QualifiedAttributeValue(r, f) => {
       val recPos = tupleSchema.indexOf(r)
       assert(recPos >= 0, "invalid relation in value " + r)
+      assert(f.pos >= 0, "invalid field in value " + r)
       AttributeValue(recPos, f.pos)
     }
     case otherValue => otherValue
