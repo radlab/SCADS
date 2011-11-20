@@ -120,9 +120,9 @@ object Optimizer {
   }
 
   protected def derefPlan(r: Relation, idxPlan: RemotePlan): QueryPlan = {
-    val keyFields = r.keySchema.getFields
-    val idxFields = idxPlan.namespace.schema.getFields
-    val keyGenerator = keyFields.map(kf => AttributeValue(0, idxFields.indexWhere(_.name equals kf.name)))
+    val idxAttrMap = idxPlan.namespace.keyAttributes.map(a => (a.fieldName, a)).toMap
+    logger.debug("idxMap: %s", idxAttrMap)
+    val keyGenerator = r.keyAttributes.map(_.fieldName).map(idxAttrMap)
     IndexLookupJoin(r, keyGenerator, idxPlan)
   }
 
