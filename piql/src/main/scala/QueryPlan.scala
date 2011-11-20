@@ -121,7 +121,10 @@ trait TupleProvider {
 }
 
 trait Relation extends TupleProvider {
-  def index(attrs: Seq[QualifiedAttributeValue]) = Index(attrs, this)
+  def index(attrs: Seq[QualifiedAttributeValue]): Index = {
+    val remainingKeyFields = keyAttributes.filterNot(attrs contains _)
+    Index(attrs ++ remainingKeyFields, this)
+  }
 }
 
 case class Index(attrs: Seq[QualifiedAttributeValue], relation: Relation) extends TupleProvider {
