@@ -35,7 +35,7 @@ trait ParFuture {
 
   def waitForAndThrowException[Data, T](futures: Seq[(MessageFuture[StorageMessage], Data)], timeout: Long = 15000)
                                        (f: PartialFunction[(StorageMessage, Data), T]): Seq[T] =
-    waitFor(futures)(f).map {
+    waitFor(futures, timeout)(f).map {
       case Left(ex) => throw ex
       case Right(t) => t
     }
