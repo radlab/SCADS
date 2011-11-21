@@ -335,6 +335,18 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
              .where("ADDR_CO_ID".a === "CO_ID".a)
              .toPiql("buyRequestExistingCustomerWI")
 
+  def stockUpdates(cart: Seq[(ShoppingCartItem, Item)]): Seq[ScadsFuture[Unit]] = {
+    cart.map {
+      case (scl, itm) =>
+      if (itm.I_STOCK - scl.SCL_QTY >= 10)
+        itm.I_STOCK = itm.I_STOCK - scl.SCL_QTY
+      else
+        itm.I_STOCK = scala.math.min(0, (itm.I_STOCK - scl.SCL_QTY) + 21) // ... uhh, what happens if this goes negative??? that's why i put the min condition there (it's not given in the spec)
+
+      items.asyncPut(itm.key, itm.value)
+    }
+  }
+
   /**
    * Buy Confirm Web Interation
    * DECLARE @CO_ID numeric(4)
@@ -440,15 +452,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     }
 
     // make item stocks updates
-    val stockUpdatePuts = cart.map {
-      case (scl, itm) =>
-      if (itm.I_STOCK - scl.SCL_QTY >= 10)
-        itm.I_STOCK = itm.I_STOCK - scl.SCL_QTY
-      else
-        itm.I_STOCK = scala.math.min(0, (itm.I_STOCK - scl.SCL_QTY) + 21) // ... uhh, what happens if this goes negative??? that's why i put the min condition there (it's not given in the spec)
-
-      items.asyncPut(itm.key, itm.value)
-    }
+    val stockUpdatePuts = stockUpdates(cart)
 
     // credit card (PGE) auth stuff ignored...
 
