@@ -53,6 +53,56 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
     result
   }
 
+  override def insertCustomer(cust: Customer) = {
+    new Tx(10000, ReadLocal()) ({
+      super.insertCustomer(cust)
+    }).Execute()
+  }
+
+  override def stockUpdates(cart: Seq[(ShoppingCartItem, Item)]): Seq[ScadsFuture[Unit]] = {
+    if (txProtocol == NSTxProtocolMDCC()) {
+      cart.map {
+        case (scl, itm) => {
+          val logicalItem = Item(itm.I_ID)
+          logicalItem.I_TITLE = ""
+          logicalItem.I_A_ID = ""
+          logicalItem.I_PUB_DATE = 0
+          logicalItem.I_PUBLISHER = ""
+          logicalItem.I_SUBJECT = ""
+          logicalItem.I_DESC = ""
+          logicalItem.I_RELATED1 = 0
+          logicalItem.I_RELATED2 = 0
+          logicalItem.I_RELATED3 = 0
+          logicalItem.I_RELATED4 = 0
+          logicalItem.I_RELATED5 = 0
+          logicalItem.I_THUMBNAIL = ""
+          logicalItem.I_IMAGE = ""
+          logicalItem.I_SRP = 0
+          logicalItem.I_COST = 0
+          logicalItem.I_AVAIL = 0
+          logicalItem.I_STOCK = 0
+          logicalItem.ISBN = ""
+          logicalItem.I_PAGE = 0
+          logicalItem.I_BACKING = ""
+          logicalItem.I_DIMENSION = ""
+
+          if (itm.I_STOCK - scl.SCL_QTY >= 10) {
+            itm.I_STOCK = -scl.SCL_QTY
+          } else {
+            // ... uhh, what happens if this goes negative??? that's why i
+            // put the min condition there (it's not given in the spec)
+            itm.I_STOCK = -scl.SCL_QTY + 21
+          }
+
+          items.asInstanceOf[PairTransactions[Item]].putLogical(itm)
+        }
+      }
+      List()
+    } else {
+      super.stockUpdates(cart)
+    }
+  }
+
   // Read only transactions.
   override def homeWI(args: Any*) = {
     var result: QueryResult = List()
