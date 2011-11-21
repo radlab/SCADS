@@ -133,7 +133,10 @@ object ScadsBuild extends Build {
     settings = deploySettings ++ Seq(
       libraryDependencies ++= useAvroPlugin,
       initialCommands in console += (
-        "import edu.berkeley.cs.scads.consistency._")
+        "import edu.berkeley.cs.scads.consistency._\n" +
+        "import edu.berkeley.cs.scads.comm._\n" +
+        "import edu.berkeley.cs.scads.storage.transactions._\n"
+      )
     )
   ) dependsOn (config, comm, perf, tpcw, scalaEngine)
 
