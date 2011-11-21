@@ -501,7 +501,10 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   }
 
   override def getCStruct(key: Array[Byte]) = {
-    null
+    pendingCStructs.get(null, key) match {
+      case None => CStruct(None, new ArrayBuffer[CStructCommand])
+      case Some(c) => CStruct(c.base, c.commands)
+    }
   }
 
   override def shutdown() = {
