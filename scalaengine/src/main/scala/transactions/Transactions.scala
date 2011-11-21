@@ -61,22 +61,6 @@ with TransactionsBase {
       case (k,v) => bytesToBulk(k, v) 
     }
   }
-
-  def putBytesLogical(key: Array[Byte],
-                      value: Array[Byte]): Unit = {
-    val servers = serversForKey(key)
-    ThreadLocalStorage.updateList.value match {
-      case None => {
-        // TODO: what does it mean to do puts outside of a tx?
-        //       for now, do nothing...
-        throw new RuntimeException("")
-      }
-      case Some(updateList) => {
-        updateList.appendLogicalUpdate(this, servers, key, Some(value))
-      }
-    }
-    addNSProtocol
-  }
 }
 
 // This works with PairNamespace.
@@ -92,6 +76,10 @@ with TransactionsBase {
   // TODO: implement Pair specific functionality.
   // put(Pair) uses put(), which uses putBytes.
   // delete(Pair) uses put(), which uses putBytes.
+
+  def putLogical(pairRec: R): Unit = {
+    putBytesLogical(keyToBytes(pairRec.key), valueToBytes(pairRec.value))
+  }
 
   override def getRecord(key: IndexedRecord): Option[R] = {
     val keyBytes = keyToBytes(key)
@@ -231,6 +219,22 @@ with TransactionI {
       }
       case Some(updateList) => {
         updateList.appendValueUpdateInfo(this, servers, key, value)
+      }
+    }
+    addNSProtocol
+  }
+
+  def putBytesLogical(key: Array[Byte],
+                      value: Array[Byte]): Unit = {
+    val servers = serversForKey(key)
+    ThreadLocalStorage.updateList.value match {
+      case None => {
+        // TODO: what does it mean to do puts outside of a tx?
+        //       for now, do nothing...
+        throw new RuntimeException("")
+      }
+      case Some(updateList) => {
+        updateList.appendLogicalUpdate(this, servers, key, Some(value))
       }
     }
     addNSProtocol
