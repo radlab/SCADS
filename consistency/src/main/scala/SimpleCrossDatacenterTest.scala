@@ -34,12 +34,81 @@ object Experiment extends ExperimentBase {
   }
 
   def restartClusters(c: Seq[deploylib.mesos.Cluster] = clusters) = {
-    c.foreach(_.restart)
+    c.map(v => new Future(v.restart)).map(_())
+  }
+
+  def updateJars(c: Seq[deploylib.mesos.Cluster] = clusters) = {
+    c.map(v => new Future(v.slaves.pforeach(_.pushJars(MesosCluster.jarFiles)))).map(_())
+  }
+
+  private var actionHistograms: Map[String, scala.collection.mutable.HashMap[String, Histogram]] = null
+
+  def getActionHistograms() = {
+    val resultNS = resultCluster.getNamespace[tpcw.MDCCResult]("tpcwMDCCResults")
+    val histograms = resultNS.iterateOverRange(None, None).toSeq
+    .groupBy(r => (r.startTime, r.loaderConfig.txProtocol, r.loaderConfig.numClusters))
+    .map {
+      case( (startTime, txProtocol, numClusters), results) => {
+        val aggHist = new scala.collection.mutable.HashMap[String, Histogram]
+        results.map(_.times).foreach(t => {
+          t.foreach(x => {
+            if (aggHist.isDefinedAt(x._1)) {
+              aggHist.put(x._1, aggHist.get(x._1).get + x._2)
+            } else {
+              aggHist.put(x._1, x._2)
+            }
+            val txType = if (x._1.endsWith("Read")) "READ" else "WRITE"
+            if (aggHist.isDefinedAt(txType)) {
+              aggHist.put(txType, aggHist.get(txType).get + x._2)
+            } else {
+              aggHist.put(txType, x._2)
+            }
+          })
+        })
+        (startTime + " (" + numClusters + ") : " + txProtocol, aggHist)
+      }
+    }.toList.toMap
+
+    println("sorted keys: ")
+    histograms.keys.toList.sortWith(_.compare(_) < 0).foreach(println _)
+
+    actionHistograms = histograms
+    histograms
+  }
+
+  def writeHistogramCDFMap(name: String) = {
+    val mh = actionHistograms(name)
+    try {
+      val dirs = ("data/" + name + "/").replaceAll(" ", "_")
+      (new java.io.File(dirs)).mkdirs
+
+      mh.foreach(t => {
+        val n = t._1
+        val h = t._2
+        val totalRequests = h.totalRequests
+        val filename = dirs + ("tpcw_" + n + ".csv").replaceAll(" ", "_")
+        try {
+          var total:Long = 0
+          val out = new java.io.BufferedWriter(new java.io.FileWriter(filename))
+          ((1 to h.buckets.length).map(_ * h.bucketSize) zip h.buckets).foreach(x => {
+            total = total + x._2
+            out.write(" " + x._1 + ", " + total * 100 / totalRequests + "\n")
+          })
+          out.close()
+        } catch {
+          case e: Exception =>
+            println("error in writing file: " + filename)
+        }
+      })
+    } catch {
+      case e: Exception => println("error in create dirs: " + name)
+    }
   }
 
   var task: Task = null
 
-  def run(c: Seq[deploylib.mesos.Cluster] = clusters): Unit = {
+  def run(c: Seq[deploylib.mesos.Cluster] = clusters,
+          protocol: NSTxProtocol = NSTxProtocolNone()): Unit = {
     stopCluster
     if (c.size < 1) {
       logger.error("cluster list must not be empty")
@@ -47,7 +116,7 @@ object Experiment extends ExperimentBase {
       logger.error("first cluster must have at least 2 slaves")
     } else {
       task = Task()
-      task.schedule(resultClusterAddress, c)
+      task.schedule(resultClusterAddress, c, protocol)
     }
   }
 
@@ -83,7 +152,7 @@ case class Task()
   var numPartitions: Int = _
   var numClusters: Int = _
 
-  def schedule(resultClusterAddress: String, clusters: Seq[deploylib.mesos.Cluster]): Unit = {
+  def schedule(resultClusterAddress: String, clusters: Seq[deploylib.mesos.Cluster], protocol: NSTxProtocol): Unit = {
     this.resultClusterAddress = resultClusterAddress
 
     val firstSize = clusters.head.slaves.size - 1
@@ -95,7 +164,7 @@ case class Task()
     clusterAddress = scadsCluster.root.canonicalAddress
 
     // Start loaders.
-    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, 1, numEBs=15, numItems=1000, numClusters=numClusters, txProtocol=NSTxProtocolNone()).getLoadingTasks(clusters.head.classSource, scadsCluster.root)
+    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, 1, numEBs=15, numItems=1000, numClusters=numClusters, txProtocol=protocol).getLoadingTasks(clusters.head.classSource, scadsCluster.root)
     clusters.head.serviceScheduler.scheduleExperiment(loaderTasks)
 
     // Start clients.
@@ -103,7 +172,7 @@ case class Task()
       numClients=1,
       executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
       iterations=1,
-      runLengthMin=1).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress)
+      runLengthMin=5).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress)
     clusters.head.serviceScheduler.scheduleExperiment(tpcwTasks)
 
     // Start the task.
