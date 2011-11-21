@@ -103,6 +103,8 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
   private var nextAction = ActionType.Home // HOME is start state
   private var currentUser: Customer = _
 
+  private var actionName = ""
+
   def executeAction: PartialFunction[ActionType.Value, Unit] = {
       case ActionType.Home => {
         logger.debug("Home")
@@ -111,12 +113,14 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
         // phase, but we're doing it here...
         currentUser =
           if (shouldCreateNewUser) {
+            actionName = "home-Write"
             val cust = data.createCustomer(0)
             cust.C_UNAME = newUserName // use a random UUID for a username
-            client.customers.put(cust) // save new customer
+            client.insertCustomer(cust) // save new customer
             cust
           } else {
             // pick existing user
+            actionName = "home-Read"
             val user = randomUser
             val userData = client.homeWI(user)
             userData(0)(0).toSpecificRecord[Customer]
@@ -124,16 +128,19 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
       }
       case ActionType.NewProduct => {
         logger.debug("NewProduct")
+        actionName = "newProduct-Read"
         val subject = randomSubject
         client.newProductWI(subject, perPage)
       }
       case ActionType.ProductDetail =>
         logger.debug("ProductDetail")
+        actionName = "productDetail-Read"
         val item = randomItem
         client.productDetailWI(item)
 
       case ActionType.OrderDisplay =>
         logger.debug("OrderDisplay")
+        actionName = "orderDisplay-Read"
         assert(currentUser != null)
         client.orderDisplayWI(currentUser.C_UNAME, currentUser.C_PASSWD, 100)
 
@@ -148,20 +155,24 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
               case true => data.toAuthorLname(author)
             }
             logger.debug("Search by author name %s", name)
+            actionName = "searchByAuthor-Read"
             client.searchByAuthorWI(name, perPage)
           case SearchResultType.ByTitle =>
             /* Pick a random token from a random title */
             val titleParts = data.createItem(random.nextInt(data.numItems)).I_TITLE.split(" ")
             val title = titleParts(random.nextInt(titleParts.size))
             logger.debug("Search by title %s", title)
+            actionName = "searchByTitle-Read"
             client.searchByTitleWI(title, perPage)
           case SearchResultType.BySubject =>
             val subject = randomSubject
             logger.debug("Search by subject %s", subject)
+            actionName = "searchBySubject-Read"
             client.searchBySubjectWI(subject, perPage)
         }
       case ActionType.ShoppingCart =>
         logger.debug("ShoppingCart")
+        actionName = "shoppingCart-Write"
         assert(currentUser != null, "Current user should not be null")
 
         /**
@@ -176,11 +187,13 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
         client.shoppingCartWI(currentUser.C_UNAME, items)
       case ActionType.BuyRequest =>
         logger.debug("BuyRequest")
+        actionName = "buyRequestExistingCustomer-Read"
         // for now always assuming existing user
         client.buyRequestExistingCustomerWI(currentUser.C_UNAME)
 
       case ActionType.BuyConfirm =>
         logger.debug("BuyConfirm")
+        actionName = "buyConfirm-Write"
 
         val cc_type = randomCreditCardType
         val cc_number = Utils.getRandomNString(16)
@@ -202,6 +215,7 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
           shipping)
       case ActionType.AdminRequest =>
         logger.debug("AdminRequest")
+        actionName = "adminRequest-Read"
         val item = randomItem
         client.adminRequestWI(item)
     }
@@ -228,4 +242,11 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
 
     executed
   }
+
+  // Returns (executed, action name)
+  def executeMDCCMix(): (Boolean, String) = {
+    val executed = executeMix()
+    (executed, actionName)
+  }
+
 }

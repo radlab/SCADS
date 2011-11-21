@@ -26,8 +26,9 @@ case class MDCCResult(var clientConfig: MDCCTpcwWorkflowTask,
                       var clientId: Int,
                       var iteration: Int,
                       var threadId: Int) extends AvroPair {
+  var startTime: String = _
   var totalElaspedTime: Long = _ /* in ms */
-  var times: Histogram = null
+  var times: Map[String, Histogram] = null
   var skips: Int = _
   var failures: Int = _
 }
@@ -58,11 +59,16 @@ case class MDCCTpcwWorkflowTask(var numClients: Int,
       numEBs = loaderConfig.numEBs,
       numItems = loaderConfig.numItems)
 
+    val startTime = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new java.util.Date)
+    logger.info("starting experiment at: " + startTime)
+
     for(iteration <- (1 to iterations)) {
       logger.info("Begining iteration %d", iteration)
       results ++= (1 to numThreads).pmap(threadId => {
         def getTime = System.nanoTime / 1000000
-        val histogram = Histogram(1, 5000)
+        val readHistogram = Histogram(1, 10000)
+        val writeHistogram = Histogram(1, 10000)
+        val histograms = new scala.collection.mutable.HashMap[String, Histogram]
         val runTime = runLengthMin * 60 * 1000L
         val iterationStartTime = getTime
         var endTime = iterationStartTime
@@ -74,11 +80,24 @@ case class MDCCTpcwWorkflowTask(var numClients: Int,
         while(endTime - iterationStartTime < runTime) {
           val startTime = getTime
           try {
-            val wasExecuted = workflow.executeMix()
+            val (wasExecuted, actionName) = workflow.executeMDCCMix()
             endTime = getTime
             val elapsedTime = endTime - startTime
             if (wasExecuted) { // we actually ran the query
-              histogram += elapsedTime
+              if (histograms.isDefinedAt(actionName)) {
+                // Histogram for this action already exists.
+                histograms.get(actionName).get += elapsedTime
+              } else {
+                // Create a histogram for this action.
+                val newHist = Histogram(1, 10000)
+                newHist += elapsedTime
+                histograms.put(actionName, newHist)
+              }
+              if (actionName.endsWith("Write")) {
+                writeHistogram += elapsedTime
+              } else {
+                readHistogram += elapsedTime
+              }
             } else // we punted the query
               skips += 1
           } catch {
@@ -89,11 +108,14 @@ case class MDCCTpcwWorkflowTask(var numClients: Int,
           }
         }
 
-        logger.info("Thread %d stats 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms",
-            threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99), histogram.average, histogram.stddev)
+        logger.info("Thread %d read tx stats 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms",
+            threadId, readHistogram.quantile(0.50), readHistogram.quantile(0.90), readHistogram.quantile(0.99), readHistogram.average, readHistogram.stddev)
+        logger.info("Thread %d write tx stats 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms",
+            threadId, writeHistogram.quantile(0.50), writeHistogram.quantile(0.90), writeHistogram.quantile(0.99), writeHistogram.average, writeHistogram.stddev)
         val res = MDCCResult(this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId)
-        res.totalElaspedTime =  endTime - iterationStartTime
-        res.times = histogram
+        res.startTime = startTime
+        res.totalElaspedTime = endTime - iterationStartTime
+        res.times = histograms.toMap
         res.failures = failures
         res.skips = skips
 

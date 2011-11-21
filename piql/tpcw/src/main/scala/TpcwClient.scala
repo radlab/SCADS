@@ -52,6 +52,11 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   val maxOrderLinesPerPage = 100
   val maxItemsPerCart = 5000
 
+  // Insert a customer.
+  def insertCustomer(cust: Customer) = {
+    customers.put(cust)
+  }
+
   /**
    * Home web interaction
    * 
