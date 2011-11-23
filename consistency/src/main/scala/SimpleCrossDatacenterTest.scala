@@ -29,7 +29,7 @@ object Experiment extends ExperimentBase {
   val clusters = getClusters()
 
   def getClusters() = {
-    val regions = List(USEast1, USWest1, EUWest1, APNortheast1, APSoutheast1)
+    val regions = List(USWest1, USEast1, EUWest1, APNortheast1, APSoutheast1)
     regions.map(new mesos.Cluster(_))
   }
 
@@ -95,6 +95,7 @@ object Experiment extends ExperimentBase {
             out.write(" " + x._1 + ", " + total * 100 / totalRequests + "\n")
           })
           out.close()
+          println(n + ": requests: " + totalRequests + " 50%: " + h.quantile(.5) + " 90%: " + h.quantile(.9) + " 95%: " + h.quantile(.95) + " 99%: " + h.quantile(.99) + " avg: " + h.average)
         } catch {
           case e: Exception =>
             println("error in writing file: " + filename)
