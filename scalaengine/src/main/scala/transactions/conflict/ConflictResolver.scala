@@ -86,34 +86,48 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
   // Returns a tuple pair (safe, leftover), where safe is the safe cstruct, and
   // leftover is a Seq[CStructCommand] of commands proposed but not safe.
   // Assumes that the base of the cstructs are all the same.
-  def provedSafe(cstructs: Seq[CStruct], fastQuorumSize: Int,
-                 classicQuorumSize: Int, N: Int): (CStruct, Seq[SinglePropose]) = {
-    // TODO: does cstructs require fastQuorumSize number of elements?
-
-    // Collect all commands
+  // If cstructs does not have enough elements, the first CStruct is returned.
+  def provedSafe(cstructs: Seq[CStruct], kQuorumSize: Int,
+                 mQuorumSize: Int, N: Int): (CStruct, Seq[SinglePropose]) = {
+    // Collect all commands.
     val leftover = new CommandHashSet
     cstructs.foreach(cs => {
       cs.commands.foreach(leftover.add(_))
     })
 
-    // All the sizes of quorums to check within the cstructs seq.
-    // TODO: Tim-> Is this necessary????
-    val sizes = (classicQuorumSize - (N - fastQuorumSize)) to classicQuorumSize
+    // Minimum size of quorums to check within the cstructs seq.
+    val minSize = kQuorumSize - (N - mQuorumSize)
 
-    // All possible quorums which intersect with the cstructs.
-    val allCombos = sizes.map(cstructs.combinations(_).toSeq).reduceLeft(_ ++ _)
+    val safe = if (minSize < cstructs.size) {
+      // Not enough overlap.  Return first cstruct.
+      cstructs.head
+    } else {
+      // Compute the learned value.
+      getLearnedCStruct(cstructs, kQuorumSize, mQuorumSize, N)
+    }
 
-    // GLB for each possible quorum.
+    // Compute leftover commands, not in provedSafe.
+    leftover.remove(safe.commands)
+
+    // TODO: Check if LUB is valid w.r.t. constraints?
+    (safe, leftover.toList.map(c => SinglePropose(c.xid, c.command)))
+  }
+
+  def getLearnedCStruct(cstructs: Seq[CStruct], kQuorumSize: Int,
+                      mQuorumSize: Int, N: Int): CStruct = {
+    // Minimum size of quorums to check within the cstructs seq.
+    val minSize = kQuorumSize - (N - mQuorumSize)
+
+    // All subsets which intersect with the cstructs.
+    val allCombos = cstructs.combinations(minSize).toSeq
+
+    // GLB for each possible subset.
     val allGLBs = allCombos.map(getGLB _)
 
     // LUB of all possible GLBs.
     val lub = getLUB(allGLBs)
 
-    // Compute leftover commands, not in provedSafe.
-    leftover.remove(lub.commands)
-
-    // TODO: Check if LUB is valid w.r.t. constraints?
-    (lub, leftover.toList.map(c => SinglePropose(c.xid, c.command)))
+    lub
   }
 
   def compressCStruct(c: CStruct): CStruct = {
