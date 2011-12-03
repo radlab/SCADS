@@ -18,9 +18,20 @@ case object EC2West extends EC2Region("https://ec2.us-west-1.amazonaws.com", "us
 
 case object USEast1 extends EC2Region("https://ec2.us-east-1.amazonaws.com", "US", "ami-fbbf7892")
 case object USWest1 extends EC2Region("https://ec2.us-west-1.amazonaws.com", "us-west-1", "ami-89c694cc")
+case object USWest2 extends EC2Region("https://ec2.us-west-2.amazonaws.com", "us-west-2", "ami-d4fe73e4")
 case object EUWest1 extends EC2Region("https://ec2.eu-west-1.amazonaws.com", "EU", "ami-ee0e3c9a")
 case object APNortheast1 extends EC2Region("https://ec2.ap-northeast-1.amazonaws.com", "ap-northeast-1", "ami-58b40059")
 case object APSoutheast1 extends EC2Region("https://ec2.ap-southeast-1.amazonaws.com", "ap-southeast-1", "ami-e0205ab2")
+
+object EC2Region {
+  val allRegions =
+    USEast1 ::
+    USWest1 ::
+    USWest2 ::
+    EUWest1 ::
+    APNortheast1 ::
+    APSoutheast1 :: Nil
+}
 
 /**
  * Provides methods for interacting with nodes in a given ec2 region.
