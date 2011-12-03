@@ -35,6 +35,11 @@ object MesosCluster {
   //HACK
   var jarFiles: Seq[java.io.File] = _
 
+  def buildAllRegions =
+    EC2Region.allRegions
+      .pmap(r => (r, buildNewAmi(r)))
+      .toMap
+
   /**
    * Start a new plain ubuntu ami, install java/mesos on it, bundle it as a new AMI.
    */
