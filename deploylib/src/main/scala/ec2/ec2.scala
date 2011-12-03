@@ -127,6 +127,8 @@ class EC2Region(val endpoint: String, val location: String, val defaultAMI: Stri
    */
   def myInstances: List[EC2Instance] = activeInstances.filter(_.keyName equals keyName)
 
+  def images = client.describeImages().getImages.toSeq
+
   /**
    * Launch a single golden image instance with default configuration.
    */
