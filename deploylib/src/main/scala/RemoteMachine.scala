@@ -60,16 +60,16 @@ trait ServiceManager extends RemoteMachine {
     val pidFile = new java.io.File(serviceDir, name + ".pid")
     val logFile = new java.io.File(logDir, name + ".log")
 
-    def setCmd(cmd: String): this.type = {
+    def setCmd(cmd: String, vars: Map[String, String]): this.type = {
       mkdir(serviceDir)
       mkdir(logDir)
-      val serviceScript = "#!/bin/bash\n" + cmd
+      val serviceScript = "#!/bin/bash\n%s\nexec %s >> %s 2>&1".format(vars.map(v=> "export %s=%s".format(v._1, v._2)).mkString("\n"),cmd, logFile)
       createFile(runScript, serviceScript)
       self ! ("chmod 755 " + runScript)
       this
     }
 
-    def start = self ! "start-stop-daemon --make-pidfile --start --background --pidfile %s --exec %s >> %s 2>&1".format(pidFile, runScript, logFile)
+    def start = self ! "start-stop-daemon --make-pidfile --start --background --pidfile %s --exec %s".format(pidFile, runScript)
 
     def stop = self.executeCommand("start-stop-daemon --stop --pidfile %s".format(pidFile))
 
@@ -78,7 +78,7 @@ trait ServiceManager extends RemoteMachine {
     }
   }
 
-  def getService(name: String, cmd: String) = RemoteService(name).setCmd(cmd)
+  def getService(name: String, cmd: String, vars: Map[String,String] = Map()) = RemoteService(name).setCmd(cmd, vars)
 }
 
 
