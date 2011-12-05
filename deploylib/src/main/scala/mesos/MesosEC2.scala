@@ -219,7 +219,7 @@ class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
     firstMaster.getService("service-scheduler", serviceSchedulerCmd).restart
   }
 
-  protected def slaveService(inst: EC2Instance): ServiceManager#RemoteService = inst.getService("mesos-slave", new File(binDir, "mesos-slave").getCanonicalPath)
+  protected def slaveService(inst: EC2Instance): ServiceManager#RemoteService = inst.getService("mesos-slave", new File(binDir, "mesos-slave").getCanonicalPath, Map("MESOS_PUBLIC_DNS" -> inst.publicDnsName))
 
   def slaveServices = slaves.map(slaveService)
 
