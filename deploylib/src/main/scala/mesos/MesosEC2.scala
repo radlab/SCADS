@@ -472,7 +472,8 @@ class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
   /**
    * Returns the contents of the mesos slave configuration file.
    */
-  def slaveConf(instance: EC2Instance) = (("mem=" + (instance.free.total - 1024)) ::
+  def slaveConf(instance: EC2Instance) = (
+    ("resources=cpus:%d;mem:%d".format(instance.numCpus, instance.free.total - 512)) ::
     confWithUrl).mkString("\n")
 
   /**
