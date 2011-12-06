@@ -577,4 +577,11 @@ class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
       }
     })
   }
+
+  /**
+   * Open the webui in a browser.  note, only works in osx
+   */
+  def openWebUI: Unit = {
+    Runtime.getRuntime.exec(Array("open","http://%s:8080".format(firstMaster.publicDnsName)))
+  }
 }
