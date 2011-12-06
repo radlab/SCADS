@@ -15,16 +15,16 @@ case class TestTask(var syncNodeAddress: String) extends AvroTask with AvroRecor
 }
 
 object MesosTest {
-  implicit val cluster = new Cluster(USWest1)
+  implicit val cluster = new Cluster(USEast1)
   implicit val classSource = cluster.classSource
 
   def run: Unit = {
     cluster.setup()
-    runTask
+    runTask()
     //cluster.stopAllInstances
   }
 
-  def runTask: Unit = {
+  def runTask(cluster: Cluster = cluster): Unit = {
     val syncNode = cluster.zooKeeperRoot.createChild("syncNode", mode=CreateMode.PERSISTENT_SEQUENTIAL)
     cluster.serviceScheduler.scheduleExperiment(TestTask(syncNode.canonicalAddress).toJvmTask :: Nil)
     syncNode.awaitChild("done")
