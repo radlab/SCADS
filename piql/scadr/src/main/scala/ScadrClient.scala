@@ -21,6 +21,10 @@ case class Subscription(var owner: String, var target: String) extends AvroPair 
   var approved: Boolean = _
 }
 
+case class Tag(var owner: String, var timestamp: Int, var word: String) extends AvroPair {
+
+}
+
 class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new ParallelExecutor) {
   val maxSubscriptions = 10000
   val maxResultsPerPage = 10000
@@ -34,6 +38,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new Paral
   val users = cluster.getNamespace[User]("users")
   val thoughts = cluster.getNamespace[Thought]("thoughts")
   val subscriptions = cluster.getNamespace[Subscription]("subscriptions")
+  val tags = cluster.getNamespace[Subscription]("tags")
 
   val namespaces = List(users, thoughts, subscriptions)
   //val allNamespaces = namespaces.flatMap(ns => ns :: ns.listIndexes.map(_._2).toList)
@@ -91,4 +96,12 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new Paral
     subscriptions.where("subscriptions.owner".a === (0.?))
       .where("subscriptions.target".a === (1.?))
     ).toPiql("findSubscription")
+
+  val twoTags = (
+    tags.join(tags)
+      .where("t1.owner".a === "t2.owner".a)
+      .where("t1.timestamp".a === "t2.timestamp".a)
+      .where("t1.word".a === (0.?))
+      .where("t2.word".a === (1.?))
+    )
 }
