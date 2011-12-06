@@ -573,6 +573,7 @@ abstract class RemoteMachine {
     case _ => Nil
   }.head
 
+  def numCpus = (this !? "cat /proc/cpuinfo").split("\n").filter(_ contains "processor").size
 
   override def toString(): String = "<RemoteMachine " + username + "@" + hostname + ">"
 }
