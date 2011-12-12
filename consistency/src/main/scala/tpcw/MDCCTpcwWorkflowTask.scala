@@ -42,6 +42,7 @@ case class MDCCTpcwWorkflowTask(var numClients: Int,
   var experimentAddress: String = _
   var clusterAddress: String = _
   var resultClusterAddress: String = _
+  var startTime: String = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new java.util.Date)
 
   def run(): Unit = {
 
@@ -59,7 +60,6 @@ case class MDCCTpcwWorkflowTask(var numClients: Int,
       numEBs = loaderConfig.numEBs,
       numItems = loaderConfig.numItems)
 
-    val startTime = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new java.util.Date)
     logger.info("starting experiment at: " + startTime)
 
     for(iteration <- (1 to iterations)) {
