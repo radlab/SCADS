@@ -89,10 +89,11 @@ class MDCCServer(val namespace : String,
       val recordHandler = recordCache.getOrCreate(
         key,
         pendingUpdates.getCStruct(key),
-        routingTable.serversForKey(key),
         meta,
-        pendingUpdates.getConflictResolver)
-      recordHandler.forwardRequest(src, msg)
+        routingTable.serversForKey(key),
+        pendingUpdates.getConflictResolver,
+        partition)
+      recordHandler.remoteHandle.!(msg)(src)
     }
     commitTrx(trx)
   }
@@ -101,23 +102,25 @@ class MDCCServer(val namespace : String,
     debug(key, "Process Phase1a", src, newMeta)
     implicit val trx = startTrx()
     val record = getRecord(key)
-    val meta = extractMeta(record)
+    val meta : MDCCMetadata = extractMeta(record)
     val maxRound = max(meta.ballots.head.startRound, newMeta.head.startRound)
     compareRanges(meta.ballots, newMeta, maxRound) match {
       case -1 => {
         debug(key, "Setting new meta", meta.ballots, newMeta, maxRound)
         meta.ballots = newMeta
+        meta.confirmedBallot = false
       }
-      case 2 => meta.ballots = {
+      case -2 => {
         debug(key, "Combining meta", meta.ballots, newMeta, maxRound)
-        combine(meta.ballots, newMeta, max(meta.ballots.head.startRound, newMeta.head.startRound))
+        meta.confirmedBallot = false
+        meta.ballots = combine(meta.ballots, newMeta, max(meta.ballots.head.startRound, newMeta.head.startRound))
       }
-      case _ => debug(key, "Ignoring message")//The meta data is old or the same, so we do need to do nothing
+      case _ => debug(key, "Ignoring Phase1a message local-ballots:" + meta.ballots + " proposed" + newMeta)//The meta data is old or the same, so we do need to do nothing
     }
     val r = record.getOrElse(new MDCCRecord(None, null))
     r.metadata = meta
     putRecord(key, r)
-    src ! Phase1a(key, meta.ballots)
+    src ! Phase1b(meta, pendingUpdates.getCStruct(key))
     commitTrx(trx)
   }
 
@@ -128,15 +131,17 @@ class MDCCServer(val namespace : String,
     val meta = extractMeta(record)
     val myBallot = getBallot(meta.ballots, reqBallot.round)
     if(myBallot.isEmpty || myBallot.get.compare(reqBallot) != 0){
-      debug(key, "Sending Master Failure")
+      debug(key, "Sending Master Failure local: %s - request: %s", myBallot, reqBallot)
       src ! Phase2bMasterFailure(meta.ballots, false)
     }else{
-      debug(key, "Writing new value")
+      debug(key, "Writing new value value: %s updates: %s", value, newUpdates)
       pendingUpdates.overwrite(key, value, newUpdates)
       val r = getRecord(key).get
       r.metadata.currentVersion = myBallot.get
       putRecord(key, r)
-      src ! Phase2b(myBallot.get, pendingUpdates.getCStruct(key)) //TODO Ask Gene if this is correct
+      val msg = Phase2b(myBallot.get, pendingUpdates.getCStruct(key)) //TODO Ask Gene if this is correct
+      debug(key, "Sending Phase2b back %s %m", src, msg)
+      src ! msg //TODO Ask Gene if this is correct
     }
     commitTrx(trx)
   }
@@ -157,7 +162,7 @@ class MDCCServer(val namespace : String,
   def process(src: RemoteServiceProxy[StorageMessage], msg: TrxMessage) = {
     msg match {
       case msg : Propose =>  processPropose(src, msg)
-      case Phase1a(key: Array[Byte], ballot: MDCCBallotRange) => processPhase1a(src, key, ballot)
+      case Phase1a(key, ballot) => processPhase1a(src, key, ballot)
       case Phase2a(key, ballot, safeValue, proposes ) => processPhase2a(src, key, ballot, safeValue, proposes)
       case Commit(xid: ScadsXid) => processAccept(src, xid, true)
       case Abort(xid: ScadsXid) =>  processAccept(src, xid, false)
@@ -173,8 +178,9 @@ object ProtocolMDCCServer {
                          db: TxDB[Array[Byte], Array[Byte]],
                          partition : PartitionService,
                          keySchema: Schema,
-                         puController: PendingUpdates) : MDCCServer = {
-    val defaultMeta = MDCCMetaDefault.getOrCreateDefault(nsRoot, partition)
+                         puController: PendingUpdates,
+                         forceNewMeta : Boolean = false) : MDCCServer = {
+    val defaultMeta = MDCCMetaDefault.getOrCreateDefault(nsRoot, partition, forceNewMeta)
 
     new MDCCServer(namespace, db, partition, puController, defaultMeta, new MDCCRecordCache, new MDCCRoutingTable(nsRoot, keySchema))
   }

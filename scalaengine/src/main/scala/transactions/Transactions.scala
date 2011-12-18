@@ -19,7 +19,8 @@ trait TransactionI {
   def keySchema: Schema
   def valueSchema: Schema
   def getConflictResolver: ConflictResolver
-  def recordCache: MDCCRecordCache
+  def recordCache: MDCCClientServer
+  def serversForKey(key: Array[Byte]): Seq[PartitionService]
 }
 
 // This works with SpecificNamespace
@@ -170,7 +171,7 @@ with TransactionI {
 
   lazy val defaultMeta = MDCCMetaDefault.getDefault(nsRoot)
   lazy val conflictResolver = new ConflictResolver(valueSchema, getFieldICList)
-  lazy val recordCache = new MDCCRecordCache()
+  lazy val recordCache = new MDCCClientServer(this)
 
   def getConflictResolver = conflictResolver
 

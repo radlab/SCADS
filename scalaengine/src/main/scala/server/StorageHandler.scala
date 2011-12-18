@@ -211,7 +211,8 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
           db,
           PartitionService(handler.remoteHandle, partitionIdLock.name, StorageService(remoteHandle)),
           schemasvc._1,
-          pu)
+          pu,
+          true)
       }
       case _ =>
         val partition = PartitionService(handler.remoteHandle, partitionIdLock.name, StorageService(remoteHandle))

@@ -12,7 +12,7 @@ case class MDCCBallotRange(var startRound: Long, var endRound: Long, var vote: I
   def ballot() = MDCCBallot(startRound, vote, server, fast)
 }
 
-case class MDCCMetadata(var currentVersion: MDCCBallot, var ballots: Seq[MDCCBallotRange]) extends AvroRecord {
+case class MDCCMetadata(var currentVersion: MDCCBallot, var ballots: Seq[MDCCBallotRange], var confirmedVersion : Boolean, var confirmedBallot : Boolean) extends AvroRecord {
   def validate() =  {
     MDCCBallotRangeHelper.validate(currentVersion, ballots)
   }
@@ -65,13 +65,11 @@ object MDCCBallotRangeHelper {
     assert(ranges.size > 0)
     var curRange = ranges.head
     var restRange = ranges.tail
-    assert(!curRange.fast || curRange.endRound - curRange.startRound == 0)
-    assert(curRange.startRound <= curRange.endRound)
+    assert(!curRange.fast || curRange.endRound - curRange.startRound == 0, "MDCCBallotRange Validation failed " + ranges)
+    assert(curRange.startRound <= curRange.endRound, "MDCCBallotRange Validation failed " + ranges)
     while (!restRange.isEmpty) {
-      assert(!restRange.head.fast)
-      assert(restRange.head.startRound <= restRange.head.endRound)
-      assert(curRange.endRound < restRange.head.startRound)
-      assert(!restRange.head.fast)
+      assert(restRange.head.startRound <= restRange.head.endRound, "MDCCBallotRange Validation failed " + ranges)
+      assert(curRange.endRound < restRange.head.startRound, "MDCCBallotRange Validation failed " + ranges)
       curRange = restRange.head
       restRange = restRange.tail
     }
@@ -182,7 +180,7 @@ object MDCCBallotRangeHelper {
   /**
    * Returns the range to propose and the new sequence of ranges
    */
-  def getOwnership(ranges: Seq[MDCCBallotRange], startRound: Long, endRound: Long, fast: Boolean)(implicit r: SCADSService): Seq[MDCCBallotRange] = {
+  def getOwnership(ranges: Seq[MDCCBallotRange], startRound: Long, endRound: Long, fast: Boolean, r: SCADSService): Seq[MDCCBallotRange] = {
     val newRange = MDCCBallotRange(startRound, endRound, 0, r, fast)
     replace(ranges, newRange)
   }
@@ -304,7 +302,12 @@ object MDCCBallotRangeHelper {
         return -2
       }
     })
-    return status
+    return metaL.size - metaR.size match {
+      case 0 => status
+      case x if x < 0 => if(status == 1) -2 else -1
+      case x if x > 0 => if (status == -1) -2 else 1
+    }
+
   }
 
 

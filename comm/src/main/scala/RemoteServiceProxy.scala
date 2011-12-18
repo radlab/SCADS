@@ -28,6 +28,8 @@ trait RemoteServiceProxy[MessageType <: IndexedRecord] {
 
   override def toString(): String = id + "@" + host + ":" + port
 
+
+
   /**
    * Returns an ouput proxy that forwards any messages to the remote actor with and empty sender.
    */

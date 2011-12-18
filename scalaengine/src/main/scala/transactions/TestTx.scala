@@ -40,23 +40,25 @@ class TestTx {
   def run() {
     val cluster = TestScalaEngine.newScadsCluster(4)
 
-    val ns = new SpecificNamespace[KeyRec, ValueRec]("testns", cluster, cluster.namespaces) with Transactions[KeyRec, ValueRec] {
-     override lazy val protocolType = NSTxProtocol2pc()
-    }
-    ns.open()
-    ns.setPartitionScheme(List((None, cluster.getAvailableServers)))
+//    val ns = new SpecificNamespace[KeyRec, ValueRec]("testns", cluster, cluster.namespaces) with Transactions[KeyRec, ValueRec] {
+//     override lazy val protocolType = NSTxProtocol2pc()
+//    }
+//    ns.open()
+//    ns.setPartitionScheme(List((None, cluster.getAvailableServers)))
 
     val nsPair = cluster.getNamespace[DataRecord]("testnsPair", NSTxProtocolMDCC())
     nsPair.setPartitionScheme(List((None, cluster.getAvailableServers)))
-
+    Thread.sleep(1000)
     var dr = DataRecord(1)
     dr.s = "a"; dr.a = 1; dr.b = 1; dr.c = 1.0.floatValue
     nsPair.put(dr)
     dr.id = 2
     nsPair.put(dr)
 
+    val nbRecords = 1
+
     new Tx(300) ({
-      List.range(3, 3 + 2).foreach(x => {
+      List.range(3, 3 + nbRecords ).foreach(x => {
         dr.s = "b"
         dr.id = x
         nsPair.put(dr)
@@ -69,6 +71,7 @@ class TestTx {
     nsPair.getRange(None, None).foreach(x => println(x))
     println("nsPair.getRecord 3: " + nsPair.getRecord(DataRecord(3)))
     println("nsPair.getRecord 4: " + nsPair.getRecord(DataRecord(4)))
+    Thread.sleep(100000)
 /*
    new Tx(100) ({
      ns.put(KeyRec(1), ValueRec("A", 1, 1, 1.0.floatValue, 1.0))

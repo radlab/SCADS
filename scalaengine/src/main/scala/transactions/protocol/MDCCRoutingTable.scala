@@ -16,6 +16,7 @@ import net.lag.logging.Logger
 class MDCCRoutingTable(nsRoot: ZooKeeperProxy#ZooKeeperNode, keySchema : Schema) {
   private var _routingTable : RangeTable[Array[Byte], PartitionService] = null
 
+
   protected lazy val logger = Logger()
 
   def compareKey(x: Array[Byte], y: Array[Byte]): Int =  BinaryData.compare(x, 0, y, 0, keySchema)
@@ -43,7 +44,7 @@ class MDCCRoutingTable(nsRoot: ZooKeeperProxy#ZooKeeperNode, keySchema : Schema)
   }
 
   def serversForKey(key: Array[Byte]): Seq[PartitionService] = {
-    _routingTable.valuesForKey(key)
+    routingTable.valuesForKey(key)
   }
 
 }

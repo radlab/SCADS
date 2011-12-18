@@ -13,7 +13,7 @@ trait MessageReceiver[MessageType <: IndexedRecord] {
 }
 
 //TODO: remove extra envelope object creation
-case class Envelope[MessageType <: IndexedRecord](src: Option[RemoteService[MessageType]], msg: MessageType)
+case class Envelope[MessageType <: IndexedRecord](src: Option[RemoteServiceProxy[MessageType]], msg: MessageType)
 
 
 class ActorReceiver[MessageType <: IndexedRecord](actor: Actor) extends MessageReceiver[MessageType] {
