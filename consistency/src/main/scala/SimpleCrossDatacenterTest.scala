@@ -165,13 +165,14 @@ case class Task()
     clusterAddress = scadsCluster.root.canonicalAddress
 
     // Start loaders.
-    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, 1, numEBs=15, numItems=1000, numClusters=numClusters, txProtocol=protocol).getLoadingTasks(clusters.head.classSource, scadsCluster.root)
+    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, 5, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol).getLoadingTasks(clusters.head.classSource, scadsCluster.root)
     clusters.head.serviceScheduler.scheduleExperiment(loaderTasks)
 
     // Start clients.
     val tpcwTasks = MDCCTpcwWorkflowTask(
-      numClients=1,
+      numClients=5,
       executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
+      numThreads=20,
       iterations=1,
       runLengthMin=5).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress)
     clusters.head.serviceScheduler.scheduleExperiment(tpcwTasks)
