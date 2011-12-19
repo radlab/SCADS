@@ -65,21 +65,32 @@ class TestTx {
       })
     }).Execute()
 
+    println("1st Trx: nsPair.getRecord 3: " + nsPair.getRecord(DataRecord(3)))
+
     Thread.sleep(1000)
 
     new Tx(1000) ({
       List.range(3, 3 + nbRecords ).foreach(x => {
-        dr.s = "c"
         dr.id = x
+        dr.a -= 1
+        nsPair.put(dr)
+      })
+    }).Execute()
+
+    println("2nd Trx: nsPair.getRecord 3: " + nsPair.getRecord(DataRecord(3)))
+
+    new Tx(1000) ({
+      List.range(3, 3 + nbRecords ).foreach(x => {
+        dr.id = x
+        dr.a -= 1
         nsPair.put(dr)
       })
     }).Execute()
 
     // Sleep for a little bit to wait for the commits.
-    Thread.sleep(1000)
 
     nsPair.getRange(None, None).foreach(x => println(x))
-    println("nsPair.getRecord 3: " + nsPair.getRecord(DataRecord(3)))
+    println("3rd Trx: nsPair.getRecord 3: " + nsPair.getRecord(DataRecord(3)))
     println("nsPair.getRecord 4: " + nsPair.getRecord(DataRecord(4)))
     Thread.sleep(100000)
 /*
