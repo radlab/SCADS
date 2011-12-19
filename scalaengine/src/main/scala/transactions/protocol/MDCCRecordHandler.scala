@@ -269,7 +269,7 @@ class MCCCRecordHandler (
         debug("Sending fast propose from " + remoteHandle + " to " + servers.mkString(":"))
         servers.foreach(_ ! propose)
       }else{
-        debug("We do not have a confirmed ballot number")
+        debug("We do have a confirmed ballot number")
         if(stableRound){
           val nBallot = getBallot(ballots, cBallot.round + 1).getOrElse(null)
           if(nBallot == null){
@@ -307,6 +307,7 @@ class MCCCRecordHandler (
         }
       }
     }else{
+      debug("We do NOT have a confirmed ballot number. Se we request the mastership first")
       forwardRequest(src, propose)//and we try it later again
       //If we have no idea about the ballot we just try to get a fast round accepted
       forwardRequest(remoteHandle, BeMaster(key,  cBallot.round, cBallot.round, true)) //the last one will be the first one
@@ -351,6 +352,7 @@ class MCCCRecordHandler (
     val quorum = if(ballots.head.fast || ballots.tail.headOption.map(_.fast).getOrElse(false)) fastQuorum else classicQuorum
 
     if(responses.size >= quorum) {
+      debug("We got the quorum and the mastership")
       confirmedBallot = true
       calculateCStructs()
       request match {
@@ -359,6 +361,7 @@ class MCCCRecordHandler (
           clear() //We are done
         }
         case StorageEnvelope(src, ResolveConflict(_,_, propose,requester)) => {
+          clear() //We are done
           startPhase2a(requester, propose)
         }
         case _ => throw new RuntimeException("A Phase1a should always be triggered through BeMaster")
@@ -367,6 +370,12 @@ class MCCCRecordHandler (
   }
 
   @inline def stableRound() : Boolean = {
+    debug("Test round for stability: fast:%s version.round:%s currentBallot.round:%s value.commands.size:%s provedSafe.commands.size:%s",
+      currentBallot.fast, version.round,
+      currentBallot.round,
+      value.commands.size,
+      value.commands.size,
+      provedSafe.commands.size)
     !currentBallot.fast &&
       version.round ==  currentBallot.round &&
       value.commands.size > 0 &&
@@ -461,12 +470,19 @@ class MCCCRecordHandler (
     forwardRequest(src, MultiPropose(unsafeCommands))
   }
 
+  def moveToNextRound() = {
+    ballots = adjustRound(ballots, ballots.head.startRound + 1)
+  }
+
   def startPhase2a(src : ServiceType, propose : Propose) : Unit = {
+    responses.clear()
+    debug("Starting Phase2a")
     status = PHASE2A
     val cBallot = topBallot(ballots)
     assert(areWeMaster(cBallot.server))
 
     if(cBallot.fast){
+      debug("we are in a fast ballot")
       //We are just opening a fast next round as part of conflict resolution
       servers ! Phase2a(key, cBallot, value,  unsafeCommands ++ seq(propose))
     }else{
@@ -476,20 +492,27 @@ class MCCCRecordHandler (
         //The round is clear and committed, time to move on
         val rebase = resolver.compressCStruct(value)
         if(nBallot.fast){
+          debug("Next ballot is fast, we are opening a fast round ballot" + nBallot)
+          moveToNextRound()
           servers ! Phase2a(key, nBallot, rebase, unsafeCommands ++ seq(propose))
         }else{
           //We are in the classic mode
           if(value.commands.exists(_.pending)){
+            debug("We  have still pending update, so we postpone")
             //We found a pending update, so we wait with moving on to the next round
             Scheduler.schedule(() => {forwardRequest(remoteHandle, propose, unsafeCommands)}, MCCCRecordHandler.WAIT_TIME )
+            clear()
           }else{
             //The round is clear and committed, time to move on
-            val rebase = resolver.compressCStruct(value)
             if(unsafeCommands.isEmpty){
+              debug("Classic rounds: No pending updates and no unsafe commands, so we propose the next")
               val props = seq(propose)
+              moveToNextRound()
               servers ! Phase2a(key, nBallot, rebase, props.head :: Nil)
               forwardRequest(src, MultiPropose(props.tail))
             }else{
+              debug("Classic rounds: No pending updates but unsafe commands -> we resolve the unsafe commands first")
+              moveToNextRound()
               servers ! Phase2a(key, nBallot, rebase, unsafeCommands.head :: Nil)
               forwardRequest(src, propose, unsafeCommands.tail)
             }
@@ -498,6 +521,7 @@ class MCCCRecordHandler (
       }else{
         //The current round is instable or free
         if(value.commands.size < provedSafe.commands.size){
+          debug("The current round is unstable, so we propose provedSafe again and postpone the rest")
           //The current round is still not stable, lets make it stable
           servers ! Phase2a(key, cBallot, provedSafe)
           forwardRequest(src, propose)
@@ -508,14 +532,17 @@ class MCCCRecordHandler (
           if(nBallot == null || !nBallot.fast){
             //Next is classic, so one command at a time
             if(unsafeCommands.isEmpty){
+              debug("Current classic round is still empty, and there are no unsafe commands. Perfect, we take the round")
               val props = seq(propose)
               servers ! Phase2a(key, cBallot, rebase, props.head :: Nil)
               forwardRequest(src, MultiPropose(props.tail))
             }else{
+              debug("Current classic round is still empty, but we have unsafe commands")
               servers ! Phase2a(key, cBallot, rebase, unsafeCommands.head :: Nil)
               forwardRequest(src, propose, unsafeCommands.tail)
             }
           }else{
+            debug("Current round is still unstable, but the next is fast, so better accept everything")
             //Next ballot is fast, so better try to accept everything
             servers ! Phase2a(key, cBallot, rebase, unsafeCommands ++ seq(propose))
           }
@@ -541,7 +568,7 @@ class MCCCRecordHandler (
         return
       }
       case 0 => responses += src -> msg
-      case -1 => throw new RuntimeException("Should never happen as the storage node should send a Phase2bMasterFailure message")
+      case -1 => throw new RuntimeException("Should never happen as the storage node should send a Phase2bMasterFailure message: current:" + currentBallot + " received:" + msg.ballot)
     }
 
     val quorum = if(currentBallot.fast) fastQuorum else classicQuorum
@@ -592,6 +619,7 @@ class MCCCRecordHandler (
         }
         case _ => throw new RuntimeException("Should never happen")
       }
+      responses.clear()
       clear()
     }
   }

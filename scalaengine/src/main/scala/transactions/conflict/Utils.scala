@@ -93,7 +93,7 @@ object ApplyUpdates {
       case _ => {
         val relevantCommands = updates.drop(lastPhysical)
         val remaining = relevantCommands.tail
-        val rec = MDCCRecordUtil.fromBytes(relevantCommands.head.asInstanceOf[PhysicalUpdate].newValue)
+        val rec = MDCCRecordUtil.fromBytes(relevantCommands.head.command.asInstanceOf[PhysicalUpdate].newValue)
         // The record value in the physical update.
         if (rec.value.isEmpty) {
           // If the physical update deletes the record, there should be no

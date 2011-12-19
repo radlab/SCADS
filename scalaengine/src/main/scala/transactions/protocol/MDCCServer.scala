@@ -135,12 +135,24 @@ class MDCCServer(val namespace : String,
       src ! Phase2bMasterFailure(meta.ballots, false)
     }else{
       debug(key, "Writing new value value: %s updates: %s", value, newUpdates)
-      pendingUpdates.overwrite(key, value, newUpdates)
-      val r = getRecord(key).get
-      r.metadata.currentVersion = myBallot.get
-      putRecord(key, r)
+      if(value.value.isEmpty && value.commands.isEmpty){
+        newUpdates.foreach(c => {
+          pendingUpdates.acceptOption(c.xid, c.update)
+        })
+      }else{
+        pendingUpdates.overwrite(key, value, newUpdates)
+      }
+      val r = getRecord(key)
+      if(r.isDefined){
+        val record = r.get
+        record.metadata.currentVersion = myBallot.get
+        //TODO shorten meta data
+        putRecord(key, record)
+      }else{
+        //What shoudl we do when it is empty
+      }
       val msg = Phase2b(myBallot.get, pendingUpdates.getCStruct(key)) //TODO Ask Gene if this is correct
-      debug(key, "Sending Phase2b back %s %m", src, msg)
+      debug(key, "Sending Phase2b back %s %s", src, msg)
       src ! msg //TODO Ask Gene if this is correct
     }
     commitTrx(trx)

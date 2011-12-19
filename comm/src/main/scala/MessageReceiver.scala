@@ -166,7 +166,7 @@ abstract trait ServiceHandler[MessageType <: IndexedRecord] extends MessageRecei
           /* Get the stack trace */
           val stackTrace = e.getStackTrace().mkString("\n")
           /* Log and report the error */
-          logger.warning(e, "Exception processing storage request")
+          logger.error(e, "Exception processing storage request")
           //TODO: fix me! src.foreach(_ ! ProcessingException(e.toString, stackTrace))
         }
       }

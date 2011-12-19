@@ -19,7 +19,7 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
   @volatile var _defaultMeta : MDCCMetadata = null
 
   protected val fastDefault = Config.config.getBool("scads.mdcc.fastDefault").getOrElse({logger.error("Config does not define scads.mdcc.fastDefault. Using fastDefault = true as default"); true})
-
+  protected val defaultRounds  : Long =  Config.config.getLong("scads.mdcc.DefaultRounds").getOrElse({logger.error("Config does not define scads.mdcc.DefaultRounds. Using DefaultRounds = 1 as default"); 1})
 
   def loadDefault() : MDCCMetadata = {
     val defaultNode =
@@ -54,7 +54,7 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
     if(!nsRoot.get(MDCC_DEFAULT_META).isDefined || forceNewMeta) {
       try {
         val createLock = nsRoot.createChild("trxLock", mode=CreateMode.EPHEMERAL)
-        _defaultMeta = MDCCMetadata(MDCCBallot(0,0, defaultPartition, fastDefault), MDCCBallotRange(0,0,0,defaultPartition, fastDefault) :: Nil, true, true)
+        _defaultMeta = MDCCMetadata(MDCCBallot(0,0, defaultPartition, fastDefault), MDCCBallotRange(0,defaultRounds,0,defaultPartition, fastDefault) :: Nil, true, true)
         logger.info("Default Metadata: " + _defaultMeta)
         val writer = new AvroSpecificReaderWriter[MDCCMetadata](None)
         val defaultBytes = writer.serialize(_defaultMeta)

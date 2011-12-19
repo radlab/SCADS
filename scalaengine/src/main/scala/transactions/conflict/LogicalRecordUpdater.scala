@@ -19,7 +19,11 @@ class LogicalRecordUpdater(val schema: Schema) {
   }
 
   def applyDeltaBytes(baseBytes: Option[Array[Byte]], deltaBytesList: Seq[Option[Array[Byte]]]): Array[Byte] = {
-    assert(deltaBytesList.length > 0)
+    if(deltaBytesList.length == 0){
+      //Gene is this correct?
+      assert(baseBytes.isDefined)
+      return baseBytes.get
+    }
 
     val headDelta = deltaBytesList.head
     val baseAvro = baseBytes match {

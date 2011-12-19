@@ -65,6 +65,16 @@ class TestTx {
       })
     }).Execute()
 
+    Thread.sleep(1000)
+
+    new Tx(1000) ({
+      List.range(3, 3 + nbRecords ).foreach(x => {
+        dr.s = "c"
+        dr.id = x
+        nsPair.put(dr)
+      })
+    }).Execute()
+
     // Sleep for a little bit to wait for the commits.
     Thread.sleep(1000)
 
