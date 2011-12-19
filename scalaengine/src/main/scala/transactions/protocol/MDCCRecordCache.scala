@@ -25,7 +25,7 @@ class MDCCClientServer(ns : TransactionI) extends  MDCCRecordCache {
                   mt: MDCCMetadata,
                   servers: Seq[PartitionService],
                   conflictResolver : ConflictResolver
-                  ) : MCCCRecordHandler = getOrCreate(key, value, mt, servers, conflictResolver, remoteHandle)
+                  ) : MDCCRecordHandler = getOrCreate(key, value, mt, servers, conflictResolver, remoteHandle)
 
    def processMailbox(mailbox : Mailbox[StorageMessage]) {
       mailbox{
@@ -46,14 +46,14 @@ class MDCCRecordCache() {
 
   val CACHE_SIZE = 500
 
-  def killHandler (key : Array[Byte], handler :  MCCCRecordHandler) = handler.kill
+  def killHandler (key : Array[Byte], handler : MDCCRecordHandler) = handler.kill
 
   //TODO: If we wanna use the cache for reads, we should use a lock-free structure
-  lazy val cache = new LRUMap[Array[Byte], MCCCRecordHandler](CACHE_SIZE, None, killHandler){
-      protected override def canExpire(k: Array[Byte], v: MCCCRecordHandler): Boolean = v.getStatus == READY
+  lazy val cache = new LRUMap[Array[Byte], MDCCRecordHandler](CACHE_SIZE, None, killHandler){
+      protected override def canExpire(k: Array[Byte], v: MDCCRecordHandler): Boolean = v.getStatus == READY
     }
 
-  def get(key : Array[Byte]) : Option[MCCCRecordHandler] = {
+  def get(key : Array[Byte]) : Option[MDCCRecordHandler] = {
     cache.synchronized{
       cache.get(key)
     }
@@ -68,11 +68,11 @@ class MDCCRecordCache() {
                   servers: Seq[PartitionService],
                   conflictResolver : ConflictResolver,
                   master : SCADSService
-                  ) : MCCCRecordHandler = {
+                  ) : MDCCRecordHandler = {
     cache.synchronized{
       cache.get(key) match {
         case None => {
-          var handler = new MCCCRecordHandler(key, value, mt.currentVersion, mt.ballots,  mt.confirmedBallot, servers, conflictResolver, master)
+          var handler = new MDCCRecordHandler(key, value, mt.currentVersion, mt.ballots,  mt.confirmedBallot, servers, conflictResolver, master)
           cache.update(key, handler)
           handler
         }

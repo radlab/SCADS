@@ -30,7 +30,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
   @volatile var status: TxStatus = UNKNOWN
   var Xid = ScadsXid.createUniqueXid()
   var count = 0
-  var participants = collection.mutable.HashSet[MCCCRecordHandler]()
+  var participants = collection.mutable.HashSet[MDCCRecordHandler]()
 
   //Semaphore is used for the programming model timeout SLO 300ms
   private val sema = new Semaphore(0, false)

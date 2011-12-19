@@ -31,7 +31,7 @@ object ServerMessageHelper {
 }
 
 
-class MCCCRecordHandler (
+class MDCCRecordHandler (
        var key : Array[Byte],
        var value : CStruct,
        var version: MDCCBallot, //The version of the value
@@ -48,7 +48,7 @@ class MCCCRecordHandler (
   private var provedSafe : CStruct = value //Because of readCommitted property, that value is fine
   private var unsafeCommands : Seq[SinglePropose] = Nil
 
-  private val logger = Logger(classOf[MCCCRecordHandler])
+  private val logger = Logger(classOf[MDCCRecordHandler])
 
   private val mailbox = new PlainMailbox[StorageMessage]()
 
@@ -81,7 +81,7 @@ class MCCCRecordHandler (
 
 
   override def equals(that: Any): Boolean = that match {
-     case other: MCCCRecordHandler => key == other.key
+     case other: MDCCRecordHandler => key == other.key
      case _ => false
   }
 
@@ -500,7 +500,7 @@ class MCCCRecordHandler (
           if(value.commands.exists(_.pending)){
             debug("We  have still pending update, so we postpone")
             //We found a pending update, so we wait with moving on to the next round
-            Scheduler.schedule(() => {forwardRequest(remoteHandle, propose, unsafeCommands)}, MCCCRecordHandler.WAIT_TIME )
+            Scheduler.schedule(() => {forwardRequest(remoteHandle, propose, unsafeCommands)}, MDCCRecordHandler.WAIT_TIME )
             clear()
           }else{
             //The round is clear and committed, time to move on
@@ -643,7 +643,7 @@ class MCCCRecordHandler (
 
 
 
-object MCCCRecordHandler {
+object MDCCRecordHandler {
  final val WAIT_TIME = 20
 }
 
