@@ -244,7 +244,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
             commandsInfo.appendCommand(CStructCommand(xid, r, true, true))
             pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
           } else {
-            logger.debug("Update is not compatible  %s %s %s %s", xid, commandsInfo, storedMDCCRec, r)
+            logger.debug("Update is not compatible %s %s %s %s", xid, commandsInfo, storedMDCCRec, r)
             success = false
           }
           (r.key, CStruct(commandsInfo.base, commandsInfo.commands))
@@ -297,19 +297,16 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       case None => (updates, true)
       case Some(s) => (s.updates ++ updates, false)
     }
-    val noOverwrite = txStatus.putNoOverwrite(txStatusTxn, xid, TxStatusEntry(entryStatus, newUpdates))
-    txStatus.txCommit(txStatusTxn)
 
-    if (emptyGet && !noOverwrite) {
-      // Failed to write the tx.  Try again, since the key exists now.
-      val txStatusTxn2 = txStatus.txStart()
-      val newUpdates2 = txStatus.get(txStatusTxn2, xid) match {
-        case None => updates
-        case Some(s) => s.updates ++ updates
+    if (emptyGet) {
+      val noOverwrite = txStatus.putNoOverwrite(txStatusTxn, xid, TxStatusEntry(entryStatus, newUpdates))
+      if (!noOverwrite) {
+        txStatus.put(txStatusTxn, xid, TxStatusEntry(entryStatus, newUpdates))
       }
-      txStatus.put(txStatusTxn2, xid, TxStatusEntry(entryStatus, newUpdates2))
-      txStatus.txCommit(txStatusTxn2)
+    } else {
+      txStatus.put(txStatusTxn, xid, TxStatusEntry(entryStatus, newUpdates))
     }
+    txStatus.txCommit(txStatusTxn)
 
     (success, cstructs)
   }
