@@ -65,34 +65,45 @@ class TestTx {
       })
     }).Execute()
 
-    println("1st Trx: nsPair.getRecord 3: " + nsPair.getRecord(DataRecord(3)))
-
+    // Sleep for a little bit to wait for the commits.
     Thread.sleep(1000)
+
+    println("1st Trx: nsPair.getRecord 3: " + nsPair.getRecord(DataRecord(3)))
 
     new Tx(1000) ({
       List.range(3, 3 + nbRecords ).foreach(x => {
         dr.id = x
-        dr.a -= 1
-        nsPair.put(dr)
+        dr.a = -1
+        dr.s = ""; dr.b = 0; dr.c = 0
+        nsPair.putLogical(dr)
       })
     }).Execute()
+
+    // Sleep for a little bit to wait for the commits.
+    Thread.sleep(1000)
 
     println("2nd Trx: nsPair.getRecord 3: " + nsPair.getRecord(DataRecord(3)))
 
     new Tx(1000) ({
       List.range(3, 3 + nbRecords ).foreach(x => {
         dr.id = x
-        dr.a -= 1
-        nsPair.put(dr)
+        dr.a = -1
+        dr.s = ""; dr.b = 0; dr.c = 0
+        nsPair.putLogical(dr)
       })
     }).Execute()
 
     // Sleep for a little bit to wait for the commits.
+    Thread.sleep(1000)
 
     nsPair.getRange(None, None).foreach(x => println(x))
     println("3rd Trx: nsPair.getRecord 3: " + nsPair.getRecord(DataRecord(3)))
     println("nsPair.getRecord 4: " + nsPair.getRecord(DataRecord(4)))
+
+    println("Done with test")
     Thread.sleep(100000)
+
+
 /*
    new Tx(100) ({
      ns.put(KeyRec(1), ValueRec("A", 1, 1, 1.0.floatValue, 1.0))
