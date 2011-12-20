@@ -153,7 +153,7 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) { self =>
   }
 
   // Transactional namespace.
-  def getNamespace[PairType <: AvroPair : Manifest](ns: String, txProtocol: NSTxProtocol): PairNamespace[PairType] = {
+  def getNamespace[PairType <: AvroPair : Manifest](ns: String, txProtocol: NSTxProtocol): PairNamespace[PairType] with PairTransactions[PairType] = {
     val namespace = new PairNamespace[PairType](ns, self, namespaces) with PairTransactions[PairType] { override lazy val protocolType = txProtocol }
     namespace.open()
     namespace
