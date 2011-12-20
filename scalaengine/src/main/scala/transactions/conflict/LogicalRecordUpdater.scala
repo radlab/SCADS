@@ -5,11 +5,11 @@ package conflict
 import scala.collection.mutable.Buffer
 import scala.collection.JavaConversions._
 
-import org.apache.avro.specific.SpecificRecord
+import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.Schema
 
 class LogicalRecordUpdater(val schema: Schema) {
-  val avroUtil = new SpecificRecordUtil(schema)
+  val avroUtil = new IndexedRecordUtil(schema)
 
   // base is the (optional) byte array of the serialized AvroRecord.
   // delta is the (optional) byte array of the serialized delta AvroRecord.
@@ -19,7 +19,7 @@ class LogicalRecordUpdater(val schema: Schema) {
   }
 
   def applyDeltaBytes(baseBytes: Option[Array[Byte]], deltaBytesList: Seq[Option[Array[Byte]]]): Array[Byte] = {
-    if(deltaBytesList.length == 0){
+    if (deltaBytesList.length == 0) {
       //Gene is this correct?
       assert(baseBytes.isDefined)
       return baseBytes.get
@@ -44,7 +44,7 @@ class LogicalRecordUpdater(val schema: Schema) {
     avroUtil.toBytes(result)
   }
 
-  private def applyDeltaRecord(base: SpecificRecord, delta: SpecificRecord): SpecificRecord = {
+  private def applyDeltaRecord(base: IndexedRecord, delta: IndexedRecord): IndexedRecord = {
     val schema = delta.getSchema
     val fields: Buffer[org.apache.avro.Schema.Field] = schema.getFields
 

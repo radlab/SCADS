@@ -512,7 +512,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
 class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
                         val ics: FieldICList) {
-  val avroUtil = new SpecificRecordUtil(valueSchema)
+  val avroUtil = new IndexedRecordUtil(valueSchema)
   val logicalRecordUpdater = new LogicalRecordUpdater(valueSchema)
 
   protected val logger = Logger(classOf[NewUpdateResolver])
