@@ -425,9 +425,8 @@ class MDCCRecordHandler (
     status = READY
   }
 
-  @inline def classicQuorum = floor(servers.size.toDouble / 2.0).toInt + 1
-  @inline def fastQuorum = ceil(3.0 * servers.size.toDouble / 4.0).toInt
-
+  @inline def classicQuorum = MDCCRecordHandler.classicQuorumSize(servers.size)
+  @inline def fastQuorum = MDCCRecordHandler.fastQuorumSize(servers.size)
 
   def requestNextFastRound() = {
     forwardRequest(remoteHandle, BeMaster(key, ballots.head.startRound + 1, ballots.head.startRound + 10, true)) //Ok lets get a fast round
@@ -642,9 +641,9 @@ class MDCCRecordHandler (
 }
 
 
-
 object MDCCRecordHandler {
- final val WAIT_TIME = 20
+  final val WAIT_TIME = 20
+
+  @inline def classicQuorumSize(servers: Int) = floor(servers.toDouble / 2.0).toInt + 1
+  @inline def fastQuorumSize(servers: Int) = ceil(3.0 * servers.toDouble / 4.0).toInt
 }
-
-

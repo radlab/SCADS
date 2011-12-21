@@ -36,9 +36,9 @@ trait PendingUpdates extends DBRecords {
   // If dbTxn is non null, it is used for all db operations, and the commit is
   // NOT performed at the end.  Otherwise, a new transaction is started and
   // committed.
-  def acceptOptionTxn(xid: ScadsXid, updates: Seq[RecordUpdate], dbTxn: TransactionData = null) : (Boolean, Seq[(Array[Byte], CStruct)])
+  def acceptOptionTxn(xid: ScadsXid, updates: Seq[RecordUpdate], dbTxn: TransactionData = null, isFast: Boolean = false) : (Boolean, Seq[(Array[Byte], CStruct)])
 
-  def acceptOption(xid: ScadsXid, update: RecordUpdate)(implicit dbTxn: TransactionData): (Boolean, Array[Byte], CStruct)
+  def acceptOption(xid: ScadsXid, update: RecordUpdate, isFast: Boolean = false)(implicit dbTxn: TransactionData): (Boolean, Array[Byte], CStruct)
 
 
   /**
@@ -60,9 +60,9 @@ trait PendingUpdates extends DBRecords {
   /**
    * Writes the new truth. Should only return false if something is messed up with the db
    */
-  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[SinglePropose])(implicit dbTxn: TransactionData): Boolean
+  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[SinglePropose], isFast: Boolean = false)(implicit dbTxn: TransactionData): Boolean
 
-  def overwriteTxn(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[SinglePropose], dbTxn: TransactionData = null): Boolean
+  def overwriteTxn(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[SinglePropose], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean
 
   def getDecision(xid: ScadsXid): Status.Status
 
@@ -206,13 +206,13 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   }
 
   // If accept was successful, returns the cstruct.  Otherwise, returns None.
-  override def acceptOption(xid: ScadsXid, update: RecordUpdate)(implicit dbTxn : TransactionData): (Boolean, Array[Byte], CStruct) = {
+  override def acceptOption(xid: ScadsXid, update: RecordUpdate, isFast: Boolean = false)(implicit dbTxn : TransactionData): (Boolean, Array[Byte], CStruct) = {
     val result = acceptOptionTxn(xid, update :: Nil, dbTxn)
     (result._1, result._2.head._1, result._2.head._2)
   }
 
   // Returns a tuple (success, list of (key, cstruct) pairs)
-  override def acceptOptionTxn(xid: ScadsXid, updates: Seq[RecordUpdate], dbTxn: TransactionData = null): (Boolean, Seq[(Array[Byte], CStruct)]) = {
+  override def acceptOptionTxn(xid: ScadsXid, updates: Seq[RecordUpdate], dbTxn: TransactionData = null, isFast: Boolean = false): (Boolean, Seq[(Array[Byte], CStruct)]) = {
     var success = true
     val txn = dbTxn match {
       case null => db.txStart()
@@ -424,11 +424,11 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   //               ConflictResolver should just be created elsewhere.
   def getConflictResolver : ConflictResolver = conflictResolver
 
-  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[SinglePropose])(implicit dbTxn: TransactionData) : Boolean = {
-    overwriteTxn(key, safeValue, newUpdates, dbTxn)
+  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[SinglePropose], isFast: Boolean = false)(implicit dbTxn: TransactionData) : Boolean = {
+    overwriteTxn(key, safeValue, newUpdates, dbTxn, isFast)
 }
 
-  def overwriteTxn(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[SinglePropose], dbTxn: TransactionData = null): Boolean = {
+  def overwriteTxn(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[SinglePropose], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean = {
     var success = true
     val txn = dbTxn match {
       case null => db.txStart()
@@ -521,7 +521,9 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
   def isCompatible(xid: ScadsXid,
                    commandsInfo: PendingCommandsInfo,
                    dbValue: Option[MDCCRecord],
-                   newUpdate: RecordUpdate): Boolean = {
+                   newUpdate: RecordUpdate,
+                   numServers: Int = 1,
+                   isFast: Boolean = false): Boolean = {
     newUpdate match {
       case LogicalUpdate(key, delta) => {
         // TODO: what about deleted/non-existent records???
@@ -540,7 +542,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
         val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ List(List(xid))
 
         var valid = newStates.put(newState, newXidList) match {
-          case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, dbValue.get.value)
+          case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, dbValue.get.value, numServers, isFast)
           case Some(_) => true
         }
 
@@ -557,7 +559,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
               val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ baseXidList
               newStates.put(newState, newXidList)
               valid = newStates.put(newState, newXidList) match {
-                case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, Option(s.state))
+                case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, Option(s.state), numServers, isFast)
                 case Some(_) => true
               }
             }

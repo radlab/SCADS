@@ -6,6 +6,7 @@ import java.io._
 import org.apache.avro.io.{DecoderFactory, BinaryEncoder, BinaryDecoder, EncoderFactory}
 import org.apache.avro.generic.{GenericDatumWriter, GenericDatumReader, IndexedRecord}
 import org.apache.avro.Schema
+import edu.berkeley.cs.scads.storage.transactions.mdcc.MDCCRecordHandler
 
 class IndexedRecordUtil(val schema: Schema) {
   val reader = new GenericDatumReader[IndexedRecord](schema)
@@ -40,15 +41,22 @@ class ICChecker(val schema: Schema) {
     }
   }
 
-  def getQuorumLimit(baseField: Double, origLimit: Double, numServers: Int, quorumSize: Int): Double = {
-    if (baseField > origLimit) {
-      (baseField - origLimit) * (numServers - quorumSize) / numServers + origLimit
+  def getQuorumLimit(baseField: Double, origLimit: Double, numServers: Int, isFast: Boolean): Double = {
+    if (!isFast) {
+      // If not fast, just keep the original limit.
+      origLimit
     } else {
-      origLimit - (origLimit - baseField) * (numServers - quorumSize) / numServers
+      // Fast limits have to be modified w.r.t. the fast quorum size.
+      val quorumSize = MDCCRecordHandler.fastQuorumSize(numServers)
+      if (baseField > origLimit) {
+        (baseField - origLimit) * (numServers - quorumSize) / numServers + origLimit
+      } else {
+        origLimit - (origLimit - baseField) * (numServers - quorumSize) / numServers
+      }
     }
   }
 
-  def check(rec: IndexedRecord, ics: FieldICList, baseRecBytes: Option[Array[Byte]], numServers: Int = 1, quorumSize: Int = 1): Boolean = {
+  def check(rec: IndexedRecord, ics: FieldICList, baseRecBytes: Option[Array[Byte]], numServers: Int = 1, isFast: Boolean = false): Boolean = {
     var valid = true
     if (ics == null) {
       true
@@ -67,9 +75,9 @@ class ICChecker(val schema: Schema) {
             valid = ic.lower match {
               case None => true
               case Some(FieldRestrictionGT(x)) =>
-                field > getQuorumLimit(baseField, x, numServers, quorumSize)
+                field > getQuorumLimit(baseField, x, numServers, isFast)
               case Some(FieldRestrictionGE(x)) =>
-                field >= getQuorumLimit(baseField, x, numServers, quorumSize)
+                field >= getQuorumLimit(baseField, x, numServers, isFast)
               case _ => false
             }
           } else if (field > baseField) {
@@ -77,9 +85,9 @@ class ICChecker(val schema: Schema) {
             valid = ic.upper match {
               case None => true
               case Some(FieldRestrictionLT(x)) =>
-                field < getQuorumLimit(baseField, x, numServers, quorumSize)
+                field < getQuorumLimit(baseField, x, numServers, isFast)
               case Some(FieldRestrictionLE(x)) =>
-                field <= getQuorumLimit(baseField, x, numServers, quorumSize)
+                field <= getQuorumLimit(baseField, x, numServers, isFast)
               case _ => false
             }
           }
