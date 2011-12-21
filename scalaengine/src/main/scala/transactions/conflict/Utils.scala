@@ -25,7 +25,9 @@ class IndexedRecordUtil(val schema: Schema) {
   }
 }
 
-object ICChecker {
+class ICChecker(val schema: Schema) {
+  val avroUtil = new IndexedRecordUtil(schema)
+
   private def convertFieldToDouble(f: Any): Double = {
     f match {
       case x: java.lang.Integer => x.doubleValue
@@ -38,28 +40,50 @@ object ICChecker {
     }
   }
 
-  def check(rec: IndexedRecord, ics: FieldICList): Boolean = {
+  def getQuorumLimit(baseField: Double, origLimit: Double, numServers: Int, quorumSize: Int): Double = {
+    if (baseField > origLimit) {
+      (baseField - origLimit) * (numServers - quorumSize) / numServers + origLimit
+    } else {
+      origLimit - (origLimit - baseField) * (numServers - quorumSize) / numServers
+    }
+  }
+
+  def check(rec: IndexedRecord, ics: FieldICList, baseRecBytes: Option[Array[Byte]], numServers: Int = 1, quorumSize: Int = 1): Boolean = {
     var valid = true
     if (ics == null) {
       true
     } else {
+      if (baseRecBytes.isEmpty) {
+        throw new RuntimeException("icchecker: base rec should not be None.")
+      }
+      val baseRec = avroUtil.fromBytes(baseRecBytes.get)
       ics.ics.foreach(ic => {
         if (valid) {
-          val doubleField = convertFieldToDouble(rec.get(ic.fieldPos))
+          val field = convertFieldToDouble(rec.get(ic.fieldPos))
+          val baseField = convertFieldToDouble(baseRec.get(ic.fieldPos))
 
-          val lowerValid = ic.lower match {
-            case None => true
-            case Some(FieldRestrictionGT(x)) => doubleField > x
-            case Some(FieldRestrictionGE(x)) => doubleField >= x
-            case _ => false
+          if (field < baseField) {
+            // Check lower bound.
+            valid = ic.lower match {
+              case None => true
+              case Some(FieldRestrictionGT(x)) =>
+                field > getQuorumLimit(baseField, x, numServers, quorumSize)
+              case Some(FieldRestrictionGE(x)) =>
+                field >= getQuorumLimit(baseField, x, numServers, quorumSize)
+              case _ => false
+            }
+          } else if (field > baseField) {
+            // Check upper bound.
+            valid = ic.upper match {
+              case None => true
+              case Some(FieldRestrictionLT(x)) =>
+                field < getQuorumLimit(baseField, x, numServers, quorumSize)
+              case Some(FieldRestrictionLE(x)) =>
+                field <= getQuorumLimit(baseField, x, numServers, quorumSize)
+              case _ => false
+            }
           }
 
-          valid = lowerValid && (ic.upper match {
-            case None => true
-            case Some(FieldRestrictionLT(x)) => doubleField < x
-            case Some(FieldRestrictionLE(x)) => doubleField <= x
-            case _ => false
-          })
         }
       })
       valid

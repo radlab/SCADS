@@ -514,6 +514,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
                         val ics: FieldICList) {
   val avroUtil = new IndexedRecordUtil(valueSchema)
   val logicalRecordUpdater = new LogicalRecordUpdater(valueSchema)
+  val icChecker = new ICChecker(valueSchema)
 
   protected val logger = Logger(classOf[NewUpdateResolver])
 
@@ -539,7 +540,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
         val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ List(List(xid))
 
         var valid = newStates.put(newState, newXidList) match {
-          case None => ICChecker.check(avroUtil.fromBytes(newState.toArray), ics)
+          case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, dbValue.get.value)
           case Some(_) => true
         }
 
@@ -556,7 +557,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
               val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ baseXidList
               newStates.put(newState, newXidList)
               valid = newStates.put(newState, newXidList) match {
-                case None => ICChecker.check(avroUtil.fromBytes(newState.toArray), ics)
+                case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, Option(s.state))
                 case Some(_) => true
               }
             }
