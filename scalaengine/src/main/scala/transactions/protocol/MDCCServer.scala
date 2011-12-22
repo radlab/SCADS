@@ -81,7 +81,7 @@ class MDCCServer(val namespace : String,
     meta.validate() //just to make sure
     if(ballot.fast){
       //TODO can we optimize the accept?
-      val cstruct = proposes.map(prop => pendingUpdates.acceptOption(prop.xid, prop.update)).last._3
+      val cstruct = proposes.map(prop => pendingUpdates.acceptOption(prop.xid, prop.update, true)).last._3
       debug(key, "Replying with 2b to fast ballot source:%s cstruct:cstruct", src, cstruct)
       src ! Phase2b(ballot, cstruct)
     }else{
@@ -135,12 +135,14 @@ class MDCCServer(val namespace : String,
       src ! Phase2bMasterFailure(meta.ballots, false)
     }else{
       debug(key, "Writing new value value: %s updates: %s", value, newUpdates)
-      if(value.value.isEmpty && value.commands.isEmpty){
+      if (value.value.isEmpty && value.commands.isEmpty) {
         newUpdates.foreach(c => {
-          pendingUpdates.acceptOption(c.xid, c.update)
+          // TODO(kraska): how to find out if this is a fast or classic round?
+          pendingUpdates.acceptOption(c.xid, c.update, false)
         })
-      }else{
-        pendingUpdates.overwrite(key, value, newUpdates)
+      } else {
+        // TODO(kraska): how to find out if this is a fast or classic round?
+        pendingUpdates.overwrite(key, value, newUpdates, false)
       }
       val r = getRecord(key)
       if(r.isDefined){
@@ -194,6 +196,6 @@ object ProtocolMDCCServer {
                          forceNewMeta : Boolean = false) : MDCCServer = {
     val defaultMeta = MDCCMetaDefault.getOrCreateDefault(nsRoot, partition, forceNewMeta)
 
-    new MDCCServer(namespace, db, partition, puController, defaultMeta, new MDCCRecordCache, new MDCCRoutingTable(nsRoot, keySchema))
+    new MDCCServer(namespace, db, partition, puController, defaultMeta, new MDCCRecordCache, puController.routingTable)
   }
 }

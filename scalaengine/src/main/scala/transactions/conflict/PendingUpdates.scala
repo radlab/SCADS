@@ -11,6 +11,7 @@ import java.io._
 import org.apache.avro.Schema
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.scads.util.Logger
+import _root_.transactions.protocol.MDCCRoutingTable
 
 // TODO: Make thread-safe.  It might already be, by using TxDB
 
@@ -76,6 +77,8 @@ trait PendingUpdates extends DBRecords {
   def setICs(ics: FieldICList)
 
   def getConflictResolver : ConflictResolver
+
+  val routingTable: MDCCRoutingTable
 }
 
 // Status of a transaction.  Stores all the updates in the transaction.
@@ -173,7 +176,8 @@ case class PendingCommandsInfo(var base: Option[Array[Byte]],
 class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                                override val factory: TxDBFactory,
                                val keySchema: Schema,
-                               val valueSchema: Schema) extends PendingUpdates {
+                               val valueSchema: Schema,
+                               val routingTable: MDCCRoutingTable) extends PendingUpdates {
 
   protected val logger = Logger(classOf[PendingUpdatesController])
 
@@ -238,8 +242,10 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
             case Some(c) => c
           }
 
+          val numServers = routingTable.serversForKey(r.key).size
+
           // Add the updates to the pending list, if compatible.
-          if (newUpdateResolver.isCompatible(xid, commandsInfo, storedMDCCRec, r)) {
+          if (newUpdateResolver.isCompatible(xid, commandsInfo, storedMDCCRec, r, numServers, isFast)) {
             logger.debug("Update is compatible %s %s %s %s", xid, commandsInfo, storedMDCCRec, r)
             commandsInfo.appendCommand(CStructCommand(xid, r, true, true))
             pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
@@ -478,7 +484,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
     // Try the new updates.
     newUpdates.foreach(c => {
-      acceptOption(c.xid, c.update)(dbTxn)
+      acceptOption(c.xid, c.update, isFast)(dbTxn)
     })
 
     if (dbTxn == null) {

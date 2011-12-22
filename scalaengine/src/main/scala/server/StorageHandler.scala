@@ -23,6 +23,8 @@ import org.apache.zookeeper.KeeperException.NodeExistsException
 import transactions._
 import transactions.conflict._
 import transactions.mdcc._
+import _root_.transactions.protocol.MDCCRoutingTable
+
 object StorageHandler {
   val idGen = new AtomicLong
 }
@@ -135,15 +137,18 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
 
   private def makeBDBPendingUpdates(database: Database, namespace: String) = {
     val schemasvc = schemasAndValueClassFor(namespace)
+    val nsRoot = getNamespaceRoot(namespace)
+    val routingTable = new MDCCRoutingTable(nsRoot, schemasvc._1)
+
     val pu = new PendingUpdatesController(
       new BDBTxDB[Array[Byte], Array[Byte]](
         database,
         new ByteArrayKeySerializer[Array[Byte]],
         new ByteArrayValueSerializer[Array[Byte]]),
       new BDBTxDBFactory(database.getEnvironment),
-      schemasvc._1, schemasvc._2)
+      schemasvc._1, schemasvc._2, routingTable)
 
-    getNamespaceRoot(namespace).get("valueICs").foreach(icBytes => {
+    nsRoot.get("valueICs").foreach(icBytes => {
       val reader = new AvroSpecificReaderWriter[FieldICList](None)
       pu.setICs(reader.deserialize(icBytes.data))
     })
