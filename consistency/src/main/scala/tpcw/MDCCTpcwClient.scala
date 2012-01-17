@@ -34,9 +34,38 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
 
   // Write transactions.
   override def shoppingCartWI(c_uname: String, newItems: Seq[(String, Int)]) = {
-    new Tx(10000, ReadLocal()) ({
-      super.shoppingCartWI(c_uname, newItems)
-    }).Execute()
+    val txStatus = new Tx(4000, ReadLocal()) ({
+//      Thread.sleep(1000)
+      val cart = retrieveShoppingCart(c_uname).map(_.head.asInstanceOf[ShoppingCartItem])
+      val currentItems = cart.map(c => (c.SCL_I_ID, c.SCL_QTY))
+      val itemsHash = new scala.collection.mutable.HashMap[String, Int]
+      itemsHash ++= currentItems
+
+      newItems.foreach(i => {
+        val scl = new ShoppingCartItem(c_uname, i._1)
+        if (itemsHash.contains(i._1)) {
+          // Already exists in cart.
+          val newQty = i._2 + itemsHash.getOrElse(i._1, 0)
+          if (newQty == 0) {
+            println("shoppingcartitem delete")
+            shoppingCartItems.delete(scl)
+          } else {
+            println("shoppingcartitem logical")
+            scl.SCL_QTY = i._2
+            shoppingCartItems.asInstanceOf[PairTransactions[ShoppingCartItem]].putLogical(scl)
+          }
+        } else {
+          // New item.
+          println("shoppingcartitem put")
+          scl.SCL_QTY = i._2
+          shoppingCartItems.put(scl)
+        }
+      })
+    }).Execute() match {
+      case COMMITTED => true
+      case _ => false
+    }
+    txStatus
   }
 
   override def buyConfirmWI(c_uname: String,
@@ -44,19 +73,26 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
                             cc_number: Int,
                             cc_name: String,
                             cc_expiry: Long,
-                            shipping: String): String = {
-    var result = ""
-    new Tx(10000, ReadLocal()) ({
+                            shipping: String): (String, Boolean) = {
+    var result = ("", false)
+    val txStatus = new Tx(4000, ReadLocal()) ({
       result = super.buyConfirmWI(c_uname, cc_type, cc_number, cc_name,
                                   cc_expiry, shipping)
-    }).Execute()
-    result
+    }).Execute() match {
+      case COMMITTED => true
+      case _ => false
+    }
+    (result._1, txStatus)
   }
 
   override def insertCustomer(cust: Customer) = {
-    new Tx(10000, ReadLocal()) ({
+    val txStatus = new Tx(4000, ReadLocal()) ({
       super.insertCustomer(cust)
-    }).Execute()
+    }).Execute() match {
+      case COMMITTED => true
+      case _ => false
+    }
+    txStatus
   }
 
   override def stockUpdates(cart: Seq[(ShoppingCartItem, Item)]): Seq[ScadsFuture[Unit]] = {
@@ -106,7 +142,7 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
   // Read only transactions.
   override def homeWI(args: Any*) = {
     var result: QueryResult = List()
-    new Tx(10000, ReadLocal()) ({
+    new Tx(4000, ReadLocal()) ({
       result = homeWIQuery(args:_*)
     }).Execute()
     result
@@ -114,15 +150,19 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
 
   override def newProductWI(args: Any*) = {
     var result: QueryResult = List()
-    new Tx(10000, ReadLocal()) ({
+    var elapsed:Long = 0
+    new Tx(4000, ReadLocal()) ({
+      val startTime = System.nanoTime / 1000000
       result = newProductWIQuery(args:_*)
+      elapsed = System.nanoTime / 1000000 - startTime
     }).Execute()
+//    println("newProductWI: " + elapsed)
     result
   }
 
   override def productDetailWI(args: Any*) = {
     var result: QueryResult = List()
-    new Tx(10000, ReadLocal()) ({
+    new Tx(4000, ReadLocal()) ({
       result = productDetailWIQuery(args:_*)
     }).Execute()
     result
@@ -130,7 +170,7 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
 
   override def searchByAuthorWI(args: Any*) = {
     var result: QueryResult = List()
-    new Tx(10000, ReadLocal()) ({
+    new Tx(4000, ReadLocal()) ({
       result = searchByAuthorWIQuery(args:_*)
     }).Execute()
     result
@@ -138,7 +178,7 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
 
   override def searchByTitleWI(args: Any*) = {
     var result: QueryResult = List()
-    new Tx(10000, ReadLocal()) ({
+    new Tx(4000, ReadLocal()) ({
       result = searchByTitleWIQuery(args:_*)
     }).Execute()
     result
@@ -146,7 +186,7 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
 
   override def searchBySubjectWI(args: Any*) = {
     var result: QueryResult = List()
-    new Tx(10000, ReadLocal()) ({
+    new Tx(4000, ReadLocal()) ({
       result = searchBySubjectWIQuery(args:_*)
     }).Execute()
     result
@@ -154,7 +194,7 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
 
   override def orderDisplayWI(c_uname: String, c_passwd: String, numOrderLinesPerPage: Int) = {
     var result: (Customer, Option[Order], Option[QueryResult]) = (Customer(""), None, None)
-    new Tx(10000, ReadLocal()) ({
+    new Tx(4000, ReadLocal()) ({
       result = super.orderDisplayWI(c_uname, c_passwd, numOrderLinesPerPage)
     }).Execute()
     (result._1, result._2, result._3)
@@ -162,7 +202,7 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
 
   override def buyRequestExistingCustomerWI(args: Any*) = {
     var result: QueryResult = List()
-    new Tx(10000, ReadLocal()) ({
+    new Tx(4000, ReadLocal()) ({
       result = buyRequestExistingCustomerWIQuery(args:_*)
     }).Execute()
     result
@@ -170,7 +210,7 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
 
   override def adminRequestWI(args: Any*) = {
     var result: QueryResult = List()
-    new Tx(10000, ReadLocal()) ({
+    new Tx(4000, ReadLocal()) ({
       result = adminRequestWIQuery(args:_*)
     }).Execute()
     result

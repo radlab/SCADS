@@ -8,7 +8,7 @@ import java.util.concurrent._
 sealed case class RecordUpdateInfo(servers: Seq[PartitionService], update: RecordUpdate)
 
 trait ProtocolBase {
-  def RunProtocol(tx: Tx)
+  def RunProtocol(tx: Tx): TxStatus
 
   protected def transformUpdateList(updateList: UpdateList, readList: ReadList): Seq[RecordUpdateInfo] = {
     updateList.getUpdateList.map(update => {
@@ -37,7 +37,7 @@ trait ProtocolBase {
 }
 
 object ProtocolNone extends ProtocolBase {
-  def RunProtocol(tx: Tx) {
+  def RunProtocol(tx: Tx): TxStatus = {
     val responses = transformUpdateList(tx.updateList, tx.readList).map(t => {
       val servers = t.servers
       val recordUpdate = t.update
@@ -53,6 +53,7 @@ object ProtocolNone extends ProtocolBase {
 
     responses.foreach(t =>
       t._1.blockFor(writeQuorum(t._2), 5000, TimeUnit.MILLISECONDS))
+    COMMITTED
   }
 
   private def writeQuorum(numServers: Int): Int = {

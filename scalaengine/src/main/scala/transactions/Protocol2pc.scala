@@ -4,14 +4,22 @@ package prot2pc
 
 import net.lag.logging.Logger
 import java.util.Calendar
+import java.util.concurrent.TimeUnit
 
 object Protocol2pc extends ProtocolBase {
-  def RunProtocol(tx: Tx) {
+  def RunProtocol(tx: Tx): TxStatus = {
     val xid = ScadsXid.createUniqueXid
     val updateList = transformUpdateList(tx.updateList, tx.readList)
     if (updateList.size > 0) {
       val commitTest = PrepareTest(tx, xid, updateList)
       CommitTest(tx, xid, updateList, commitTest)
+      if (commitTest) {
+        COMMITTED
+      } else {
+        ABORTED
+      }
+    } else {
+      COMMITTED
     }
   }
 
@@ -25,11 +33,15 @@ object Protocol2pc extends ProtocolBase {
     })
 
     val results = responses.map(x => {
-      val res = x._1.blockFor(x._2).map(f => f() match {
-        case PrepareResponse(success) => success
-        case m => false
-      })
-      res
+      try {
+        val res = x._1.blockFor(x._2, 5000, TimeUnit.MILLISECONDS).map(f => f() match {
+          case PrepareResponse(success) => success
+          case m => false
+        })
+        res
+      } catch {
+        case _ => List(false)
+      }
     })
 
     val commitTest = !results.map(x => !x.contains(false)).contains(false)
@@ -44,8 +56,22 @@ object Protocol2pc extends ProtocolBase {
       val commitRequest = CommitRequest(xid,
                                         List(recordUpdate),
                                         commitTest)
-      (servers.map(_ !! commitRequest), servers.length)
+      (servers.map(_ !! commitRequest), commitRequest, servers)
     })
-    commitResponses.foreach(x => x._1.blockFor(x._2))
+    commitResponses.foreach(x => {
+      var success = true
+      var futures = x._1
+      do {
+        try {
+          futures.blockFor(x._3.length, 5000, TimeUnit.MILLISECONDS)
+          success = true
+        } catch {
+          case _ => {
+            futures = x._3.map(_ !! x._2)
+            success = false
+          }
+        }
+      } while (!success)
+    })
   }
 }

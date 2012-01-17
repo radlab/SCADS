@@ -53,8 +53,10 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   val maxItemsPerCart = 5000
 
   // Insert a customer.
+  // Returns true if committed.
   def insertCustomer(cust: Customer) = {
     customers.put(cust)
+    true
   }
 
   /**
@@ -293,6 +295,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * quantity will be updated. this is not really conformant to the TPC-W
    * benchmark spec */
 
+   // Returns true if committed.
    def shoppingCartWI(c_uname: String, newItems: Seq[(String, Int)]) = {
     val cart = retrieveShoppingCart(c_uname).map(_.head.asInstanceOf[ShoppingCartItem])
     val currentItems = cart.map(c => (c.SCL_I_ID, c.SCL_QTY))
@@ -311,6 +314,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         shoppingCartItems.delete(scl)
       }
     })
+    true
   }
 
   /**
@@ -410,7 +414,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
                    cc_number: Int,
                    cc_name: String,
                    cc_expiry: Long,
-                   shipping: String): String = {
+                   shipping: String): (String, Boolean) = {
     val customer = homeWI(c_uname).head.head.asInstanceOf[Customer]
     val cart = retrieveShoppingCart(c_uname).map(sl => (sl(0).asInstanceOf[ShoppingCartItem], sl(1).asInstanceOf[Item]))
 
@@ -480,7 +484,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
     logger.debug("finished buy confirmation of %d items", cart.size)
 
-    order.O_ID
+    (order.O_ID, true)
   }
 
   def adminRequestWI(args: Any*) = adminRequestWIQuery(args:_*)

@@ -64,7 +64,7 @@ case class MDCCTpcwWorkflowTask(var numClients: Int,
 
     for(iteration <- (1 to iterations)) {
       logger.info("Begining iteration %d", iteration)
-      results ++= (1 to numThreads).pmap(threadId => {
+      val resultList = (1 to numThreads).pmap(threadId => {
         def getTime = System.nanoTime / 1000000
         val readHistogram = Histogram(1, 10000)
         val writeHistogram = Histogram(1, 10000)
@@ -80,7 +80,12 @@ case class MDCCTpcwWorkflowTask(var numClients: Int,
         while(endTime - iterationStartTime < runTime) {
           val startTime = getTime
           try {
-            val (wasExecuted, actionName) = workflow.executeMDCCMix()
+            val (wasExecuted, actionCommit, aName) = workflow.executeMDCCMix()
+            val actionName = if (actionCommit) {
+              aName + "-COMMIT"
+            } else {
+              aName + "-ABORT"
+            }
             endTime = getTime
             val elapsedTime = endTime - startTime
             if (wasExecuted) { // we actually ran the query
@@ -121,6 +126,30 @@ case class MDCCTpcwWorkflowTask(var numClients: Int,
 
         res
       })
+
+      logger.info("******** aggregate results.")
+
+      // Aggregate all the threads into 1 result.
+      var res = resultList.head
+      resultList.tail.foreach(r => {
+        val histograms = new scala.collection.mutable.HashMap[String, Histogram]
+        histograms ++= res.times
+        r.times.foreach(x => {
+          val (k, h) = x
+          if (histograms.isDefinedAt(k)) {
+            histograms.put(k, histograms.get(k).get + h)
+          } else {
+            histograms.put(k, h)
+          }
+        })
+
+        res.times = histograms.toMap
+        res.failures += r.failures
+        res.skips += r.skips
+      })
+
+      logger.info("******** writing out aggregated results.")
+      results ++= List(res)
 
       coordination.registerAndAwait("iteration" + iteration, numClients)
     }

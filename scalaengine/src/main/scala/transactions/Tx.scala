@@ -51,7 +51,7 @@ class Tx(val timeout: Int, val readType: ReadConsistency = ReadConsistent())(mai
     this
   }
 
-  def Execute() {
+  def Execute(): TxStatus = {
     val startMS = java.util.Calendar.getInstance().getTimeInMillis()
     updateList = new UpdateList
     readList = new ReadList
@@ -65,19 +65,20 @@ class Tx(val timeout: Int, val readType: ReadConsistency = ReadConsistent())(mai
       }
     }
 
-    protocolMap.getProtocol() match {
+    val txStatus = protocolMap.getProtocol() match {
       case NSTxProtocolNone() => ProtocolNone.RunProtocol(this)
       case NSTxProtocol2pc() => Protocol2pc.RunProtocol(this)
       case NSTxProtocolMDCC() => MDCCProtocol.RunProtocol(this)
       case null => if (updateList.size == 0) {
         // Read-only transaction.
+        COMMITTED
       } else {
         throw new RuntimeException("All namespaces in a write transaction must have the same protocol.")
       }
     }
     val endMS = java.util.Calendar.getInstance().getTimeInMillis()
 //    println("latency: " + (endMS - startMS))
-    endMS - startMS
+    txStatus
   }
 
 }

@@ -20,7 +20,7 @@ case object TRX_TIMEOUT
 
 //import tools.nsc.matching.ParallelMatching.MatchMatrix.VariableRule
 object MDCCProtocol extends ProtocolBase {
-  def RunProtocol(tx: Tx) = {
+  def RunProtocol(tx: Tx): TxStatus = {
     val trxHandler = new MDCCTrxHandler(tx)
     trxHandler.execute()
   }
@@ -39,7 +39,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
 
   implicit val remoteHandle = StorageRegistry.registerActor(this).asInstanceOf[RemoteService[StorageMessage]]
 
-  def execute() = {
+  def execute(): TxStatus = {
     this.start()
     logger.debug("Waiting for status")
     sema.acquire()
@@ -49,6 +49,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
       case COMMITTED=> tx.commitFn(COMMITTED)
       case ABORTED => tx.commitFn(ABORTED)
     }
+    status
   }
 
 
