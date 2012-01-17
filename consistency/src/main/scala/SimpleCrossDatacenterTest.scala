@@ -43,29 +43,41 @@ object Experiment extends ExperimentBase {
 
   private var actionHistograms: Map[String, scala.collection.mutable.HashMap[String, Histogram]] = null
 
-  def getActionHistograms() = {
+  private def addHist(aggHist: scala.collection.mutable.HashMap[String, Histogram], key: String, hist: Histogram) = {
+    if (aggHist.isDefinedAt(key)) {
+      aggHist.put(key, aggHist.get(key).get + hist)
+    } else {
+      aggHist.put(key, hist)
+    }
+  }
+
+  def expName(startTime: String, numClusters: Int, prot: NSTxProtocol) = startTime + " (" + numClusters + ") : " + prot
+
+  // Only gets histograms with something greater than 'name'
+  def getActionHistograms(name: String = "2012-01-05 15:55:42.176 (5) : NSTxProtocolNone()") = {
     val resultNS = resultCluster.getNamespace[tpcw.MDCCResult]("tpcwMDCCResults")
-    val histograms = resultNS.iterateOverRange(None, None).toSeq
+    val histograms = resultNS.iterateOverRange(None, None)
+    .filter(r => expName(r.startTime, r.loaderConfig.numClusters, r.loaderConfig.txProtocol) > name)
+    .toSeq
     .groupBy(r => (r.startTime, r.loaderConfig.txProtocol, r.loaderConfig.numClusters))
     .map {
       case( (startTime, txProtocol, numClusters), results) => {
         val aggHist = new scala.collection.mutable.HashMap[String, Histogram]
         results.map(_.times).foreach(t => {
           t.foreach(x => {
-            if (aggHist.isDefinedAt(x._1)) {
-              aggHist.put(x._1, aggHist.get(x._1).get + x._2)
-            } else {
-              aggHist.put(x._1, x._2)
-            }
-            val txType = if (x._1.endsWith("Read")) "READ" else "WRITE"
-            if (aggHist.isDefinedAt(txType)) {
-              aggHist.put(txType, aggHist.get(txType).get + x._2)
-            } else {
-              aggHist.put(txType, x._2)
-            }
+            addHist(aggHist, x._1, x._2)
+
+            // Group Bys...
+            val txType = if (x._1.contains("Read")) "READ" else "WRITE"
+            val txCommit = if (x._1.contains("COMMIT")) "COMMIT" else "ABORT"
+            addHist(aggHist, txType, x._2)
+            addHist(aggHist, txType + "-" + txCommit, x._2)
+            addHist(aggHist, "TOTAL", x._2)
+            addHist(aggHist, "TOTAL" + "-" + txCommit, x._2)
           })
         })
-        (startTime + " (" + numClusters + ") : " + txProtocol, aggHist)
+        println(expName(startTime, numClusters, txProtocol) + "      " + results.size)
+        (expName(startTime, numClusters, txProtocol), aggHist)
       }
     }.toList.toMap
 
@@ -74,6 +86,19 @@ object Experiment extends ExperimentBase {
 
     actionHistograms = histograms
     histograms
+  }
+
+  def deleteHistograms(name: String) = {
+    val resultNS = resultCluster.getNamespace[tpcw.MDCCResult]("tpcwMDCCResults")
+    val histList = new collection.mutable.ArrayBuffer[tpcw.MDCCResult]()
+    val histograms = resultNS.iterateOverRange(None, None).foreach(r => {
+      val s = expName(r.startTime, r.loaderConfig.numClusters, r.loaderConfig.txProtocol)
+      if (name == s) {
+        histList.append(r)
+      }
+    })
+    histList.foreach(resultNS.delete(_))
+    println("deleted " + histList.size + " records")
   }
 
   def writeHistogramCDFMap(name: String) = {
@@ -165,14 +190,14 @@ case class Task()
     clusterAddress = scadsCluster.root.canonicalAddress
 
     // Start loaders.
-    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, 5, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol).getLoadingTasks(clusters.head.classSource, scadsCluster.root)
+    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, 15, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol).getLoadingTasks(clusters.head.classSource, scadsCluster.root)
     clusters.head.serviceScheduler.scheduleExperiment(loaderTasks)
 
     // Start clients.
     val tpcwTasks = MDCCTpcwWorkflowTask(
-      numClients=5,
+      numClients=16,
       executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
-      numThreads=20,
+      numThreads=32,
       iterations=1,
       runLengthMin=5).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress)
     clusters.head.serviceScheduler.scheduleExperiment(tpcwTasks)
