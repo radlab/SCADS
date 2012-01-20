@@ -38,7 +38,7 @@ case class DataRecord(var id: Int) extends AvroPair {
 
 class TestTx {
   def run() {
-    val cluster = TestScalaEngine.newScadsCluster(4)
+    val cluster = TestScalaEngine.newScadsCluster(5)
 
 //    val ns = new SpecificNamespace[KeyRec, ValueRec]("testns", cluster, cluster.namespaces) with Transactions[KeyRec, ValueRec] {
 //     override lazy val protocolType = NSTxProtocol2pc()
