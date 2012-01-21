@@ -223,6 +223,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       case x => x
     }
     val pendingCommandsTxn = pendingCStructs.txStart()
+    val txStatusTxn = txStatus.txStart()
     var cstructs: Seq[(Array[Byte], CStruct)] = Nil
     try {
       cstructs = updates.map(r => {
@@ -273,6 +274,8 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       pendingCStructs.txAbort(pendingCommandsTxn)
 
       // On abort, still append a "reject" command to all the cstructs.
+      // TODO(gpang): Haven't seen this yet, but this abort, then start may
+      //              cause deadlock.  Get rid of the abort.
       val pendingCommandsTxn2 = pendingCStructs.txStart()
       cstructs = updates.map(r => {
         val commandsInfo = pendingCStructs.get(pendingCommandsTxn2, r.key) match {
@@ -298,7 +301,6 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     }
 
     // Merge the updates to the state of tx, in a transaction.
-    val txStatusTxn = txStatus.txStart()
     val (newUpdates, emptyGet) = txStatus.get(txStatusTxn, xid) match {
       case None => (updates, true)
       case Some(s) => (s.updates ++ updates, false)
