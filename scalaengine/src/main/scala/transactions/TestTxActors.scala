@@ -25,7 +25,8 @@ case class DataRecordActor(var id: Int) extends AvroPair {
 
 class Client(nsPair: PairNamespace[DataRecordActor] with PairTransactions[DataRecordActor], sema: Semaphore, useLogical: Boolean = false) extends Actor {
   def act() {
-    for (i <- 0 until 1) {
+    for (i <- 0 until 3) {
+      println("" + this.hashCode() + " Starting update")
       new Tx(1000) ({
         if (!useLogical) {
           val dr = nsPair.getRecord(DataRecordActor(1)).get
@@ -51,7 +52,7 @@ class TestTxActors {
     nsPair.setPartitionScheme(List((None, cluster.getAvailableServers)))
     Thread.sleep(1000)
     var dr = DataRecordActor(1)
-    dr.s = "a"; dr.a = 100; dr.b = 100; dr.c = 1.0.floatValue
+    dr.s = "a"; dr.a = 2; dr.b = 100; dr.c = 1.0.floatValue
     nsPair.put(dr)
     dr.id = 2
     nsPair.put(dr)
@@ -67,7 +68,7 @@ class TestTxActors {
     clients.foreach(x => sema.acquire)
 
     // Sleep for a little bit to wait for the commits.
-    Thread.sleep(1000)
+    Thread.sleep(2000)
     println("result: ")
     nsPair.getRange(None, None).foreach(x => println(x))
   }
