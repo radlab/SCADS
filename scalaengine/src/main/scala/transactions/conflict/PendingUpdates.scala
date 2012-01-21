@@ -565,7 +565,6 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
               val newState = logicalRecordUpdater.applyDeltaBytes(Option(s.state), deltaRec.value).toList
               val baseXidList = oldStates.get(s.state.toList).get.map(_ ++ List(xid))
               val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ baseXidList
-              newStates.put(newState, newXidList)
               valid = newStates.put(newState, newXidList) match {
                 case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, Option(s.state), numServers, isFast)
                 case Some(_) => true
