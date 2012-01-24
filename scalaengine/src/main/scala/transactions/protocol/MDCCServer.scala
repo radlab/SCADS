@@ -138,11 +138,11 @@ class MDCCServer(val namespace : String,
       if (value.value.isEmpty && value.commands.isEmpty) {
         newUpdates.foreach(c => {
           // TODO(kraska): how to find out if this is a fast or classic round?
-          pendingUpdates.acceptOption(c.xid, c.update, false)
+          pendingUpdates.acceptOption(c.xid, c.update, myBallot.get.fast)
         })
       } else {
         // TODO(kraska): how to find out if this is a fast or classic round?
-        pendingUpdates.overwrite(key, value, newUpdates, false)
+        pendingUpdates.overwrite(key, value, newUpdates, myBallot.get.fast)
       }
       val r = getRecord(key)
       if(r.isDefined){
