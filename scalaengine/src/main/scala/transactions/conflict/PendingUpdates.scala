@@ -568,6 +568,9 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
                 case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, Option(s.state), numServers, isFast)
                 case Some(_) => true
               }
+              if (!valid) {
+                newStates.remove(newState)
+              }
             }
           })
 
@@ -592,9 +595,6 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
                 case (Some(a), Some(b)) => Arrays.equals(a, b)
                 case (None, None) => true
                 case (_, _) => false
-              }
-              if (!valid) {
-                newStates.remove(newState)
               }
             }
             case (None, None) => true
