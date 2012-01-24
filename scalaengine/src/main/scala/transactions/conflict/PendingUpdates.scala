@@ -152,15 +152,13 @@ case class PendingCommandsInfo(var base: Option[Array[Byte]],
     // TODO: Linear search for xid.  Store hash for performance?
     val index = commands.indexWhere(x => x.xid == command.xid)
     if (index != -1) {
-      commands.remove(index)
+      // Update existing command to abort.
+      commands.update(index, command)
+
       // Update the states and the xid lists to reflect this abort.
-      if (states.size == 1) {
-        states = new ArrayBuffer[PendingStateInfo]
-      } else if (states.size > 1) {
-        states = states.filter(x => x.xids.exists(y => !y.contains(command.xid))).map(x => {
-          x.xids = x.xids.filterNot(y => y.contains(command.xid))
-          x})
-      }
+      states = states.filter(x => x.xids.exists(y => !y.contains(command.xid))).map(x => {
+        x.xids = x.xids.filterNot(y => y.contains(command.xid))
+        x})
     } else {
       // This command was not previously pending.  Append the aborted status.
       commands.append(command)
@@ -555,6 +553,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
         }
 
         if (!valid) {
+          newStates.remove(newState)
           commandsInfo.updateStates(newStates.toList.map(x => PendingStateInfo(x._1.toArray, x._2)))
           false
         } else {
@@ -593,6 +592,9 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
                 case (Some(a), Some(b)) => Arrays.equals(a, b)
                 case (None, None) => true
                 case (_, _) => false
+              }
+              if (!valid) {
+                newStates.remove(newState)
               }
             }
             case (None, None) => true
