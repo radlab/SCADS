@@ -209,7 +209,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
   // If accept was successful, returns the cstruct.  Otherwise, returns None.
   override def acceptOption(xid: ScadsXid, update: RecordUpdate, isFast: Boolean = false)(implicit dbTxn : TransactionData): (Boolean, Array[Byte], CStruct) = {
-    val result = acceptOptionTxn(xid, update :: Nil, dbTxn)
+    val result = acceptOptionTxn(xid, update :: Nil, dbTxn, isFast)
     (result._1, result._2.head._1, result._2.head._2)
   }
 
