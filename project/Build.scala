@@ -5,7 +5,7 @@ object ScadsBuild extends Build {
   val buildVersion = "2.1.4-SNAPSHOT"
   val defaultScalaVersion = "2.9.1"
 
-  val buildSettings = Defaults.defaultSettings ++ GhPages.ghpages.settings ++ Seq(
+  val buildSettings = Defaults.defaultSettings ++ GhPages.ghpages.settings ++ sbtassembly.Plugin.assemblySettings ++ Seq(
     organization := "edu.berkeley.cs",
     scalaVersion := defaultScalaVersion,
     version := buildVersion,
@@ -171,7 +171,7 @@ object ScadsBuild extends Build {
 
   def deploylibDeps = Seq(mesos, protoBuff, staxApi, jaxbApi, json, awsSdk, ganymedSsh2, commonsLoggingApi, commonsHttpClient, jets3t, jetty, mysql, javaSysMon, avroPluginDep, avroPluginCompile)
 
-  val mesos = "org.apache" % "mesos" % "1.1"
+  val mesos = "org.apache" % "mesos" % "1.2"
   val protoBuff = "com.google.protobuf" % "protobuf-java" % "2.3.0"
   val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
   val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.1"
