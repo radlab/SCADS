@@ -7,6 +7,7 @@ import org.apache.avro.io.{DecoderFactory, BinaryEncoder, BinaryDecoder, Encoder
 import org.apache.avro.generic.{GenericDatumWriter, GenericDatumReader, IndexedRecord}
 import org.apache.avro.Schema
 import edu.berkeley.cs.scads.storage.transactions.mdcc.MDCCRecordHandler
+import edu.berkeley.cs.scads.util.Logger
 
 class IndexedRecordUtil(val schema: Schema) {
   val reader = new GenericDatumReader[IndexedRecord](schema)
@@ -28,6 +29,7 @@ class IndexedRecordUtil(val schema: Schema) {
 
 class ICChecker(val schema: Schema) {
   val avroUtil = new IndexedRecordUtil(schema)
+  protected val logger = Logger(classOf[ICChecker])
 
   private def convertFieldToDouble(f: Any): Double = {
     f match {
@@ -56,7 +58,10 @@ class ICChecker(val schema: Schema) {
     }
   }
 
-  def check(rec: IndexedRecord, ics: FieldICList, baseRecBytes: Option[Array[Byte]], numServers: Int = 1, isFast: Boolean = false): Boolean = {
+  // TODO(gpang): baserec is really only used to see if it was a decrement or
+  //              increment.  just pass in the actual logical update to get
+  //              that info.
+  def check(rec: IndexedRecord, ics: FieldICList, safeRecBytes: Option[Array[Byte]], baseRecBytes: Option[Array[Byte]], numServers: Int = 1, isFast: Boolean = false): Boolean = {
     var valid = true
     if (ics == null) {
       true
@@ -64,20 +69,27 @@ class ICChecker(val schema: Schema) {
       if (baseRecBytes.isEmpty) {
         throw new RuntimeException("icchecker: base rec should not be None.")
       }
+      if (safeRecBytes.isEmpty) {
+        throw new RuntimeException("icchecker: safe rec should not be None.")
+      }
       val baseRec = avroUtil.fromBytes(baseRecBytes.get)
+      val safeRec = avroUtil.fromBytes(safeRecBytes.get)
       ics.ics.foreach(ic => {
         if (valid) {
           val field = convertFieldToDouble(rec.get(ic.fieldPos))
           val baseField = convertFieldToDouble(baseRec.get(ic.fieldPos))
+          val safeField = convertFieldToDouble(safeRec.get(ic.fieldPos))
 
           if (field < baseField) {
             // Check lower bound.
             valid = ic.lower match {
               case None => true
               case Some(FieldRestrictionGT(x)) =>
-                field > getQuorumLimit(baseField, x, numServers, isFast)
+                logger.debug(" " + Thread.currentThread.getName + " > new field: " + field + " safe field: " + safeField + " origLimit: " + x + " newLimit: " + getQuorumLimit(safeField, x, numServers, isFast) + " numServers: " + numServers + " isFast: " + isFast)
+                field > getQuorumLimit(safeField, x, numServers, isFast)
               case Some(FieldRestrictionGE(x)) =>
-                field >= getQuorumLimit(baseField, x, numServers, isFast)
+                logger.debug(" " + Thread.currentThread.getName + " >= new field: " + field + " safe field: " + safeField + " origLimit: " + x + " newLimit: " + getQuorumLimit(safeField, x, numServers, isFast) + " numServers: " + numServers + " isFast: " + isFast)
+                field >= getQuorumLimit(safeField, x, numServers, isFast)
               case _ => false
             }
           } else if (field > baseField) {
@@ -85,9 +97,9 @@ class ICChecker(val schema: Schema) {
             valid = ic.upper match {
               case None => true
               case Some(FieldRestrictionLT(x)) =>
-                field < getQuorumLimit(baseField, x, numServers, isFast)
+                field < getQuorumLimit(safeField, x, numServers, isFast)
               case Some(FieldRestrictionLE(x)) =>
-                field <= getQuorumLimit(baseField, x, numServers, isFast)
+                field <= getQuorumLimit(safeField, x, numServers, isFast)
               case _ => false
             }
           }

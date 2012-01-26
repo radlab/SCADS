@@ -244,7 +244,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
           val numServers = routingTable.serversForKey(r.key).size
 
           // Add the updates to the pending list, if compatible.
-          if (newUpdateResolver.isCompatible(xid, commandsInfo, storedMDCCRec, r, numServers, isFast)) {
+          if (newUpdateResolver.isCompatible(xid, commandsInfo, storedMDCCRec, commandsInfo.base, r, numServers, isFast)) {
             logger.debug("Update is compatible %s %s %s %s", xid, commandsInfo, storedMDCCRec, r)
             commandsInfo.appendCommand(CStructCommand(xid, r, true, true))
             pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
@@ -470,7 +470,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     //             compatible.
     val pending = safeValue.commands.filter(_.pending)
     pending.foreach(c => {
-      if (!newUpdateResolver.isCompatible(c.xid, commandsInfo, newMDCCRec, c.command)) {
+      if (!newUpdateResolver.isCompatible(c.xid, commandsInfo, newMDCCRec, safeValue.value, c.command)) {
         throw new RuntimeException("All of the overwriting commands should be compatible.")
       }
     })
@@ -524,9 +524,13 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
 
   protected val logger = Logger(classOf[NewUpdateResolver])
 
+  // dbValue is the committed value in the db.
+  // safeBaseValue is the base value of the cstruct, which may not have all
+  // committed updates applied.
   def isCompatible(xid: ScadsXid,
                    commandsInfo: PendingCommandsInfo,
                    dbValue: Option[MDCCRecord],
+                   safeBaseValue: Option[Array[Byte]],
                    newUpdate: RecordUpdate,
                    numServers: Int = 1,
                    isFast: Boolean = false): Boolean = {
@@ -536,6 +540,11 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
         if (!dbValue.isDefined) {
           throw new RuntimeException("base record should exist for logical updates")
         }
+        val safeBase = safeBaseValue match {
+          case None => dbValue.get.value
+          case Some(b) => safeBaseValue
+        }
+
         val deltaRec = MDCCRecordUtil.fromBytes(delta)
 
         var oldStates = new HashMap[List[Byte], List[List[ScadsXid]]]()
@@ -548,7 +557,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
         val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ List(List(xid))
 
         var valid = newStates.put(newState, newXidList) match {
-          case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, dbValue.get.value, numServers, isFast)
+          case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, safeBase, dbValue.get.value, numServers, isFast)
           case Some(_) => true
         }
 
@@ -565,7 +574,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
               val baseXidList = oldStates.get(s.state.toList).get.map(_ ++ List(xid))
               val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ baseXidList
               valid = newStates.put(newState, newXidList) match {
-                case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, Option(s.state), numServers, isFast)
+                case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, safeBase, Option(s.state), numServers, isFast)
                 case Some(_) => true
               }
               if (!valid) {
