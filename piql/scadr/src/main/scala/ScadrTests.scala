@@ -11,7 +11,7 @@ object TestScadr {
 
     val user = new User("marmbrus")
     user.homeTown = "Berkeley"
-    client.users.put(user.key, user.value)
+    client.users.put(user)
 
     println(client.findUser("marmbrus"))
     System.exit(0)
