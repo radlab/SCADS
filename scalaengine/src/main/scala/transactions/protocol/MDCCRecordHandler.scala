@@ -22,6 +22,7 @@ case object FAST_PROPOSED extends RecordStatus {val name = "FAST_PROPOSED"}
 case object PHASE1A  extends RecordStatus {val name = "PHASE1A"}
 case object PHASE2A extends RecordStatus {val name = "PHASE2A"}
 case object RECOVERY extends RecordStatus {val name = "RECOVERY"}
+case object WAITING_FOR_COMMIT extends RecordStatus {val name = "READY"}
 
 object ServerMessageHelper {
   class SMH(s: Seq[PartitionService]) {
@@ -54,17 +55,18 @@ class MDCCRecordHandler (
 
   private var responses =  new HashMap[ServiceType, MDCCProtocol]()
 
-
   implicit val remoteHandle = StorageService(StorageRegistry.registerFastMailboxFunc(processMailbox, mailbox))
 
   private var request : Envelope[StorageMessage] = null
+
+  private var masterRecordHandler : SCADSService = null //HACK Needed to get the commit message through
 
 
   private var status: RecordStatus = READY
 
   type ServiceType =  RemoteServiceProxy[StorageMessage]
 
-  @inline def debug(msg : String, items : scala.Any*) = logger.debug("" + key + ":" + status + " " + msg, items:_*)
+  @inline def debug(msg : String, items : scala.Any*) = logger.debug("" + remoteHandle.id + " key:" + key.hashCode() + ":" + status + " " + msg, items:_*)
 
   implicit def toRemoteService(src : ServiceType) : RemoteService[StorageMessage] = src.asInstanceOf[RemoteService[StorageMessage]]
 
@@ -104,26 +106,32 @@ class MDCCRecordHandler (
 
   def getStatus = status
 
-  def commit(xid: ScadsXid, status : Boolean) = {
-    debug("Received commit/abort: " + status)
+  def commit(msg : MDCCProtocol, xid: ScadsXid, trxStatus : Boolean) = {
+    debug("Received commit/abort: " + trxStatus)
     value.commands.find(_.xid == xid).map(cmd => {
       cmd.pending = false
-      cmd.commit = status
+      cmd.commit = trxStatus
     })
-    if(status)
+    if(trxStatus)
       servers ! Commit(xid)
     else
       servers ! Abort(xid)
+    if(masterRecordHandler != null){
+      debug("Forwarding the commit/abort message to " + remoteHandle)
+      masterRecordHandler ! msg
+    }
+    if(status == WAITING_FOR_COMMIT)
+      status = READY
   }
 
   //TODO We should create a proper priority queue
   def processMailbox(mailbox : Mailbox[StorageMessage]) {
       mailbox{
         case StorageEnvelope(src, msg: Commit) => {
-          commit(msg.xid, true)
+          commit(msg, msg.xid, true)
         }
         case StorageEnvelope(src, msg: Abort) => {
-          commit(msg.xid, false)
+          commit(msg, msg.xid, false)
         }
         case StorageEnvelope(src, msg: Exit)  if status == READY => {
           debug("EXIT request")
@@ -176,8 +184,10 @@ class MDCCRecordHandler (
           status match {
             case FORWARDED => {
               request match {
-                case StorageEnvelope(src, x: Propose) => {
-                  src ! msg
+                case StorageEnvelope(origRequester, x: Propose) => {
+                  debug("Master RecordHandler: "  + src + " Forward request. We inform the original requester:" + origRequester)
+                  masterRecordHandler = src
+                  origRequester ! msg
                   clear()
                 }
                 case _ =>
@@ -498,9 +508,12 @@ class MDCCRecordHandler (
           //We are in the classic mode
           if(value.commands.exists(_.pending)){
             debug("We  have still pending update, so we postpone")
+            forwardRequest(remoteHandle, propose, unsafeCommands)
+
             //We found a pending update, so we wait with moving on to the next round
-            Scheduler.schedule(() => {forwardRequest(remoteHandle, propose, unsafeCommands)}, MDCCRecordHandler.WAIT_TIME )
+            //Scheduler.schedule(() => {}, MDCCRecordHandler.WAIT_TIME )
             clear()
+            status = WAITING_FOR_COMMIT
           }else{
             //The round is clear and committed, time to move on
             if(unsafeCommands.isEmpty){
@@ -583,7 +596,7 @@ class MDCCRecordHandler (
         case msg@StorageEnvelope(src, propose: SinglePropose)  =>  {
           val cmd = value.commands.find(_.xid == propose.xid)
           if(cmd.isDefined){
-            debug("We learned the value, lets inform the requester")
+            debug("We learned the value, lets inform the requester. Informing src" + src)
             src ! Learned(propose.xid, key, cmd.get.commit)
           }else{
             debug("We did not learn our transaction.")

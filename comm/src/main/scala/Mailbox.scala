@@ -91,6 +91,7 @@ class PriorityBlockingMailbox[MessageType <: IndexedRecord](prioFn : MessageType
   override def addFirst(msg : Envelope[MessageType]) = throw new RuntimeException("Not Implemented")
 
   override def isEmpty = queue.peek() == null
+
 }
 
 

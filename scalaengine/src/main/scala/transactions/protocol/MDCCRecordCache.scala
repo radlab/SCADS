@@ -42,20 +42,36 @@ class MDCCClientServer(ns : TransactionI) extends  MDCCRecordCache {
    }
 }
 
+final class ByteArrayWrapper(val value : Array[Byte]) {
+
+    override def equals(other : Any) : Boolean =  {
+       if(other.isInstanceOf[ByteArrayWrapper]){
+         java.util.Arrays.equals(value, other.asInstanceOf[ByteArrayWrapper].value)
+       } else{
+         return false
+       }
+    }
+
+    override def hashCode() : Int = java.util.Arrays.hashCode(value)
+}
+
+
 class MDCCRecordCache() {
+
+  private val logger = Logger(classOf[MDCCRecordCache])
 
   val CACHE_SIZE = 500
 
-  def killHandler (key : Array[Byte], handler : MDCCRecordHandler) = handler.kill
+  def killHandler (key : ByteArrayWrapper, handler : MDCCRecordHandler) = handler.kill
 
   //TODO: If we wanna use the cache for reads, we should use a lock-free structure
-  lazy val cache = new LRUMap[Array[Byte], MDCCRecordHandler](CACHE_SIZE, None, killHandler){
-      protected override def canExpire(k: Array[Byte], v: MDCCRecordHandler): Boolean = v.getStatus == READY
+  lazy val cache = new LRUMap[ByteArrayWrapper, MDCCRecordHandler](CACHE_SIZE, None, killHandler){
+      protected override def canExpire(k: ByteArrayWrapper, v: MDCCRecordHandler): Boolean = v.getStatus == READY
     }
 
   def get(key : Array[Byte]) : Option[MDCCRecordHandler] = {
     cache.synchronized{
-      cache.get(key)
+      cache.get(new ByteArrayWrapper(key))
     }
   }
 
@@ -69,14 +85,20 @@ class MDCCRecordCache() {
                   conflictResolver : ConflictResolver,
                   master : SCADSService
                   ) : MDCCRecordHandler = {
+    val keyWrapper =  new ByteArrayWrapper(key)
     cache.synchronized{
-      cache.get(key) match {
+      cache.get(keyWrapper) match {
         case None => {
+          logger.debug("Hash " + hashCode() + ":" + cache.elements.map(_._1.hashCode()).mkString)
           var handler = new MDCCRecordHandler(key, value, mt.currentVersion, mt.ballots,  mt.confirmedBallot, servers, conflictResolver, master)
-          cache.update(key, handler)
+          cache.update(keyWrapper, handler)
+          logger.debug("No record handler exists, we create a new one: hash" + handler.hashCode())
           handler
         }
-        case Some(v) => v
+        case Some(v) => {
+          logger.debug("We found a record handler and return it. hash:" + v.hashCode())
+          v
+        }
       }
     }
   }

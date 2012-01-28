@@ -23,7 +23,7 @@ class MDCCServer(val namespace : String,
                  val routingTable : MDCCRoutingTable
                  ) extends TrxManager {
   protected val logger = Logger(classOf[MDCCServer])
-  @inline def debug(key : Array[Byte], msg : String, items : scala.Any*) = logger.debug(msg + " -> " + namespace + ":" + key, items:_*)
+  @inline def debug(key : Array[Byte], msg : String, items : scala.Any*) = logger.debug("" + this.hashCode() + " - " + msg + " -> " + namespace + ":" + key, items:_*)
 
 
   def startTrx() : TransactionData= {
@@ -85,7 +85,7 @@ class MDCCServer(val namespace : String,
       debug(key, "Replying with 2b to fast ballot source:%s cstruct:cstruct", src, cstruct)
       src ! Phase2b(ballot, cstruct)
     }else{
-      debug(key, "Classic ballot: We start our own MDCCRecordHandler")
+      debug(key, "Classic ballot: We get or start our own MDCCRecordHandler")
       val recordHandler = recordCache.getOrCreate(
         key,
         pendingUpdates.getCStruct(key),

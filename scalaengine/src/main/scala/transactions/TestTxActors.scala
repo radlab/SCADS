@@ -25,9 +25,9 @@ case class DataRecordActor(var id: Int) extends AvroPair {
 
 class Client(nsPair: PairNamespace[DataRecordActor] with PairTransactions[DataRecordActor], sema: Semaphore, useLogical: Boolean = false) extends Actor {
   def act() {
-    for (i <- 0 until 3) {
+    for (i <- 0 until 2) {
       println("" + this.hashCode() + " Starting update")
-      new Tx(1000) ({
+      new Tx(5000) ({
         if (!useLogical) {
           val dr = nsPair.getRecord(DataRecordActor(1)).get
           dr.a = dr.a - 1
@@ -35,6 +35,7 @@ class Client(nsPair: PairNamespace[DataRecordActor] with PairTransactions[DataRe
         } else {
           val dr = DataRecordActor(1)
           dr.s = ""; dr.a = -1; dr.b = 0; dr.c = 0
+          println("Putting " + dr)
           nsPair.putLogical(dr)
         }
       }).Execute()
@@ -46,18 +47,18 @@ class Client(nsPair: PairNamespace[DataRecordActor] with PairTransactions[DataRe
 
 class TestTxActors {
   def run() {
-    val cluster = TestScalaEngine.newScadsCluster(4)
+    val cluster = TestScalaEngine.newScadsCluster(5)
 
     val nsPair = cluster.getNamespace[DataRecordActor]("testnsPair", NSTxProtocolMDCC())
     nsPair.setPartitionScheme(List((None, cluster.getAvailableServers)))
     Thread.sleep(1000)
     var dr = DataRecordActor(1)
-    dr.s = "a"; dr.a = 10; dr.b = 100; dr.c = 1.0.floatValue
+    dr.s = "a"; dr.a = 2; dr.b = 100; dr.c = 1.0.floatValue
     nsPair.put(dr)
-    dr.id = 2
-    nsPair.put(dr)
+    //dr.id = 2
+    //nsPair.put(dr)
 
-    val numClients = 5
+    val numClients = 1
     val sema = new Semaphore(0)
     val clients = List.fill(numClients)(new Client(nsPair, sema, true))
 

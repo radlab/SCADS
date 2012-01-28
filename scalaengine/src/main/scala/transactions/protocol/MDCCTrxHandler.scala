@@ -39,11 +39,14 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
 
   implicit val remoteHandle = StorageRegistry.registerActor(this).asInstanceOf[RemoteService[StorageMessage]]
 
+  @inline def debug(msg : String, items : scala.Any*) = logger.debug("" + this.hashCode() + ": " + msg, items:_*)
+  @inline def info(msg : String, items : scala.Any*) = logger.info("" + this.hashCode() +   ": " + msg, items:_*)
+
   def execute(): TxStatus = {
     this.start()
-    logger.debug("Waiting for status")
+    debug("Waiting for status")
     sema.acquire()
-    logger.debug("We got a status")
+    debug("We got a status")
     status match {
       case UNKNOWN => tx.unknownFn()
       case COMMITTED=> tx.commitFn(COMMITTED)
@@ -66,7 +69,8 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
           val propose = SinglePropose(Xid, ValueUpdate(key, oldBytes, newBytes))  //TODO: We need a read-strategy
           val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), md, servers, ns.getConflictResolver)
           participants += rHandler
-          logger.info("" + Xid + ": Sending physical update propose to MCCCRecordHandler", propose)
+          info("" + Xid + ": Sending physical update propose to MCCCRecordHandler", propose)
+          debug("Record handler " + rHandler.hashCode )
           rHandler.remoteHandle ! propose
         }
         case LogicalUpdateInfo(ns, servers, key, value) => {
@@ -78,7 +82,8 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
           val propose = SinglePropose(Xid, LogicalUpdate(key, newBytes))
           val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), md, servers, ns.getConflictResolver)  //TODO: Gene is the CStruct correct?
           participants += rHandler
-          logger.debug("" + Xid + ": Sending logical update propose to MCCCRecordHandler", propose)
+          debug("" + Xid + ": Sending logical update propose to MCCCRecordHandler", propose)
+          debug("Record handler " + rHandler.hashCode )
           rHandler.remoteHandle ! propose
         }
       }
@@ -94,7 +99,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
   }
 
   def act() {
-    logger.debug("Starting to wait for messages. Setting timeout:" + tx.timeout)
+    debug("" + this.hashCode() + "Starting to wait for messages. Setting timeout:" + tx.timeout)
     Scheduler.schedule(() => {
       this ! TRX_TIMEOUT}, tx.timeout)
     startTrx(tx.updateList, tx.readList)
@@ -104,16 +109,16 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
           if(success) {
             //TODO Take care of duplicate messages
             count += 1
-            logger.debug("" + Xid + ": Receive record commit")
+            debug("" + Xid + ": Receive record commit")
             if(count == participants.size && status == UNKNOWN){
-              logger.info("Transaction " + Xid + " committed")
+              info("Transaction " + Xid + " committed")
               status = COMMITTED
               this ! TRX_EXIT
             }
           }else{
             if(status == UNKNOWN) {
-              logger.debug("" + Xid + ": Receive record abort")
-              logger.info("Transaction " + Xid + " aborted")
+              debug("" + Xid + ": Receive record abort")
+              info("Transaction " + Xid + " aborted")
               status = ABORTED
               this ! TRX_EXIT
             }
@@ -121,14 +126,14 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
         }
         case TRX_EXIT => {
           sema.release()
-          logger.debug("" + Xid + ": TRX_EXIT requested")
+          debug("" + Xid + ": TRX_EXIT requested")
           notifyAcceptors
           StorageRegistry.unregisterService(remoteHandle)
           //TODO Add finally remote
           exit()
         }
         case TRX_TIMEOUT => {
-          logger.debug("" + Xid + "Time out")
+          debug("" + Xid + "Time out")
           sema.release()
         }
         case msg@_ =>
