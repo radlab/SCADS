@@ -49,12 +49,13 @@ trait TaskBase {
     new ScadsCluster(clusterRoot)
   }
 
-  def newMDCCScadsCluster(size: Int, clusters: Seq[Cluster]): ScadsCluster = {
+  def newMDCCScadsCluster(size: Int, clusters: Seq[Cluster], addlProps: Seq[(String, String)] = List()): ScadsCluster = {
     val clusterRoot = clusters.head.zooKeeperRoot.getOrCreate("scads").createChild("experimentCluster", mode = CreateMode.PERSISTENT_SEQUENTIAL)
 
     val serverProcs = ((0 until clusters.size) zip clusters).map(c => (0 until size).map(i => ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress, name="cluster-" + c._1 + "!" + i).toJvmTask(c._2.classSource)))
 
     serverProcs.foreach(_.foreach(_.props += "scads.comm.externalip" -> "true"))
+    serverProcs.foreach(_.foreach(_.props ++= addlProps))
     (clusters zip serverProcs).foreach(x => x._1.serviceScheduler.scheduleExperiment(x._2))
     new ScadsCluster(clusterRoot)
   }
