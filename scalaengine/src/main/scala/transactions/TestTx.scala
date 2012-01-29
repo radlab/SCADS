@@ -50,12 +50,15 @@ class TestTx {
     nsPair.setPartitionScheme(List((None, cluster.getAvailableServers)))
     Thread.sleep(1000)
     var dr = DataRecord(1)
-    dr.s = "a"; dr.a = 1; dr.b = 1; dr.c = 1.0.floatValue
+    dr.s = "a"; dr.a = 2; dr.b = 1; dr.c = 1.0.floatValue
     nsPair.put(dr)
     dr.id = 2
     nsPair.put(dr)
 
     val nbRecords = 1
+
+    println("Trx 1: nsPair.getRecord 1: " + nsPair.getRecord(DataRecord(1)))
+
 
     (1 to 2).foreach(X => {
     new Tx(1000) ({
@@ -63,12 +66,18 @@ class TestTx {
         dr.a = -1
         dr.s = ""; dr.b = 0; dr.c = 0
         nsPair.putLogical(dr)
-      }).Execute()   }
+      }).Execute()
+      //Thread.sleep(1000)
+
+      println("TRX " + X + ": nsPair.getRecord 1: " + nsPair.getRecord(DataRecord(1)))
+
+    }
     )
 
     Thread.sleep(1000)
 
-    println("1st Trx: nsPair.getRecord 3: " + nsPair.getRecord(DataRecord(1)))
+    println("Final Trx: nsPair.getRecord 1: " + nsPair.getRecord(DataRecord(1)))
+
 
     Thread.sleep(10000)
 
