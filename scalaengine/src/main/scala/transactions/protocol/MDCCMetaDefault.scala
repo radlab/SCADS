@@ -18,8 +18,28 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
 
   @volatile var _defaultMeta : MDCCMetadata = null
 
-  protected val fastDefault = Config.config.getBool("scads.mdcc.fastDefault").getOrElse({logger.error("Config does not define scads.mdcc.fastDefault. Using fastDefault = true as default"); true})
-  protected val defaultRounds  : Long =  Config.config.getLong("scads.mdcc.DefaultRounds").getOrElse({logger.error("Config does not define scads.mdcc.DefaultRounds. Using DefaultRounds = 1 as default"); 1})
+  protected val fastDefault = Config.config.getBool("scads.mdcc.fastDefault").getOrElse({
+    logger.error("Config does not define scads.mdcc.fastDefault.")
+    val sysVal = System.getProperty("scads.mdcc.fastDefault")
+    if (sysVal != null) {
+      logger.error("Using system property for scads.mdcc.fastDefault = " + sysVal)
+      sysVal == "true"
+    } else {
+      logger.error("Config and system property do not define scads.mdcc.fastDefault. Using fastDefault = true as default")
+      true
+    }
+  })
+  protected val defaultRounds : Long =  Config.config.getLong("scads.mdcc.DefaultRounds").getOrElse({
+    logger.error("Config does not define scads.mdcc.DefaultRounds.")
+    val sysVal = System.getProperty("scads.mdcc.DefaultRounds")
+    if (sysVal != null) {
+      logger.error("Using system property for scads.mdcc.DefaultRounds = " + sysVal)
+      sysVal.toLong
+    } else {
+      logger.error("Config and system property do not define scads.mdcc.DefaultRounds. Using DefaultRounds = 1 as default")
+      1
+    }
+  })
 
   def loadDefault() : MDCCMetadata = {
     val defaultNode =
