@@ -31,6 +31,18 @@ class ICChecker(val schema: Schema) {
   val avroUtil = new IndexedRecordUtil(schema)
   protected val logger = Logger(classOf[ICChecker])
 
+  protected val classicDemarcation = edu.berkeley.cs.scads.config.Config.config.getBool("scads.mdcc.classicDemarcation").getOrElse({
+    logger.error("Config does not define scads.mdcc.classicDemarcation. Using classicDemarcation = false as default")
+    val sysVal = System.getProperty("scads.mdcc.classicDemarcation")
+    if (sysVal != null) {
+      logger.error("Using system property for scads.mdcc.classicDemarcation = "  + sysVal)
+      sysVal == "true"
+    } else {
+      logger.error("Config and system property do not define scads.mdcc.classicDemarcation. Using classicDemarcation = false as default")
+      false
+    }
+  })
+
   private def convertFieldToDouble(f: Any): Double = {
     f match {
       case x: java.lang.Integer => x.doubleValue
@@ -49,7 +61,11 @@ class ICChecker(val schema: Schema) {
       origLimit
     } else {
       // Fast limits have to be modified w.r.t. the fast quorum size.
-      val quorumSize = MDCCRecordHandler.fastQuorumSize(numServers)
+      val quorumSize = if (classicDemarcation) {
+        1
+      } else {
+        MDCCRecordHandler.fastQuorumSize(numServers)
+      }
       if (baseField > origLimit) {
         (baseField - origLimit) * (numServers - quorumSize) / numServers + origLimit
       } else {
