@@ -57,6 +57,22 @@ class TestTx {
 
     val nbRecords = 1
 
+    (1 to 2).foreach(X => {
+    new Tx(1000) ({
+        dr.id = 1
+        dr.a = -1
+        dr.s = ""; dr.b = 0; dr.c = 0
+        nsPair.putLogical(dr)
+      }).Execute()   }
+    )
+
+    Thread.sleep(1000)
+
+    println("1st Trx: nsPair.getRecord 3: " + nsPair.getRecord(DataRecord(1)))
+
+    Thread.sleep(10000)
+
+    /*
     new Tx(300) ({
       List.range(3, 3 + nbRecords ).foreach(x => {
         dr.s = "b"
@@ -65,10 +81,12 @@ class TestTx {
       })
     }).Execute()
 
+
     // Sleep for a little bit to wait for the commits.
     Thread.sleep(1000)
 
     println("1st Trx: nsPair.getRecord 3: " + nsPair.getRecord(DataRecord(3)))
+
 
     new Tx(1000) ({
       List.range(3, 3 + nbRecords ).foreach(x => {
@@ -102,7 +120,7 @@ class TestTx {
 
     println("Done with test")
     Thread.sleep(100000)
-
+        */
 
 /*
    new Tx(100) ({
