@@ -362,7 +362,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                     val newBytes = logicalRecordUpdater.applyDeltaBytes(dbRec.value, deltaRec.value)
 
                     val avroUtil = new IndexedRecordUtil(valueSchema)
-                    logger.debug("COMMIT: " + xid + " newbytes: " + avroUtil.fromBytes(newBytes))
+                    logger.debug("COMMIT: " + xid + " oldbytes: " + avroUtil.fromBytes(dbRec.value.get) + " newbytes: " + avroUtil.fromBytes(newBytes))
 
                     val newRec = MDCCRecordUtil.toBytes(MDCCRecord(Some(newBytes), dbRec.metadata))
                     db.put(txn, key, newRec)
