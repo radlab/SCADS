@@ -252,6 +252,14 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
             logger.debug("Update is not compatible %s %s %s %s", xid, commandsInfo, storedMDCCRec, r)
             success = false
           }
+
+          if (commandsInfo.base.isDefined) {
+            val avroUtil = new IndexedRecordUtil(valueSchema)
+            logger.debug(" ACCEPT " + xid + " base: " + avroUtil.fromBytes(commandsInfo.base.get) + " commands: " + commandsInfo.commands)
+          } else {
+            logger.debug(" ACCEPT " + xid + " base: NONE" + " commands: " + commandsInfo.commands)
+          }
+
           (r.key, CStruct(commandsInfo.base, commandsInfo.commands))
         } else {
           (null, null)
@@ -337,8 +345,10 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
         val decision = Status.withName(s.status)
         if (decision == Status.Commit || decision == Status.Abort) {
           // This tx is already committed or aborted.
+          logger.debug("COMMIT: " + xid + " previously done\n")
           success = true
         } else {
+          logger.debug("COMMIT: " + xid + " apply now\n")
           s.updates.foreach(r => {
             // TODO: These updates overwrite the metadata.  Probably have to
             //       selectively update only the value part of the record.
@@ -350,6 +360,10 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                     val deltaRec = MDCCRecordUtil.fromBytes(delta)
                     val dbRec = MDCCRecordUtil.fromBytes(recBytes)
                     val newBytes = logicalRecordUpdater.applyDeltaBytes(dbRec.value, deltaRec.value)
+
+                    val avroUtil = new IndexedRecordUtil(valueSchema)
+                    logger.debug("COMMIT: " + xid + " newbytes: " + avroUtil.fromBytes(newBytes))
+
                     val newRec = MDCCRecordUtil.toBytes(MDCCRecord(Some(newBytes), dbRec.metadata))
                     db.put(txn, key, newRec)
                   }
@@ -440,6 +454,10 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       case null => db.txStart()
       case x => x
     }
+
+    val avroUtil = new IndexedRecordUtil(valueSchema)
+    logger.debug("\n\nOVERWRITE: safebase: " + avroUtil.fromBytes(safeValue.value.get) + " cstruct: " + safeValue + " new updates: " + newUpdates + "\n")
+
     val pendingCommandsTxn = pendingCStructs.txStart()
 
     // Apply all nonpending commands to the base of the cstruct.
@@ -448,6 +466,8 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     val newDBrec = ApplyUpdates.applyUpdatesToBase(
       logicalRecordUpdater, safeValue.value,
       safeValue.commands.filter(x => !x.pending && x.commit))
+
+    logger.debug("\n\nOVERWRITE: newdbrec: " + avroUtil.fromBytes(newDBrec.get))
 
     val storedMDCCRec: Option[MDCCRecord] =
       db.get(txn, key).map(MDCCRecordUtil.fromBytes(_))

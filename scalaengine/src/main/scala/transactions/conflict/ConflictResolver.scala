@@ -151,6 +151,8 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
       val newBase = ApplyUpdates.applyUpdatesToBase(
         logicalRecordUpdater, c.value, nonpendingCommit)
 
+      println("COMPRESS: " + c + " new: " + CStruct(newBase, pending))
+
       CStruct(newBase, pending)
     }
   }
