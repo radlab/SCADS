@@ -5,6 +5,7 @@ package tpcw
 
 import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.marker._
+import edu.berkeley.cs.scads.storage.transactions.FieldAnnotations._
 
 import org.apache.avro.util._
 
@@ -113,4 +114,30 @@ case class Address(var ADDR_ID: String) extends AvroPair {
  */
 case class ShoppingCartItem(var SCL_C_UNAME: String, var SCL_I_ID: String) extends AvroPair {
   var SCL_QTY: Int = _
+}
+
+// For micro benchmarks.
+case class MicroItem(var I_ID: String) extends AvroPair {
+  var I_TITLE: String = _
+  var I_A_ID: String = _
+  var I_PUB_DATE: Long = _
+  var I_PUBLISHER: String = _
+  var I_SUBJECT: String = _
+  var I_DESC: String = _
+  var I_RELATED1: Int = _
+  var I_RELATED2: Int = _
+  var I_RELATED3: Int = _
+  var I_RELATED4: Int = _
+  var I_RELATED5: Int = _
+  var I_THUMBNAIL: String = _
+  var I_IMAGE: String = _
+  var I_SRP: Double = _
+  var I_COST: Double = _
+  var I_AVAIL: Long = _
+  @FieldGE(0)
+  var I_STOCK: Int = _
+  var ISBN: String = _
+  var I_PAGE: Int = _
+  var I_BACKING: String = _
+  var I_DIMENSION: String = _
 }
