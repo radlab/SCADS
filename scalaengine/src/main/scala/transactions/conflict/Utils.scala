@@ -148,7 +148,7 @@ object ApplyUpdates {
       }
     }
 
-    val newBase = Some(logicalRecordUpdater.applyDeltaBytes(base, remainingCommands.map(x => MDCCRecordUtil.fromBytes(x.asInstanceOf[LogicalUpdate].delta).value)))
+    val newBase = Some(logicalRecordUpdater.applyDeltaBytes(base, remainingCommands.map(x => MDCCRecordUtil.fromBytes(x.command.asInstanceOf[LogicalUpdate].delta).value)))
     newBase
   }
 }

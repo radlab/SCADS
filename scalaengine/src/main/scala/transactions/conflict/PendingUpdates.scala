@@ -235,7 +235,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
             }
 
           val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key) match {
-            case None => PendingCommandsInfo(None,
+            case None => PendingCommandsInfo(storedRecValue,
                                              new ArrayBuffer[CStructCommand],
                                              new ArrayBuffer[PendingStateInfo])
             case Some(c) => c
