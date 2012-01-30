@@ -144,6 +144,8 @@ class SimpleExecutor extends QueryExecutor {
 
         @inline private def doFetch() {
           logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
+          logger.debug("Fetch from namespace: " + namespace)
+          logger.debug("Namespace provider: " + namespace.provider)
           result = namespace.provider.getRange(boundKeyPrefix, boundKeyPrefix, offset = offset, limit = boundLimit, ascending = ascending)
           logger.debug("IndexScan Prefetch Returned %s, with offset %d, limit %d", result, offset, boundLimit)
           offset += result.size

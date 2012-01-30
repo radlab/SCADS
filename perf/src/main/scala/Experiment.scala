@@ -23,8 +23,13 @@ class ExperimentalScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) extends Scads
 }
 
 trait ExperimentBase {
-  var resultClusterAddress = Config.config.getString("scads.perf.resultZooKeeperAddress").getOrElse(sys.error("need to specify scads.perf.resultZooKeeperAddress")) + "home/" + System.getenv("USER") + "/deploylib/"
+  var resultClusterBase = Config.config.getString("scads.perf.resultZooKeeperAddress").getOrElse(sys.error("need to specify scads.perf.resultZooKeeperAddress"))
+  var resultClusterAddress = resultClusterBase + "home/" + System.getenv("USER") + "/deploylib/"
   val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
+
+  def relativeAddress(suffix: String): String = {
+    resultClusterBase + "home/" + System.getenv("USER") + "/" + suffix
+  }
 
   implicit def productSeqToExcel(lines: Seq[Product]) = new {
     import java.io._

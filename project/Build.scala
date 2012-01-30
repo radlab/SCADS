@@ -125,6 +125,18 @@ object ScadsBuild extends Build {
     settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
   ) dependsOn (piql, perf)
 
+  lazy val mviews = Project(
+    "mviews",
+    file("piql/mviews"),
+    settings = deploySettings ++ Seq(
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands in console += (
+        "import edu.berkeley.cs.scads.piql.mviews._\n" +
+        "import edu.berkeley.cs.scads.storage._\n" + 
+        "import edu.berkeley.cs.scads.piql.exec._"
+        ))
+  ) dependsOn (piql, perf)
+
   lazy val axer = Project(
     "axer",
     file("axer"),
