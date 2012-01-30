@@ -97,11 +97,15 @@ object Optimizer {
         }
         fullPlan
       }
-      case IndexRange(equalityPreds, None, None, Join(child, r: Relation))
+      case IndexRange(equalityPreds, limit, None, Join(child, r: Relation))
         if (equalityPreds.size == r.keySchema.getFields.size) &&
           isPrefix(equalityPreds.map(_.attribute), r) => {
         val optChild = apply(child)
-          IndexLookupJoin(r, makeKeyGenerator(r, equalityPreds), optChild)
+        val plan = IndexLookupJoin(r, makeKeyGenerator(r, equalityPreds), optChild)
+        limit match {
+          case Some(TupleLimit(c, false)) => LocalStopAfter(c, plan)
+          case _ => plan
+        }
       }
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, Join(child, r: Relation)) => {
         val prefixAttrs = equalityPreds.map(_.attribute)
