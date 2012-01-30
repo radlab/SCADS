@@ -124,7 +124,7 @@ class MDCCServer(val namespace : String,
     commitTrx(trx)
   }
 
-  protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, newUpdates : Seq[SinglePropose] ) = {
+  protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates : Seq[SinglePropose] ) = {
     debug(key, "Process Phase2a", src, value, newUpdates)
     implicit val trx = startTrx()
     var record = getRecord(key)
@@ -142,7 +142,7 @@ class MDCCServer(val namespace : String,
         })
       } else {
         // TODO(kraska): how to find out if this is a fast or classic round?
-        pendingUpdates.overwrite(key, value, newUpdates, myBallot.get.fast)
+        pendingUpdates.overwrite(key, value, committedXids, abortedXids, newUpdates, myBallot.get.fast)
       }
       val r = getRecord(key)
       if(r.isDefined){
@@ -177,7 +177,7 @@ class MDCCServer(val namespace : String,
     msg match {
       case msg : Propose =>  processPropose(src, msg)
       case Phase1a(key, ballot) => processPhase1a(src, key, ballot)
-      case Phase2a(key, ballot, safeValue, proposes ) => processPhase2a(src, key, ballot, safeValue, proposes)
+      case Phase2a(key, ballot, safeValue, committedXids, abortedXids, proposes) => processPhase2a(src, key, ballot, safeValue, committedXids, abortedXids, proposes)
       case Commit(xid: ScadsXid) => processAccept(src, xid, true)
       case Abort(xid: ScadsXid) =>  processAccept(src, xid, false)
       case _ => src ! ProcessingException("Trx Message Not Implemented", "")

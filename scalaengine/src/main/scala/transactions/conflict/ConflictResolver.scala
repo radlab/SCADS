@@ -130,7 +130,10 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
     lub
   }
 
-  def compressCStruct(c: CStruct): CStruct = {
+  // Returns the new compressed cstruct, along with the list of xids of the
+  // committed and aborted txs, reflected in the base of the cstruct.
+  // (cstruct, committed xid list, aborted xid list)
+  def compressCStruct(c: CStruct): (CStruct, Seq[ScadsXid], Seq[ScadsXid]) = {
     // TODO: Is reordering across pending commands allowed?
     //       For now, not reordering...
 
@@ -142,7 +145,7 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
 
     if (pendingIndex == 0) {
       // First is pending, so compression is not possible.
-      c
+      (c, List(), List())
     } else {
       // pending is a seq of pending commands, NOT being compressed.
       val (nonpending, pending) = c.commands.splitAt(pendingIndex)
@@ -151,9 +154,11 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
       val newBase = ApplyUpdates.applyUpdatesToBase(
         logicalRecordUpdater, c.value, nonpendingCommit)
 
+      val nonpendingCommitXids = nonpendingCommit.map(_.xid)
+      val nonpendingAbortXids = nonpending.filter(!_.commit).map(_.xid)
       println("COMPRESS: " + c + " new: " + CStruct(newBase, pending))
 
-      CStruct(newBase, pending)
+      (CStruct(newBase, pending), nonpendingCommitXids, nonpendingAbortXids)
     }
   }
 

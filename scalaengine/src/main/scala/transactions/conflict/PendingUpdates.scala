@@ -61,9 +61,9 @@ trait PendingUpdates extends DBRecords {
   /**
    * Writes the new truth. Should only return false if something is messed up with the db
    */
-  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[SinglePropose], isFast: Boolean = false)(implicit dbTxn: TransactionData): Boolean
+  def overwrite(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates: Seq[SinglePropose], isFast: Boolean = false)(implicit dbTxn: TransactionData): Boolean
 
-  def overwriteTxn(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[SinglePropose], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean
+  def overwriteTxn(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates: Seq[SinglePropose], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean
 
   def getDecision(xid: ScadsXid): Status.Status
 
@@ -444,11 +444,11 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   //               ConflictResolver should just be created elsewhere.
   def getConflictResolver : ConflictResolver = conflictResolver
 
-  def overwrite(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[SinglePropose], isFast: Boolean = false)(implicit dbTxn: TransactionData) : Boolean = {
-    overwriteTxn(key, safeValue, newUpdates, dbTxn, isFast)
+  def overwrite(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates: Seq[SinglePropose], isFast: Boolean = false)(implicit dbTxn: TransactionData) : Boolean = {
+    overwriteTxn(key, safeValue, committedXids, abortedXids, newUpdates, dbTxn, isFast)
 }
 
-  def overwriteTxn(key: Array[Byte], safeValue: CStruct, newUpdates: Seq[SinglePropose], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean = {
+  def overwriteTxn(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates: Seq[SinglePropose], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean = {
     var success = true
     val txn = dbTxn match {
       case null => db.txStart()
@@ -459,6 +459,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     logger.debug("\n\nOVERWRITE: safebase: " + avroUtil.fromBytes(safeValue.value.get) + " cstruct: " + safeValue + " new updates: " + newUpdates + "\n")
 
     val pendingCommandsTxn = pendingCStructs.txStart()
+    val txStatusTxn = txStatus.txStart()
 
     // Apply all nonpending commands to the base of the cstruct.
     // TODO: This will apply all nonpending, committed updates, even if there
@@ -467,7 +468,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       logicalRecordUpdater, safeValue.value,
       safeValue.commands.filter(x => !x.pending && x.commit))
 
-    logger.debug("\n\nOVERWRITE: newdbrec: " + avroUtil.fromBytes(newDBrec.get))
+    logger.debug("OVERWRITE: newdbrec: " + avroUtil.fromBytes(newDBrec.get))
 
     val storedMDCCRec: Option[MDCCRecord] =
       db.get(txn, key).map(MDCCRecordUtil.fromBytes(_))
@@ -495,8 +496,42 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       }
     })
 
+    // For the committed txs, remove this key from the update list in txStatus,
+    // since it is already reflected in this overwrite.  Don't need to do this
+    // for aborted txs, since they will not be executed anyways.
+    committedXids.foreach(xid => {
+      txStatus.get(txStatusTxn, xid) match {
+        case None =>
+        case Some(s) =>
+          val newUpdates = s.updates.filter(x => !Arrays.equals(x.key, key))
+          if (newUpdates.size == 0) {
+            // Single record tx, so commit the tx.
+            logger.debug(" OVERWRITE: committing only key from txstatus. xid: " + xid + " oldUpdates: " + s.updates)
+            txStatus.put(txStatusTxn, xid, TxStatusEntry(Status.Commit.toString, newUpdates))
+          } else {
+            // Remove this key from this tx, so the update does not get applied
+            // twice.
+            logger.debug(" OVERWRITE: committing one of many keys from txstatus. xid: " + xid + " oldUpdates: " + s.updates + " newUpdates: " + newUpdates)
+            txStatus.put(txStatusTxn, xid, TxStatusEntry(s.status, newUpdates))
+          }
+      }
+    })
+
+    // For aborted txs, abort the tx in txStatus, since if any of the keys
+    // are aborted, the entire tx cannot commit.
+    abortedXids.foreach(xid => {
+      txStatus.get(txStatusTxn, xid) match {
+        case None =>
+        case Some(s) =>
+          logger.debug(" OVERWRITE: abort tx in txStatus. xid: " + xid)
+          txStatus.put(txStatusTxn, xid, TxStatusEntry(Status.Abort.toString, s.updates))
+      }
+    })
+
     // Store the new cstruct info.
     pendingCStructs.put(pendingCommandsTxn, key, commandsInfo)
+
+    txStatus.txCommit(txStatusTxn)
     pendingCStructs.txCommit(pendingCommandsTxn)
 
     // Write the record to the database.

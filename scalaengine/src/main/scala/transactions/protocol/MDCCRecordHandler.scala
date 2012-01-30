@@ -492,7 +492,7 @@ class MDCCRecordHandler (
     if(cBallot.fast){
       debug("we are in a fast ballot")
       //We are just opening a fast next round as part of conflict resolution
-      servers ! Phase2a(key, cBallot, value,  unsafeCommands ++ seq(propose))
+      servers ! Phase2a(key, cBallot, value, Nil, Nil, unsafeCommands ++ seq(propose))
     }else{
       if(stableRound) {
         debug("We have a stable round")
@@ -500,12 +500,12 @@ class MDCCRecordHandler (
         val nBallot = getBallot(ballots, cBallot.round + 1).getOrElse(null)
         //The round is clear and committed, time to move on
         debug("Rebasing")
-        val rebase = resolver.compressCStruct(value)
+        val (rebase, commitXids, abortXids) = resolver.compressCStruct(value)
         debug("Rebase done")
         if(nBallot.fast){
           debug("Next ballot is fast, we are opening a fast round ballot" + nBallot)
           moveToNextRound()
-          servers ! Phase2a(key, nBallot, rebase, unsafeCommands ++ seq(propose))
+          servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, unsafeCommands ++ seq(propose))
         }else{
           //We are in the classic mode
           debug("Testing for pending updates")
@@ -524,12 +524,12 @@ class MDCCRecordHandler (
               debug("Classic rounds: No pending updates and no unsafe commands, so we propose the next")
               val props = seq(propose)
               moveToNextRound()
-              servers ! Phase2a(key, nBallot, rebase, props.head :: Nil)
+              servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, props.head :: Nil)
               forwardRequest(src, MultiPropose(props.tail))
             }else{
               debug("Classic rounds: No pending updates but unsafe commands -> we resolve the unsafe commands first")
               moveToNextRound()
-              servers ! Phase2a(key, nBallot, rebase, unsafeCommands.head :: Nil)
+              servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, unsafeCommands.head :: Nil)
               forwardRequest(src, propose, unsafeCommands.tail)
             }
           }
@@ -544,23 +544,23 @@ class MDCCRecordHandler (
         }else if(value.commands.size == 0){
           //The round is still free, so lets use it.
           val nBallot = getBallot(ballots, cBallot.round + 1).getOrElse(null)
-          val rebase = resolver.compressCStruct(value)
+          val (rebase, commitXids, abortXids) = resolver.compressCStruct(value)
           if(nBallot == null || !nBallot.fast){
             //Next is classic, so one command at a time
             if(unsafeCommands.isEmpty){
               debug("Current classic round is still empty, and there are no unsafe commands. Perfect, we take the round")
               val props = seq(propose)
-              servers ! Phase2a(key, cBallot, rebase, props.head :: Nil)
+              servers ! Phase2a(key, cBallot, rebase, commitXids, abortXids, props.head :: Nil)
               forwardRequest(src, MultiPropose(props.tail))
             }else{
               debug("Current classic round is still empty, but we have unsafe commands")
-              servers ! Phase2a(key, cBallot, rebase, unsafeCommands.head :: Nil)
+              servers ! Phase2a(key, cBallot, rebase, commitXids, abortXids, unsafeCommands.head :: Nil)
               forwardRequest(src, propose, unsafeCommands.tail)
             }
           }else{
             debug("Current round is still unstable, but the next is fast, so better accept everything")
             //Next ballot is fast, so better try to accept everything
-            servers ! Phase2a(key, cBallot, rebase, unsafeCommands ++ seq(propose))
+            servers ! Phase2a(key, cBallot, rebase, commitXids, abortXids, unsafeCommands ++ seq(propose))
           }
         }
       }
