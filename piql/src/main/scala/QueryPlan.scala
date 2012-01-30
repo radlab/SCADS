@@ -144,6 +144,7 @@ case class ScadsRelation(ns: IndexedNamespace, alias: Option[String] = None) ext
   def schema = ns.schema
   def keySchema = ns.keySchema
   def provider = ns
+  def as(alias: String) = ScadsRelation(ns, alias)
 }
 
 case class ScadsIndex(ns: Namespace) extends LogicalPlan with TupleProvider {
