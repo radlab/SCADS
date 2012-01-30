@@ -83,6 +83,34 @@ object Optimizer {
         val optChild = apply(child)
           IndexLookupJoin(r, makeKeyGenerator(r, equalityPreds), optChild)
       }
+      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, Join(child, r: Relation)) => {
+        val prefixAttrs = equalityPreds.map(_.attribute)
+        val optChild = apply(child)
+
+        val joinPlan =
+          if (isPrefix(prefixAttrs, r)) {
+            IndexScanJoin(r,
+              makeKeyGenerator(r, equalityPreds),
+              count,
+              true,
+              optChild)
+          } else {
+            val idx = r.index(prefixAttrs)
+            val idxJoinPlan = IndexScanJoin(idx,
+              makeKeyGenerator(idx, equalityPreds),
+              count,
+              true,
+              optChild)
+            derefPlan(r, idxJoinPlan)
+          }
+
+        val fullPlan = dataStop match {
+          case true => joinPlan
+          case false => LocalStopAfter(count, joinPlan)
+        }
+
+        fullPlan
+      }
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), Join(child, r: Relation)) => {
         val prefixAttrs = equalityPreds.map(_.attribute) ++ attrs
         val optChild = apply(child)

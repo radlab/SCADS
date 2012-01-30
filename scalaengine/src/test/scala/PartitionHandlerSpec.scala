@@ -86,7 +86,7 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
 
         p !? GetRangeRequest(Some(IntRec(25).toBytes), Some(IntRec(75).toBytes)) match {
           case GetRangeResponse(resps) =>
-            resps.map(rec => new IntRec().parse(rec.key).f1) should equal(25 until 75)
+            resps.map(rec => new IntRec().parse(rec.key).f1) should equal(25 to 75)
           case m => fail("Expected GetRangeResponse but got: " + m)
         }
       }
