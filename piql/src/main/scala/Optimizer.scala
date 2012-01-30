@@ -109,15 +109,17 @@ object Optimizer {
 
         val joinPlan =
           if (isPrefix(prefixAttrs, r)) {
-            IndexScanJoin(r,
+            IndexMergeJoin(r,
               makeKeyGenerator(r, equalityPreds),
+              Nil,
               count,
               true,
               optChild)
           } else {
             val idx = r.index(prefixAttrs)
-            val idxJoinPlan = IndexScanJoin(idx,
+            val idxJoinPlan = IndexMergeJoin(idx,
               makeKeyGenerator(idx, equalityPreds),
+              Nil,
               count,
               true,
               optChild)
