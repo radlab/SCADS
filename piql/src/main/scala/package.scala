@@ -46,6 +46,7 @@ package object piql {
 
   //PIQL Scala Language Integration
   implicit def namespaceToRelation[T <: AvroPair](ns: PairNamespace[T]) = ScadsRelation(ns.asInstanceOf[IndexedNamespace])
+  implicit def indexToRelation(ns: storage.client.index.IndexNamespace) = ScadsIndex(ns)
 
   implicit def toAttr(s: String) = new {
     def a = UnboundAttributeValue(s)
