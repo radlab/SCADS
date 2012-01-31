@@ -18,6 +18,7 @@ abstract class TagClient(val cluster: ScadsCluster,
                          val limit: Int = 10) {
   def selectTags(tag1: String, tag2: String): Seq[String]
   def addTag(item: String, tag: String)
+  def clear()
 
   def tpair(tag1: String, tag2: String) = {
     assert(tag1 != tag2)
@@ -112,6 +113,11 @@ class NaiveTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
   def addTag(item: String, tag: String) = {
     tags.put(new Tag(tag, item))
   }
+
+  def clear() = {
+    tags.delete()
+    tags.open()
+  }
 }
 
 /* uses materialized view for tag intersection query */
@@ -147,5 +153,12 @@ class MTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
     }
     m_tag_pairs ++= mpairs
     tags.put(new Tag(word, item))
+  }
+
+  def clear() = {
+    tags.delete()
+    m_tag_pairs.delete()
+    tags.open()
+    m_tag_pairs.open()
   }
 }

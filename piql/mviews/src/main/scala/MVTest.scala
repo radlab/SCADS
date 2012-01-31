@@ -12,7 +12,8 @@ import deploylib.mesos._
 
 import scala.math._
 import scala.util.Random
-import scala.collection.mutable._
+import scala.collection.mutable.HashSet
+import scala.collection.mutable.HashMap
 
 /* testing client */
 class MVTest(val cluster: ScadsCluster, val client: TagClient) {
@@ -46,6 +47,18 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
     val res = client.selectTags(tag1, tag2)
     assert (res != null)
     System.nanoTime / 1000 - start
+  }
+
+  def depopulate() = {
+    if (populated) {
+      logger.info("resetting data...")
+      client.clear()
+      tags = Array[String]()
+      items = Array[String]()
+      populated = false
+    } else {
+      logger.info("not populated")
+    }
   }
 
   def populate(nitems: Int,
