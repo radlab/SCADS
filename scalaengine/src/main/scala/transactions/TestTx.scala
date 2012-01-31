@@ -60,7 +60,7 @@ class TestTx {
     println("Trx 1: nsPair.getRecord 1: " + nsPair.getRecord(DataRecord(1)))
 
 
-    (1 to 2).foreach(X => {
+    (1 to 1).foreach(X => {
     new Tx(1000) ({
         dr.id = 1
         dr.a = -1

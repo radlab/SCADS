@@ -23,7 +23,7 @@ class MDCCServer(val namespace : String,
                  val routingTable : MDCCRoutingTable
                  ) extends TrxManager {
   protected val logger = Logger(classOf[MDCCServer])
-  @inline def debug(key : Array[Byte], msg : String, items : scala.Any*) = logger.debug("" + this.hashCode() + " - " + msg + " -> " + namespace + ":" + key, items:_*)
+  @inline def debug(key : Array[Byte], msg : String, items : scala.Any*) = logger.debug("Id:" + this.hashCode() + " - " + msg + " -> " + namespace + ":" + key, items:_*)
 
 
   def startTrx() : TransactionData= {
@@ -161,7 +161,7 @@ class MDCCServer(val namespace : String,
   }
 
   protected def processAccept(src: RemoteServiceProxy[StorageMessage], xid: ScadsXid, commit : Boolean) = {
-    logger.debug("Trx-Id: %s Process commit message. Status: %s", xid, commit )
+    logger.debug("Id: %s Trx-Id: %s Process commit message. Status: %s", this.hashCode(), xid, commit )
     implicit val trx = startTrx()
     if(commit)
       pendingUpdates.commit(xid)

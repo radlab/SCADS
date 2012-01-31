@@ -79,7 +79,10 @@ class MDCCRecordHandler (
 
   implicit def toStorageService(service : RemoteServiceProxy[StorageMessage]) : StorageService = StorageService(service)
 
-  @inline def areWeMaster(service : SCADSService) : Boolean = service == master
+  @inline def areWeMaster(service : SCADSService) : Boolean = {
+    debug("Checking for mastership current: %s - master: %s == %s", service, master, service == master)
+    service == master
+  }
 
 
   override def equals(that: Any): Boolean = that match {
@@ -642,6 +645,7 @@ class MDCCRecordHandler (
   }
 
   def informLearners(src : ServiceType, proposes : Propose) : Seq[SinglePropose] = {
+    debug("We are informing the learners")
     var missing = new ArrayBuffer[SinglePropose](1)
     seq(proposes).foreach(propose => {
       val cmd = value.commands.find(_.xid == propose.xid)
