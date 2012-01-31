@@ -39,8 +39,8 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
 
   implicit val remoteHandle = StorageRegistry.registerActor(this).asInstanceOf[RemoteService[StorageMessage]]
 
-  @inline def debug(msg : String, items : scala.Any*) = logger.debug("" + this.hashCode() + ": " + msg, items:_*)
-  @inline def info(msg : String, items : scala.Any*) = logger.info("" + this.hashCode() +   ": " + msg, items:_*)
+  @inline def debug(msg : String, items : scala.Any*) = logger.debug("" + remoteHandle.id + ": " + msg, items:_*)
+  @inline def info(msg : String, items : scala.Any*) = logger.info("" + remoteHandle.id +   ": " + msg, items:_*)
 
   def execute(): TxStatus = {
     this.start()

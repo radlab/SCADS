@@ -23,7 +23,7 @@ class MDCCServer(val namespace : String,
                  val routingTable : MDCCRoutingTable
                  ) extends TrxManager {
   protected val logger = Logger(classOf[MDCCServer])
-  @inline def debug(key : Array[Byte], msg : String, items : scala.Any*) = logger.debug("Id:" + this.hashCode() + " - " + msg + " -> " + namespace + ":" + key, items:_*)
+  @inline def debug(key : Array[Byte], msg : String, items : scala.Any*) = logger.debug("Id:" + this.hashCode() + " key:" + (new ByteArrayWrapper(key)).hashCode() + " - " + msg, items:_*)
 
 
   def startTrx() : TransactionData= {
@@ -72,6 +72,7 @@ class MDCCServer(val namespace : String,
       case MultiPropose(seq) => seq
     }
     val key = proposes.head.update.key
+    debug(key, "Processing Propose. src: %s, msg: %s", src, msg)
     assert(!proposes.isEmpty, "The propose has to contain at least one update")
     assert(proposes.map(_.update.key).distinct.size == 1, "Currenty we only support multi proposes for the same key")
     debug(key, "Process propose %s %s %s", src, msg, pendingUpdates)

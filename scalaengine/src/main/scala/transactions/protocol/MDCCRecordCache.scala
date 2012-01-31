@@ -44,6 +44,8 @@ class MDCCClientServer(ns : TransactionI) extends  MDCCRecordCache {
 
 final class ByteArrayWrapper(val value : Array[Byte]) {
 
+    def apply(value : Array[Byte])  = new  ByteArrayWrapper(value)
+
     override def equals(other : Any) : Boolean =  {
        if(other.isInstanceOf[ByteArrayWrapper]){
          java.util.Arrays.equals(value, other.asInstanceOf[ByteArrayWrapper].value)

@@ -66,7 +66,7 @@ class MDCCRecordHandler (
 
   type ServiceType =  RemoteServiceProxy[StorageMessage]
 
-  @inline def debug(msg : String, items : scala.Any*) = logger.debug("" + remoteHandle.id + " key:" + key.hashCode() + ":" + status + " " + msg, items:_*)
+  @inline def debug(msg : String, items : scala.Any*) = logger.debug("id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + " " + msg, items:_*)
 
   implicit def toRemoteService(src : ServiceType) : RemoteService[StorageMessage] = src.asInstanceOf[RemoteService[StorageMessage]]
 
@@ -275,7 +275,7 @@ class MDCCRecordHandler (
 
   def processProposal(src: ServiceType, propose : Propose) : Unit = {
     val cBallot = currentBallot
-    debug("Processing proposal", src, propose)
+    debug("Processing proposal source: %s, propose: %s", src, propose)
     if(confirmedBallot){
       if(cBallot.fast){
         status = FAST_PROPOSED
