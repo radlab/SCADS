@@ -50,6 +50,10 @@ trait RemoteServiceProxy[MessageType <: IndexedRecord] {
     registry.sendMessage(Some(sender), this, msg)
   }
 
+  def forward(msg: MessageType,  sender: RemoteServiceProxy[MessageType]): Unit = {
+    registry.sendMessage(Some(sender), this, msg, true)
+  }
+
   /**
    * Send a message and synchronously wait for a response.
    */

@@ -61,6 +61,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
    * case class MessageEnvelope[MessageType](var src: Option[ActorId], var dest: ActorId, var id: Option[Long], var body: MessageType) extends AvroRecord
    */
   protected lazy val envelopeSchema = new TypedSchema[MessageEnvelope](Schema.createRecord(
+    new Schema.Field("srcNode", Schema.createUnion(schemaOf[RemoteNode] :: Schema.create(Schema.Type.NULL) :: Nil), null, null) ::
     new Schema.Field("src", schemaOf[ServiceId], null, null) ::
     new Schema.Field("dest", schemaOf[ServiceId], null, null) ::
     new Schema.Field("msg", schema, null, null) :: Nil),
@@ -126,13 +127,14 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     }
   }
 
-  def sendMessage(src: Option[RemoteServiceProxy[MessageType]], dest: RemoteServiceProxy[MessageType], msg: MessageType) {
+  def sendMessage(src: Option[RemoteServiceProxy[MessageType]], dest: RemoteServiceProxy[MessageType], msg: MessageType, setNode: Boolean = false) {
     logger.trace("Sending %s to %s", msg, dest)
 
     val packaged = new GenericData.Record(envelopeSchema)
-    src.foreach(s => packaged.put(0, s.id))
-    packaged.put(1, dest.id)
-    packaged.put(2, msg)
+    if(setNode) src.foreach(s => packaged.put(0, s.remoteNode))
+    src.foreach(s => packaged.put(1, s.id))
+    packaged.put(2, dest.id)
+    packaged.put(3, msg)
 
     val evt = MessagePending(dest, Left(packaged))
     foldLeftListeners(evt) match {
@@ -162,15 +164,20 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
   val invalidMessageCount = new java.util.concurrent.atomic.AtomicLong
 
   private def doReceiveMessage0(src: RemoteNode, msg: MessageEnvelope) {
-    val dest = msg.get(1).asInstanceOf[ServiceId]
+    val srcNode = 
+      if(msg.get(0) == null)
+        src
+      else
+        msg.get(0).asInstanceOf[RemoteNode]
+    val dest = msg.get(2).asInstanceOf[ServiceId]
     val service = serviceRegistry.get(dest)
 
     logger.trace("Delivering Message: %s from %s", msg, src)
 
     if (service != null) {
-      val srcProxy = if(msg.get(0) == null) None else Some(RemoteService[MessageType](src, msg.get(0).asInstanceOf[ServiceId]))
+      val srcProxy = if(msg.get(1) == null) None else Some(RemoteService[MessageType](srcNode, msg.get(1).asInstanceOf[ServiceId]))
       srcProxy.foreach(_.registry = this)
-      service.receiveMessage(srcProxy, msg.get(2).asInstanceOf[MessageType])
+      service.receiveMessage(srcProxy, msg.get(3).asInstanceOf[MessageType])
     }
     else {
       logger.debug("Got message for an unknown service: %s %s %s", src, dest, msg)
