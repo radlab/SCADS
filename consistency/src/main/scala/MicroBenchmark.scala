@@ -210,7 +210,7 @@ case class MicroBenchmarkTask()
       runLengthMin=5,
       startTime=expStartTime,
       useLogical=useLogicalUpdates,
-      note=notes).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress)
+      note=notes).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress, List("scads.comm.externalip" -> "true"))
     clusters.head.serviceScheduler.scheduleExperiment(tpcwTasks)
 
     // Start the task.

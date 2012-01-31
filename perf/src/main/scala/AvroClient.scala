@@ -98,13 +98,14 @@ abstract trait ReplicatedExperimentTask extends ExperimentTask {
 
   // scadsClusterRoot is the actual root of the cluster, and should already be
   // created before calling this method.
-  def getExperimentTasks(implicit classpath: Seq[ClassSource], scadsClusterRoot: ZooKeeperProxy#ZooKeeperNode, resultClusterAddress: String): Seq[JvmTask] = {
+  def getExperimentTasks(implicit classpath: Seq[ClassSource], scadsClusterRoot: ZooKeeperProxy#ZooKeeperNode, resultClusterAddress: String, props: Seq[(String, String)] = Nil): Seq[JvmTask] = {
     val experimentRoot = scadsClusterRoot.getOrCreate("experiments").createChild("experiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
     experimentAddress = experimentRoot.canonicalAddress
     clusterAddress = scadsClusterRoot.canonicalAddress
     this.resultClusterAddress = resultClusterAddress
 
     val task = this.toJvmTask
+    task.props ++= props
     Array.fill(numClients)(task)
   }
 
