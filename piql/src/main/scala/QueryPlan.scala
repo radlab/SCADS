@@ -1,6 +1,8 @@
 package edu.berkeley.cs.scads.piql
 package plans
 
+import edu.berkeley.cs.scads.storage.client.index._
+
 import collection.JavaConversions._
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, IndexedRecord}
@@ -136,7 +138,13 @@ case class Index(attrs: Seq[QualifiedAttributeValue], relation: Relation) extend
 
   def keySchema = schema
 
-  def provider = null
+  // HACK unpackage the index manager and make the index here
+  def provider = relation match {
+    case r: ScadsRelation =>
+      r.ns.getOrCreateIndex(attrs.map(a => AttributeIndex(a.fieldName)))
+    case _ =>
+      sys.error("Don't know how to create index for this relation")
+  }
 }
 
 case class ScadsRelation(ns: IndexedNamespace, alias: Option[String] = None) extends Relation with LogicalPlan with TupleProvider {

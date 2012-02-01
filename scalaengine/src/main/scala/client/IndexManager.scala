@@ -155,7 +155,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
   }
 
   override def ++=(that: TraversableOnce[BulkType]): Unit = {
-    logger.info("Putting index entries")
+    logger.debug("Putting index entries")
     that.foreach { pair => {
       putBulkBytes(keyToBytes(pair.key), valueToBytes(pair.value))
 

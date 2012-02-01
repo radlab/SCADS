@@ -45,25 +45,11 @@ abstract class TagClient(val cluster: ScadsCluster,
         .limit(limit)
         .toPiql("selectTagQuery")
 
-  /* TODO this really should work */
-  val selectItemQueryPiql =
+  val selectItemQuery =
     tags.where("item".a === (0.?))
         .limit(limit)
         .toPiql("selectItemQuery")
   
-  /* TODO should use piql */
-  val selectItemQuery =
-    new OptimizedQuery(
-      "selectItemQuery2",
-      IndexScan(
-        iindex,
-        ParameterValue(0) :: Nil,
-        FixedLimit(10),
-        true
-      ),
-      executor
-    )
-
   def selectTag(tag: String) = {
     selectTagQuery(tag)
   }
@@ -82,7 +68,7 @@ class NaiveTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
   val twoTagsPiql =
     tags.as("t1")
         .where("t1.word".a === (0.?))
-        .dataLimit(10) // arbitrary false promise
+        .dataLimit(1024) // arbitrary false promise
         .join(tags.as("t2"))
         .where("t2.word".a === (1.?))
         .where("t1.item".a === "t2.item".a)
