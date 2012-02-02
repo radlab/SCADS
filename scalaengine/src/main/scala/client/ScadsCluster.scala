@@ -237,13 +237,13 @@ class ManagedScadsCluster(_root: ZooKeeperProxy#ZooKeeperNode) extends ScadsClus
 
   private def newStorageHandler(name:Option[String] = None): StorageHandler = {
     val config = new EnvironmentConfig
-    config.setConfigParam(EnvironmentConfig.LOG_MEM_ONLY, "true")
+//    config.setConfigParam(EnvironmentConfig.LOG_MEM_ONLY, "true")
     config.setAllowCreate(true)
     config.setTransactional(true)
     config.setSharedCache(true) /* share cache w/ all other test handlers in proces */
 
     /** Try to never run the checkpointer */
-    config.setConfigParam(EnvironmentConfig.CHECKPOINTER_BYTES_INTERVAL, JInteger.MAX_VALUE.toString)
+//    config.setConfigParam(EnvironmentConfig.CHECKPOINTER_BYTES_INTERVAL, JInteger.MAX_VALUE.toString)
 
     val dir = makeScadsTempDir()
     logger.info("Opening test BDB Environment: " + dir + ", " + config)
