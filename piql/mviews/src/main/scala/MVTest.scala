@@ -29,7 +29,7 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
 
     var tags = List[Tuple2[String,String]]()
     for (i <- 0 until n) {
-      var item = "item%%0%dd".format(n).format(i)
+      var item = "item%%0%dd".format(("" + n).length).format(i)
       tags ::= (item, tagA)
     }
 
