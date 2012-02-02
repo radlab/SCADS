@@ -507,6 +507,7 @@ class MDCCRecordHandler (
       //We are just opening a fast next round as part of conflict resolution
       servers ! Phase2a(key, cBallot, value, Nil, Nil, unsafeCommands ++ seq(propose))
     }else{
+
       if(stableRound) {
         debug("We have a stable round")
         //OK we have a stable round, so we can just open the next round
@@ -549,6 +550,7 @@ class MDCCRecordHandler (
           }
         }
       }else{
+
         //The current round is instable or free
         if(value.commands.size < provedSafe.commands.size){
           debug("The current round is unstable, so we propose provedSafe again and postpone the rest")
@@ -578,7 +580,7 @@ class MDCCRecordHandler (
           }
         }else{
           error("We have a value bigger than the provedSafe size. That should never happen. ")
-          error("Current Meta-Data: %s, confirmedBallot: %, Current Ballat: %s,  Version: %s, Value: %s ProvedSafe: %s, UnsafeCommands: %s, master: %s mailbox: %s",
+          error("Current Meta-Data: %s, confirmedBallot: %s, Current Ballat: %s,  Version: %s, Value: %s ProvedSafe: %s, UnsafeCommands: %s, master: %s mailbox: %s",
             ballots,
             confirmedBallot,
             currentBallot,
