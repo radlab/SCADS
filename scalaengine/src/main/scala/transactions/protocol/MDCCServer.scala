@@ -94,7 +94,7 @@ class MDCCServer(val namespace : String,
         routingTable.serversForKey(key),
         pendingUpdates.getConflictResolver,
         partition)
-      recordHandler.remoteHandle.!(msg)(src)
+      recordHandler.remoteHandle.forward(msg, src)
     }
     commitTrx(trx)
   }
