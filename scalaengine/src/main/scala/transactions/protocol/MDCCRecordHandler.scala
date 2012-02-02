@@ -607,11 +607,12 @@ class MDCCRecordHandler (
       debug("We got a quorum")
       val values = responses.map(_._2.asInstanceOf[Phase2b].value).toSeq
       val tmp = resolver.provedSafe(values, quorum, servers.size, servers.size)
-      debug("ProvedSafe CStruct: %s", tmp._1)
-      debug("Unsafe commands:s %s", tmp._2)
+      debug("Old value: %s", value)
       value = tmp._1
       provedSafe = tmp._1
       unsafeCommands = tmp._2
+      version = msg.ballot
+      debug("ProvedSafe CStruct: %s, Unsafe commands:s %s, Value: %s", provedSafe, unsafeCommands, value)
       request match {
         case msg@StorageEnvelope(src, propose: SinglePropose)  =>  {
           val cmd = value.commands.find(_.xid == propose.xid)
