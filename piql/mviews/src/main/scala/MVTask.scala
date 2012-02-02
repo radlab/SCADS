@@ -17,7 +17,6 @@ import net.lag.logging.Logger
 /* task to run MVTest on EC2 */
 case class Task(var replicationFactor: Int = 2,
                 var iterations: Int = 2,
-                var getCount: Int = 10000,
                 var scales: Seq[Int] = List(10,100,500,1000,5000,10000),
                 var threadCounts: Seq[Int] = Seq(1))
             extends AvroTask with AvroRecord with TaskBase {
@@ -79,7 +78,9 @@ case class Task(var replicationFactor: Int = 2,
             val failures = new java.util.concurrent.atomic.AtomicInteger()
             val histograms = (0 until threadCount).pmap(i => {
               val histogram = Histogram(100,10000)
-              var i = getCount
+              var i = 1000000 / scale
+              if (clientId equals "MTagClient")
+                i = 100000
               while (i > 0) {
                 i -= 1
                 try {
