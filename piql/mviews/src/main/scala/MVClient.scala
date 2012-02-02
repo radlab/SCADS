@@ -15,13 +15,13 @@ import storage.client.index._
 /* unified interface to tag store */
 abstract class TagClient(val cluster: ScadsCluster,
                          implicit val executor: QueryExecutor,
-                         val limit: Int = 10) {
+                         val limit: Int = 20) {
   def selectTags(tag1: String, tag2: String): Seq[String]
   def addTag(item: String, tag: String)
+  def addBulk(itemTagPairs: Seq[Tuple2[String,String]])
   def clear()
 
   def tpair(tag1: String, tag2: String) = {
-    assert(tag1 != tag2)
     if (tag1 < tag2)
       (tag1, tag2)
     else
@@ -29,8 +29,6 @@ abstract class TagClient(val cluster: ScadsCluster,
   }
 
   val tags = cluster.getNamespace[Tag]("tags")
-  val iindex = tags.getOrCreateIndex(
-    AttributeIndex("item") :: AttributeIndex("word") :: Nil)
 
   def all() = {
     tags.iterateOverRange(None, None).toList
@@ -72,25 +70,10 @@ class NaiveTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
         .join(tags.as("t2"))
         .where("t2.word".a === (1.?))
         .where("t1.item".a === "t2.item".a)
-        .limit(1024).toPiql("twoTagsPiql")
-
-  val twoTags =
-    new OptimizedQuery(
-      "twoTags",
-      IndexLookupJoin(
-        tags,
-        ParameterValue(1) :: AttributeValue(0, 1) :: Nil, // join on item field
-          IndexScan(
-            tags.getOrCreateIndex(
-              AttributeIndex("word") :: AttributeIndex("item") :: Nil),
-            (0.?) :: Nil, // filter by word === param(0)
-            FixedLimit(9999),
-            true)),
-      executor
-    )
+        .limit(limit).toPiql("twoTagsPiql")
 
   def selectTags(tag1: String, tag2: String) = {
-    twoTags(tag1, tag2).map(
+    twoTagsPiql(tag1, tag2).map(
       arr => arr.head match {
         case m => m.get(1).toString
       })
@@ -98,6 +81,10 @@ class NaiveTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
 
   def addTag(item: String, tag: String) = {
     tags.put(new Tag(tag, item))
+  }
+
+  def addBulk(itemTagPairs: Seq[Tuple2[String,String]]) = {
+    tags ++= itemTagPairs.map(t => new Tag(t._2, t._1))
   }
 
   def clear() = {
@@ -139,6 +126,10 @@ class MTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
     }
     m_tag_pairs ++= mpairs
     tags.put(new Tag(word, item))
+  }
+
+  def addBulk(itemTagPairs: Seq[Tuple2[String,String]]) = {
+    itemTagPairs.foreach(t => addTag(t._1, t._2))
   }
 
   def clear() = {

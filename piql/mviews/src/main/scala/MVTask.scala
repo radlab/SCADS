@@ -17,7 +17,7 @@ import net.lag.logging.Logger
 /* task to run MVTest on EC2 */
 case class Task(var replicationFactor: Int = 1,
                 var iterations: Int = 3,
-                var scales: Seq[Int] = List(10,100,1000),
+                var scales: Seq[Int] = List(10,100,1000,10000),
                 var getCount: Int = 5000,
                 var tag_item_ratio: Double = 4.0,
                 var threadCounts: Seq[Int] = Seq(1, 5))
@@ -41,7 +41,7 @@ case class Task(var replicationFactor: Int = 1,
     cluster.blockUntilReady(replicationFactor)
 
     val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
-    val results = resultCluster.getNamespace[MVResult]("mvResults")
+    val results = resultCluster.getNamespace[MVResult]("pessimalResults")
 
     // setup client
     val hostname = java.net.InetAddress.getLocalHost.getHostName
@@ -52,7 +52,7 @@ case class Task(var replicationFactor: Int = 1,
     scales.foreach(scale => {
       scenario.depopulate()
       val loadStartMs = System.currentTimeMillis
-      scenario.scaleup(scale)
+      scenario.pessimalScaleup(scale)
       val loadTimeMs = System.currentTimeMillis - loadStartMs
       logger.info("Data load: %d ms", loadTimeMs)
 
@@ -67,7 +67,7 @@ case class Task(var replicationFactor: Int = 1,
             while (i > 0) {
               i -= 1
               try {
-                val respTime = scenario.getRandomPair
+                val respTime = scenario.doPessimalFetch
                 logger.debug("Get response time: %d", respTime)
                 histogram.add(respTime)
               } catch {
