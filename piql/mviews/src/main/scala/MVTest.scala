@@ -61,8 +61,8 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
 /* convenient test configurations */
 object MVTest extends ExperimentBase {
   val suffix = "pessimalResults"
-  override val resultCluster = new ScadsCluster(ZooKeeperNode(relativeAddress(suffix)))
-  val results = resultCluster.getNamespace[MVResult](suffix)
+  override val resultCluster = new ScadsCluster(ZooKeeperNode(relativeAddress(MVResult.suffix)))
+  val results = resultCluster.getNamespace[MVResult](MVResult.suffix)
 
   def newNaive(): MVTest = {
     val cluster = TestScalaEngine.newScadsCluster(3)
@@ -77,6 +77,6 @@ object MVTest extends ExperimentBase {
   }
 
   def go(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
-    new Task().schedule(relativeAddress(suffix))
+    new Task().schedule(relativeAddress(MVResult.suffix))
   }
 }

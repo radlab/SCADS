@@ -24,6 +24,10 @@ case class MTagPair(var tag1: String,
                       var item: String) extends AvroPair {
 }
 
+object MVResult {
+  val suffix = "pessimalResults"
+}
+
 case class MVResult(
   var hostname: String,
   var clientId: String,
