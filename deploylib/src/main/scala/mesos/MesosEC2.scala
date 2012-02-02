@@ -91,10 +91,20 @@ object MesosCluster {
   }
 }
 
+object DefaultRegion {
+  var value: EC2Region = USEast1
+  val preferred = System.getenv("AWS_DEFAULT_REGION")
+  for (region <- EC2Region.allRegions) {
+    if (region.location equals preferred) {
+      value = region
+    }
+  }
+}
+
 /**
  * Functions to help maintain a mesos cluster on EC2.
  */
-class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
+class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = false) {
   val logger = Logger()
 
   /**
