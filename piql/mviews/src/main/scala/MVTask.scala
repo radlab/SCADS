@@ -16,11 +16,10 @@ import net.lag.logging.Logger
 
 /* task to run MVTest on EC2 */
 case class Task(var replicationFactor: Int = 1,
-                var iterations: Int = 3,
+                var iterations: Int = 2,
+                var getCount: Int = 10000,
                 var scales: Seq[Int] = List(10,100,1000,10000),
-                var getCount: Int = 5000,
-                var tag_item_ratio: Double = 4.0,
-                var threadCounts: Seq[Int] = Seq(1, 5))
+                var threadCounts: Seq[Int] = Seq(1))
             extends AvroTask with AvroRecord with TaskBase {
   
   var resultClusterAddress: String = _
@@ -41,7 +40,7 @@ case class Task(var replicationFactor: Int = 1,
     cluster.blockUntilReady(replicationFactor)
 
     val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
-    val results = resultCluster.getNamespace[MVResult]("pessimalResults")
+    val results = resultCluster.getNamespace[MVResult](MVTest.suffix)
 
     // setup client
     val hostname = java.net.InetAddress.getLocalHost.getHostName
@@ -78,7 +77,7 @@ case class Task(var replicationFactor: Int = 1,
             histogram
           })
 
-          val r = MVResult(hostname, clientId, iteration, scale, tag_item_ratio, threadCount)
+          val r = MVResult(hostname, clientId, iteration, scale, threadCount)
           r.timestamp = System.currentTimeMillis
           r.failures = failures.get()
           r.responseTimes = histograms.reduceLeft(_ + _)

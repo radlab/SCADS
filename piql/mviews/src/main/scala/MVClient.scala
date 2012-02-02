@@ -18,7 +18,7 @@ abstract class TagClient(val cluster: ScadsCluster,
                          val limit: Int = 20) {
   def selectTags(tag1: String, tag2: String): Seq[String]
   def addTag(item: String, tag: String)
-  def addBulk(itemTagPairs: Seq[Tuple2[String,String]])
+  def initBulk(itemTagPairs: Seq[Tuple2[String,String]])
   def clear()
 
   def tpair(tag1: String, tag2: String) = {
@@ -83,7 +83,7 @@ class NaiveTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
     tags.put(new Tag(tag, item))
   }
 
-  def addBulk(itemTagPairs: Seq[Tuple2[String,String]]) = {
+  def initBulk(itemTagPairs: Seq[Tuple2[String,String]]) = {
     tags ++= itemTagPairs.map(t => new Tag(t._2, t._1))
   }
 
@@ -98,10 +98,10 @@ class MTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
       extends TagClient(clus, exec) {
 
   protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.MTagClient")
-  val m_tag_pairs = cluster.getNamespace[M_Tag_Pair]("m_tag_pairs")
+  val mTagPairs = cluster.getNamespace[MTagPair]("mTagPairs")
 
   val selectTagPairQuery =
-    m_tag_pairs.where("tag1".a === (0.?))
+    mTagPairs.where("tag1".a === (0.?))
                .where("tag2".a === (1.?))
                .limit(limit)
                .toPiql("selectTagPairQuery")
@@ -110,32 +110,52 @@ class MTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
     val t = tpair(tag1, tag2)
     selectTagPairQuery(t._1, t._2).map(
       arr => arr.head match {
-        case m: M_Tag_Pair =>
+        case m: MTagPair =>
           m.item
       })
   }
 
   def addTag(item: String, word: String) = {
-    var mpairs = List[M_Tag_Pair]()
+    var mpairs = List[MTagPair]()
     for (arr <- selectItem(item)) {
       arr.head match {
         case m: GenericData$Record => 
           val t = tpair(m.get(1).toString, word)
-          mpairs ::= new M_Tag_Pair(t._1, t._2, item)
+          mpairs ::= new MTagPair(t._1, t._2, item)
       }
     }
-    m_tag_pairs ++= mpairs
+    mTagPairs ++= mpairs
     tags.put(new Tag(word, item))
   }
 
-  def addBulk(itemTagPairs: Seq[Tuple2[String,String]]) = {
-    itemTagPairs.foreach(t => addTag(t._1, t._2))
+  def initBulk(itemTagPairs: Seq[Tuple2[String,String]]) = {
+    var allTags = List[Tag]()
+    var allTagPairs = List[MTagPair]()
+    itemTagPairs.groupBy(_._1).foreach {
+      t =>
+        val item = t._1
+        var tags = t._2.map(_._2).sorted
+
+        tags.foreach(t => allTags ::= new Tag(t, item))
+
+        // materialize all unique ordered pairs
+        while (tags.length > 1) {
+          val head = tags.head
+          tags = tags.tail
+          for (y <- tags) {
+            assert (head < y)
+            allTagPairs ::= new MTagPair(head, y, item)
+          }
+        }
+    }
+    tags ++= allTags
+    mTagPairs ++= allTagPairs
   }
 
   def clear() = {
     tags.delete()
-    m_tag_pairs.delete()
+    mTagPairs.delete()
     tags.open()
-    m_tag_pairs.open()
+    mTagPairs.open()
   }
 }

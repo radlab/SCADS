@@ -19,7 +19,7 @@ case class Tag(var word: String, var item: String) extends AvroPair {
  *   exists (tag1, item)
  *   exists (tag2, item)
  */
-case class M_Tag_Pair(var tag1: String,
+case class MTagPair(var tag1: String,
                       var tag2: String,
                       var item: String) extends AvroPair {
 }
@@ -29,7 +29,6 @@ case class MVResult(
   var clientId: String,
   var iteration: Int,
   var scale: Int,
-  var tag_item_ratio: Double,
   var threadCount: Int) extends AvroPair {
 
   var timestamp: Long = _
@@ -37,4 +36,15 @@ case class MVResult(
   var runTimeMs: Long =  _
   var responseTimes: Histogram = null
   var failures: Int = _
+
+  def fmt: String = {
+      val x = ("clientId=" + clientId,
+               "scale=" + scale,
+               "lat(0.5)=" + responseTimes.quantile(0.5),
+               "lat(0.99)=" + responseTimes.quantile(0.99),
+               "gets/s=" + responseTimes.totalRequests*1.0/runTimeMs*1000,
+               "threads=" + threadCount)
+      val s = x.toString
+      return s.replaceAll(",","\t").substring(1, s.length-1)
+  }
 }

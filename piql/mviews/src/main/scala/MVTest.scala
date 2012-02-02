@@ -4,6 +4,8 @@ package mviews
 
 import net.lag.logging.Logger
 
+import comm._
+import config._
 import storage._
 import exec._
 import perf._
@@ -31,9 +33,9 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
       tags ::= (item, tagA)
     }
 
-    tags ::= ("itemZ", tagA)
     tags ::= ("itemZ", tagB)
-    client.addBulk(tags)
+    tags ::= ("itemZ", tagA)
+    client.initBulk(tags)
 
     populated = true
   }
@@ -51,13 +53,17 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
       client.clear()
       populated = false
     } else {
-      logger.info("not populated")
+      logger.info("no data yet")
     }
   }
 }
 
 /* convenient test configurations */
 object MVTest extends ExperimentBase {
+  val suffix = "pessimalResults"
+  override val resultCluster = new ScadsCluster(ZooKeeperNode(relativeAddress(suffix)))
+  val results = resultCluster.getNamespace[MVResult](suffix)
+
   def newNaive(): MVTest = {
     val cluster = TestScalaEngine.newScadsCluster(3)
     val client = new NaiveTagClient(cluster, new SimpleExecutor)
@@ -71,6 +77,6 @@ object MVTest extends ExperimentBase {
   }
 
   def go(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
-    new Task().schedule(relativeAddress("expResults"))
+    new Task().schedule(relativeAddress(suffix))
   }
 }
