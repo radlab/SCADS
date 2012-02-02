@@ -59,12 +59,12 @@ class TestTxActors {
     nsPair.setPartitionScheme(List((None, cluster.getAvailableServers)))
     Thread.sleep(1000)
     var dr = DataRecordActor(1)
-    dr.s = "a"; dr.a = 1000; dr.b = 100; dr.c = 1.0.floatValue
+    dr.s = "a"; dr.a = 100000; dr.b = 100; dr.c = 1.0.floatValue
     nsPair.put(dr)
     //dr.id = 2
     //nsPair.put(dr)
 
-    val numClients = 2
+    val numClients = 10
     val sema = new Semaphore(0)
     val clients = (1 to numClients).map(x => new Client(x, nsPair, sema, true))
 

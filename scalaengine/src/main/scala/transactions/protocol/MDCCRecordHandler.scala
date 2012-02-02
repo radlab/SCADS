@@ -524,12 +524,13 @@ class MDCCRecordHandler (
           debug("Testing for pending updates")
           if(value.commands.exists(_.pending)){
             debug("We  have still pending update, so we postpone")
+            status = WAITING_FOR_COMMIT
             forwardRequest(remoteHandle, propose, unsafeCommands)
 
             //We found a pending update, so we wait with moving on to the next round
             //Scheduler.schedule(() => {}, MDCCRecordHandler.WAIT_TIME )
             clear()
-            status = WAITING_FOR_COMMIT
+
           }else{
             debug("No pending updates. We are ready to go")
             //The round is clear and committed, time to move on
