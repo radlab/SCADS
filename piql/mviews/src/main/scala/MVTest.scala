@@ -47,14 +47,10 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
     System.nanoTime / 1000 - start
   }
 
-  def depopulate() = {
-    if (populated) {
-      logger.info("resetting data...")
-      client.clear()
-      populated = false
-    } else {
-      logger.info("no data yet")
-    }
+  def reset() = {
+    logger.info("resetting data...")
+    client.clear()
+    populated = false
   }
 }
 
