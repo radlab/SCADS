@@ -577,8 +577,19 @@ class MDCCRecordHandler (
             servers ! Phase2a(key, cBallot, rebase, commitXids, abortXids, unsafeCommands ++ seq(propose))
           }
         }else{
-          error("We have a value bigger than the provedSafe size. That should never happen")
+          error("We have a value bigger than the provedSafe size. That should never happen. ")
+          error("Current Meta-Data: %s, confirmedBallot: %, Current Ballat: %s,  Version: %s, Value: %s ProvedSafe: %s, UnsafeCommands: %s, master: %s mailbox: %s",
+            ballots,
+            confirmedBallot,
+            currentBallot,
+            version,
+            value,
+            provedSafe,
+            unsafeCommands,
+            master,
+            mailbox)
         }
+        stableRound
       }
     }
   }
@@ -651,7 +662,7 @@ class MDCCRecordHandler (
             forwardRequest(src, MultiPropose(missing))
           }
         }
-        case _ => throw new RuntimeException("Should never happen")
+        case _ => throw new RuntimeException("Should never happen.")
       }
       responses.clear()
       clear()
