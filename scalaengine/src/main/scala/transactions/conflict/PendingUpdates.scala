@@ -582,6 +582,10 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       }
     })
 
+    // Store the new cstruct info.
+    pendingCStructs.put(pendingCommandsTxn, key, commandsInfo)
+    pendingCStructs.txCommit(pendingCommandsTxn)
+
     // For the committed txs, remove this key from the update list in txStatus,
     // since it is already reflected in this overwrite.  Don't need to do this
     // for aborted txs, since they will not be executed anyways.
@@ -613,12 +617,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
           txStatus.put(txStatusTxn, xid, TxStatusEntry(Status.Abort.toString, s.updates))
       }
     })
-
-    // Store the new cstruct info.
-    pendingCStructs.put(pendingCommandsTxn, key, commandsInfo)
-
     txStatus.txCommit(txStatusTxn)
-    pendingCStructs.txCommit(pendingCommandsTxn)
 
     // Write the record to the database.
     db.put(txn, key, MDCCRecordUtil.toBytes(newMDCCRec))
