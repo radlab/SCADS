@@ -44,6 +44,7 @@ class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransacti
         }
       }).Execute()
       logger.info("%s Finished the Trx in %s", this.hashCode(), (System.currentTimeMillis() - s))
+      //Thread.sleep(1000)
     }
 
     sema.release

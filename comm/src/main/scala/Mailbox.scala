@@ -111,7 +111,7 @@ class PlainMailbox[MessageType <: IndexedRecord](val name : String)
   override def apply(fn : PartialFunction[Envelope[MessageType], Unit]) = {
     logger.debug("%s Start processing the mailbox. Remaining Size: %s Messages: %s ", name, this.size, this.toString)
     var restart = false
-    //do{
+    do{
       reset()
       while(hasNext){
         keepMsgInMailbox = false
@@ -121,7 +121,7 @@ class PlainMailbox[MessageType <: IndexedRecord](val name : String)
           restart
         }
       }
-    //}while(restart)
+    }while(restart)
     logger.debug("%s Finished processing the mailbox. Remaining Size: %s Messages: %s ", name, this.size, this.toString)
 
   }
