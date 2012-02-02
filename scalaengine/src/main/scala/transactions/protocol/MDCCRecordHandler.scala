@@ -51,15 +51,17 @@ class MDCCRecordHandler (
 
   private val logger = Logger(classOf[MDCCRecordHandler])
 
-  private val mailbox = new PlainMailbox[StorageMessage]()
-
   private var responses =  new HashMap[ServiceType, MDCCProtocol]()
+
+   private val mailbox = new PlainMailbox[StorageMessage]("" + this.hashCode)
 
   implicit val remoteHandle = StorageService(StorageRegistry.registerFastMailboxFunc(processMailbox, mailbox))
 
+
+
   private var request : Envelope[StorageMessage] = null
 
-  private var masterRecordHandler : SCADSService = null //HACK Needed to get the commit message through
+  var masterRecordHandler : Option[SCADSService] = None //HACK Needed to get the commit message through
 
 
   private var status: RecordStatus = READY
@@ -67,6 +69,10 @@ class MDCCRecordHandler (
   type ServiceType =  RemoteServiceProxy[StorageMessage]
 
   @inline def debug(msg : String, items : scala.Any*) = logger.debug("id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + " " + msg, items:_*)
+  @inline def error(msg : String, items : scala.Any*) = logger.error("id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + " " + msg, items:_*)
+
+
+  debug("Created RecordHandler. Hash %s, Mailbox: %s", this.hashCode, mailbox.hashCode())
 
   implicit def toRemoteService(src : ServiceType) : RemoteService[StorageMessage] = src.asInstanceOf[RemoteService[StorageMessage]]
 
@@ -81,7 +87,9 @@ class MDCCRecordHandler (
 
   @inline def areWeMaster(service : SCADSService) : Boolean = {
     debug("Checking for mastership current: %s - master: %s == %s", service, master, service == master)
-    service == master
+    val r = service == master
+    if(!r) masterRecordHandler = None
+    r
   }
 
 
@@ -115,13 +123,11 @@ class MDCCRecordHandler (
       cmd.pending = false
       cmd.commit = trxStatus
     })
-    if(trxStatus)
-      servers ! Commit(xid)
-    else
-      servers ! Abort(xid)
-    if(masterRecordHandler != null){
-      debug("Forwarding the commit/abort message to " + remoteHandle)
-      masterRecordHandler ! msg
+    if(masterRecordHandler.isDefined){
+      if(trxStatus)
+        servers ! Commit(xid)
+      else
+        servers ! Abort(xid)
     }
     if(status == WAITING_FOR_COMMIT)
       status = READY
@@ -129,6 +135,7 @@ class MDCCRecordHandler (
 
   //TODO We should create a proper priority queue
   def processMailbox(mailbox : Mailbox[StorageMessage]) {
+      debug("Mailbox %s %s", this.hashCode(), mailbox)
       mailbox{
         case StorageEnvelope(src, msg: Commit) => {
           commit(msg, msg.xid, true)
@@ -189,7 +196,7 @@ class MDCCRecordHandler (
               request match {
                 case StorageEnvelope(origRequester, x: Propose) => {
                   debug("Master RecordHandler: "  + src + " Forward request. We inform the original requester:" + origRequester)
-                  masterRecordHandler = src
+                  masterRecordHandler = Some(src)
                   origRequester ! msg
                   clear()
                 }
@@ -229,7 +236,7 @@ class MDCCRecordHandler (
           processProposal(src, msg)
         }
         case msg@_ => {
-          logger.debug("Ignoring message in mailbox: %s %s", msg, status )
+          logger.debug("%s, Ignoring message in mailbox: %s %s", mailbox.hashCode(), msg, status )
           mailbox.keepMsgInMailbox = true
         }
       }
@@ -383,15 +390,18 @@ class MDCCRecordHandler (
   }
 
   @inline def stableRound() : Boolean = {
-    debug("Test round for stability: fast:%s version.round:%s currentBallot.round:%s value.commands.size:%s provedSafe.commands.size:%s",
-      currentBallot.fast, version.round,
-      currentBallot.round,
-      value.commands.size,
-      provedSafe.commands.size)
-    !currentBallot.fast &&
+    val r = !currentBallot.fast &&
       version.round ==  currentBallot.round &&
       value.commands.size > 0 &&
       value.commands.size == provedSafe.commands.size //if the size is the same, the commands have to be the same
+
+    debug("Test round for stability: fast:%s version.round:%s currentBallot.round:%s value.commands.size:%s provedSafe.commands.size:%s ==> %s",
+      currentBallot.fast, version.round,
+      currentBallot.round,
+      value.commands.size,
+      provedSafe.commands.size,
+      r)
+    r
   }
 
 
@@ -565,6 +575,8 @@ class MDCCRecordHandler (
             //Next ballot is fast, so better try to accept everything
             servers ! Phase2a(key, cBallot, rebase, commitXids, abortXids, unsafeCommands ++ seq(propose))
           }
+        }else{
+          error("We have a value bigger than the provedSafe size. That should never happen")
         }
       }
     }

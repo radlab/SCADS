@@ -35,6 +35,24 @@ class RemoteServiceSpec extends Spec with ShouldMatchers {
     protected def shutdown() = null
   }
 
+  object ForwardTarget extends ServiceHandler[TestMessages] {
+    val logger = net.lag.logging.Logger()
+    val registry = TestRegistry2
+    val sync = new concurrent.SyncVar[Boolean]
+
+    protected def process(src: Option[RemoteServiceProxy[TestMessages]], msg: TestMessages) = {
+      msg match {
+        case TestMsg2(4) => {
+          logger.debug("Forwarded message received")
+          sync.set(true)
+        }
+        case _ => throw new RuntimeException("Unexp msg")
+      }
+    }
+    protected def startup() = null
+    protected def shutdown() = null
+  }
+
   describe("RemoteActors") {
     it("should send message asynchronously") {
       val mailbox = new MessageFuture[TestMessages](TestService.remoteHandle, TestMsg1(1))
@@ -49,6 +67,11 @@ class RemoteServiceSpec extends Spec with ShouldMatchers {
 
     it("should send messages and return a future") {
       (TestService.remoteHandle !! TestMsg1(3)).get(1000) should equal(Some(TestMsg2(3)))
+    }
+
+    it("should forward messages") {
+      TestService.remoteHandle.forward(TestMsg1(4), ForwardTarget.remoteHandle)
+      ForwardTarget.sync.get(1000) should equal(Some(true))
     }
 
     it("should send message across handlers") {

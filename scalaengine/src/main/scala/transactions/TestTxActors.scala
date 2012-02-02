@@ -2,6 +2,7 @@ package edu.berkeley.cs.scads.storage.examples
 import edu.berkeley.cs.scads.storage.transactions._
 import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.marker.{AvroRecord, AvroPair}
+import edu.berkeley.cs.scads.util.Logger
 
 import scala.actors.Actor
 import scala.actors.Actor._
@@ -23,10 +24,13 @@ case class DataRecordActor(var id: Int) extends AvroPair {
   override def toString = "DataRecord(" + id + ", " + s + ", " + a + ", " + b + ", " + c + ")"
 }
 
-class Client(nsPair: PairNamespace[DataRecordActor] with PairTransactions[DataRecordActor], sema: Semaphore, useLogical: Boolean = false) extends Actor {
+class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransactions[DataRecordActor], sema: Semaphore, useLogical: Boolean = false) extends Actor {
+  private val logger = Logger(classOf[Client])
+
   def act() {
-    for (i <- 0 until 2) {
-      println("" + this.hashCode() + " Starting update")
+    for (i <- 0 until 1000) {
+      logger.info("%s Starting update", this.hashCode())
+      val s = System.currentTimeMillis
       new Tx(5000) ({
         if (!useLogical) {
           val dr = nsPair.getRecord(DataRecordActor(1)).get
@@ -39,6 +43,7 @@ class Client(nsPair: PairNamespace[DataRecordActor] with PairTransactions[DataRe
           nsPair.putLogical(dr)
         }
       }).Execute()
+      logger.info("%s Finished the Trx in %s", this.hashCode(), (System.currentTimeMillis() - s))
     }
 
     sema.release
@@ -53,14 +58,14 @@ class TestTxActors {
     nsPair.setPartitionScheme(List((None, cluster.getAvailableServers)))
     Thread.sleep(1000)
     var dr = DataRecordActor(1)
-    dr.s = "a"; dr.a = 2; dr.b = 100; dr.c = 1.0.floatValue
+    dr.s = "a"; dr.a = 1000; dr.b = 100; dr.c = 1.0.floatValue
     nsPair.put(dr)
     //dr.id = 2
     //nsPair.put(dr)
 
-    val numClients = 1
+    val numClients = 2
     val sema = new Semaphore(0)
-    val clients = List.fill(numClients)(new Client(nsPair, sema, true))
+    val clients = (1 to numClients).map(x => new Client(x, nsPair, sema, true))
 
     // Start client actors.
     clients.foreach(_.start)

@@ -94,11 +94,11 @@ class MDCCRecordCache() {
           logger.debug("Hash " + hashCode() + ":" + cache.elements.map(_._1.hashCode()).mkString)
           var handler = new MDCCRecordHandler(key, value, mt.currentVersion, mt.ballots,  mt.confirmedBallot, servers, conflictResolver, master)
           cache.update(keyWrapper, handler)
-          logger.debug("No record handler exists, we create a new one: hash" + handler.hashCode())
+          logger.debug("No record handler exists, we create a new one: hash: %s remote: %s", handler.hashCode(), handler.remoteHandle.id)
           handler
         }
         case Some(v) => {
-          logger.debug("We found a record handler and return it. hash:" + v.hashCode())
+          logger.debug("We found a record handler and return it. hash: %s remote: %s", v.hashCode(), v.remoteHandle.id)
           v
         }
       }
