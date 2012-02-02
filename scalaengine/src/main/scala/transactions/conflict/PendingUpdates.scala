@@ -393,7 +393,16 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
             }
           }
           case ValueUpdate(key, oldValue, newValue) => {
-            db.put(txn, key, newValue)
+            db.get(txn, key) match {
+              case None => db.put(txn, key, newValue)
+              case Some(recBytes) => {
+                // Do not overwrite the metadata in the db.
+                val newRec = MDCCRecordUtil.fromBytes(newValue)
+                val dbRec = MDCCRecordUtil.fromBytes(recBytes)
+                val newDbRec = MDCCRecordUtil.toBytes(MDCCRecord(newRec.value, dbRec.metadata))
+                db.put(txn, key, newDbRec)
+              }
+            }
           }
           case VersionUpdate(key, newValue) => {
             db.put(txn, key, newValue)
