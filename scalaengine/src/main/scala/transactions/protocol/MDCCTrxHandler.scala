@@ -91,11 +91,13 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
   }
 
   def notifyAcceptors() = {
-    if (status == COMMITTED)
-      participants.foreach(_.remoteHandle !  edu.berkeley.cs.scads.storage.Commit(Xid))
-    else if(status == ABORTED)
-      participants.foreach(_.remoteHandle !  edu.berkeley.cs.scads.storage.Abort(Xid))
-    else assert(false)
+    assert(status == COMMITTED || status == ABORTED )
+    val msg = if (status == COMMITTED)   edu.berkeley.cs.scads.storage.Commit(Xid)
+              else edu.berkeley.cs.scads.storage.Abort(Xid)
+    participants.foreach(s => {
+      s.remoteHandle ! msg
+      s.masterRecordHandler.map( _ ! msg)
+    })
   }
 
   def act() {

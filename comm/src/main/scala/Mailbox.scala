@@ -5,6 +5,7 @@ import org.apache.avro.generic.IndexedRecord
 import collection.mutable.ArrayBuffer
 import java.util.{PriorityQueue, Queue}
 import util.Sorting._
+import net.lag.logging.Logger
 
 /**
  * Priority:
@@ -95,8 +96,10 @@ class PriorityBlockingMailbox[MessageType <: IndexedRecord](prioFn : MessageType
 }
 
 
-class PlainMailbox[MessageType <: IndexedRecord]()
+class PlainMailbox[MessageType <: IndexedRecord](val name : String)
   extends ArrayBuffer[Envelope[MessageType]](5) with Mailbox[MessageType]  {
+
+  private val logger = Logger()
 
   private var pos : Int = -1
   private var nextReset : Boolean = false
@@ -106,14 +109,21 @@ class PlainMailbox[MessageType <: IndexedRecord]()
    * except addPrio and add
    */
   override def apply(fn : PartialFunction[Envelope[MessageType], Unit]) = {
-    reset()
-    while(hasNext){
-      keepMsgInMailbox = false
-      fn(next())
-      if (!keepMsgInMailbox) {
-        remove()
+    logger.debug("%s Start processing the mailbox. Remaining Size: %s Messages: %s ", name, this.size, this.toString)
+    var restart = false
+    //do{
+      reset()
+      while(hasNext){
+        keepMsgInMailbox = false
+        fn(next())
+        if (!keepMsgInMailbox) {
+          remove()
+          restart
+        }
       }
-    }
+    //}while(restart)
+    logger.debug("%s Finished processing the mailbox. Remaining Size: %s Messages: %s ", name, this.size, this.toString)
+
   }
 
   override def addAll(c : Mailbox[MessageType]) : Unit   = {

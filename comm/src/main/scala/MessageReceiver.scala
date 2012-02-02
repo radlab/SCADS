@@ -26,8 +26,8 @@ class ActorReceiver[MessageType <: IndexedRecord](actor: Actor) extends MessageR
 
 
 class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](processFn: Mailbox[MessageType] => Unit,
-                                                                val receiverMailbox : Mailbox[MessageType] = new PlainMailbox[MessageType]() ) extends MessageReceiver[MessageType] {
-  val senderMailbox = new PlainMailbox[MessageType]()
+                                                                val receiverMailbox : Mailbox[MessageType] = new PlainMailbox[MessageType]("Mailbox") ) extends MessageReceiver[MessageType] {
+  val senderMailbox = new PlainMailbox[MessageType]("SenderMailbox")
   val newMessages : Boolean = false
 
   val dispatcher = createQueue()
