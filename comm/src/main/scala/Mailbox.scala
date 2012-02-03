@@ -43,6 +43,8 @@ trait Mailbox[MessageType <: IndexedRecord] {
     clear()
   }
 
+  def getName = "Mailbox"
+
   def clear() : Unit
 
   def addAll(c : Mailbox[MessageType]) : Unit
@@ -103,6 +105,8 @@ class PlainMailbox[MessageType <: IndexedRecord](val name : String)
 
   private var pos : Int = -1
   private var nextReset : Boolean = false
+
+  override def getName = name
 
   /**
    * No motification to the mailbox are allowed during the apply
