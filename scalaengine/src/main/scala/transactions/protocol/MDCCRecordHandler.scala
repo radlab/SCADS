@@ -88,7 +88,6 @@ class MDCCRecordHandler (
   @inline def areWeMaster(service : SCADSService) : Boolean = {
     debug("Checking for mastership current: %s - master: %s == %s", service, master, service == master)
     val r = service == master
-    if(!r) masterRecordHandler = None
     r
   }
 
@@ -118,17 +117,15 @@ class MDCCRecordHandler (
   def getStatus = status
 
   def commit(msg : MDCCProtocol, xid: ScadsXid, trxStatus : Boolean) = {
-    debug("Received commit/abort: " + trxStatus)
+    debug("Received xid %s status %s ", xid, trxStatus)
     value.commands.find(_.xid == xid).map(cmd => {
       cmd.pending = false
       cmd.commit = trxStatus
     })
-    if(masterRecordHandler.isDefined){
-      if(trxStatus)
-        servers ! Commit(xid)
-      else
-        servers ! Abort(xid)
-    }
+    if(trxStatus)
+      servers ! Commit(xid)
+    else
+      servers ! Abort(xid)
     if(status == WAITING_FOR_COMMIT)
       status = READY
   }
@@ -189,7 +186,7 @@ class MDCCRecordHandler (
           }
         }
         case env@StorageEnvelope(src, msg : Learned)  => {
-          debug("Learned message", env)
+          debug("Learned message %s", env)
           //TODO update my value and version
           status match {
             case FORWARDED => {
@@ -236,7 +233,7 @@ class MDCCRecordHandler (
           processProposal(src, msg)
         }
         case msg@_ => {
-          logger.debug("%s, Ignoring message in mailbox: %s %s", mailbox.hashCode(), msg, status )
+          debug("%s, Ignoring message in mailbox: %s %s", mailbox.hashCode(), msg, status )
           mailbox.keepMsgInMailbox = true
         }
       }

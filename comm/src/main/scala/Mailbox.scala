@@ -117,12 +117,13 @@ class PlainMailbox[MessageType <: IndexedRecord](val name : String)
     var restart = false
     do{
       reset()
+      restart=false
       while(hasNext){
         keepMsgInMailbox = false
         fn(next())
         if (!keepMsgInMailbox) {
           remove()
-          restart
+          restart = true
         }
       }
     }while(restart)
