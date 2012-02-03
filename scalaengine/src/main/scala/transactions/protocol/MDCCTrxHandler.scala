@@ -96,8 +96,8 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
               else edu.berkeley.cs.scads.storage.Abort(Xid)
     participants.foreach(s => {
       debug("Notify recordhandler local:%s master:%s", s, s.masterRecordHandler)
-      s.masterRecordHandler.map( _ ! msg)
       s.servers.foreach(_ ! msg)
+      s.masterRecordHandler.map( _ ! msg)
       s.remoteHandle ! msg
     })
   }
