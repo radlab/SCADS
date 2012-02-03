@@ -42,7 +42,7 @@ class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](processFn: Mailb
     import java.util.concurrent.TimeUnit._
 
     // do the actual check in 1 second..
-    getGlobalQueue().after(5, SECONDS) {
+    getGlobalQueue().after(20, SECONDS) {
       logger.debug( "Maibox Stats: Hash: %s Name: %s Size: %s Stats: %s", receiverMailbox.hashCode(), receiverMailbox.getName,  receiverMailbox.size, dispatcher.metrics)
       // to check again...
       monitor_hawtdispatch

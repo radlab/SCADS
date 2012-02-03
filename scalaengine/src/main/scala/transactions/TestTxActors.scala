@@ -24,25 +24,39 @@ case class DataRecordActor(var id: Int) extends AvroPair {
   override def toString = "DataRecord(" + id + ", " + s + ", " + a + ", " + b + ", " + c + ")"
 }
 
+object Client {
+  @volatile var ready = true
+}
+
 class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransactions[DataRecordActor], sema: Semaphore, useLogical: Boolean = false) extends Actor {
   private val logger = Logger(classOf[Client])
 
   def act() {
     for (i <- 0 until 1000) {
+      if(!Client.ready) assert(false, "A Trx was unsuccesfull")
       logger.info("%s Starting update", this.hashCode())
       val s = System.currentTimeMillis
-      new Tx(5000) ({
+      val tx = new Tx(5000) ({
         if (!useLogical) {
-          val dr = nsPair.getRecord(DataRecordActor(1)).get
+          val dr = nsPair.getRecord(DataRecordActor((i % 10) + 1)).get
           dr.a = dr.a - 1
           nsPair.put(dr)
         } else {
-          val dr = DataRecordActor(1)
+          val dr = DataRecordActor((i % 10) + 1)
           dr.s = ""; dr.a = -1; dr.b = 0; dr.c = 0
           println("Putting " + dr)
           nsPair.putLogical(dr)
         }
-      }).Execute()
+      })
+      val status = tx.Execute()
+      status match {
+        case UNKNOWN => {
+          println("#####################  UNKNOWN ######################")
+          Client.ready =false
+        }
+        case _ =>
+      }
+
       logger.info("%s Finished the Trx in %s", this.hashCode(), (System.currentTimeMillis() - s))
       //Thread.sleep(1000)
     }
@@ -61,8 +75,10 @@ class TestTxActors {
     var dr = DataRecordActor(1)
     dr.s = "a"; dr.a = 100000; dr.b = 100; dr.c = 1.0.floatValue
     nsPair.put(dr)
-    //dr.id = 2
-    //nsPair.put(dr)
+    (2 to 10).foreach( x => {
+      dr.id = x
+      nsPair.put(dr)
+    })
 
     val numClients = 10
     val sema = new Semaphore(0)

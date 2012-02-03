@@ -62,7 +62,7 @@ class MDCCRecordCache() {
 
   private val logger = Logger(classOf[MDCCRecordCache])
 
-  val CACHE_SIZE = 500
+  val CACHE_SIZE = 1000
 
   def killHandler (key : ByteArrayWrapper, handler : MDCCRecordHandler) = handler.kill
 

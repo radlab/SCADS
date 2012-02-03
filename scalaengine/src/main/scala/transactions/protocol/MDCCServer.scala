@@ -148,6 +148,8 @@ class MDCCServer(val namespace : String,
       val r = getRecord(key)
       if(r.isDefined){
         val record = r.get
+        meta.ballots = adjustRound(meta.ballots, reqBallot.round)
+        record.metadata = meta
         record.metadata.currentVersion = myBallot.get
         //TODO shorten meta data
         putRecord(key, record)

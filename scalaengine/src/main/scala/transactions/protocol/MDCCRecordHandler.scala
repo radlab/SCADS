@@ -590,6 +590,7 @@ class MDCCRecordHandler (
             unsafeCommands,
             master,
             mailbox)
+          assert(false)
         }
         stableRound
       }
