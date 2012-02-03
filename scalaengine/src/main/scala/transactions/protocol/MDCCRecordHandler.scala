@@ -22,7 +22,7 @@ case object FAST_PROPOSED extends RecordStatus {val name = "FAST_PROPOSED"}
 case object PHASE1A  extends RecordStatus {val name = "PHASE1A"}
 case object PHASE2A extends RecordStatus {val name = "PHASE2A"}
 case object RECOVERY extends RecordStatus {val name = "RECOVERY"}
-case object WAITING_FOR_COMMIT extends RecordStatus {val name = "READY"}
+case object WAITING_FOR_COMMIT extends RecordStatus {val name = "WAITING_FOR_COMMIT"}
 
 object ServerMessageHelper {
   class SMH(s: Seq[PartitionService]) {
@@ -495,6 +495,8 @@ class MDCCRecordHandler (
     ballots = adjustRound(ballots, ballots.head.startRound + 1)
   }
 
+  var postponeCounter = 0
+
   def startPhase2a(src : ServiceType, propose : Propose) : Unit = {
     responses.clear()
     debug("Starting Phase2a")
@@ -524,13 +526,20 @@ class MDCCRecordHandler (
           //We are in the classic mode
           debug("Testing for pending updates")
           if(value.commands.exists(_.pending)){
-            debug("We  have still pending update, so we postpone")
-            status = WAITING_FOR_COMMIT
+            debug("We  have still pending update, so we postpone: Value: %s", value)
+            clear()
             forwardRequest(remoteHandle, propose, unsafeCommands)
+            postponeCounter += 1
+
+            if(postponeCounter > 3){
+              Thread.sleep(100)
+              assert(false)
+            }
 
             //We found a pending update, so we wait with moving on to the next round
             //Scheduler.schedule(() => {}, MDCCRecordHandler.WAIT_TIME )
-            clear()
+
+            status = WAITING_FOR_COMMIT
 
           }else{
             debug("No pending updates. We are ready to go")

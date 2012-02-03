@@ -39,14 +39,14 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
 
   implicit val remoteHandle = StorageRegistry.registerActor(this).asInstanceOf[RemoteService[StorageMessage]]
 
-  @inline def debug(msg : String, items : scala.Any*) = logger.debug("" + remoteHandle.id + ": " + msg, items:_*)
-  @inline def info(msg : String, items : scala.Any*) = logger.info("" + remoteHandle.id +   ": " + msg, items:_*)
+  @inline def debug(msg : String, items : scala.Any*) = logger.debug("" + remoteHandle.id + ": Xid:" + Xid + " ->" + msg, items:_*)
+  @inline def info(msg : String, items : scala.Any*) = logger.info("" + remoteHandle.id +   ": Xid:" + Xid + " ->" + msg, items:_*)
 
   def execute(): TxStatus = {
     this.start()
     debug("Waiting for status")
     sema.acquire()
-    debug("We got a status")
+    debug("We got a status: %s", status)
     status match {
       case UNKNOWN => tx.unknownFn()
       case COMMITTED=> tx.commitFn(COMMITTED)

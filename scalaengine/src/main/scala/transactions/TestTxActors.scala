@@ -36,7 +36,7 @@ class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransacti
       if(!Client.ready) assert(false, "A Trx was unsuccesfull")
       logger.info("%s Starting update", this.hashCode())
       val s = System.currentTimeMillis
-      val tx = new Tx(5000) ({
+      val tx = new Tx(10000) ({
         if (!useLogical) {
           val dr = nsPair.getRecord(DataRecordActor((i % 10) + 1)).get
           dr.a = dr.a - 1
