@@ -377,14 +377,19 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
             } else {
               logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " actually trying to apply now.")
               dbVal match {
-                case None => db.put(txn, key, delta)
+                case None => {
+                  val deltaRec = MDCCRecordUtil.fromBytes(delta)
+                  val avroUtil = new IndexedRecordUtil(valueSchema)
+                  logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " writing delta: " + avroUtil.fromBytes(deltaRec.value.get))
+                  db.put(txn, key, delta)
+                }
                 case Some(recBytes) => {
                   val deltaRec = MDCCRecordUtil.fromBytes(delta)
                   val dbRec = MDCCRecordUtil.fromBytes(recBytes)
                   val newBytes = logicalRecordUpdater.applyDeltaBytes(dbRec.value, deltaRec.value)
 
                   val avroUtil = new IndexedRecordUtil(valueSchema)
-                  logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " oldbytes: " + avroUtil.fromBytes(dbRec.value.get) + " newbytes: " + avroUtil.fromBytes(newBytes))
+                  logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " oldbytes: " + avroUtil.fromBytes(dbRec.value.get) + " newbytes: " + avroUtil.fromBytes(newBytes) + " dbRec.metadata: " + dbRec.metadata)
 
                   val newRec = MDCCRecordUtil.toBytes(MDCCRecord(Some(newBytes), dbRec.metadata))
                   db.put(txn, key, newRec)

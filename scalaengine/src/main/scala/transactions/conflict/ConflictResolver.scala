@@ -109,6 +109,17 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
     // Compute leftover commands, not in provedSafe.
     leftover.remove(safe.commands)
 
+    val avroUtil = new IndexedRecordUtil(valueSchema)
+    var inputVals = ""
+    cstructs.foreach(c => {
+      if (c.value.isDefined) {
+        inputVals += avroUtil.fromBytes(c.value.get) + " "
+      } else {
+        inputVals += "NONE "
+      }
+    })
+    println("provedSafe: inputVals: " + inputVals + " safe.value: " + avroUtil.fromBytes(safe.value.get))
+
     // TODO: Check if LUB is valid w.r.t. constraints?
     (safe, leftover.toList.map(c => SinglePropose(c.xid, c.command)))
   }
@@ -156,7 +167,9 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
 
       val nonpendingCommitXids = nonpendingCommit.map(_.xid)
       val nonpendingAbortXids = nonpending.filter(!_.commit).map(_.xid)
-      println("COMPRESS: " + c + " new: " + CStruct(newBase, pending))
+
+      val avroUtil = new IndexedRecordUtil(valueSchema)
+      println("COMPRESS: " + c + " oldbase: " + avroUtil.fromBytes(c.value.get) + " newbase: " + avroUtil.fromBytes(newBase.get) + " new: " + CStruct(newBase, pending))
 
       (CStruct(newBase, pending), nonpendingCommitXids, nonpendingAbortXids)
     }
