@@ -113,7 +113,7 @@ class PlainMailbox[MessageType <: IndexedRecord](val name : String)
    * except addPrio and add
    */
   override def apply(fn : PartialFunction[Envelope[MessageType], Unit]) = {
-    logger.debug("%s Start processing the mailbox. Remaining Size: %s Messages: %s ", name, this.size, this.toString)
+    //logger.debug("%s Start processing the mailbox. Remaining Size: %s Messages: %s ", name, this.size, this.toString)
     var restart = false
     do{
       reset()
@@ -127,7 +127,7 @@ class PlainMailbox[MessageType <: IndexedRecord](val name : String)
         }
       }
     }while(restart)
-    logger.debug("%s Finished processing the mailbox. Remaining Size: %s Messages: %s ", name, this.size, this.toString)
+    //logger.debug("%s Finished processing the mailbox. Remaining Size: %s Messages: %s ", name, this.size, this.toString)
 
   }
 

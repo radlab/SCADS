@@ -134,31 +134,33 @@ class MDCCRecordHandler (
   def processMailbox(mailbox : Mailbox[StorageMessage]) {
       debug("Mailbox %s %s", this.hashCode(), mailbox)
       mailbox{
-        case StorageEnvelope(src, msg: Commit) => {
+        case env@StorageEnvelope(src, msg: Commit) => {
+          debug("Processing Commit msg : %s", env)
           commit(msg, msg.xid, true)
         }
-        case StorageEnvelope(src, msg: Abort) => {
+        case env@StorageEnvelope(src, msg: Abort) => {
+           debug("Processing Abort msg: %s", env)
           commit(msg, msg.xid, false)
         }
-        case StorageEnvelope(src, msg: Exit)  if status == READY => {
-          debug("EXIT request")
+        case env@StorageEnvelope(src, msg: Exit)  if status == READY => {
+          debug("Processing EXIT request: %s", env)
           StorageRegistry.unregisterService(remoteHandle)
         }
         case env@StorageEnvelope(src, msg: BeMaster) if status == READY => {
           request = env
-          debug("Received BeMaster message", env)
+          debug("Processing BeMaster message", env)
           startPhase1a(msg.startRound, msg.endRound, msg.fast)
         }
         case env@StorageEnvelope(src, msg: Phase1b) => {
           //we do the phase check afterwards to empty out old messages
-          debug("Phase1b message" , env)
+          debug("Processing Phase1b message" , env)
           status match {
             case PHASE1A => processPhase1b(src, msg)
             case _ =>
           }
         }
         case env@StorageEnvelope(src, msg: Phase2bMasterFailure) => {
-          debug("Phase2bMasterFailure message" , env)
+          debug("Processing Phase2bMasterFailure message" , env)
           status match {
             case PHASE2A => processPhase2bMasterFailure(src, msg)
             case FAST_PROPOSED => processPhase2bMasterFailure(src, msg)
@@ -166,7 +168,7 @@ class MDCCRecordHandler (
           }
         }
         case env@StorageEnvelope(src, msg: Phase2b) => {
-          debug("Phase2b message" , env)
+          debug("Processing Phase2b message" , env)
           status match {
             case PHASE2A => processPhase2b(src, msg)
             case FAST_PROPOSED => processPhase2b(src, msg)
@@ -174,7 +176,7 @@ class MDCCRecordHandler (
           }
         }
         case env@StorageEnvelope(src, msg : Recovered) => {
-          debug("Recovered message", env)
+          debug("Processing Recovered message", env)
           if (status == RECOVERY) {
             this.value = msg.value
             this.version = msg.meta.currentVersion
@@ -186,7 +188,7 @@ class MDCCRecordHandler (
           }
         }
         case env@StorageEnvelope(src, msg : Learned)  => {
-          debug("Learned message %s", env)
+          debug("Processing Learned message %s", env)
           //TODO update my value and version
           status match {
             case FORWARDED => {
@@ -205,7 +207,7 @@ class MDCCRecordHandler (
         }
         case env@StorageEnvelope(src,  GotMastership(newBallot)) if status == READY => {
           //TODO Block in the case of remote BeMaster
-          debug("GotMastership message", env)
+          debug("Processing GotMastership message", env)
           val maxRound = max(ballots.head.startRound, newBallot.head.startRound)
           compareRanges(ballots, newBallot, maxRound) match {
             case -1 => {
@@ -223,12 +225,12 @@ class MDCCRecordHandler (
           }
         }
         case env@StorageEnvelope(src, msg:ResolveConflict) if status == READY => {
-          debug("ResolveConflict request", env)
+          debug("Processing ResolveConflict request", env)
           request = env
           resolveConflict(src, msg)
         }
         case env@StorageEnvelope(src, msg: Propose) if status == READY => {
-          debug("Propose request", env)
+          debug("Processing Propose request", env)
           request = env
           processProposal(src, msg)
         }
@@ -492,8 +494,6 @@ class MDCCRecordHandler (
     ballots = adjustRound(ballots, ballots.head.startRound + 1)
   }
 
-  var postponeCounter = 0
-
   def startPhase2a(src : ServiceType, propose : Propose) : Unit = {
     responses.clear()
     debug("Starting Phase2a")
@@ -526,13 +526,6 @@ class MDCCRecordHandler (
             debug("We  have still pending update, so we postpone: Value: %s", value)
             clear()
             forwardRequest(src, propose, unsafeCommands)
-            postponeCounter += 1
-
-            if(postponeCounter > 3){
-              Thread.sleep(100)
-              assert(false)
-            }
-
             //We found a pending update, so we wait with moving on to the next round
             //Scheduler.schedule(() => {}, MDCCRecordHandler.WAIT_TIME )
 
@@ -641,7 +634,7 @@ class MDCCRecordHandler (
             debug("We learned the value, lets inform the requester. Informing src" + src)
             src ! Learned(propose.xid, key, cmd.get.commit)
           }else{
-            debug("We did not learn our transaction.")
+            debug("We did not learn our transaction. TxId: %s quorum %s server-size %s \n - values %s \n - provedSafe %s \n - unsafeCommands %s \n - full responses: %s", propose.xid, quorum, servers.size, values, provedSafe, unsafeCommands, responses)
             if(ballots.head.fast) {
               debug("We are in a fast round. So it can only mean, that we have a conflict (or got too old messages)\nBetter to start conflict resolution")
               remoteHandle ! ResolveConflict(key, ballots, propose, src) //Using the original source to ensure that the requester gets notified
