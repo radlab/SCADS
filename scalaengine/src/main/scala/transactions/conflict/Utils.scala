@@ -113,8 +113,10 @@ class ICChecker(val schema: Schema) {
             valid = ic.upper match {
               case None => true
               case Some(FieldRestrictionLT(x)) =>
+                logger.debug(" " + Thread.currentThread.getName + " < new field: " + field + " safe field: " + safeField + " origLimit: " + x + " newLimit: " + getQuorumLimit(safeField, x, numServers, isFast) + " numServers: " + numServers + " isFast: " + isFast)
                 field < getQuorumLimit(safeField, x, numServers, isFast)
               case Some(FieldRestrictionLE(x)) =>
+                logger.debug(" " + Thread.currentThread.getName + " <= new field: " + field + " safe field: " + safeField + " origLimit: " + x + " newLimit: " + getQuorumLimit(safeField, x, numServers, isFast) + " numServers: " + numServers + " isFast: " + isFast)
                 field <= getQuorumLimit(safeField, x, numServers, isFast)
               case _ => false
             }

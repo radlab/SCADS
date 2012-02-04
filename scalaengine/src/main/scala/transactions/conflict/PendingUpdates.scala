@@ -705,6 +705,9 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
         val newState = newStateBytes.toList
         val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ List(List(xid))
 
+        logger.debug(" " + Thread.currentThread.getName + " base: " + avroUtil.fromBytes(dbValue.get.value.get))
+//        oldStates.toList.foreach(x =>
+//          logger.debug(" " + Thread.currentThread.getName + " oldStates: " + avroUtil.fromBytes(x._1.toArray)))
         var valid = newStates.put(newState, newXidList) match {
           case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, safeBase, dbValue.get.value, numServers, isFast)
           case Some(_) => true
@@ -713,6 +716,9 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
         if (!valid) {
           newStates.remove(newState)
           commandsInfo.updateStates(newStates.toList.map(x => PendingStateInfo(x._1.toArray, x._2)))
+          logger.debug(" " + Thread.currentThread.getName + " isCompatible1: " + false + " newState: " + avroUtil.fromBytes(newState.toArray))
+//          newStates.toList.foreach(x =>
+//            logger.debug(" " + Thread.currentThread.getName + " newStates1: " + avroUtil.fromBytes(x._1.toArray)))
           false
         } else {
 
