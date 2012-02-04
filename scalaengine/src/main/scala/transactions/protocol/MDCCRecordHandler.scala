@@ -233,7 +233,7 @@ class MDCCRecordHandler (
           processProposal(src, msg)
         }
         case msg@_ => {
-          debug("%s, Ignoring message in mailbox: %s %s", mailbox.hashCode(), msg, status )
+          debug("Mailbox-Hash:%s, Ignoring message in mailbox: msg:%s status: %s current request:%s", mailbox.hashCode(), msg, status, request)
           mailbox.keepMsgInMailbox = true
         }
       }
@@ -525,7 +525,7 @@ class MDCCRecordHandler (
           if(value.commands.exists(_.pending)){
             debug("We  have still pending update, so we postpone: Value: %s", value)
             clear()
-            forwardRequest(remoteHandle, propose, unsafeCommands)
+            forwardRequest(src, propose, unsafeCommands)
             postponeCounter += 1
 
             if(postponeCounter > 3){
