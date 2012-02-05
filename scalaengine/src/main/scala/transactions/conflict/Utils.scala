@@ -16,14 +16,18 @@ class IndexedRecordUtil(val schema: Schema) {
   val encoder = EncoderFactory.get().binaryEncoder(out, null)
 
   def fromBytes(bytes: Array[Byte]): IndexedRecord = {
-    reader.read(null, DecoderFactory.get().directBinaryDecoder(new ByteArrayInputStream(bytes), null)).asInstanceOf[IndexedRecord]
+    synchronized {
+      reader.read(null, DecoderFactory.get().directBinaryDecoder(new ByteArrayInputStream(bytes), null)).asInstanceOf[IndexedRecord]
+    }
   }
 
   def toBytes(record: IndexedRecord): Array[Byte] = {
-    out.reset()
-    writer.write(record, encoder)
-    encoder.flush
-    out.toByteArray
+    synchronized {
+      out.reset()
+      writer.write(record, encoder)
+      encoder.flush
+      out.toByteArray
+    }
   }
 }
 
