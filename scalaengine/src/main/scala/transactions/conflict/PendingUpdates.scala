@@ -710,7 +710,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
         val newState = newStateBytes.toList
         val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ List(List(xid))
 
-        logger.debug(" " + Thread.currentThread.getName + " base: " + avroUtil.fromBytes(dbValue.get.value.get))
+        logger.debug(" " + Thread.currentThread.getName + " base: " + avroUtil.fromBytes(dbValue.get.value.get) + " delta: " + avroUtil.fromBytes(deltaRec.value.get) + " newState: " + avroUtil.fromBytes(newState.toArray))
 //        oldStates.toList.foreach(x =>
 //          logger.debug(" " + Thread.currentThread.getName + " oldStates: " + avroUtil.fromBytes(x._1.toArray)))
         var valid = newStates.put(newState, newXidList) match {
