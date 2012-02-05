@@ -68,7 +68,9 @@ class MDCCRecordCache() {
 
   //TODO: If we wanna use the cache for reads, we should use a lock-free structure
   lazy val cache = new LRUMap[ByteArrayWrapper, MDCCRecordHandler](CACHE_SIZE, None, killHandler){
-      protected override def canExpire(k: ByteArrayWrapper, v: MDCCRecordHandler): Boolean = v.getStatus == READY
+      protected override def canExpire(k: ByteArrayWrapper, v: MDCCRecordHandler): Boolean = {
+        v.getStatus == READY && v.mailbox.size == 0
+      }
     }
 
   def get(key : Array[Byte]) : Option[MDCCRecordHandler] = {

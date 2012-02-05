@@ -10,6 +10,8 @@ import scala.actors.Actor._
 import edu.berkeley.cs.scads.storage.transactions.FieldAnnotations._
 
 import java.util.concurrent.Semaphore
+import scala.util.Random
+import scala.collection.mutable.HashSet
 
 case class DataRecordActor(var id: Int) extends AvroPair {
   var s: String = _
@@ -42,10 +44,16 @@ class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransacti
           dr.a = dr.a - 1
           nsPair.put(dr)
         } else {
-          val dr = DataRecordActor((i % 10) + 1)
-          dr.s = ""; dr.a = -1; dr.b = 0; dr.c = 0
-          println("Putting " + dr)
-          nsPair.putLogical(dr)
+          val items = HashSet[Int]()
+          do{
+            items += Random.nextInt(10)
+          }while(items.size < 2)
+          items.foreach( x=> {
+            val dr = DataRecordActor(x)
+            dr.s = ""; dr.a = -1; dr.b = 0; dr.c = 0
+            println("Putting " + dr)
+            nsPair.putLogical(dr)
+          })
         }
       })
       val status = tx.Execute()
@@ -72,10 +80,10 @@ class TestTxActors {
     val nsPair = cluster.getNamespace[DataRecordActor]("testnsPair", NSTxProtocolMDCC())
     nsPair.setPartitionScheme(List((None, cluster.getAvailableServers)))
     Thread.sleep(1000)
-    var dr = DataRecordActor(1)
+    var dr = DataRecordActor(0)
     dr.s = "a"; dr.a = 100000; dr.b = 100; dr.c = 1.0.floatValue
     nsPair.put(dr)
-    (2 to 10).foreach( x => {
+    (1 to 10).foreach( x => {
       dr.id = x
       nsPair.put(dr)
     })

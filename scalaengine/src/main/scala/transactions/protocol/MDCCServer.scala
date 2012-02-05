@@ -143,7 +143,9 @@ class MDCCServer(val namespace : String,
         })
       } else {
         // TODO(kraska): how to find out if this is a fast or classic round?
-        pendingUpdates.overwrite(key, value, committedXids, abortedXids, newUpdates, myBallot.get.fast)
+        val oR = pendingUpdates.overwrite(key, value, committedXids, abortedXids, newUpdates, myBallot.get.fast)
+        debug(key, "Overwrite value: %s \n - committedXids %s \n - abortedXids %s, \n - newUpdates %s, \n - myBallot.get.fast %s - status \n %s", value, committedXids, abortedXids, newUpdates, myBallot.get.fast, oR)
+        if (!oR) debug(key, "Not accepted overwrite")
       }
       val r = getRecord(key)
       if(r.isDefined){

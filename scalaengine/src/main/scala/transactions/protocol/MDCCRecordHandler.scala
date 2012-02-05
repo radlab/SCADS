@@ -53,7 +53,7 @@ class MDCCRecordHandler (
 
   private var responses =  new HashMap[ServiceType, MDCCProtocol]()
 
-   private val mailbox = new PlainMailbox[StorageMessage]("" + this.hashCode)
+  val mailbox = new PlainMailbox[StorageMessage]("" + this.hashCode)
 
   implicit val remoteHandle = StorageService(StorageRegistry.registerFastMailboxFunc(processMailbox, mailbox))
 
@@ -144,7 +144,13 @@ class MDCCRecordHandler (
         }
         case env@StorageEnvelope(src, msg: Exit)  if status == READY => {
           debug("Processing EXIT request: %s", env)
-          StorageRegistry.unregisterService(remoteHandle)
+          if(mailbox.size() == 1){
+            debug("No pending request, we are ready to let go", env)
+            StorageRegistry.unregisterService(remoteHandle)
+          }else{
+            debug("The queue is still not empty", env)
+            mailbox.keepMsgInMailbox = true
+          }
         }
         case env@StorageEnvelope(src, msg: BeMaster) if status == READY => {
           request = env
