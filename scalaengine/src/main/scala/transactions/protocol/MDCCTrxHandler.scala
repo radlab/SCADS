@@ -35,6 +35,8 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
   //Semaphore is used for the programming model timeout SLO 300ms
   private val sema = new Semaphore(0, false)
 
+  private var notifiedAcceptors = false
+
   protected val logger = Logger(classOf[MDCCTrxHandler])
 
   implicit val remoteHandle = StorageRegistry.registerActor(this).asInstanceOf[RemoteService[StorageMessage]]
@@ -92,14 +94,19 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
 
   def notifyAcceptors() = {
     assert(status == COMMITTED || status == ABORTED )
-    val msg = if (status == COMMITTED)   edu.berkeley.cs.scads.storage.Commit(Xid)
-              else edu.berkeley.cs.scads.storage.Abort(Xid)
-    participants.foreach(s => {
-      debug("Notify recordhandler local:%s master:%s", s, s.masterRecordHandler)
-      s.servers.foreach(_ ! msg)
-      s.masterRecordHandler.map( _ ! msg)
-      s.remoteHandle ! msg
-    })
+    if(!notifiedAcceptors) {
+     val msg = if (status == COMMITTED)   edu.berkeley.cs.scads.storage.Commit(Xid)
+                else edu.berkeley.cs.scads.storage.Abort(Xid)
+     participants.foreach(s => {
+        debug("Notify recordhandler local:%s master:%s", s, s.masterRecordHandler)
+        s.servers.foreach(_ ! msg)
+        s.masterRecordHandler.map( _ ! msg)
+        s.remoteHandle ! msg
+      })
+    }
+    notifiedAcceptors = true
+
+
   }
 
   def act() {

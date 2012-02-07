@@ -58,7 +58,6 @@ class MDCCRecordHandler (
   implicit val remoteHandle = StorageService(StorageRegistry.registerFastMailboxFunc(processMailbox, mailbox))
 
 
-
   private var request : Envelope[StorageMessage] = null
 
   var masterRecordHandler : Option[SCADSService] = None //HACK Needed to get the commit message through
@@ -116,18 +115,23 @@ class MDCCRecordHandler (
 
   def getStatus = status
 
-  def commit(msg : MDCCProtocol, xid: ScadsXid, trxStatus : Boolean) = {
+  /**
+   * Returns if the message should be kept in the mailbox
+   */
+  def commit(msg : MDCCProtocol, xid: ScadsXid, trxStatus : Boolean) : Boolean = {
     debug("Received xid %s status %s ", xid, trxStatus)
-    value.commands.find(_.xid == xid).map(cmd => {
-      cmd.pending = false
-      cmd.commit = trxStatus
-    })
-    if(trxStatus)
-      servers ! Commit(xid)
-    else
-      servers ! Abort(xid)
-    if(status == WAITING_FOR_COMMIT)
-      status = READY
+    val cmd = value.commands.find(_.xid == xid)
+    if(cmd.isDefined){
+      cmd.get.pending = false
+      cmd.get.commit = trxStatus
+      if(status == WAITING_FOR_COMMIT)
+        status = READY
+      debug("Commit was found and deleted: %s", xid)
+      return false
+    }else{
+      debug("Commit is kept in mailbox: %s", xid)
+      return true
+    }
   }
 
   //TODO We should create a proper priority queue
@@ -136,11 +140,11 @@ class MDCCRecordHandler (
       mailbox{
         case env@StorageEnvelope(src, msg: Commit) => {
           debug("Processing Commit msg : %s", env)
-          commit(msg, msg.xid, true)
+          mailbox.keepMsgInMailbox= commit(msg, msg.xid, true)
         }
         case env@StorageEnvelope(src, msg: Abort) => {
-           debug("Processing Abort msg: %s", env)
-          commit(msg, msg.xid, false)
+          debug("Processing Abort msg: %s", env)
+          mailbox.keepMsgInMailbox = commit(msg, msg.xid, false)
         }
         case env@StorageEnvelope(src, msg: Exit)  if status == READY => {
           debug("Processing EXIT request: %s", env)
@@ -242,6 +246,9 @@ class MDCCRecordHandler (
         }
         case msg@_ => {
           debug("Mailbox-Hash:%s, Ignoring message in mailbox: msg:%s status: %s current request:%s", mailbox.hashCode(), msg, status, request)
+          if(status == WAITING_FOR_COMMIT){
+            debug("Value: %s, Version: %s, Ballots: %s, confirmed: %s", value, version, ballots, confirmedBallot)
+          }
           mailbox.keepMsgInMailbox = true
         }
       }

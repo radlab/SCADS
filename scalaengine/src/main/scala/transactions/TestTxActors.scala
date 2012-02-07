@@ -26,11 +26,21 @@ case class DataRecordActor(var id: Int) extends AvroPair {
   override def toString = "DataRecord(" + id + ", " + s + ", " + a + ", " + b + ", " + c + ")"
 }
 
+object Config {
+  val PRODUCTS = 4
+  val TRX_SIZE = 2
+  val CLIENTS = 2
+  val ROUNDS = 10000
+}
+
 object Client {
   @volatile var ready = true
+
 }
 
 class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransactions[DataRecordActor], sema: Semaphore, useLogical: Boolean = false) extends Actor {
+  import Config._
+
   private val logger = Logger(classOf[Client])
 
   def act() {
@@ -39,15 +49,17 @@ class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransacti
       logger.info("%s Starting update", this.hashCode())
       val s = System.currentTimeMillis
       val tx = new Tx(10000) ({
+        val items = HashSet[Int]()
+        do{
+          items += Random.nextInt(PRODUCTS)
+        }while(items.size < TRX_SIZE)
         if (!useLogical) {
-          val dr = nsPair.getRecord(DataRecordActor((i % 10) + 1)).get
-          dr.a = dr.a - 1
-          nsPair.put(dr)
+          items.foreach( x=> {
+            val dr = nsPair.getRecord(DataRecordActor(x)).get
+            dr.a = dr.a - 1
+            nsPair.put(dr)
+          })
         } else {
-          val items = HashSet[Int]()
-          do{
-            items += Random.nextInt(10)
-          }while(items.size < 2)
           items.foreach( x=> {
             val dr = DataRecordActor(x)
             dr.s = ""; dr.a = -1; dr.b = 0; dr.c = 0
@@ -74,6 +86,8 @@ class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransacti
 }
 
 class TestTxActors {
+  import Config._
+
   def run() {
     val cluster = TestScalaEngine.newScadsCluster(5)
 
@@ -83,14 +97,13 @@ class TestTxActors {
     var dr = DataRecordActor(0)
     dr.s = "a"; dr.a = 100000; dr.b = 100; dr.c = 1.0.floatValue
     nsPair.put(dr)
-    (1 to 10).foreach( x => {
+    (1 to PRODUCTS).foreach( x => {
       dr.id = x
       nsPair.put(dr)
     })
 
-    val numClients = 10
     val sema = new Semaphore(0)
-    val clients = (1 to numClients).map(x => new Client(x, nsPair, sema, true))
+    val clients = (1 to CLIENTS).map(x => new Client(x, nsPair, sema, false))
 
     // Start client actors.
     clients.foreach(_.start)
