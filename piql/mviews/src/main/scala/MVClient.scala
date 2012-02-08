@@ -31,6 +31,10 @@ abstract class TagClient(val cluster: ScadsCluster,
 
   val tags = cluster.getNamespace[Tag]("tags")
 
+  def tagToBytes(tag: String): Array[Byte] = {
+    tags.keyToBytes(new Tag(tag, "foo"))
+  }
+
   def all() = {
     tags.iterateOverRange(None, None).toList
   }
@@ -126,7 +130,7 @@ class MTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
     var mpairs = List[MTagPair]()
     for (arr <- selectItem(item)) {
       arr.head match {
-        case m: GenericData$Record => 
+        case m =>
           val t = tpair(m.get(1).toString, word)
           mpairs ::= new MTagPair(t._1, t._2, item)
       }

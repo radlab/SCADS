@@ -52,3 +52,36 @@ case class MVResult(
       return s.replaceAll(",","\t").substring(1, s.length-1)
   }
 }
+
+case class MVScaleResult(
+  var timestamp: Long,
+  var hostname: String,
+  var iteration: Int,
+  var clientId: String) extends AvroPair {
+
+  var threadCount: Int = _
+  var clientNumber: Int = _
+  var nClients: Int = _
+  var replicas: Int = _
+  var partitions: Int = _
+  var itemsPerMachine: Int = _
+  var maxTags: Int = _
+  var meanTags: Int = _
+  var loadTimeMs: Long = _
+  var runTimeMs: Long =  _
+  var responseTimes: Histogram = null
+  var failures: Int = _
+
+  def fmt: String = {
+      val x = ("clientId=" + clientId,
+               "itemsPerMachine=" + itemsPerMachine,
+               "lat(0.5)=" + responseTimes.quantile(0.5),
+               "lat(0.99)=" + responseTimes.quantile(0.99),
+               "gets/s=" + responseTimes.totalRequests*1.0/runTimeMs*1000,
+               "nClients=" + nClients,
+               "partitions=" + partitions,
+               "threads=" + threadCount)
+      val s = x.toString
+      return s.replaceAll(",","\t").substring(1, s.length-1)
+  }
+}
