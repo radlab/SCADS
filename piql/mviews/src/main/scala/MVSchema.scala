@@ -25,7 +25,7 @@ case class MTagPair(var tag1: String,
 }
 
 object MVResult {
-  val suffix = "pessimalResults"
+  val suffix = "results5"
 }
 
 case class MVResult(
@@ -53,7 +53,7 @@ case class MVResult(
   }
 }
 
-case class MVScaleResult(
+case class ParResult(
   var timestamp: Long,
   var hostname: String,
   var iteration: Int,

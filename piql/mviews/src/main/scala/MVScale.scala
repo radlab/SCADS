@@ -52,6 +52,7 @@ case class ScaleTask(var replicas: Int = 2,
       }
     }
     p = p.reverse
+    logger.info("Partition scheme: " + p)
 
     val nn = List(
       cluster.getNamespace[Tag]("tags"),
@@ -68,7 +69,7 @@ case class ScaleTask(var replicas: Int = 2,
     cluster.blockUntilReady(replicas * partitions)
 
     val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
-    val results = resultCluster.getNamespace[MVScaleResult](MVResult.suffix)
+    val results = resultCluster.getNamespace[ParResult](MVResult.suffix)
 
     val hostname = java.net.InetAddress.getLocalHost.getHostName
 
@@ -122,7 +123,7 @@ case class ScaleTask(var replicas: Int = 2,
               histogram
             })
 
-            val r = MVScaleResult(System.currentTimeMillis, hostname, iteration, clientId)
+            val r = ParResult(System.currentTimeMillis, hostname, iteration, clientId)
             r.threadCount = threadCount
             r.clientNumber = clientNumber
             r.nClients = nClients

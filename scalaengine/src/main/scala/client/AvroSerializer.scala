@@ -10,18 +10,25 @@ import generic._
 import io._
 import specific._
 
+import net.lag.logging.Logger
+
 import edu.berkeley.cs.avro.runtime.SchemaCompare
 
 abstract class AvroReaderWriter[T <: IndexedRecord](val remoteSchema: Option[Schema]) {
 
   protected val reader: DatumReader[T]
   protected val writer: DatumWriter[T]
+  protected val logger = Logger()
 
   def schema: Schema
 
   remoteSchema match {
     case None => {} // What to do here
-    case Some(rs) => if (!SchemaCompare.typesEqual(schema,rs)) throw new RuntimeException("Local and remote schemas do not have the same types")
+    case Some(rs) => if (!SchemaCompare.typesEqual(schema,rs)) {
+     logger.error("remoteSchema: " + rs)
+     logger.error("localSchema: " + schema)
+     throw new RuntimeException("Local and remote schemas do not have the same types") 
+    }
     // NB: test checks for the string in the message above, so change the test if you change the message
   }
 

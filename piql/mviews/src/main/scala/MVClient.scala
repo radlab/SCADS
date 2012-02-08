@@ -17,7 +17,7 @@ abstract class TagClient(val cluster: ScadsCluster,
                          implicit val executor: QueryExecutor,
                          val limit: Int = 20) {
   def selectTags(tag1: String, tag2: String): Seq[String]
-  def addTag(item: String, tag: String)
+  def addTag(item: String, tag: String, limit: Int = 9999): Unit
   def removeTag(item: String, tag: String)
   def initBulk(itemTagPairs: Seq[Tuple2[String,String]])
   def clear()
@@ -84,7 +84,7 @@ class NaiveTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
       })
   }
 
-  def addTag(item: String, tag: String) = {
+  def addTag(item: String, tag: String, limit: Int) = {
     tags.put(new Tag(tag, item))
   }
 
@@ -126,18 +126,21 @@ class MTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
       })
   }
 
-  def addTag(item: String, word: String) = {
-    var mpairs = List[MTagPair]()
-    for (arr <- selectItem(item)) {
-      arr.head match {
-        case m =>
-          val t = tpair(m.get(1).toString, word)
-          mpairs ::= new MTagPair(t._1, t._2, item)
+  def addTag(item: String, word: String, limit: Int) = {
+    val assoc = selectItem(item)
+    if (assoc.length < limit) {
+      var mpairs = List[MTagPair]()
+      for (arr <- assoc) {
+        arr.head match {
+          case m =>
+            val t = tpair(m.get(1).toString, word)
+            mpairs ::= new MTagPair(t._1, t._2, item)
+        }
       }
+      tags.put(new Tag(word, item))
+      mpairs ::= new MTagPair(word, word, item) // the duplicate pair
+      mTagPairs ++= mpairs
     }
-    tags.put(new Tag(word, item))
-    mpairs ::= new MTagPair(word, word, item) // the duplicate pair
-    mTagPairs ++= mpairs
   }
 
   def removeTag(item: String, word: String) = {

@@ -87,7 +87,7 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
     for (i <- 1 to ntags) {
       var item = items(Random.nextInt(items.length))
       var tag = tags(Random.nextInt(tags.length))
-      if (i % 100 == 0) {
+      if (i % 1000 == 0) {
         logger.info("Adding tags: %d/%d", i, ntags)
       }
       while (tagsof(item).size > max_tags_per_item) {
@@ -108,7 +108,11 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
   /* for MVScale */
   def randomAction() = {
     val start = System.nanoTime / 1000
-    assert (false)
+    val tag1 = tags(Random.nextInt(tags.length))
+    val tag2 = tags(Random.nextInt(tags.length))
+    val x = client.selectTags(tag1, tag2)
+    // TODO more types of actions
+    assert (x != null)
     System.nanoTime / 1000 - start
   }
 
@@ -146,9 +150,9 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
 
 /* convenient test configurations */
 object MVTest extends ExperimentBase {
-  val suffix = "pessimalResults"
-  override val resultCluster = new ScadsCluster(ZooKeeperNode(relativeAddress(MVResult.suffix)))
-  val results = resultCluster.getNamespace[MVResult](MVResult.suffix)
+  val rc = new ScadsCluster(ZooKeeperNode(relativeAddress(MVResult.suffix)))
+  val results = rc.getNamespace[MVResult](MVResult.suffix)
+  val scaled = rc.getNamespace[ParResult](MVResult.suffix)
 
   def newNaive(): MVTest = {
     val cluster = TestScalaEngine.newScadsCluster(3)
@@ -163,6 +167,6 @@ object MVTest extends ExperimentBase {
   }
 
   def go(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
-    new Task().schedule(relativeAddress(MVResult.suffix))
+    new ScaleTask().schedule(relativeAddress(MVResult.suffix))
   }
 }
