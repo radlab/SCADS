@@ -99,11 +99,11 @@ object MicroBenchmark extends ExperimentBase {
     println("deleted " + histList.size + " records")
   }
 
-  def writeHistogramCDFMap(name: String) = {
+  def writeHistogramCDFMap(name: String, write: Boolean = true) = {
     val mh = actionHistograms(name)
     try {
       val dirs = ("micro_data/" + name + "/").replaceAll(" ", "_")
-      (new java.io.File(dirs)).mkdirs
+      if (write) (new java.io.File(dirs)).mkdirs
 
       mh.foreach(t => {
         val n = t._1
@@ -112,12 +112,16 @@ object MicroBenchmark extends ExperimentBase {
         val filename = dirs + ("micro_" + n + ".csv").replaceAll(" ", "_")
         try {
           var total:Long = 0
-          val out = new java.io.BufferedWriter(new java.io.FileWriter(filename))
+          val out =
+            if (write)
+              new java.io.BufferedWriter(new java.io.FileWriter(filename))
+            else
+              null
           ((1 to h.buckets.length).map(_ * h.bucketSize) zip h.buckets).foreach(x => {
             total = total + x._2
-            out.write(" " + x._1 + ", " + total * 100.0 / totalRequests.toFloat + "\n")
+            if (write) out.write(" " + x._1 + ", " + total * 100.0 / totalRequests.toFloat + "\n")
           })
-          out.close()
+          if (write) out.close()
           println(n + ": requests: " + totalRequests + " 50%: " + h.quantile(.5) + " 90%: " + h.quantile(.9) + " 95%: " + h.quantile(.95) + " 99%: " + h.quantile(.99) + " avg: " + h.average)
         } catch {
           case e: Exception =>
@@ -207,7 +211,7 @@ case class MicroBenchmarkTask()
       executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
       numThreads=2,
       iterations=1,
-      runLengthMin=5,
+      runLengthMin=3,
       startTime=expStartTime,
       useLogical=useLogicalUpdates,
       note=notes).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress, List("scads.comm.externalip" -> "true"))
