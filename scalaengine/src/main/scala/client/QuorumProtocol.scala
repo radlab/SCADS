@@ -144,9 +144,9 @@ trait QuorumProtocol
    *
    * Note: the current implementation is Write All not quorum based.
    */
-  override def putBulkBytes(key: Array[Byte], value: Array[Byte]): Unit = {
+  override def putBulkBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit = {
     val (servers, quorum) = writeQuorumForKey(key)
-    val putRequest = PutRequest(key, Some(createMetadata(value)))
+    val putRequest = PutRequest(key, value.map(createMetadata))
 
     for (server <- servers) {
       val buf = serverBuffers.getOrElseUpdate(server, new ArrayBuffer[PutRequest](BulkPutBufSize))

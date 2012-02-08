@@ -249,8 +249,13 @@ class BdbStorageManager(val db: Database,
 
   def bulkPut(records:Seq[PutRequest]):Unit = {
     val txn = db.getEnvironment.beginTransaction(null, null)
-    var reccount = 0
-    records.foreach(rec => { db.put(txn, new DatabaseEntry(rec.key), new DatabaseEntry(rec.value.get)); reccount+=1})
+    records.foreach(rec => {
+      rec.value match {
+        case Some(v) => db.put(txn, new DatabaseEntry(rec.key),
+                                    new DatabaseEntry(v))
+        case None => db.delete(txn, new DatabaseEntry(rec.key))
+      }
+    })
     txn.commit()  // exception here will get caught above
   }
 

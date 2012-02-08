@@ -9,7 +9,9 @@ import org.apache.avro.generic._
 
 trait PersistentStore[BulkPutType] {
   def ++=(that: TraversableOnce[BulkPutType]): Unit
+  def --=(that: TraversableOnce[BulkPutType]): Unit
 }
+
 trait KeyValueStoreLike[KeyType <: IndexedRecord, 
                         ValueType <: IndexedRecord,
                         BulkPutType]
@@ -20,6 +22,7 @@ trait KeyValueStoreLike[KeyType <: IndexedRecord,
 
   def asyncGet(key: KeyType): ScadsFuture[Option[ValueType]]
 }
+
 trait RangeKeyValueStoreLike[KeyType <: IndexedRecord,
                              ValueType <: IndexedRecord,
                              RangeType]
@@ -62,7 +65,7 @@ trait Protocol {
 
   /* TODO: Thread safety? */
   def flushBulkBytes(): Unit
-  def putBulkBytes(key: Array[Byte], value: Array[Byte]): Unit
+  def putBulkBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit
 
   def asyncGetBytes(key: Array[Byte]): ScadsFuture[Option[Array[Byte]]]
 }

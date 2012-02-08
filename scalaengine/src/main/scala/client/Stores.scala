@@ -21,6 +21,11 @@ trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
     flushBulkBytes
   }
 
+  override def --=(that: TraversableOnce[B]) = {
+    that.toIterable.map(bulkToBytes).foreach(b => putBulkBytes(b._1, None))
+    flushBulkBytes
+  }
+
   override def get(key: K): Option[V] =
     getBytes(keyToBytes(key)) map bytesToValue     
 
