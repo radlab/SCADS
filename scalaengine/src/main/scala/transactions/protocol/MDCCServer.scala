@@ -82,10 +82,17 @@ class MDCCServer(val namespace : String,
     meta.validate() //just to make sure
     if(ballot.fast){
       //TODO can we optimize the accept?
-      val cstruct = proposes.map(prop => pendingUpdates.acceptOption(prop.xid, prop.update, true)).last._3
+      val results = proposes.map(prop => (prop, pendingUpdates.acceptOption(prop.xid, prop.update, true)))
+      val cstruct = results.last._2._3
       debug(key, "Replying with 2b to fast ballot source:%s cstruct:cstruct", src, cstruct)
       src ! Phase2b(ballot, cstruct)
+      commitTrx(trx)
+      // Must be outside of db lock.
+      results.foreach(r => {
+        pendingUpdates.txStatusAccept(r._1.xid, List(r._1.update), r._2._1)
+      })
     }else{
+      commitTrx(trx)
       debug(key, "Classic ballot: We get or start our own MDCCRecordHandler")
       val recordHandler = recordCache.getOrCreate(
         key,
@@ -96,7 +103,6 @@ class MDCCServer(val namespace : String,
         partition)
       recordHandler.remoteHandle.forward(msg, src)
     }
-    commitTrx(trx)
   }
 
   protected def processPhase1a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], newMeta: Seq[MDCCBallotRange]) = {
@@ -127,6 +133,7 @@ class MDCCServer(val namespace : String,
 
   protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates : Seq[SinglePropose] ) = {
     debug(key, "Process Phase2a", src, value, newUpdates)
+    var pendingOptions: Seq[(SinglePropose, Boolean)] = Nil
     implicit val trx = startTrx()
     var record = getRecord(key)
     val meta = extractMeta(record)
@@ -136,17 +143,14 @@ class MDCCServer(val namespace : String,
       src ! Phase2bMasterFailure(meta.ballots, false)
     }else{
       debug(key, "Writing new value value: %s updates: %s", value, newUpdates)
-      if (value.value.isEmpty && value.commands.isEmpty) {
-        newUpdates.foreach(c => {
-          // TODO(kraska): how to find out if this is a fast or classic round?
-          pendingUpdates.acceptOption(c.xid, c.update, myBallot.get.fast)
-        })
-      } else {
-        // TODO(kraska): how to find out if this is a fast or classic round?
-        val oR = pendingUpdates.overwrite(key, value, committedXids, abortedXids, newUpdates, myBallot.get.fast)
+      if (!(value.value.isEmpty && value.commands.isEmpty)) {
+        val oR = pendingUpdates.overwrite(key, value, committedXids, abortedXids, myBallot.get.fast)
         debug(key, "Overwrite value: %s \n - committedXids %s \n - abortedXids %s, \n - newUpdates %s, \n - myBallot.get.fast %s - status \n %s", value, committedXids, abortedXids, newUpdates, myBallot.get.fast, oR)
         if (!oR) debug(key, "Not accepted overwrite")
       }
+      pendingOptions = newUpdates.map(c => {
+        (c, pendingUpdates.acceptOption(c.xid, c.update, myBallot.get.fast)._1)
+      })
       val r = getRecord(key)
       if(r.isDefined){
         val record = r.get
@@ -163,16 +167,22 @@ class MDCCServer(val namespace : String,
       src ! msg //TODO Ask Gene if this is correct
     }
     commitTrx(trx)
+
+    // Must be outside of db lock.
+    pendingOptions.foreach(r => {
+      pendingUpdates.txStatusAccept(r._1.xid, List(r._1.update), r._2)
+    })
+
+    // TODO: Can also update status for committedXids and abortedXids, but it
+    //       not necessary for correctness.
   }
 
   protected def processAccept(src: RemoteServiceProxy[StorageMessage], xid: ScadsXid, commit : Boolean) = {
     logger.debug("Id: %s Trx-Id: %s Process commit message. Status: %s", this.hashCode(), xid, commit )
-    implicit val trx = startTrx()
     if(commit)
       pendingUpdates.commit(xid)
     else
       pendingUpdates.abort(xid)
-    commitTrx(trx)
   }
 
 
