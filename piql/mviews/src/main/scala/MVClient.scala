@@ -18,6 +18,7 @@ abstract class TagClient(val cluster: ScadsCluster,
                          val limit: Int = 20) {
   def selectTags(tag1: String, tag2: String): Seq[String]
   def addTag(item: String, tag: String)
+  def removeTag(item: String, tag: String)
   def initBulk(itemTagPairs: Seq[Tuple2[String,String]])
   def clear()
 
@@ -83,6 +84,10 @@ class NaiveTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
     tags.put(new Tag(tag, item))
   }
 
+  def removeTag(item: String, tag: String) = {
+    tags.put(new Tag(tag, item), None)
+  }
+
   def initBulk(itemTagPairs: Seq[Tuple2[String,String]]) = {
     tags ++= itemTagPairs.map(t => new Tag(t._2, t._1))
   }
@@ -98,6 +103,8 @@ class MTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
       extends TagClient(clus, exec) {
 
   protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.MTagClient")
+
+  // materialized pairs of tags, including the duplicate pair
   val mTagPairs = cluster.getNamespace[MTagPair]("mTagPairs")
 
   val selectTagPairQuery =
@@ -124,8 +131,22 @@ class MTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
           mpairs ::= new MTagPair(t._1, t._2, item)
       }
     }
-    mTagPairs ++= mpairs
     tags.put(new Tag(word, item))
+    mpairs ::= new MTagPair(word, word, item) // the duplicate pair
+    mTagPairs ++= mpairs
+  }
+
+  def removeTag(item: String, word: String) = {
+    var toDelete = List[MTagPair]()
+    for (arr <- selectItem(item)) {
+      arr.head match {
+        case m =>
+          val t = tpair(m.get(1).toString, word)
+          toDelete ::= new MTagPair(t._1, t._2, item)
+      }
+    }
+    tags.put(new Tag(word, item), None)
+    mTagPairs --= toDelete
   }
 
   def initBulk(itemTagPairs: Seq[Tuple2[String,String]]) = {
@@ -138,14 +159,15 @@ class MTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
 
         tags.foreach(t => allTags ::= new Tag(t, item))
 
-        // materialize all unique ordered pairs
-        while (tags.length > 1) {
+        // materialize all unique ordered pairs, including
+        // the duplicate pair
+        while (tags.length > 0) {
           val head = tags.head
-          tags = tags.tail
           for (y <- tags) {
-            assert (head < y)
+            assert (head <= y)
             allTagPairs ::= new MTagPair(head, y, item)
           }
+          tags = tags.tail
         }
     }
     tags ++= allTags
