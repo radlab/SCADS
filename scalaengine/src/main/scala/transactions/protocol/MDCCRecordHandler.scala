@@ -115,9 +115,6 @@ class MDCCRecordHandler (
 
   def getStatus = status
 
-  /**
-   * Returns if the message should be kept in the mailbox
-   */
   def commit(msg : MDCCProtocol, xid: ScadsXid, trxStatus : Boolean) : Boolean = {
     debug("Received xid %s status %s ", xid, trxStatus)
     val cmd = value.commands.find(_.xid == xid)
@@ -137,6 +134,7 @@ class MDCCRecordHandler (
   //TODO We should create a proper priority queue
   def processMailbox(mailbox : Mailbox[StorageMessage]) {
       debug("Mailbox %s %s", this.hashCode(), mailbox)
+      if(mailbox.size() > 10) debug("################   PROBLEM #################################### %s", mailbox.size())
       mailbox{
         case env@StorageEnvelope(src, msg: Commit) => {
           debug("Processing Commit msg : %s", env)
@@ -209,10 +207,10 @@ class MDCCRecordHandler (
                   origRequester ! msg
                   clear()
                 }
-                case _ =>
+                case _ => error("We got a learned message, but not for a propose request. What should we do")
               }
             }
-            case _ =>
+            case _ =>  error("We got a learned message without forwarding")
           }
         }
         case env@StorageEnvelope(src,  GotMastership(newBallot)) if status == READY => {

@@ -97,12 +97,16 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
     if(!notifiedAcceptors) {
      val msg = if (status == COMMITTED)   edu.berkeley.cs.scads.storage.Commit(Xid)
                 else edu.berkeley.cs.scads.storage.Abort(Xid)
+     val servers = new HashSet[PartitionService]()
      participants.foreach(s => {
-        debug("Notify recordhandler local:%s master:%s", s, s.masterRecordHandler)
-        s.servers.foreach(_ ! msg)
-        s.masterRecordHandler.map( _ ! msg)
-        s.remoteHandle ! msg
+       s.servers.foreach(servers += _)
+       debug("Notify recordhandler local:%s master:%s", s, s.masterRecordHandler)
+       if(s.masterRecordHandler.isDefined)
+         s.masterRecordHandler.get ! msg
+       else
+         s.remoteHandle ! msg
       })
+     servers.foreach( _ ! msg)
     }
     notifiedAcceptors = true
 

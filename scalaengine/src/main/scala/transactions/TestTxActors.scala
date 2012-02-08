@@ -12,6 +12,8 @@ import edu.berkeley.cs.scads.storage.transactions.FieldAnnotations._
 import java.util.concurrent.Semaphore
 import scala.util.Random
 import scala.collection.mutable.HashSet
+import _root_.org.fusesource.hawtdispatch._
+import java.util.concurrent.atomic.AtomicInteger
 
 case class DataRecordActor(var id: Int) extends AvroPair {
   var s: String = _
@@ -35,11 +37,30 @@ object Config {
 
 object Client {
   @volatile var ready = true
-
+  var committed =  new AtomicInteger(0)
+  var aborted =  new AtomicInteger(0)
 }
 
 class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransactions[DataRecordActor], sema: Semaphore, useLogical: Boolean = false) extends Actor {
   import Config._
+  import Client._
+
+  monitor_hawtdispatch()
+
+
+  def monitor_hawtdispatch() :Unit = {
+
+    import java.util.concurrent.TimeUnit._
+
+    // do the actual check in 1 second..
+    getGlobalQueue().after(5, SECONDS) {
+      println("Stats: Total Trx: " + (committed.intValue()  + aborted.intValue() ) + " Aborted:" + aborted.intValue()  + " Committed: " + committed.intValue())
+      committed.getAndSet(0)
+      aborted.getAndSet(0)
+      // to check again...
+      monitor_hawtdispatch
+    }
+  }
 
   private val logger = Logger(classOf[Client])
 
@@ -74,7 +95,8 @@ class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransacti
           println("#####################  UNKNOWN ######################")
           Client.ready =false
         }
-        case _ =>
+        case COMMITTED => committed.getAndIncrement()
+        case ABORTED => aborted.getAndIncrement()
       }
 
       logger.info("%s Finished the Trx in %s", this.hashCode(), (System.currentTimeMillis() - s))
