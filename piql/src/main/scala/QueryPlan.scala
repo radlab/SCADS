@@ -123,28 +123,7 @@ trait TupleProvider {
 }
 
 trait Relation extends TupleProvider {
-  def index(attrs: Seq[QualifiedAttributeValue]): Index = {
-    val remainingKeyFields = keyAttributes.filterNot(attrs contains _)
-    Index(attrs ++ remainingKeyFields, this)
-  }
-}
-
-case class Index(attrs: Seq[QualifiedAttributeValue], relation: Relation) extends TupleProvider {
-  def name = "Idx" + relation.name + "(" + attrs.map(_.field.name).mkString(",") + ")"
-  lazy val schema =
-    Schema.createRecord(
-      attrs.map(_.field)
-        .zipWithIndex.map { case (f,i) => new Schema.Field(f.name, f.schema, null, null)})
-
-  def keySchema = schema
-
-  // HACK unpackage the index manager and make the index here
-  def provider = relation match {
-    case r: ScadsRelation =>
-      r.ns.getOrCreateIndex(attrs.map(a => AttributeIndex(a.fieldName)))
-    case _ =>
-      sys.error("Don't know how to create index for this relation")
-  }
+  def index(attrs: Seq[QualifiedAttributeValue]): TupleProvider
 }
 
 case class ScadsRelation(ns: IndexedNamespace, alias: Option[String] = None) extends Relation with LogicalPlan with TupleProvider {
@@ -153,9 +132,16 @@ case class ScadsRelation(ns: IndexedNamespace, alias: Option[String] = None) ext
   def keySchema = ns.keySchema
   def provider = ns
   def as(alias: String) = ScadsRelation(ns, alias)
+
+  def index(attrs: Seq[QualifiedAttributeValue]): TupleProvider = {
+    val remainingKeyFields = keyAttributes.filterNot(attrs contains _)
+    val a = attrs ++ remainingKeyFields
+    val idx = ns.getOrCreateIndex(attrs.map(a => AttributeIndex(a.fieldName)))
+    ScadsIndex(idx)
+  }
 }
 
-case class ScadsIndex(ns: Namespace) extends LogicalPlan with TupleProvider {
+case class ScadsIndex(ns: Namespace) extends TupleProvider with LogicalPlan {
   def name = ns.name
   def schema = ns.schema
   def keySchema = ns.keySchema
