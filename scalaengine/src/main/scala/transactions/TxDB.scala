@@ -46,6 +46,19 @@ sealed trait TxDB[K <: AnyRef, V <: AnyRef] {
   // Returns the value for the key.
   def get(tx: TransactionData, key: K): Option[V]
 
+  // Returns the value for the key.  If it does not exist, tries to put the
+  // default value, without overwriting.  Returns the value in the db.
+  def getOrPut(tx: TransactionData, key: K, default: V): V = {
+    get(tx, key) match {
+      case None => {
+        val noOverwrite = putNoOverwrite(tx, key, default)
+        // The get() should be defined, because of the putNoOverwrite.
+        get(tx, key).get
+      }
+      case Some(s) => s
+    }
+  }
+
   // Starts a transaction in the db.  Returns an object which must be passed
   // into other methods to be part of the transaction.
   def txStart(): TransactionData
