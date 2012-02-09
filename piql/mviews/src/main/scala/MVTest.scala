@@ -150,9 +150,9 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
 
 /* convenient test configurations */
 object MVTest extends ExperimentBase {
-  val rc = new ScadsCluster(ZooKeeperNode(relativeAddress(MVResult.suffix)))
-  val results = rc.getNamespace[MVResult](MVResult.suffix)
-  val scaled = rc.getNamespace[ParResult](MVResult.suffix)
+  val rc = new ScadsCluster(ZooKeeperNode(relativeAddress(Results.suffix)))
+  val results = rc.getNamespace[MVResult]("MVResult")
+  val scaled = rc.getNamespace[ParResult]("ParResult")
 
   def newNaive(): MVTest = {
     val cluster = TestScalaEngine.newScadsCluster(3)
@@ -167,6 +167,6 @@ object MVTest extends ExperimentBase {
   }
 
   def go(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
-    new ScaleTask().schedule(relativeAddress(MVResult.suffix))
+    new ScaleTask().schedule(relativeAddress(Results.suffix))
   }
 }

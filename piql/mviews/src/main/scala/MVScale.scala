@@ -69,7 +69,7 @@ case class ScaleTask(var replicas: Int = 2,
     cluster.blockUntilReady(replicas * partitions)
 
     val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
-    val results = resultCluster.getNamespace[ParResult](MVResult.suffix)
+    val results = resultCluster.getNamespace[ParResult]("ParResult")
 
     val hostname = java.net.InetAddress.getLocalHost.getHostName
 

@@ -24,7 +24,7 @@ case class MTagPair(var tag1: String,
                       var item: String) extends AvroPair {
 }
 
-object MVResult {
+object Results {
   val suffix = "results5"
 }
 

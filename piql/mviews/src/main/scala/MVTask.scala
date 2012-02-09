@@ -50,7 +50,7 @@ case class Task(var replicationFactor: Int = 2,
     cluster.blockUntilReady(replicationFactor)
 
     val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
-    val results = resultCluster.getNamespace[MVResult](MVResult.suffix)
+    val results = resultCluster.getNamespace[MVResult]("MVResult")
 
     val hostname = java.net.InetAddress.getLocalHost.getHostName
 
