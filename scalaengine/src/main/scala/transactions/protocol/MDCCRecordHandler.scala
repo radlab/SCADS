@@ -534,7 +534,7 @@ class MDCCRecordHandler (
         }else{
           //We are in the classic mode
           debug("Testing for pending updates")
-          if(value.commands.exists(_.pending)){
+          if(false && value.commands.exists(_.pending)){ //We have to add the optional waiting
             debug("We  have still pending update, so we postpone: Value: %s", value)
             clear()
             forwardRequest(src, propose, unsafeCommands)
