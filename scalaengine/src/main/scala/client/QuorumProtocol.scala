@@ -172,11 +172,18 @@ trait QuorumProtocol
       processNextOutstandingRequest
   }
 
-  protected val serverBuffers = new HashMap[PartitionService, ArrayBuffer[PutRequest]]
-
   protected case class OutstandingPut(timestamp: Long, server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], future: MessageFuture[StorageMessage], tries: Int = 0)
 
-  protected val outstandingPuts = new collection.mutable.Queue[OutstandingPut]
+  /* bulk put buffers are thread-local */
+  implicit def accessLocal[A](a: ThreadLocal[A]): A = a.get
+
+  protected val serverBuffers = new ThreadLocal[HashMap[PartitionService, ArrayBuffer[PutRequest]]] {
+    override def initialValue() = new HashMap[PartitionService, ArrayBuffer[PutRequest]]()
+  }
+
+  protected val outstandingPuts = new ThreadLocal[collection.mutable.Queue[OutstandingPut]] {
+    override def initialValue() = new collection.mutable.Queue[OutstandingPut]()
+  }
 
   /* send the request and append it to the list of outstanding requests */
   @inline private def sendBuffer(server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], tries: Int = 0): Unit = {

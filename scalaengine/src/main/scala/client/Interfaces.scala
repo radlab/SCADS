@@ -63,7 +63,6 @@ trait Protocol {
   def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit
   def asyncPutBytes(key: Array[Byte], value: Option[Array[Byte]]): ScadsFuture[Unit]
 
-  /* TODO: Thread safety? */
   def flushBulkBytes(): Unit
   def putBulkBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit
 
