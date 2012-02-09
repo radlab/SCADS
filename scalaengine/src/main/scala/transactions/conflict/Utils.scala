@@ -174,3 +174,27 @@ object ApplyUpdates {
     newBase
   }
 }
+
+object ArrayLT {
+  def arrayLT(a: Array[Byte], b: Array[Byte]): Boolean = {
+    var cmp = 0
+    var done = false
+    val comp = a.zip(b).foreach(x => {
+      if (!done) {
+        if (x._1 < x._2) {
+          cmp = -1
+          done = true
+        }
+        if (x._1 > x._2) {
+          cmp = 1
+          done = true
+        }
+      }
+    })
+    if (cmp == 0) {
+      a.length < b.length
+    } else {
+      cmp == -1
+    }
+  }
+}

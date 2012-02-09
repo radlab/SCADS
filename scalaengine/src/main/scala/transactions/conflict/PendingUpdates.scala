@@ -347,28 +347,6 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     txInfo
   }
 
-  def arrayLT(a: Array[Byte], b: Array[Byte]): Boolean = {
-    var cmp = 0
-    var done = false
-    val comp = a.zip(b).foreach(x => {
-      if (!done) {
-        if (x._1 < x._2) {
-          cmp = -1
-          done = true
-        }
-        if (x._1 > x._2) {
-          cmp = 1
-          done = true
-        }
-      }
-    })
-    if (cmp == 0) {
-      a.length < b.length
-    } else {
-      cmp == -1
-    }
-  }
-
   // DO NOT hold db locks while calling this.
   override def commit(xid: ScadsXid) : Boolean = {
     // TODO: Handle out of order commits to same records.
@@ -377,7 +355,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     val txInfo = updateAndGetTxStatus(xid, Status.Commit)
 
     // Sort the updates by key.
-    val txRecords = txInfo.updates.sortWith((a, b) => arrayLT(a.key, b.key))
+    val txRecords = txInfo.updates.sortWith((a, b) => ArrayLT.arrayLT(a.key, b.key))
 
     var success = true
     val txn = db.txStart()
@@ -465,7 +443,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     val txInfo = updateAndGetTxStatus(xid, Status.Abort)
 
     // Sort the updates by key.
-    val txRecords = txInfo.updates.sortWith((a, b) => arrayLT(a.key, b.key))
+    val txRecords = txInfo.updates.sortWith((a, b) => ArrayLT.arrayLT(a.key, b.key))
 
     val pendingCommandsTxn = pendingCStructs.txStart()
     try {

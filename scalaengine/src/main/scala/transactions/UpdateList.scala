@@ -3,20 +3,23 @@ package transactions
 
 
 import edu.berkeley.cs.scads.comm._
+import edu.berkeley.cs.scads.storage.transactions.conflict.ArrayLT
 
 import scala.collection.mutable.ListBuffer
 
 import net.lag.logging.Logger
 
-sealed trait UpdateInfo
-case class ValueUpdateInfo(ns : TransactionI,
-                           servers: Seq[PartitionService],
-                           key: Array[Byte],
-                           rec: Option[Array[Byte]]) extends UpdateInfo
-case class LogicalUpdateInfo(ns : TransactionI,
-                             servers: Seq[PartitionService],
-                             key: Array[Byte],
-                             rec: Option[Array[Byte]]) extends UpdateInfo
+sealed trait UpdateInfo {
+  var key: Array[Byte]
+}
+case class ValueUpdateInfo(var ns : TransactionI,
+                           var servers: Seq[PartitionService],
+                           var key: Array[Byte],
+                           var rec: Option[Array[Byte]]) extends UpdateInfo
+case class LogicalUpdateInfo(var ns : TransactionI,
+                             var servers: Seq[PartitionService],
+                             var key: Array[Byte],
+                             var rec: Option[Array[Byte]]) extends UpdateInfo
 
 // TODO: Worry about thread safety?
 class UpdateList {
@@ -37,7 +40,7 @@ class UpdateList {
   }
 
   def getUpdateList() = {
-    updateList.readOnly
+    updateList.sortWith((a, b) => ArrayLT.arrayLT(a.key, b.key)).readOnly
   }
 
   def size() = {
