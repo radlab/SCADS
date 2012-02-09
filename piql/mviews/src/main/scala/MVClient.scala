@@ -17,6 +17,7 @@ abstract class TagClient(val cluster: ScadsCluster,
                          implicit val executor: QueryExecutor,
                          val limit: Int = 20) {
   def selectTags(tag1: String, tag2: String): Seq[String]
+  def fastSelectTags(tag1: String, tag2: String)
   def addTag(item: String, tag: String, limit: Int = 9999): Unit
   def removeTag(item: String, tag: String)
   def initBulk(itemTagPairs: Seq[Tuple2[String,String]])
@@ -82,6 +83,10 @@ class NaiveTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
       })
   }
 
+  def fastSelectTags(tag1: String, tag2: String) = {
+    twoTagsPiql(tag1, tag2)
+  }
+
   def addTag(item: String, tag: String, limit: Int) = {
     tags.put(new Tag(tag, item))
   }
@@ -122,6 +127,11 @@ class MTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
         case m: MTagPair =>
           m.item
       })
+  }
+
+  def fastSelectTags(tag1: String, tag2: String) = {
+    val t = tpair(tag1, tag2)
+    selectTagPairQuery(t._1, t._2)
   }
 
   def addTag(item: String, word: String, limit: Int) = {

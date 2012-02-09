@@ -19,12 +19,12 @@ import net.lag.logging.Logger
 /* task to run MVTest on EC2 */
 case class ScaleTask(var replicas: Int = 2,
                      var partitions: Int = 1,
-                     var nClients: Int = 2,
+                     var nClients: Int = 1,
                      var iterations: Int = 2,
                      var itemsPerMachine: Seq[Int] = List(1000),
                      var maxTagsPerItem: Int = 10,
                      var meanTagsPerItem: Int = 4,
-                     var readFrac: Double = 1.0,
+                     var readFrac: Double = 0.9,
                      var threadCounts: Seq[Int] = Seq(32))
             extends AvroTask with AvroRecord with TaskBase {
   
@@ -81,37 +81,56 @@ case class ScaleTask(var replicas: Int = 2,
     val coordination = cluster.root.getOrCreate("coordination/loaders")
     val clientNumber = coordination.registerAndAwait("clientsStart", nClients)
 
-    // setup client (AFTER namespace creation)
+    if (clientNumber != 0) {
+      logger.info("Client %d waiting for namespace setup...", clientNumber)
+      coordination.registerAndAwait("nsReady", nClients)
+    }
+
+    // setup client (AFTER namespace creation unless you are client 0)
     val clients =
       List(/*new NaiveTagClient(cluster, new ParallelExecutor),*/
            new MTagClient(cluster, new ParallelExecutor))
 
+    if (clientNumber == 0) {
+      logger.info("Client %d has set up namespace.", clientNumber)
+      coordination.registerAndAwait("nsReady", nClients)
+    }
+
+    // agh...
+    coordination.registerAndAwait("clientsStarted", nClients)
+
     clients.foreach(client => {
       val clientId = client.getClass.getSimpleName
       val scenario = new MVTest(cluster, client)
+      var firstRun = true
       itemsPerMachine.foreach(ii => {
         val loadStartMs = System.currentTimeMillis
 
         /* single client loads all data */
         if (clientNumber == 0) {
           logger.info("Client %d preparing data...", clientNumber)
-          scenario.reset()
-          setupPartitions(scenario, cluster)
-          scenario.randomPopulate(ii * partitions,
-            meanTagsPerItem, maxTagsPerItem)
+          if (firstRun) {
+            setupPartitions(scenario, cluster)
+            firstRun = false
+          } else {
+            scenario.reset()
+          }
+          scenario.randomPopulate(ii * partitions, meanTagsPerItem, maxTagsPerItem)
         } else {
+          scenario.genItems(ii * partitions)
           logger.info("Client %d awaiting dataReady", clientNumber)
         }
+        coordination.registerAndAwait("dataReady" + ii, nClients)
         val loadTimeMs = System.currentTimeMillis - loadStartMs
         logger.info("Data load wait: %d ms", loadTimeMs)
 
-        coordination.registerAndAwait("dataReady" + ii, nClients)
         (1 to iterations).foreach(iteration => {
           logger.info("Beginning iteration %d", iteration)
           threadCounts.foreach(threadCount => {
+            coordination.registerAndAwait("it:" + iteration + ",th:" + threadCount, nClients)
             val iterationStartMs = System.currentTimeMillis
             val failures = new java.util.concurrent.atomic.AtomicInteger()
-            val histograms = (0 until threadCount).pmap(i => {
+            val histograms = (0 until threadCount).pmap(tid => {
               val geth = Histogram(100,10000)
               val puth = Histogram(100,10000)
               val delh = Histogram(100,10000)
@@ -134,6 +153,7 @@ case class ScaleTask(var replicas: Int = 2,
                   }
                 } catch {
                   case e => 
+                    logger.warning(e.getMessage)
                     failures.getAndAdd(1)
                 }
               }

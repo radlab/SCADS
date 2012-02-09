@@ -76,20 +76,21 @@ case class ParResult(
   var readFrac: Double = _
 
   def fmt: String = {
-      val x = ("clientId=" + clientId,
-               "itemsPerMachine=" + itemsPerMachine,
-               "readFrac=" + readFrac,
-               "l_get=" + getTimes.quantile(0.5),
-               "l_put=" + putTimes.quantile(0.5),
-               "l_del=" + delTimes.quantile(0.5),
+      val x = ("" + clientId,
+               (clientNumber+1) + "/" + nClients,
+               "read=" + readFrac,
+               "get=%.1fms".format(getTimes.quantile(0.5)/1000.0),
+               "put=%.1fms".format(putTimes.quantile(0.5)/1000.0),
+               "del=%.1fms".format(delTimes.quantile(0.5)/1000.0),
                "ops/s=" + (getTimes.totalRequests + putTimes.totalRequests + delTimes.totalRequests)*1.0/runTimeMs*1000,
-               "nClients=" + nClients,
-               "partitions=" + partitions,
-               "threads=" + threadCount)
+               "rep=" + replicas,
+               "par=" + partitions,
+               "threads=" + threadCount,
+               "items/m=" + itemsPerMachine)
       val s = x.toString
-      var s2 = s.replaceAll(",","\t").substring(1, s.length-1)
+      var s2 = s.replaceAll(","," ").substring(1, s.length-1)
       if (failures > 0) {
-        s2 += "\tFAILURES=" + failures
+        s2 += " FAILURES=" + failures
       }
       return s2
   }

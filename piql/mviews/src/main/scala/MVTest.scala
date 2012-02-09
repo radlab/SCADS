@@ -29,6 +29,7 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
   /* tags, items used for populate/MVScale */
   var tags: Array[String] = _
   var items: Array[String] = _
+  val UNIQUE_TAGS = 400
   val ksMin = 0
   val ksMax = 1e12.longValue
 
@@ -53,25 +54,14 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
   /* for MVScale */
   def randomPopulate(nitems: Int, meanTags: Int, maxTags: Int) = {
     assert (!populated && nitems > 1 && meanTags < maxTags)
-
-    val tags = populate(nitems, 400, meanTags * nitems, maxTags)
-    // 1. create nitems, n*meanTags tags
-    // 2. randomly assign items to tags
-
-    populated = true
+    populate(nitems, UNIQUE_TAGS, meanTags * nitems, maxTags)
   }
 
-  def populate(nitems: Int,
-               unique_tags: Int,
-               ntags: Int,
-               max_tags_per_item: Int) = {
-    assert (!populated)
-    assert (max_tags_per_item * nitems > ntags)
-    assert (unique_tags > max_tags_per_item)
-
+  /* for MVScale */
+  def genItems(nitems: Int, unique_tags: Int = UNIQUE_TAGS) = {
+    val tagsof = new HashMap[String,HashSet[String]]()
     tags = new Array[String](unique_tags)
     items = new Array[String](nitems)
-    val tagsof = new HashMap[String,HashSet[String]]()
 
     for (i <- Range(0, unique_tags))  {
       tags(i) = ksToTag(ksSample(i, unique_tags))
@@ -82,6 +72,19 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
       items(i) = item
       tagsof(item) = new HashSet[String]()
     }
+
+    tagsof
+  }
+
+  def populate(nitems: Int,
+               unique_tags: Int,
+               ntags: Int,
+               max_tags_per_item: Int) = {
+    assert (!populated)
+    assert (max_tags_per_item * nitems > ntags)
+    assert (unique_tags > max_tags_per_item)
+
+    val tagsof = genItems(nitems)
 
     var bulk = List[Tuple2[String,String]]()
     for (i <- 1 to ntags) {
@@ -110,7 +113,7 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
     val start = System.nanoTime / 1000
     val tag1 = tags(Random.nextInt(tags.length))
     val tag2 = tags(Random.nextInt(tags.length))
-    client.selectTags(tag1, tag2)
+    client.fastSelectTags(tag1, tag2)
     System.nanoTime / 1000 - start
   }
 
