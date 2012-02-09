@@ -43,22 +43,20 @@ abstract class TagClient(val cluster: ScadsCluster,
     tags.iterateOverRange(None, None).size
   }
 
-  val selectTagQuery =
-    tags.where("word".a === (0.?))
-        .limit(limit)
-        .toPiql("selectTagQuery")
-
   val selectItemQuery =
     tags.where("item".a === (0.?))
         .limit(limit)
         .toPiql("selectItemQuery")
   
-  def selectTag(tag: String) = {
-    selectTagQuery(tag)
-  }
-
-  def selectItem(item: String) = {
-    selectItemQuery(item)
+  def selectItem(item: String): List[String] = {
+    var tags = List[String]()
+    for (arr <- selectItemQuery(item)) {
+      arr.head match {
+        case m =>
+          tags ::= m.get(1).toString
+      }
+    }
+    tags
   }
 }
 
@@ -130,12 +128,9 @@ class MTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
     val assoc = selectItem(item)
     if (assoc.length < limit) {
       var mpairs = List[MTagPair]()
-      for (arr <- assoc) {
-        arr.head match {
-          case m =>
-            val t = tpair(m.get(1).toString, word)
-            mpairs ::= new MTagPair(t._1, t._2, item)
-        }
+      for (a <- assoc) {
+        val t = tpair(a, word)
+        mpairs ::= new MTagPair(t._1, t._2, item)
       }
       tags.put(new Tag(word, item))
       mpairs ::= new MTagPair(word, word, item) // the duplicate pair
@@ -145,12 +140,9 @@ class MTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
 
   def removeTag(item: String, word: String) = {
     var toDelete = List[MTagPair]()
-    for (arr <- selectItem(item)) {
-      arr.head match {
-        case m =>
-          val t = tpair(m.get(1).toString, word)
-          toDelete ::= new MTagPair(t._1, t._2, item)
-      }
+    for (a <- selectItem(item)) {
+      val t = tpair(a, word)
+      toDelete ::= new MTagPair(t._1, t._2, item)
     }
     tags.put(new Tag(word, item), None)
     mTagPairs --= toDelete

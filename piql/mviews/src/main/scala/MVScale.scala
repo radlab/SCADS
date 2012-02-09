@@ -3,6 +3,8 @@ package scads
 package piql
 package mviews
 
+import scala.util.Random
+
 import deploylib._
 import deploylib.mesos._
 import avro.marker._
@@ -16,13 +18,14 @@ import net.lag.logging.Logger
 
 /* task to run MVTest on EC2 */
 case class ScaleTask(var replicas: Int = 2,
-                     var partitions: Int = 2,
-                     var nClients: Int = 1,
+                     var partitions: Int = 1,
+                     var nClients: Int = 2,
                      var iterations: Int = 2,
-                     var itemsPerMachine: Seq[Int] = List(1000,10000),
+                     var itemsPerMachine: Seq[Int] = List(1000),
                      var maxTagsPerItem: Int = 10,
                      var meanTagsPerItem: Int = 4,
-                     var threadCounts: Seq[Int] = Seq(1,8,32))
+                     var readFrac: Double = 1.0,
+                     var threadCounts: Seq[Int] = Seq(32))
             extends AvroTask with AvroRecord with TaskBase {
   
   var resultClusterAddress: String = _
@@ -34,7 +37,9 @@ case class ScaleTask(var replicas: Int = 2,
     clusterAddress = scadsCluster.root.canonicalAddress
     this.resultClusterAddress = resultClusterAddress
     val task = this.toJvmTask
-    cluster.serviceScheduler.scheduleExperiment(task :: Nil)
+    (1 to nClients).foreach {
+      i => cluster.serviceScheduler.scheduleExperiment(task :: Nil)
+    }
   }
 
   def setupPartitions(client: MVTest, cluster: ScadsCluster) = {
@@ -107,20 +112,32 @@ case class ScaleTask(var replicas: Int = 2,
             val iterationStartMs = System.currentTimeMillis
             val failures = new java.util.concurrent.atomic.AtomicInteger()
             val histograms = (0 until threadCount).pmap(i => {
-              val histogram = Histogram(100,10000)
+              val geth = Histogram(100,10000)
+              val puth = Histogram(100,10000)
+              val delh = Histogram(100,10000)
               var i = 20000
               while (i > 0) {
                 i -= 1
                 try {
-                  val respTime = scenario.randomAction
-                  logger.debug("Get response time: %d", respTime)
-                  histogram.add(respTime)
+                  if (Random.nextDouble() < readFrac) {
+                    val respTime = scenario.randomGet
+                    logger.debug("Get response time: %d", respTime)
+                    geth.add(respTime)
+                  } else if (Random.nextDouble() < 0.5) {
+                    val respTime = scenario.randomPut(maxTagsPerItem)
+                    logger.debug("Put response time: %d", respTime)
+                    puth.add(respTime)
+                  } else {
+                    val respTime = scenario.randomDel
+                    logger.debug("Del response time: %d", respTime)
+                    delh.add(respTime)
+                  }
                 } catch {
                   case e => 
                     failures.getAndAdd(1)
                 }
               }
-              histogram
+              (geth, puth, delh)
             })
 
             val r = ParResult(System.currentTimeMillis, hostname, iteration, clientId)
@@ -134,7 +151,11 @@ case class ScaleTask(var replicas: Int = 2,
             r.meanTags = meanTagsPerItem
             r.loadTimeMs = loadTimeMs
             r.runTimeMs = System.currentTimeMillis - iterationStartMs
-            r.responseTimes = histograms.reduceLeft(_ + _)
+            r.readFrac = readFrac
+            var h = histograms.reduceLeft((a, b) => (a._1 + b._1, a._2 + b._2, a._3 + b._3))
+            r.getTimes = h._1
+            r.putTimes = h._2
+            r.delTimes = h._3
             r.failures = failures.get()
             results.put(r)
           })

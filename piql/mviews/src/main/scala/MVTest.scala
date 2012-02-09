@@ -87,7 +87,7 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
     for (i <- 1 to ntags) {
       var item = items(Random.nextInt(items.length))
       var tag = tags(Random.nextInt(tags.length))
-      if (i % 1000 == 0) {
+      if (i % 10000 == 0) {
         logger.info("Adding tags: %d/%d", i, ntags)
       }
       while (tagsof(item).size > max_tags_per_item) {
@@ -106,13 +106,38 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
   }
 
   /* for MVScale */
-  def randomAction() = {
+  def randomGet() = {
     val start = System.nanoTime / 1000
     val tag1 = tags(Random.nextInt(tags.length))
     val tag2 = tags(Random.nextInt(tags.length))
-    val x = client.selectTags(tag1, tag2)
-    // TODO more types of actions
-    assert (x != null)
+    client.selectTags(tag1, tag2)
+    System.nanoTime / 1000 - start
+  }
+
+  /* for MVScale */
+  def randomPut(limit: Int) = {
+    val start = System.nanoTime / 1000
+    val item = items(Random.nextInt(items.length))
+    val tag = tags(Random.nextInt(tags.length))
+    client.addTag(item, tag, limit)
+    System.nanoTime / 1000 - start
+  }
+
+  /* for MVScale */
+  def randomDel() = {
+    var item = items(Random.nextInt(items.length))
+    var assoc = client.selectItem(item)
+    var tries = 0
+    while (assoc.length == 0 && tries < 5) {
+      item = items(Random.nextInt(items.length))
+      assoc = client.selectItem(item)
+      tries += 1
+    }
+    val start = System.nanoTime / 1000
+    if (assoc.length > 0) {
+      val a = assoc(Random.nextInt(assoc.length))
+      client.removeTag(item, a)
+    }
     System.nanoTime / 1000 - start
   }
 

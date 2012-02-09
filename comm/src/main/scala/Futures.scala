@@ -63,7 +63,7 @@ object FutureReference {
       while(true) {
         val futureRef = staleMessages.remove.asInstanceOf[FutureReference[_]]
         if(futureRef.unregister)
-          logger.warning("Removing unsatisfied gced future from message regsistry: %s %s %s", futureRef.remoteService, futureRef.dest,futureRef.request)
+          logger.debug("Removing unsatisfied gced future from message regsistry: %s %s %s", futureRef.remoteService, futureRef.dest,futureRef.request)
       }
     }
   }

@@ -25,7 +25,7 @@ case class MTagPair(var tag1: String,
 }
 
 object Results {
-  val suffix = "results5"
+  val suffix = "results6"
 }
 
 case class MVResult(
@@ -69,15 +69,20 @@ case class ParResult(
   var meanTags: Int = _
   var loadTimeMs: Long = _
   var runTimeMs: Long =  _
-  var responseTimes: Histogram = null
+  var putTimes: Histogram = null
+  var getTimes: Histogram = null
+  var delTimes: Histogram = null
   var failures: Int = _
+  var readFrac: Double = _
 
   def fmt: String = {
       val x = ("clientId=" + clientId,
                "itemsPerMachine=" + itemsPerMachine,
-               "lat(0.5)=" + responseTimes.quantile(0.5),
-               "lat(0.99)=" + responseTimes.quantile(0.99),
-               "gets/s=" + responseTimes.totalRequests*1.0/runTimeMs*1000,
+               "readFrac=" + readFrac,
+               "l_get=" + getTimes.quantile(0.5),
+               "l_put=" + putTimes.quantile(0.5),
+               "l_del=" + delTimes.quantile(0.5),
+               "ops/s=" + (getTimes.totalRequests + putTimes.totalRequests + delTimes.totalRequests)*1.0/runTimeMs*1000,
                "nClients=" + nClients,
                "partitions=" + partitions,
                "threads=" + threadCount)
