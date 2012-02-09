@@ -22,7 +22,7 @@ case class ScaleTask(var replicas: Int = 2,
                      var itemsPerMachine: Seq[Int] = List(1000,10000),
                      var maxTagsPerItem: Int = 10,
                      var meanTagsPerItem: Int = 4,
-                     var threadCounts: Seq[Int] = Seq(1))
+                     var threadCounts: Seq[Int] = Seq(1,8,32))
             extends AvroTask with AvroRecord with TaskBase {
   
   var resultClusterAddress: String = _
@@ -100,7 +100,7 @@ case class ScaleTask(var replicas: Int = 2,
         val loadTimeMs = System.currentTimeMillis - loadStartMs
         logger.info("Data load wait: %d ms", loadTimeMs)
 
-        coordination.registerAndAwait("dataReady", nClients)
+        coordination.registerAndAwait("dataReady" + ii, nClients)
         (1 to iterations).foreach(iteration => {
           logger.info("Beginning iteration %d", iteration)
           threadCounts.foreach(threadCount => {

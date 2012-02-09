@@ -82,6 +82,10 @@ case class ParResult(
                "partitions=" + partitions,
                "threads=" + threadCount)
       val s = x.toString
-      return s.replaceAll(",","\t").substring(1, s.length-1)
+      var s2 = s.replaceAll(",","\t").substring(1, s.length-1)
+      if (failures > 0) {
+        s2 += "\tFAILURES=" + failures
+      }
+      return s2
   }
 }
