@@ -472,8 +472,19 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       txRecords.foreach(r => {
         // Remove the updates in the pending list.
         val commandsInfo = pendingCStructs.getOrPut(pendingCommandsTxn, r.key, PendingCommandsInfo(None, new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
-        commandsInfo.abortCommand(CStructCommand(xid, r, false, false))
-        pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
+        val applyAbort = commandsInfo.getCommand(xid) match {
+          case None =>
+            // Update is not in the pending list, so that means the option was
+            // never received.  Do not abort update, and just stay out of date.
+            false
+          case Some(c) =>
+            // Only apply the abort if the command is still pending.
+            c.pending
+        }
+        if (applyAbort) {
+          commandsInfo.abortCommand(CStructCommand(xid, r, false, false))
+          pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
+        }
       })
       pendingCStructs.txCommit(pendingCommandsTxn)
       true
