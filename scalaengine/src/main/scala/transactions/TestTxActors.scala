@@ -135,7 +135,7 @@ class TestTxActors {
 
     // Sleep for a little bit to wait for the commits.
     Thread.sleep(2000)
-    println("result: ")
+    println("We are done \n result: ")
     nsPair.getRange(None, None).foreach(x => println(x))
   }
 }
