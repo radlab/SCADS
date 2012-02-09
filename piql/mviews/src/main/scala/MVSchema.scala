@@ -75,8 +75,22 @@ case class ParResult(
   var failures: Int = _
   var readFrac: Double = _
 
+  def timeSince(): String = {
+    val dt = System.currentTimeMillis - timestamp
+    if (dt < 2 * 1000 * 60) {
+      "%d seconds ago".format(dt/1000)
+    } else if (dt < 2 * 1000 * 60 * 60) {
+      "%d minutes ago".format(dt/1000/60)
+    } else if (dt < 2 * 1000 * 60 * 60 * 24) {
+      "%d hours ago".format(dt/1000/60/60)
+    } else {
+      "%d days ago".format(dt/1000/60/60/24)
+    }
+  }
+
   def fmt: String = {
-      val x = ("" + clientId,
+      val x = (timeSince(),
+               "" + clientId,
                (clientNumber+1) + "/" + nClients,
                "read=" + readFrac,
                "get=%.1fms".format(getTimes.quantile(0.5)/1000.0),

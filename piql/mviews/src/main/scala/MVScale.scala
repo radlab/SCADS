@@ -13,18 +13,19 @@ import comm._
 import config._
 import storage._
 import exec._
+import storage.client.index._
 
 import net.lag.logging.Logger
 
 /* task to run MVTest on EC2 */
-case class ScaleTask(var replicas: Int = 2,
-                     var partitions: Int = 1,
-                     var nClients: Int = 1,
+case class ScaleTask(var replicas: Int = 1,
+                     var partitions: Int = 8,
+                     var nClients: Int = 8,
                      var iterations: Int = 2,
                      var itemsPerMachine: Seq[Int] = List(1000),
-                     var maxTagsPerItem: Int = 10,
+                     var maxTagsPerItem: Int = 20,
                      var meanTagsPerItem: Int = 4,
-                     var readFrac: Double = 0.9,
+                     var readFrac: Double = 0.8,
                      var threadCounts: Seq[Int] = Seq(32))
             extends AvroTask with AvroRecord with TaskBase {
   
@@ -59,9 +60,12 @@ case class ScaleTask(var replicas: Int = 2,
     p = p.reverse
     logger.info("Partition scheme: " + p)
 
-    val nn = List(
-      cluster.getNamespace[Tag]("tags"),
+    val tags = cluster.getNamespace[Tag]("tags")
+    val nn = List(tags,
+      tags.getOrCreateIndex(AttributeIndex("item") :: Nil),
       cluster.getNamespace[MTagPair]("mTagPairs"))
+
+    // assume they all have prefixes sampled from the same keyspace
     for (n <- nn) {
       n.setPartitionScheme(p)
       n.setReadWriteQuorum(.001, 1.00)
@@ -81,20 +85,10 @@ case class ScaleTask(var replicas: Int = 2,
     val coordination = cluster.root.getOrCreate("coordination/loaders")
     val clientNumber = coordination.registerAndAwait("clientsStart", nClients)
 
-    if (clientNumber != 0) {
-      logger.info("Client %d waiting for namespace setup...", clientNumber)
-      coordination.registerAndAwait("nsReady", nClients)
-    }
-
-    // setup client (AFTER namespace creation unless you are client 0)
+    // setup client (AFTER namespace creation)
     val clients =
       List(/*new NaiveTagClient(cluster, new ParallelExecutor),*/
            new MTagClient(cluster, new ParallelExecutor))
-
-    if (clientNumber == 0) {
-      logger.info("Client %d has set up namespace.", clientNumber)
-      coordination.registerAndAwait("nsReady", nClients)
-    }
 
     // agh...
     coordination.registerAndAwait("clientsStarted", nClients)
@@ -105,6 +99,7 @@ case class ScaleTask(var replicas: Int = 2,
       var firstRun = true
       itemsPerMachine.foreach(ii => {
         val loadStartMs = System.currentTimeMillis
+        val totalItems = ii * partitions
 
         /* single client loads all data */
         if (clientNumber == 0) {
@@ -115,9 +110,9 @@ case class ScaleTask(var replicas: Int = 2,
           } else {
             scenario.reset()
           }
-          scenario.randomPopulate(ii * partitions, meanTagsPerItem, maxTagsPerItem)
+          scenario.randomPopulate(totalItems, meanTagsPerItem, maxTagsPerItem)
         } else {
-          scenario.genItems(ii * partitions)
+          scenario.genItems(totalItems)
           logger.info("Client %d awaiting dataReady", clientNumber)
         }
         coordination.registerAndAwait("dataReady" + ii, nClients)
@@ -130,19 +125,26 @@ case class ScaleTask(var replicas: Int = 2,
             coordination.registerAndAwait("it:" + iteration + ",th:" + threadCount, nClients)
             val iterationStartMs = System.currentTimeMillis
             val failures = new java.util.concurrent.atomic.AtomicInteger()
+            var putDelRatio = 0.5
             val histograms = (0 until threadCount).pmap(tid => {
               val geth = Histogram(100,10000)
               val puth = Histogram(100,10000)
               val delh = Histogram(100,10000)
-              var i = 20000
+              var i = 10000
               while (i > 0) {
                 i -= 1
+                if (tid == 0 && i % 3000 == 0) {
+                  val countStart = System.currentTimeMillis
+                  val count = scenario.client.count
+                  logger.info("current tag count = " + count
+                    + ", count ms = " + (System.currentTimeMillis - countStart))
+                }
                 try {
                   if (Random.nextDouble() < readFrac) {
                     val respTime = scenario.randomGet
                     logger.debug("Get response time: %d", respTime)
                     geth.add(respTime)
-                  } else if (Random.nextDouble() < 0.5) {
+                  } else if (Random.nextDouble() < putDelRatio) {
                     val respTime = scenario.randomPut(maxTagsPerItem)
                     logger.debug("Put response time: %d", respTime)
                     puth.add(respTime)
@@ -182,5 +184,8 @@ case class ScaleTask(var replicas: Int = 2,
         })
       })
     })
+
+    coordination.registerAndAwait("experimentDone", nClients)
+    cluster.shutdown
   }
 }

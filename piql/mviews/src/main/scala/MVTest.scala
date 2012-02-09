@@ -119,9 +119,20 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
 
   /* for MVScale */
   def randomPut(limit: Int) = {
+    var item = items(Random.nextInt(items.length))
+    var tag = tags(Random.nextInt(tags.length))
+    var tries = 0
+    def hasTag(item: String, tag: String) = {
+      val assoc = client.selectItem(item)
+      assoc.length >= limit || assoc.contains(tag)
+    }
+    while (hasTag(item, tag) && tries < 7) {
+      item = items(Random.nextInt(items.length))
+      tag = tags(Random.nextInt(tags.length))
+      tries += 1
+    }
+    assert (!hasTag(item, tag))
     val start = System.nanoTime / 1000
-    val item = items(Random.nextInt(items.length))
-    val tag = tags(Random.nextInt(tags.length))
     client.addTag(item, tag, limit)
     System.nanoTime / 1000 - start
   }
@@ -131,16 +142,15 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
     var item = items(Random.nextInt(items.length))
     var assoc = client.selectItem(item)
     var tries = 0
-    while (assoc.length == 0 && tries < 5) {
+    while (assoc.length == 0 && tries < 7) {
       item = items(Random.nextInt(items.length))
       assoc = client.selectItem(item)
       tries += 1
     }
+    assert (assoc.length > 0)
     val start = System.nanoTime / 1000
-    if (assoc.length > 0) {
-      val a = assoc(Random.nextInt(assoc.length))
-      client.removeTag(item, a)
-    }
+    val a = assoc(Random.nextInt(assoc.length))
+    client.removeTag(item, a)
     System.nanoTime / 1000 - start
   }
 
