@@ -124,7 +124,8 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
           if(success) {
             //TODO Take care of duplicate messages
             count += 1
-            debug("" + Xid + ": Receive record commit")
+            debug("Received record commit: %s src: %s", msg, src)
+            debug("Receive record commit %s status: %s committed: %s of %s. Participants: %s", Xid, status, count, participants.size, participants  )
             if(count == participants.size && status == UNKNOWN){
               info("Transaction " + Xid + " committed")
               status = COMMITTED

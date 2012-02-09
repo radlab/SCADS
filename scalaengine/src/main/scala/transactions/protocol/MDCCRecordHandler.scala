@@ -70,6 +70,7 @@ class MDCCRecordHandler (
   @inline def debug(msg : String, items : scala.Any*) = logger.debug("id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + " " + msg, items:_*)
   @inline def error(msg : String, items : scala.Any*) = logger.error("id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + " " + msg, items:_*)
 
+  override def toString = "[id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + "]"
 
   debug("Created RecordHandler. Hash %s, Mailbox: %s", this.hashCode, mailbox.hashCode())
 
@@ -552,7 +553,17 @@ class MDCCRecordHandler (
               servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, props.head :: Nil)
               forwardRequest(src, MultiPropose(props.tail))
             }else{
-              debug("Classic rounds: No pending updates but unsafe commands -> we resolve the unsafe commands first")
+              error("Classic rounds: No pending updates but unsafe commands -> we resolve the unsafe commands first")
+              debug("Current Meta-Data: %s, confirmedBallot: %s, Current Ballat: %s,  Version: %s, Value: %s ProvedSafe: %s, UnsafeCommands: %s, master: %s mailbox: %s",
+                ballots,
+                confirmedBallot,
+                currentBallot,
+                version,
+                value,
+                provedSafe,
+                unsafeCommands,
+                master,
+                mailbox)
               moveToNextRound()
               servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, unsafeCommands.head :: Nil)
               forwardRequest(src, propose, unsafeCommands.tail)
@@ -580,6 +591,16 @@ class MDCCRecordHandler (
               forwardRequest(src, MultiPropose(props.tail))
             }else{
               debug("Current classic round is still empty, but we have unsafe commands")
+              debug("Current Meta-Data: %s, confirmedBallot: %s, Current Ballat: %s,  Version: %s, Value: %s ProvedSafe: %s, UnsafeCommands: %s, master: %s mailbox: %s",
+                ballots,
+                confirmedBallot,
+                currentBallot,
+                version,
+                value,
+                provedSafe,
+                unsafeCommands,
+                master,
+                mailbox)
               servers ! Phase2a(key, cBallot, rebase, commitXids, abortXids, unsafeCommands.head :: Nil)
               forwardRequest(src, propose, unsafeCommands.tail)
             }
@@ -638,6 +659,20 @@ class MDCCRecordHandler (
       unsafeCommands = tmp._2
       version = msg.ballot
       debug("ProvedSafe CStruct: %s, Unsafe commands:s %s, Value: %s", provedSafe, unsafeCommands, value)
+      if(!unsafeCommands.isEmpty){
+        debug("We have unsafe commands \n -Current Meta-Data: %s, \n -confirmedBallot: %s, \n -Current Ballat: %s,  \n -Version: %s, \n -Value: %s \n -ProvedSafe: %s, \n -UnsafeCommands: %s, \n -master: %s \n -mailbox: %s",
+            ballots,
+            confirmedBallot,
+            currentBallot,
+            version,
+            value,
+            provedSafe,
+            unsafeCommands,
+            master,
+            mailbox)
+        debug("Responses: %s", responses)
+        debug("Values: %s", value)
+      }
       request match {
         case msg@StorageEnvelope(src, propose: SinglePropose)  =>  {
           val cmd = value.commands.find(_.xid == propose.xid)
