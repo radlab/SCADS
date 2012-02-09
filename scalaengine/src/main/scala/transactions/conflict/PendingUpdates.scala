@@ -519,17 +519,18 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     val commandsInfo = PendingCommandsInfo(safeValue.value,
                                            new ArrayBuffer[CStructCommand],
                                            new ArrayBuffer[PendingStateInfo])
-    commandsInfo.commands ++= safeValue.commands
 
     // Update the pending states.
     // Assumption: The pending updates are all logical, or there is a single
     //             physical update.  Also, the command should already be
     //             compatible.
-    val pending = safeValue.commands.filter(_.pending)
-    pending.foreach(c => {
-      if (!newUpdateResolver.isCompatible(c.xid, commandsInfo, newMDCCRec, safeValue.value, c.command)) {
-        throw new RuntimeException("All of the overwriting commands should be compatible.")
+    safeValue.commands.foreach(c => {
+      if (c.pending && c.commit) {
+        if (!newUpdateResolver.isCompatible(c.xid, commandsInfo, newMDCCRec, safeValue.value, c.command)) {
+          throw new RuntimeException("All of the overwriting commands should be compatible. key: " + (new mdcc.ByteArrayWrapper(key)).hashCode())
+        }
       }
+      commandsInfo.appendCommand(c)
     })
 
     // Store the new cstruct info.
