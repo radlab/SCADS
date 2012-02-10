@@ -57,9 +57,9 @@ trait PendingUpdates extends DBRecords {
   /**
    * Writes the new truth. Should only return false if something is messed up with the db
    */
-  def overwrite(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], isFast: Boolean = false)(implicit dbTxn: TransactionData): Boolean
+  def overwrite(key: Array[Byte], safeValue: CStruct, meta: Option[MDCCMetadata], committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], isFast: Boolean = false)(implicit dbTxn: TransactionData): Boolean
 
-  def overwriteTxn(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean
+  def overwriteTxn(key: Array[Byte], safeValue: CStruct, meta: Option[MDCCMetadata], committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean
 
   def getDecision(xid: ScadsXid): Status.Status
 
@@ -478,17 +478,18 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   //               ConflictResolver should just be created elsewhere.
   def getConflictResolver : ConflictResolver = conflictResolver
 
-  def overwrite(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], isFast: Boolean = false)(implicit dbTxn: TransactionData) : Boolean = {
-    overwriteTxn(key, safeValue, committedXids, abortedXids, dbTxn, isFast)
+  def overwrite(key: Array[Byte], safeValue: CStruct, meta: Option[MDCCMetadata], committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], isFast: Boolean = false)(implicit dbTxn: TransactionData) : Boolean = {
+    overwriteTxn(key, safeValue, meta, committedXids, abortedXids, dbTxn, isFast)
 }
 
-  def overwriteTxn(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean = {
+  def overwriteTxn(key: Array[Byte], safeValue: CStruct, meta: Option[MDCCMetadata], committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean = {
     var success = true
     val txn = dbTxn match {
       case null => db.txStart()
       case x => x
     }
 
+    logger.debug("overWrite.enter: " + Thread.currentThread.getName)
     val avroUtil = new IndexedRecordUtil(valueSchema)
     logger.debug("\n\nOVERWRITE: safebase: " + avroUtil.fromBytes(safeValue.value.get) + " cstruct: " + safeValue)
 
@@ -509,7 +510,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       // TODO: I don't know if it is possible to not have a db record but have
       //       a cstruct.
       case None => throw new RuntimeException("When overwriting, db record should already exist.")
-      case Some(r) => MDCCRecord(newDBrec, r.metadata)
+      case Some(r) => MDCCRecord(newDBrec, meta.getOrElse(r.metadata))
     }
 
     // Write the record to the database.
