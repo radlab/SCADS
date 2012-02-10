@@ -105,6 +105,21 @@ class MDCCServer(val namespace : String,
     }
   }
 
+  protected  def processRecordHandlerMsg(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], msg : MDCCProtocol) : Unit = {
+    implicit val trx = startTrx()
+    val meta = getMeta(key)
+    commitTrx(trx)
+    debug(key, "We got a recordhandler request")
+    val recordHandler = recordCache.getOrCreate(
+        key,
+        pendingUpdates.getCStruct(key),
+        meta,
+        routingTable.serversForKey(key),
+        pendingUpdates.getConflictResolver,
+        partition)
+    recordHandler.remoteHandle.forward(msg, src)
+  }
+
   protected def processPhase1a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], newMeta: Seq[MDCCBallotRange]) = {
     debug(key, "Process Phase1a", src, newMeta)
     implicit val trx = startTrx()
@@ -130,6 +145,8 @@ class MDCCServer(val namespace : String,
     src ! Phase1b(meta, pendingUpdates.getCStruct(key))
     commitTrx(trx)
   }
+
+
 
   protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates : Seq[SinglePropose] ) = {
     debug(key, "Process Phase2a", src, value, newUpdates)
@@ -195,6 +212,7 @@ class MDCCServer(val namespace : String,
       case Phase2a(key, ballot, safeValue, committedXids, abortedXids, proposes) => processPhase2a(src, key, ballot, safeValue, committedXids, abortedXids, proposes)
       case Commit(xid: ScadsXid) => processAccept(src, xid, true)
       case Abort(xid: ScadsXid) =>  processAccept(src, xid, false)
+      case msg : BeMaster => processRecordHandlerMsg(src, msg.key, msg)
       case _ => src ! ProcessingException("Trx Message Not Implemented", "")
     }
   }

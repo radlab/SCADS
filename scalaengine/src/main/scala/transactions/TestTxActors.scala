@@ -29,10 +29,11 @@ case class DataRecordActor(var id: Int) extends AvroPair {
 }
 
 object Config {
-  val PRODUCTS = 5
-  val TRX_SIZE = 2
-  val CLIENTS = 2
-  val ROUNDS = 10000
+  val PRODUCTS = 1
+  val TRX_SIZE = 1
+  val CLIENTS = 1
+  val ROUNDS = 15
+  val LOGICAL = true
 }
 
 object Client {
@@ -41,7 +42,7 @@ object Client {
   var aborted =  new AtomicInteger(0)
 }
 
-class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransactions[DataRecordActor], sema: Semaphore, useLogical: Boolean = false) extends Actor {
+class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransactions[DataRecordActor], sema: Semaphore) extends Actor {
   import Config._
   import Client._
 
@@ -65,7 +66,7 @@ class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransacti
   private val logger = Logger(classOf[Client])
 
   def act() {
-    for (i <- 0 until 1000) {
+    for (i <- 0 until ROUNDS) {
       if(!Client.ready) assert(false, "A Trx was unsuccesfull")
       logger.info("%s Starting update", this.hashCode())
       val s = System.currentTimeMillis
@@ -74,18 +75,18 @@ class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransacti
         do{
           items += Random.nextInt(PRODUCTS)
         }while(items.size < TRX_SIZE)
-        if (!useLogical) {
-          items.foreach( x=> {
-            val dr = nsPair.getRecord(DataRecordActor(x)).get
-            dr.a = dr.a - 1
-            nsPair.put(dr)
-          })
-        } else {
+        if (LOGICAL) {
           items.foreach( x=> {
             val dr = DataRecordActor(x)
             dr.s = ""; dr.a = -1; dr.b = 0; dr.c = 0
             println("Putting " + dr)
             nsPair.putLogical(dr)
+          })
+        } else {
+          items.foreach( x=> {
+            val dr = nsPair.getRecord(DataRecordActor(x)).get
+            dr.a = dr.a - 1
+            nsPair.put(dr)
           })
         }
       })
@@ -100,7 +101,10 @@ class Client(id : Int, nsPair: PairNamespace[DataRecordActor] with PairTransacti
       }
 
       logger.info("%s Finished the Trx in %s", this.hashCode(), (System.currentTimeMillis() - s))
+      Thread.sleep(1000)
       //Thread.sleep(1000)
+      println("XXXXXXXXXXXXXXXXXXXXXXXXXXXX Finished Trx " + i + " XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+      Thread.sleep(1000)
     }
 
     sema.release
@@ -117,7 +121,7 @@ class TestTxActors {
     nsPair.setPartitionScheme(List((None, cluster.getAvailableServers)))
     Thread.sleep(1000)
     var dr = DataRecordActor(0)
-    dr.s = "a"; dr.a = 100000; dr.b = 100; dr.c = 1.0.floatValue
+    dr.s = "a"; dr.a = 10; dr.b = 100; dr.c = 1.0.floatValue
     nsPair.put(dr)
     (1 to PRODUCTS).foreach( x => {
       dr.id = x
@@ -125,7 +129,7 @@ class TestTxActors {
     })
 
     val sema = new Semaphore(0)
-    val clients = (1 to CLIENTS).map(x => new Client(x, nsPair, sema, false))
+    val clients = (1 to CLIENTS).map(x => new Client(x, nsPair, sema))
 
     // Start client actors.
     clients.foreach(_.start)

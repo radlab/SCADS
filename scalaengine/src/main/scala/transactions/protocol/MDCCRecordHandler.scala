@@ -69,6 +69,18 @@ class MDCCRecordHandler (
 
   @inline def debug(msg : String, items : scala.Any*) = logger.debug("id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + " " + msg, items:_*)
   @inline def error(msg : String, items : scala.Any*) = logger.error("id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + " " + msg, items:_*)
+  @inline def fullDebug(msg : String, items : scala.Any*) = debug(msg
+    + "\n Current Meta-Data: " + ballots
+    + "\n confirmedBallot:" + confirmedBallot
+    + "\n Current Ballat:" + currentBallot
+    + "\n Version:" + version
+    + "\n Value:" + value
+    + "\n ProvedSafe:" + provedSafe
+    + "\n UnsafeCommands:" + unsafeCommands
+    + "\n Master:" + master
+    + "\n Mailbox: " +mailbox
+    + msg, items:_*)
+
 
   override def toString = "[id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + "]"
 
@@ -220,17 +232,22 @@ class MDCCRecordHandler (
           val maxRound = max(ballots.head.startRound, newBallot.head.startRound)
           compareRanges(ballots, newBallot, maxRound) match {
             case -1 => {
+              debug("Our current range is smaller: old Ballat:%s new Ballot:%s max Round: %s", ballots, newBallot, maxRound)
               this.ballots = newBallot
               confirmedBallot = true
             }
             case 0 => {
+              debug("Its the same ballot: old Ballat:%s new Ballot:%s max Round: %s", ballots, newBallot, maxRound)
               confirmedBallot = true
             }
             case -2 => {
+              debug("The ballots are not compatible:%s new Ballot:%s max Round: %s", ballots, newBallot, maxRound)
               ballots = combine(ballots, newBallot, maxRound)
               confirmedBallot = false
             }
-            case _ => { }
+            case _ => {
+              debug("The new ballot is older than ours. our ballot:%s new Ballot:%s max Round: %s", ballots, newBallot, maxRound)
+            }
           }
         }
         case env@StorageEnvelope(src, msg:ResolveConflict) if status == READY => {
@@ -554,16 +571,7 @@ class MDCCRecordHandler (
               forwardRequest(src, MultiPropose(props.tail))
             }else{
               error("Classic rounds: No pending updates but unsafe commands -> we resolve the unsafe commands first")
-              debug("Current Meta-Data: %s, confirmedBallot: %s, Current Ballat: %s,  Version: %s, Value: %s ProvedSafe: %s, UnsafeCommands: %s, master: %s mailbox: %s",
-                ballots,
-                confirmedBallot,
-                currentBallot,
-                version,
-                value,
-                provedSafe,
-                unsafeCommands,
-                master,
-                mailbox)
+              fullDebug("Unsafe commands")
               moveToNextRound()
               servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, unsafeCommands.head :: Nil)
               forwardRequest(src, propose, unsafeCommands.tail)
@@ -590,17 +598,7 @@ class MDCCRecordHandler (
               servers ! Phase2a(key, cBallot, rebase, commitXids, abortXids, props.head :: Nil)
               forwardRequest(src, MultiPropose(props.tail))
             }else{
-              debug("Current classic round is still empty, but we have unsafe commands")
-              debug("Current Meta-Data: %s, confirmedBallot: %s, Current Ballat: %s,  Version: %s, Value: %s ProvedSafe: %s, UnsafeCommands: %s, master: %s mailbox: %s",
-                ballots,
-                confirmedBallot,
-                currentBallot,
-                version,
-                value,
-                provedSafe,
-                unsafeCommands,
-                master,
-                mailbox)
+              fullDebug("Current classic round is still empty, but we have unsafe commands")
               servers ! Phase2a(key, cBallot, rebase, commitXids, abortXids, unsafeCommands.head :: Nil)
               forwardRequest(src, propose, unsafeCommands.tail)
             }
@@ -660,24 +658,19 @@ class MDCCRecordHandler (
       version = msg.ballot
       debug("ProvedSafe CStruct: %s, Unsafe commands:s %s, Value: %s", provedSafe, unsafeCommands, value)
       if(!unsafeCommands.isEmpty){
-        debug("We have unsafe commands \n -Current Meta-Data: %s, \n -confirmedBallot: %s, \n -Current Ballat: %s,  \n -Version: %s, \n -Value: %s \n -ProvedSafe: %s, \n -UnsafeCommands: %s, \n -master: %s \n -mailbox: %s",
-            ballots,
-            confirmedBallot,
-            currentBallot,
-            version,
-            value,
-            provedSafe,
-            unsafeCommands,
-            master,
-            mailbox)
-        debug("Responses: %s", responses)
-        debug("Values: %s", value)
+        fullDebug("We have unsafe commands \n Responses: %s \n Values: %s", responses, value)
       }
       request match {
         case msg@StorageEnvelope(src, propose: SinglePropose)  =>  {
           val cmd = value.commands.find(_.xid == propose.xid)
           if(cmd.isDefined){
-            debug("We learned the value, lets inform the requester. Informing src" + src)
+            debug("We learned the value")
+            if(currentBallot.fast && !cmd.get.commit && cmd.get.command.isInstanceOf[LogicalUpdate]){
+              debug("We learned an abort in a fast classic round with logical updates. This can only happend when we violate the limit. So we switch to classic")
+              currentBallot.server ! BeMaster(key,  currentBallot.round, currentBallot.round + 1000, false)
+
+            }
+            debug("We inform the requester about the learned value. src: %s, propose: %s", src, propose)
             src ! Learned(propose.xid, key, cmd.get.commit)
           }else{
             debug("We did not learn our transaction. TxId: %s quorum %s server-size %s \n - values %s \n - provedSafe %s \n - unsafeCommands %s \n - full responses: %s", propose.xid, quorum, servers.size, values, provedSafe, unsafeCommands, responses)

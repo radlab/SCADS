@@ -65,7 +65,7 @@ object MDCCBallotRangeHelper {
     assert(ranges.size > 0)
     var curRange = ranges.head
     var restRange = ranges.tail
-    assert(!curRange.fast || curRange.endRound - curRange.startRound == 0, "MDCCBallotRange Validation failed " + ranges)
+    assert(!curRange.fast || curRange.endRound - curRange.startRound == 0, "MDCCBallotRange Validation failed. Fast is only possible for one round " + ranges)
     assert(curRange.startRound <= curRange.endRound, "MDCCBallotRange Validation failed " + ranges)
     while (!restRange.isEmpty) {
       assert(restRange.head.startRound <= restRange.head.endRound, "MDCCBallotRange Validation failed " + ranges)
@@ -280,35 +280,100 @@ object MDCCBallotRangeHelper {
    * -2 if it is undefined
    */
   def compareRanges(metaL: Seq[MDCCBallotRange], metaR: Seq[MDCCBallotRange], round : Long): Int = {
-    compareRanges(metaL.filter(_.startRound >= round), metaR.filter(_.startRound >= round)) //TODO we need to adjust the first round
-  }
-
-  /**
-   * Returns 0 if both are equal
-   * -1 if metaL is smaller
-   * 1  if metaL is bigger
-   * -2 if it is undefined
-   */
-  def compareRanges(metaL: Seq[MDCCBallotRange], metaR: Seq[MDCCBallotRange]): Int = {
     var status : Int = 0
-    val validationPairs = metaL.zip(metaR)
-    validationPairs.foreach(p => {
-      if (p._1.startRound != p._2.startRound || p._1.endRound != p._2.endRound)
-        return -2
-      val cmp = compareRanges(p._1, p._2)
-      if (status == 0)
-        status = cmp
-      else if (status != cmp) {
-        return -2
-      }
-    })
-    return metaL.size - metaR.size match {
-      case 0 => status
-      case x if x < 0 => if(status == 1) -2 else -1
-      case x if x > 0 => if (status == -1) -2 else 1
-    }
+    var iterL : Iterator[MDCCBallotRange] = metaL.toIterator
+    var iterR : Iterator[MDCCBallotRange] = metaR.toIterator
 
+    if(metaL.head.startRound > round && metaR.head.startRound > round ) {
+      iterL  = metaL.filter(_.startRound >= round).toIterator
+      iterR  = metaR.filter(_.startRound >= round).toIterator
+    }else{
+      iterL  = metaL.toIterator
+      iterR  = metaR.toIterator
+    }
+    var l = iterL.next()
+    var r = iterR.next()
+
+    def nextL() = if(iterL.hasNext) iterL.next() else l
+    def nextR() = if(iterR.hasNext) iterR.next() else r
+
+    do{
+      if(l.startRound == r.startRound){
+        val cmp = compareRanges(l, r)
+          if (status == 0)
+            status = cmp
+          else if (status != cmp)
+            return -2
+        if(l.endRound == r.endRound){
+          l = nextL()
+          r = nextR()
+        }else if(l.endRound < r.endRound){
+          l = nextL
+        }else if(l.endRound > r.endRound){
+          r = nextR()
+        }
+      }else if(l.startRound < r.startRound && l.endRound > r.startRound ){
+        val cmp = compareRanges(l, r)
+        if (status == 0)
+          status = cmp
+        else if (status != cmp)
+          return -2
+        r = nextR()
+      }else if(l.startRound > r.startRound && l.startRound < r.endRound ){
+        val cmp = compareRanges(l, r)
+        if (status == 0)
+          status = cmp
+        else if (status != cmp)
+          return -2
+        l = nextL()
+      }
+    } while( iterL.hasNext && iterR.hasNext)
+
+    if(iterL.hasNext){
+      if (status == 0)
+        return 1
+      else if (status != 1)
+        return -2
+      else
+        return 0
+    }else if(iterR.hasNext){
+      if (status == 0)
+        return -1
+      else if (status != -1)
+        return -2
+      else
+        return 0
+    }else{
+      return status
+    }
   }
+
+//  /**
+//   * Returns 0 if both are equal
+//   * -1 if metaL is smaller
+//   * 1  if metaL is bigger
+//   * -2 if it is undefined
+//   */
+//  def compareRanges(metaL: Seq[MDCCBallotRange], metaR: Seq[MDCCBallotRange]): Int = {
+//    var status : Int = 0
+//    val validationPairs = metaL.zip(metaR)
+//    validationPairs.foreach(p => {
+//      if (p._1.startRound != p._2.startRound || p._1.endRound != p._2.endRound)
+//        return -2
+//      val cmp = compareRanges(p._1, p._2)
+//      if (status == 0)
+//        status = cmp
+//      else if (status != cmp) {
+//        return -2
+//      }
+//    })
+//    return metaL.size - metaR.size match {
+//      case 0 => status
+//      case x if x < 0 => if(status == 1) -2 else -1
+//      case x if x > 0 => if (status == -1) -2 else 1
+//    }
+//
+//  }
 
 
 
