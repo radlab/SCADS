@@ -118,7 +118,11 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
         inputVals += "NONE "
       }
     })
-    println("provedSafe: inputVals: " + inputVals + " safe.value: " + avroUtil.fromBytes(safe.value.get))
+    if (safe.value.isDefined) {
+      println("provedSafe: inputVals: " + inputVals + " safe.value: " + avroUtil.fromBytes(safe.value.get))
+    } else {
+      println("provedSafe: inputVals: " + inputVals + " safe.value: " + safe.value)
+    }
 
     // TODO: Check if LUB is valid w.r.t. constraints?
     (safe, leftover.toList.map(c => SinglePropose(c.xid, c.command)))
