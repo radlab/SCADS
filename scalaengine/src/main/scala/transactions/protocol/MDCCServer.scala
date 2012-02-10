@@ -138,35 +138,39 @@ class MDCCServer(val namespace : String,
     var record = getRecord(key)
     val meta = extractMeta(record)
     val myBallot = getBallot(meta.ballots, reqBallot.round)
-    if(myBallot.isEmpty || myBallot.get.compare(reqBallot) != 0){
+    if (myBallot.isEmpty || myBallot.get.compare(reqBallot) != 0) {
+      commitTrx(trx)
       debug(key, "Sending Master Failure local: %s - request: %s", myBallot, reqBallot)
       src ! Phase2bMasterFailure(meta.ballots, false)
-    }else{
+    } else {
+      // Update metadata.
+      meta.ballots = adjustRound(meta.ballots, reqBallot.round)
+      meta.currentVersion = myBallot.get
+      // TODO shorten meta data
+
       debug(key, "Writing new value value: %s updates: %s", value, newUpdates)
       if (!(value.value.isEmpty && value.commands.isEmpty)) {
-        val oR = pendingUpdates.overwrite(key, value, committedXids, abortedXids, myBallot.get.fast)
+        val oR = pendingUpdates.overwrite(key, value, Some(meta), committedXids, abortedXids, myBallot.get.fast)
         debug(key, "Overwrite value: %s \n - committedXids %s \n - abortedXids %s, \n - newUpdates %s, \n - myBallot.get.fast %s - status \n %s", value, committedXids, abortedXids, newUpdates, myBallot.get.fast, oR)
         if (!oR) debug(key, "Not accepted overwrite")
+      } else {
+        // Write the new metadata to db record.
+        if (record.isDefined) {
+          val r = record.get
+          r.metadata = meta
+          putRecord(key, r)
+        } else {
+          // What should we do when it is empty.  Can this ever happen?
+        }
       }
       pendingOptions = newUpdates.map(c => {
         (c, pendingUpdates.acceptOption(c.xid, c.update, myBallot.get.fast)._1)
       })
-      val r = getRecord(key)
-      if(r.isDefined){
-        val record = r.get
-        meta.ballots = adjustRound(meta.ballots, reqBallot.round)
-        record.metadata = meta
-        record.metadata.currentVersion = myBallot.get
-        //TODO shorten meta data
-        putRecord(key, record)
-      }else{
-        //What shoudl we do when it is empty
-      }
       val msg = Phase2b(myBallot.get, pendingUpdates.getCStruct(key)) //TODO Ask Gene if this is correct
+      commitTrx(trx)
       debug(key, "Sending Phase2b back %s %s", src, msg)
       src ! msg //TODO Ask Gene if this is correct
     }
-    commitTrx(trx)
 
     // Must be outside of db lock.
     pendingOptions.foreach(r => {
