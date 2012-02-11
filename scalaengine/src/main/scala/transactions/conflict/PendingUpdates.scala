@@ -57,9 +57,9 @@ trait PendingUpdates extends DBRecords {
   /**
    * Writes the new truth. Should only return false if something is messed up with the db
    */
-  def overwrite(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], isFast: Boolean = false)(implicit dbTxn: TransactionData): Boolean
+  def overwrite(key: Array[Byte], safeValue: CStruct, meta: Option[MDCCMetadata], committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], isFast: Boolean = false)(implicit dbTxn: TransactionData): Boolean
 
-  def overwriteTxn(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean
+  def overwriteTxn(key: Array[Byte], safeValue: CStruct, meta: Option[MDCCMetadata], committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean
 
   def getDecision(xid: ScadsXid): Status.Status
 
@@ -320,10 +320,13 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
     // Merge the updates to the state of tx, in a transaction.
     val txStatusTxn = txStatus.txStart()
+    logger.debug("txStatusAccept.enter: " + Thread.currentThread.getName + " xid: " + xid)
     val txInfo = txStatus.getOrPut(txStatusTxn, xid, TxStatusEntry(entryStatus, Nil))
+    // TODO: take care of possible duplicate keys?
     val newUpdates = txInfo.updates ++ updates
     txStatus.put(txStatusTxn, xid, TxStatusEntry(txInfo.status, newUpdates))
     txStatus.txCommit(txStatusTxn)
+    logger.debug("txStatusAccept.finish: " + Thread.currentThread.getName + " xid: " + xid)
 
     val status = Status.withName(txInfo.status)
     if (status == Status.Commit) {
@@ -478,17 +481,18 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   //               ConflictResolver should just be created elsewhere.
   def getConflictResolver : ConflictResolver = conflictResolver
 
-  def overwrite(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], isFast: Boolean = false)(implicit dbTxn: TransactionData) : Boolean = {
-    overwriteTxn(key, safeValue, committedXids, abortedXids, dbTxn, isFast)
+  def overwrite(key: Array[Byte], safeValue: CStruct, meta: Option[MDCCMetadata], committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], isFast: Boolean = false)(implicit dbTxn: TransactionData) : Boolean = {
+    overwriteTxn(key, safeValue, meta, committedXids, abortedXids, dbTxn, isFast)
 }
 
-  def overwriteTxn(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean = {
+  def overwriteTxn(key: Array[Byte], safeValue: CStruct, meta: Option[MDCCMetadata], committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean = {
     var success = true
     val txn = dbTxn match {
       case null => db.txStart()
       case x => x
     }
 
+    logger.debug("overWrite.enter: " + Thread.currentThread.getName)
     val avroUtil = new IndexedRecordUtil(valueSchema)
     logger.debug("\n\nOVERWRITE: safebase: " + avroUtil.fromBytes(safeValue.value.get) + " cstruct: " + safeValue)
 
@@ -509,7 +513,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       // TODO: I don't know if it is possible to not have a db record but have
       //       a cstruct.
       case None => throw new RuntimeException("When overwriting, db record should already exist.")
-      case Some(r) => MDCCRecord(newDBrec, r.metadata)
+      case Some(r) => MDCCRecord(newDBrec, meta.getOrElse(r.metadata))
     }
 
     // Write the record to the database.
@@ -519,17 +523,18 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     val commandsInfo = PendingCommandsInfo(safeValue.value,
                                            new ArrayBuffer[CStructCommand],
                                            new ArrayBuffer[PendingStateInfo])
-    commandsInfo.commands ++= safeValue.commands
 
     // Update the pending states.
     // Assumption: The pending updates are all logical, or there is a single
     //             physical update.  Also, the command should already be
     //             compatible.
-    val pending = safeValue.commands.filter(_.pending)
-    pending.foreach(c => {
-      if (!newUpdateResolver.isCompatible(c.xid, commandsInfo, newMDCCRec, safeValue.value, c.command)) {
-        throw new RuntimeException("All of the overwriting commands should be compatible.")
+    safeValue.commands.foreach(c => {
+      if (c.pending && c.commit) {
+        if (!newUpdateResolver.isCompatible(c.xid, commandsInfo, newMDCCRec, safeValue.value, c.command)) {
+          throw new RuntimeException("All of the overwriting commands should be compatible. key: " + (new mdcc.ByteArrayWrapper(key)).hashCode())
+        }
       }
+      commandsInfo.appendCommand(c)
     })
 
     // Store the new cstruct info.
