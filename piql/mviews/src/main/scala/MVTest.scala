@@ -90,9 +90,6 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
     for (i <- 1 to ntags) {
       var item = items(Random.nextInt(items.length))
       var tag = tags(Random.nextInt(tags.length))
-      if (i % 10000 == 0) {
-        logger.info("Adding tags: %d/%d", i, ntags)
-      }
       while (tagsof(item).size > max_tags_per_item) {
         item = items(Random.nextInt(items.length))
       }

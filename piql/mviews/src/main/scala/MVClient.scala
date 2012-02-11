@@ -179,6 +179,8 @@ class MTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
           tags = tags.tail
         }
     }
+    logger.info("Tag list size: " + allTags.length)
+    logger.info("Materialized view size: " + allTagPairs.length)
     tags ++= allTags
     mTagPairs ++= allTagPairs
   }

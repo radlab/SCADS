@@ -92,7 +92,7 @@ case class ParResult(
       val x = (timeSince(),
                "" + clientId,
                (clientNumber+1) + "/" + nClients,
-               "read=" + readFrac,
+               "rf=" + readFrac,
                "get=%.1fms".format(getTimes.quantile(0.5)/1000.0),
                "put=%.1fms".format(putTimes.quantile(0.5)/1000.0),
                "del=%.1fms".format(delTimes.quantile(0.5)/1000.0),
