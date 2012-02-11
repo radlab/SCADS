@@ -63,7 +63,7 @@ case class Task(var replicationFactor: Int = 2,
 
     clients.foreach(client => {
       val clientId = client.getClass.getSimpleName
-      val scenario = new MVTest(cluster, client)
+      val scenario = new MVPessimalTest(cluster, client)
       scales.foreach(scale => {
         scenario.reset()
         val loadStartMs = System.currentTimeMillis

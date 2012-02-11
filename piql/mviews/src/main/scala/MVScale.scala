@@ -17,12 +17,12 @@ import storage.client.index._
 
 import net.lag.logging.Logger
 
-/* task to run MVTest on EC2 */
+/* task to run MVScaleTest on EC2 */
 case class ScaleTask(var replicas: Int = 1,
                      var partitions: Int = 8,
                      var nClients: Int = 8,
                      var iterations: Int = 2,
-                     var itemsPerMachine: Seq[Int] = List(50000),
+                     var itemsPerMachine: Int = 50000,
                      var maxTagsPerItem: Int = 20,
                      var meanTagsPerItem: Int = 4,
                      var readFrac: Double = 0.8,
@@ -43,7 +43,7 @@ case class ScaleTask(var replicas: Int = 1,
     }
   }
 
-  def setupPartitions(client: MVTest, cluster: ScadsCluster) = {
+  def setupPartitions(client: MVScaleTest, cluster: ScadsCluster) = {
     val numServers: Int = replicas * partitions
     val available = cluster.getAvailableServers
     assert (available.size >= numServers)
@@ -54,7 +54,7 @@ case class ScaleTask(var replicas: Int = 1,
       if (p.length == 0) {
         p ::= (None, servers)
       } else {
-        p ::= (client.indexKeyspace(p.length, partitions), servers)
+        p ::= (client.serializedPointInKeyspace(p.length, partitions), servers)
       }
     }
     p = p.reverse
@@ -95,93 +95,84 @@ case class ScaleTask(var replicas: Int = 1,
 
     clients.foreach(client => {
       val clientId = client.getClass.getSimpleName
-      val scenario = new MVTest(cluster, client)
-      var firstRun = true
-      itemsPerMachine.foreach(ii => {
-        val loadStartMs = System.currentTimeMillis
-        val totalItems = ii * partitions
+      val totalItems = itemsPerMachine * partitions
+      val scenario = new MVScaleTest(cluster, client, totalItems, totalItems * meanTagsPerItem, maxTagsPerItem, 400)
 
-        /* single client loads all data */
-        if (clientNumber == 0) {
-          logger.info("Client %d preparing data...", clientNumber)
-          if (firstRun) {
-            setupPartitions(scenario, cluster)
-            firstRun = false
-          } else {
-            scenario.reset()
-          }
-          scenario.randomPopulate(totalItems, meanTagsPerItem, maxTagsPerItem)
-        } else {
-          scenario.genItems(totalItems)
-          logger.info("Client %d awaiting dataReady", clientNumber)
-        }
-        coordination.registerAndAwait("dataReady" + ii, nClients)
-        val loadTimeMs = System.currentTimeMillis - loadStartMs
-        logger.info("Data load wait: %d ms", loadTimeMs)
+      if (clientNumber == 0) {
+        logger.info("Client %d preparing partitions...", clientNumber)
+        setupPartitions(scenario, cluster)
+      }
+      coordination.registerAndAwait("partitionsReady", nClients)
 
-        (1 to iterations).foreach(iteration => {
-          logger.info("Beginning iteration %d", iteration)
-          threadCounts.foreach(threadCount => {
-            coordination.registerAndAwait("it:" + iteration + ",th:" + threadCount, nClients)
-            val iterationStartMs = System.currentTimeMillis
-            val failures = new java.util.concurrent.atomic.AtomicInteger()
-            var putDelRatio = 0.5
-            val histograms = (0 until threadCount).pmap(tid => {
-              implicit val rnd = new Random()
-              val geth = Histogram(100,10000)
-              val puth = Histogram(100,10000)
-              val delh = Histogram(100,10000)
-              var i = 10000
-              while (i > 0) {
-                i -= 1
-                if (tid == 0 && i % 3000 == 0) {
-                  val countStart = System.currentTimeMillis
-                  val count = scenario.client.count
-                  logger.info("current tag count = " + count
-                    + ", count ms = " + (System.currentTimeMillis - countStart))
-                }
-                try {
-                  if (rnd.nextDouble() < readFrac) {
-                    val respTime = scenario.randomGet
-                    logger.debug("Get response time: %d", respTime)
-                    geth.add(respTime)
-                  } else if (rnd.nextDouble() < putDelRatio) {
-                    val respTime = scenario.randomPut(maxTagsPerItem)
-                    logger.debug("Put response time: %d", respTime)
-                    puth.add(respTime)
-                  } else {
-                    val respTime = scenario.randomDel
-                    logger.debug("Del response time: %d", respTime)
-                    delh.add(respTime)
-                  }
-                } catch {
-                  case e => 
-                    logger.warning(e.getMessage)
-                    failures.getAndAdd(1)
-                }
+      /* distributed data load */
+      val loadStartMs = System.currentTimeMillis
+      scenario.populateSegment(clientNumber, nClients)
+      coordination.registerAndAwait("dataReady", nClients)
+      val loadTimeMs = System.currentTimeMillis - loadStartMs
+      logger.info("Data load wait: %d ms", loadTimeMs)
+
+      (1 to iterations).foreach(iteration => {
+        logger.info("Beginning iteration %d", iteration)
+        threadCounts.foreach(threadCount => {
+          coordination.registerAndAwait("it:" + iteration + ",th:" + threadCount, nClients)
+          val iterationStartMs = System.currentTimeMillis
+          val failures = new java.util.concurrent.atomic.AtomicInteger()
+          var putDelRatio = 0.5
+          val histograms = (0 until threadCount).pmap(tid => {
+            implicit val rnd = new Random()
+            val geth = Histogram(100,10000)
+            val puth = Histogram(100,10000)
+            val delh = Histogram(100,10000)
+            var i = 10000
+            while (i > 0) {
+              i -= 1
+              if (tid == 0 && i % 3000 == 0) {
+                val countStart = System.currentTimeMillis
+                val count = scenario.client.count
+                logger.info("current tag count = " + count
+                  + ", count ms = " + (System.currentTimeMillis - countStart))
               }
-              (geth, puth, delh)
-            })
-
-            val r = ParResult(System.currentTimeMillis, hostname, iteration, clientId)
-            r.threadCount = threadCount
-            r.clientNumber = clientNumber
-            r.nClients = nClients
-            r.replicas = replicas
-            r.partitions = partitions
-            r.itemsPerMachine = ii
-            r.maxTags = maxTagsPerItem
-            r.meanTags = meanTagsPerItem
-            r.loadTimeMs = loadTimeMs
-            r.runTimeMs = System.currentTimeMillis - iterationStartMs
-            r.readFrac = readFrac
-            var h = histograms.reduceLeft((a, b) => (a._1 + b._1, a._2 + b._2, a._3 + b._3))
-            r.getTimes = h._1
-            r.putTimes = h._2
-            r.delTimes = h._3
-            r.failures = failures.get()
-            results.put(r)
+              try {
+                if (rnd.nextDouble() < readFrac) {
+                  val respTime = scenario.randomGet
+                  logger.debug("Get response time: %d", respTime)
+                  geth.add(respTime)
+                } else if (rnd.nextDouble() < putDelRatio) {
+                  val respTime = scenario.randomPut(maxTagsPerItem)
+                  logger.debug("Put response time: %d", respTime)
+                  puth.add(respTime)
+                } else {
+                  val respTime = scenario.randomDel
+                  logger.debug("Del response time: %d", respTime)
+                  delh.add(respTime)
+                }
+              } catch {
+                case e => 
+                  logger.warning(e.getMessage)
+                  failures.getAndAdd(1)
+              }
+            }
+            (geth, puth, delh)
           })
+
+          val r = ParResult(System.currentTimeMillis, hostname, iteration, clientId)
+          r.threadCount = threadCount
+          r.clientNumber = clientNumber
+          r.nClients = nClients
+          r.replicas = replicas
+          r.partitions = partitions
+          r.itemsPerMachine = itemsPerMachine
+          r.maxTags = maxTagsPerItem
+          r.meanTags = meanTagsPerItem
+          r.loadTimeMs = loadTimeMs
+          r.runTimeMs = System.currentTimeMillis - iterationStartMs
+          r.readFrac = readFrac
+          var h = histograms.reduceLeft((a, b) => (a._1 + b._1, a._2 + b._2, a._3 + b._3))
+          r.getTimes = h._1
+          r.putTimes = h._2
+          r.delTimes = h._3
+          r.failures = failures.get()
+          results.put(r)
         })
       })
     })

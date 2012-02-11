@@ -17,115 +17,112 @@ import scala.util.Random
 import scala.collection.mutable.HashSet
 import scala.collection.mutable.HashMap
 
-/* testing client */
-class MVTest(val cluster: ScadsCluster, val client: TagClient) {
-  protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.MVTest")
+/* for testing client at scale */
+class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
+                  val totalItems: Int, val tagsToGenerate: Int,
+                  val maxTagsPerItem: Int, val uniqueTags: Int) {
+  protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.MVScaleTest")
 
-  /* tags used for pessimal scaleup */
-  val tagA = "tagA"
-  val tagB = "tagB"
-  var populated = false
-
-  /* tags, items used for populate/MVScale */
-  var tags: Array[String] = _
-  var items: Array[String] = _
-  val UNIQUE_TAGS = 400
+  /* fixed parameters */
   val ksMin = 0
   val ksMax = 1e12.longValue
 
   /* converts keyspace index to string */
-  def ksToTag(k: Long): String = {
+  private def ksToString(k: Long): String = {
     assert (k >= ksMin && k <= ksMax)
     "%013d".format(k)
   }
 
   /* returns point in keyspace at k/max */
-  def ksSample(i: Int, max: Int): Long = {
+  private def ksSample(i: Int, max: Int): Long = {
     assert (i < max)
     return ksMax * i / max
   }
 
   /* returns serialized key in keyspace at k/max */
-  def indexKeyspace(k: Int, max: Int): Option[Array[Byte]] = {
+  def serializedPointInKeyspace(k: Int, max: Int): Option[Array[Byte]] = {
     assert (k > 0 && k < max)
-    Some(client.tagToBytes(ksToTag(ksSample(k, max))))
+    Some(client.tagToBytes(ksToString(ksSample(k, max))))
   }
 
-  /* for MVScale */
-  def randomPopulate(nitems: Int, meanTags: Int, maxTags: Int) = {
-    assert (!populated && nitems > 1 && meanTags < maxTags)
-    populate(nitems, UNIQUE_TAGS, meanTags * nitems, maxTags)
-  }
+  /* distributed data load task by segment
+     we can do this since the materialized view
+     has no item-to-item dependencies */
+  def populateSegment(segment: Int, numSegments: Int) = {
+    assert (segment >= 0 && segment < numSegments)
+    assert (maxTagsPerItem * totalItems > tagsToGenerate)
+    assert (uniqueTags > maxTagsPerItem)
+    logger.info("Loading segment " + segment)
 
-  /* for MVScale */
-  def genItems(nitems: Int, unique_tags: Int = UNIQUE_TAGS) = {
+    implicit val rnd = new Random()
     val tagsof = new HashMap[String,HashSet[String]]()
-    tags = new Array[String](unique_tags)
-    items = new Array[String](nitems)
-
-    for (i <- Range(0, unique_tags))  {
-      tags(i) = ksToTag(ksSample(i, unique_tags))
-    }
-
-    for (i <- Range(0, nitems)) {
-      val item = ksToTag(ksSample(i, nitems))
-      items(i) = item
-      tagsof(item) = new HashSet[String]()
-    }
-
-    tagsof
-  }
-
-  def populate(nitems: Int,
-               unique_tags: Int,
-               ntags: Int,
-               max_tags_per_item: Int) = {
-    assert (!populated)
-    assert (max_tags_per_item * nitems > ntags)
-    assert (unique_tags > max_tags_per_item)
-
-    val tagsof = genItems(nitems)
-
     var bulk = List[Tuple2[String,String]]()
-    for (i <- 1 to ntags) {
-      var item = items(Random.nextInt(items.length))
-      var tag = tags(Random.nextInt(tags.length))
-      while (tagsof(item).size > max_tags_per_item) {
-        item = items(Random.nextInt(items.length))
+
+    for (i <- Range(0, totalItems)) {
+      if (inSegment(i, segment, numSegments)) {
+        val item = ksToString(ksSample(i, totalItems))
+        tagsof(item) = new HashSet[String]()
+      }
+    }
+
+    /* only generate items in our segment */
+    for (i <- 1 to (tagsToGenerate/numSegments)) {
+      var item = randomItemInSegment(segment, numSegments)
+      var tag = randomTag
+      while (tagsof(item).size > maxTagsPerItem) {
+        randomItemInSegment(segment, numSegments)
       }
       while (tagsof(item).contains(tag)) {
-        tag = tags(Random.nextInt(tags.length))
+        tag = randomTag
       }
       tagsof(item).add(tag)
       bulk ::= (item, tag)
     }
 
     client.initBulk(bulk)
-
-    populated = true
   }
 
-  /* for MVScale */
+  /* whether item at index i is in segment */
+  private def inSegment(i: Int, segment: Int, numSegments: Int): Boolean = {
+    i % numSegments == segment
+  }
+
+  private def randomTag(implicit rnd: Random) = {
+    ksToString(ksSample(rnd.nextInt(uniqueTags), uniqueTags))
+  }
+
+  private def randomItemInSegment(segment: Int, numSegments: Int)(implicit rnd: Random) = {
+    var i = rnd.nextInt(totalItems)
+    // TODO maybe less brutish way
+    while (!inSegment(i, segment, numSegments)) {
+      i = rnd.nextInt(totalItems)
+    }
+    ksToString(ksSample(i, totalItems))
+  }
+
+  private def randomItem(implicit rnd: Random) = {
+    ksToString(ksSample(rnd.nextInt(totalItems), totalItems))
+  }
+
   def randomGet(implicit rnd: Random) = {
     val start = System.nanoTime / 1000
-    val tag1 = tags(rnd.nextInt(tags.length))
-    val tag2 = tags(rnd.nextInt(tags.length))
+    val tag1 = randomTag
+    val tag2 = randomTag
     client.fastSelectTags(tag1, tag2)
     System.nanoTime / 1000 - start
   }
 
-  /* for MVScale */
   def randomPut(limit: Int)(implicit rnd: Random) = {
-    var item = items(rnd.nextInt(items.length))
-    var tag = tags(rnd.nextInt(tags.length))
+    var item = randomItem
+    var tag = randomTag
     var tries = 0
     def hasTag(item: String, tag: String) = {
       val assoc = client.selectItem(item)
       assoc.length >= limit || assoc.contains(tag)
     }
     while (hasTag(item, tag) && tries < 7) {
-      item = items(rnd.nextInt(items.length))
-      tag = tags(rnd.nextInt(tags.length))
+      item = randomItem
+      tag = randomTag
       tries += 1
     }
     assert (!hasTag(item, tag))
@@ -134,13 +131,12 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
     System.nanoTime / 1000 - start
   }
 
-  /* for MVScale */
   def randomDel(implicit rnd: Random) = {
-    var item = items(rnd.nextInt(items.length))
+    var item = randomItem
     var assoc = client.selectItem(item)
     var tries = 0
     while (assoc.length == 0 && tries < 7) {
-      item = items(rnd.nextInt(items.length))
+      item = randomItem
       assoc = client.selectItem(item)
       tries += 1
     }
@@ -150,8 +146,16 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
     client.removeTag(item, a)
     System.nanoTime / 1000 - start
   }
+}
 
-  /* for MVTask */
+class MVPessimalTest(val cluster: ScadsCluster, val client: TagClient) {
+  protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.MVPessimalTest")
+  var populated = false
+
+  /* tags used for pessimal scaleup */
+  val tagA = "tagA"
+  val tagB = "tagB"
+
   def pessimalScaleup(n: Int) = {
     assert (!populated)
 
@@ -168,7 +172,6 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
     populated = true
   }
 
-  /* for MVTask */
   def doPessimalFetch() = {
     val start = System.nanoTime / 1000
     val res = client.selectTags(tagA, tagB)
@@ -186,19 +189,23 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
 /* convenient test configurations */
 object MVTest extends ExperimentBase {
   val rc = new ScadsCluster(ZooKeeperNode(relativeAddress(Results.suffix)))
-  val results = rc.getNamespace[MVResult]("MVResult")
+  val pessimal = rc.getNamespace[MVResult]("MVResult")
   val scaled = rc.getNamespace[ParResult]("ParResult")
 
-  def newNaive(): MVTest = {
+  def newNaive(): MVPessimalTest = {
     val cluster = TestScalaEngine.newScadsCluster(3)
     val client = new NaiveTagClient(cluster, new SimpleExecutor)
-    new MVTest(cluster, client)
+    new MVPessimalTest(cluster, client)
   }
 
-  def newM(): MVTest = {
+  def newM(): MVPessimalTest = {
     val cluster = TestScalaEngine.newScadsCluster(3)
     val client = new MTagClient(cluster, new SimpleExecutor)
-    new MVTest(cluster, client)
+    new MVPessimalTest(cluster, client)
+  }
+
+  def goPessimal(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
+    new Task().schedule(relativeAddress(Results.suffix))
   }
 
   def go(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
