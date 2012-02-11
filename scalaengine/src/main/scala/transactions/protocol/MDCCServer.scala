@@ -133,7 +133,10 @@ class MDCCServer(val namespace : String,
 
   protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates : Seq[SinglePropose] ) = {
     debug(key, "Process Phase2a", src, value, newUpdates)
-    var pendingOptions: Seq[(SinglePropose, Boolean)] = Nil
+    // A seq of all pending commands in the cstruct.
+    val safePendingOptions = value.commands.filter(_.pending).map(c => {
+      (c.xid, c.command, c.commit)
+    })
     implicit val trx = startTrx()
     var record = getRecord(key)
     val meta = extractMeta(record)
@@ -163,19 +166,21 @@ class MDCCServer(val namespace : String,
           // What should we do when it is empty.  Can this ever happen?
         }
       }
-      pendingOptions = newUpdates.map(c => {
-        (c, pendingUpdates.acceptOption(c.xid, c.update, myBallot.get.fast)._1)
+      val pendingOptions = newUpdates.map(c => {
+        (c.xid, c.update, pendingUpdates.acceptOption(c.xid, c.update, myBallot.get.fast)._1)
       })
-      val msg = Phase2b(myBallot.get, pendingUpdates.getCStruct(key)) //TODO Ask Gene if this is correct
       commitTrx(trx)
+
+      // Must be outside of db lock.
+      (safePendingOptions ++ pendingOptions).foreach(r => {
+        pendingUpdates.txStatusAccept(r._1, List(r._2), r._3)
+      })
+
+      // TODO: More efficient way to get the cstruct.
+      val msg = Phase2b(myBallot.get, pendingUpdates.getCStruct(key)) //TODO Ask Gene if this is correct
       debug(key, "Sending Phase2b back %s %s", src, msg)
       src ! msg //TODO Ask Gene if this is correct
     }
-
-    // Must be outside of db lock.
-    pendingOptions.foreach(r => {
-      pendingUpdates.txStatusAccept(r._1.xid, List(r._1.update), r._2)
-    })
 
     // TODO: Can also update status for committedXids and abortedXids, but it
     //       not necessary for correctness.
