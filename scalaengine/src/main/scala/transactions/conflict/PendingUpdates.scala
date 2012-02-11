@@ -320,10 +320,13 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
     // Merge the updates to the state of tx, in a transaction.
     val txStatusTxn = txStatus.txStart()
+    logger.debug("txStatusAccept.enter: " + Thread.currentThread.getName + " xid: " + xid)
     val txInfo = txStatus.getOrPut(txStatusTxn, xid, TxStatusEntry(entryStatus, Nil))
+    // TODO: take care of possible duplicate keys?
     val newUpdates = txInfo.updates ++ updates
     txStatus.put(txStatusTxn, xid, TxStatusEntry(txInfo.status, newUpdates))
     txStatus.txCommit(txStatusTxn)
+    logger.debug("txStatusAccept.finish: " + Thread.currentThread.getName + " xid: " + xid)
 
     val status = Status.withName(txInfo.status)
     if (status == Status.Commit) {
