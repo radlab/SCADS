@@ -22,11 +22,11 @@ case class ScaleTask(var replicas: Int = 1,
                      var partitions: Int = 8,
                      var nClients: Int = 8,
                      var iterations: Int = 2,
-                     var itemsPerMachine: Int = 50000,
+                     var itemsPerMachine: Int = 500000,
                      var maxTagsPerItem: Int = 20,
                      var meanTagsPerItem: Int = 4,
                      var readFrac: Double = 0.8,
-                     var threadCounts: Seq[Int] = Seq(32))
+                     var threadCount: Int = 32)
             extends AvroTask with AvroRecord with TaskBase {
   
   var resultClusterAddress: String = _
@@ -113,67 +113,67 @@ case class ScaleTask(var replicas: Int = 1,
 
       (1 to iterations).foreach(iteration => {
         logger.info("Beginning iteration %d", iteration)
-        threadCounts.foreach(threadCount => {
-          coordination.registerAndAwait("it:" + iteration + ",th:" + threadCount, nClients)
-          val iterationStartMs = System.currentTimeMillis
-          val failures = new java.util.concurrent.atomic.AtomicInteger()
-          var putDelRatio = 0.5
-          val histograms = (0 until threadCount).pmap(tid => {
-            implicit val rnd = new Random()
-            val geth = Histogram(100,10000)
-            val puth = Histogram(100,10000)
-            val delh = Histogram(100,10000)
-            var i = 10000
-            while (i > 0) {
-              i -= 1
-              if (tid == 0 && i % 3000 == 0) {
-                val countStart = System.currentTimeMillis
-                val count = scenario.client.count
-                logger.info("current tag count = " + count
-                  + ", count ms = " + (System.currentTimeMillis - countStart))
+        coordination.registerAndAwait("it:" + iteration + ",th:" + threadCount, nClients)
+        val iterationStartMs = System.currentTimeMillis
+        val failures = new java.util.concurrent.atomic.AtomicInteger()
+        var putDelRatio = 0.5
+        val histograms = (0 until threadCount).pmap(tid => {
+          implicit val rnd = new Random()
+          val geth = Histogram(100,10000)
+          val puth = Histogram(100,10000)
+          val delh = Histogram(100,10000)
+          var i = 100000 / threadCount
+          while (i > 0) {
+            i -= 1
+            /* TODO apparently counting is really expensive and
+               tag population is roughly stable over time anyways */
+//              if (tid == 0 && i % 3000 == 0) {
+//                val countStart = System.currentTimeMillis
+//                val count = scenario.client.count
+//                logger.info("current tag count = " + count
+//                  + ", count ms = " + (System.currentTimeMillis - countStart))
+//              }
+            try {
+              if (rnd.nextDouble() < readFrac) {
+                val respTime = scenario.randomGet
+                logger.debug("Get response time: %d", respTime)
+                geth.add(respTime)
+              } else if (rnd.nextDouble() < putDelRatio) {
+                val respTime = scenario.randomPut(maxTagsPerItem)
+                logger.debug("Put response time: %d", respTime)
+                puth.add(respTime)
+              } else {
+                val respTime = scenario.randomDel
+                logger.debug("Del response time: %d", respTime)
+                delh.add(respTime)
               }
-              try {
-                if (rnd.nextDouble() < readFrac) {
-                  val respTime = scenario.randomGet
-                  logger.debug("Get response time: %d", respTime)
-                  geth.add(respTime)
-                } else if (rnd.nextDouble() < putDelRatio) {
-                  val respTime = scenario.randomPut(maxTagsPerItem)
-                  logger.debug("Put response time: %d", respTime)
-                  puth.add(respTime)
-                } else {
-                  val respTime = scenario.randomDel
-                  logger.debug("Del response time: %d", respTime)
-                  delh.add(respTime)
-                }
-              } catch {
-                case e => 
-                  logger.warning(e.getMessage)
-                  failures.getAndAdd(1)
-              }
+            } catch {
+              case e => 
+                logger.warning(e.getMessage)
+                failures.getAndAdd(1)
             }
-            (geth, puth, delh)
-          })
-
-          val r = ParResult(System.currentTimeMillis, hostname, iteration, clientId)
-          r.threadCount = threadCount
-          r.clientNumber = clientNumber
-          r.nClients = nClients
-          r.replicas = replicas
-          r.partitions = partitions
-          r.itemsPerMachine = itemsPerMachine
-          r.maxTags = maxTagsPerItem
-          r.meanTags = meanTagsPerItem
-          r.loadTimeMs = loadTimeMs
-          r.runTimeMs = System.currentTimeMillis - iterationStartMs
-          r.readFrac = readFrac
-          var h = histograms.reduceLeft((a, b) => (a._1 + b._1, a._2 + b._2, a._3 + b._3))
-          r.getTimes = h._1
-          r.putTimes = h._2
-          r.delTimes = h._3
-          r.failures = failures.get()
-          results.put(r)
+          }
+          (geth, puth, delh)
         })
+
+        val r = ParResult(System.currentTimeMillis, hostname, iteration, clientId)
+        r.threadCount = threadCount
+        r.clientNumber = clientNumber
+        r.nClients = nClients
+        r.replicas = replicas
+        r.partitions = partitions
+        r.itemsPerMachine = itemsPerMachine
+        r.maxTags = maxTagsPerItem
+        r.meanTags = meanTagsPerItem
+        r.loadTimeMs = loadTimeMs
+        r.runTimeMs = System.currentTimeMillis - iterationStartMs
+        r.readFrac = readFrac
+        var h = histograms.reduceLeft((a, b) => (a._1 + b._1, a._2 + b._2, a._3 + b._3))
+        r.getTimes = h._1
+        r.putTimes = h._2
+        r.delTimes = h._3
+        r.failures = failures.get()
+        results.put(r)
       })
     })
 

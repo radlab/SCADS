@@ -27,22 +27,16 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
   val ksMin = 0
   val ksMax = 1e12.longValue
 
-  /* converts keyspace index to string */
-  private def ksToString(k: Long): String = {
-    assert (k >= ksMin && k <= ksMax)
-    "%013d".format(k)
-  }
-
-  /* returns point in keyspace at k/max */
-  private def ksSample(i: Int, max: Int): Long = {
+  /* returns string form of point in keyspace at k/max */
+  private def ksSeek(i: Int, max: Int): String = {
     assert (i < max)
-    return ksMax * i / max
+    "%013d".format(ksMax * i / max)
   }
 
   /* returns serialized key in keyspace at k/max */
   def serializedPointInKeyspace(k: Int, max: Int): Option[Array[Byte]] = {
     assert (k > 0 && k < max)
-    Some(client.tagToBytes(ksToString(ksSample(k, max))))
+    Some(client.tagToBytes(ksSeek(k, max)))
   }
 
   /* distributed data load task by segment
@@ -60,7 +54,7 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
 
     for (i <- Range(0, totalItems)) {
       if (inSegment(i, segment, numSegments)) {
-        val item = ksToString(ksSample(i, totalItems))
+        val item = ksSeek(i, totalItems)
         tagsof(item) = new HashSet[String]()
       }
     }
@@ -79,29 +73,33 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
       bulk ::= (item, tag)
     }
 
+    tagsof.clear
     client.initBulk(bulk)
   }
 
   /* whether item at index i is in segment */
-  private def inSegment(i: Int, segment: Int, numSegments: Int): Boolean = {
-    i % numSegments == segment
+  private def inSegment(i: Int, segment: Int, ns: Int): Boolean = {
+    i % ns == segment
   }
 
   private def randomTag(implicit rnd: Random) = {
-    ksToString(ksSample(rnd.nextInt(uniqueTags), uniqueTags))
+    ksSeek(rnd.nextInt(uniqueTags), uniqueTags)
   }
 
-  private def randomItemInSegment(segment: Int, numSegments: Int)(implicit rnd: Random) = {
-    var i = rnd.nextInt(totalItems)
-    // TODO maybe less brutish way
-    while (!inSegment(i, segment, numSegments)) {
-      i = rnd.nextInt(totalItems)
+  private def randomItemInSegment(segment: Int, ns: Int)(implicit rnd: Random) = {
+    def adjust(i: Int): Int = segment + i - (i % ns)
+    var a = adjust(rnd.nextInt(totalItems))
+
+    /* re-randomize in rare edge cases*/
+    while (!inSegment(a, segment, ns)) {
+      a = adjust(rnd.nextInt(totalItems))
     }
-    ksToString(ksSample(i, totalItems))
+
+    ksSeek(a, totalItems)
   }
 
   private def randomItem(implicit rnd: Random) = {
-    ksToString(ksSample(rnd.nextInt(totalItems), totalItems))
+    ksSeek(rnd.nextInt(totalItems), totalItems)
   }
 
   def randomGet(implicit rnd: Random) = {
@@ -191,16 +189,17 @@ object MVTest extends ExperimentBase {
   val rc = new ScadsCluster(ZooKeeperNode(relativeAddress(Results.suffix)))
   val pessimal = rc.getNamespace[MVResult]("MVResult")
   val scaled = rc.getNamespace[ParResult]("ParResult")
+  implicit val exec = new ParallelExecutor
 
   def newNaive(): MVPessimalTest = {
     val cluster = TestScalaEngine.newScadsCluster(3)
-    val client = new NaiveTagClient(cluster, new SimpleExecutor)
+    val client = new NaiveTagClient(cluster, exec)
     new MVPessimalTest(cluster, client)
   }
 
   def newM(): MVPessimalTest = {
     val cluster = TestScalaEngine.newScadsCluster(3)
-    val client = new MTagClient(cluster, new SimpleExecutor)
+    val client = new MTagClient(cluster, exec)
     new MVPessimalTest(cluster, client)
   }
 
@@ -208,7 +207,7 @@ object MVTest extends ExperimentBase {
     new Task().schedule(relativeAddress(Results.suffix))
   }
 
-  def go(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
-    new ScaleTask().schedule(relativeAddress(Results.suffix))
+  def go(replicas: Int = 1, partitions: Int = 8, nClients: Int = 8, itemsPerMachine: Int = 100000, threadCount: Int = 32)(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
+    new ScaleTask(replicas=replicas, partitions=partitions, nClients=nClients, itemsPerMachine=itemsPerMachine, threadCount=threadCount).schedule(relativeAddress(Results.suffix))
   }
 }

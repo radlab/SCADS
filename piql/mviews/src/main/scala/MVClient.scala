@@ -62,7 +62,7 @@ abstract class TagClient(val cluster: ScadsCluster,
 }
 
 /* uses join for tag intersection query */
-class NaiveTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
+class NaiveTagClient(clus: ScadsCluster, exec: QueryExecutor)
       extends TagClient(clus, exec) {
 
   protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.NaiveTagClient")
@@ -106,7 +106,7 @@ class NaiveTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
 }
 
 /* uses materialized view for tag intersection query */
-class MTagClient(val clus: ScadsCluster, val exec: QueryExecutor)
+class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
       extends TagClient(clus, exec) {
 
   protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.MTagClient")
