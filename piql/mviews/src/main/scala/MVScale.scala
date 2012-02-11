@@ -127,6 +127,7 @@ case class ScaleTask(var replicas: Int = 1,
             val failures = new java.util.concurrent.atomic.AtomicInteger()
             var putDelRatio = 0.5
             val histograms = (0 until threadCount).pmap(tid => {
+              implicit val rnd = new Random()
               val geth = Histogram(100,10000)
               val puth = Histogram(100,10000)
               val delh = Histogram(100,10000)
@@ -140,11 +141,11 @@ case class ScaleTask(var replicas: Int = 1,
                     + ", count ms = " + (System.currentTimeMillis - countStart))
                 }
                 try {
-                  if (Random.nextDouble() < readFrac) {
+                  if (rnd.nextDouble() < readFrac) {
                     val respTime = scenario.randomGet
                     logger.debug("Get response time: %d", respTime)
                     geth.add(respTime)
-                  } else if (Random.nextDouble() < putDelRatio) {
+                  } else if (rnd.nextDouble() < putDelRatio) {
                     val respTime = scenario.randomPut(maxTagsPerItem)
                     logger.debug("Put response time: %d", respTime)
                     puth.add(respTime)

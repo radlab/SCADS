@@ -109,26 +109,26 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
   }
 
   /* for MVScale */
-  def randomGet() = {
+  def randomGet(implicit rnd: Random) = {
     val start = System.nanoTime / 1000
-    val tag1 = tags(Random.nextInt(tags.length))
-    val tag2 = tags(Random.nextInt(tags.length))
+    val tag1 = tags(rnd.nextInt(tags.length))
+    val tag2 = tags(rnd.nextInt(tags.length))
     client.fastSelectTags(tag1, tag2)
     System.nanoTime / 1000 - start
   }
 
   /* for MVScale */
-  def randomPut(limit: Int) = {
-    var item = items(Random.nextInt(items.length))
-    var tag = tags(Random.nextInt(tags.length))
+  def randomPut(limit: Int)(implicit rnd: Random) = {
+    var item = items(rnd.nextInt(items.length))
+    var tag = tags(rnd.nextInt(tags.length))
     var tries = 0
     def hasTag(item: String, tag: String) = {
       val assoc = client.selectItem(item)
       assoc.length >= limit || assoc.contains(tag)
     }
     while (hasTag(item, tag) && tries < 7) {
-      item = items(Random.nextInt(items.length))
-      tag = tags(Random.nextInt(tags.length))
+      item = items(rnd.nextInt(items.length))
+      tag = tags(rnd.nextInt(tags.length))
       tries += 1
     }
     assert (!hasTag(item, tag))
@@ -138,18 +138,18 @@ class MVTest(val cluster: ScadsCluster, val client: TagClient) {
   }
 
   /* for MVScale */
-  def randomDel() = {
-    var item = items(Random.nextInt(items.length))
+  def randomDel(implicit rnd: Random) = {
+    var item = items(rnd.nextInt(items.length))
     var assoc = client.selectItem(item)
     var tries = 0
     while (assoc.length == 0 && tries < 7) {
-      item = items(Random.nextInt(items.length))
+      item = items(rnd.nextInt(items.length))
       assoc = client.selectItem(item)
       tries += 1
     }
     assert (assoc.length > 0)
     val start = System.nanoTime / 1000
-    val a = assoc(Random.nextInt(assoc.length))
+    val a = assoc(rnd.nextInt(assoc.length))
     client.removeTag(item, a)
     System.nanoTime / 1000 - start
   }
