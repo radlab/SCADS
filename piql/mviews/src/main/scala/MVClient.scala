@@ -23,13 +23,6 @@ abstract class TagClient(val cluster: ScadsCluster,
   def initBulk(itemTagPairs: Seq[Tuple2[String,String]])
   def clear()
 
-  def tpair(tag1: String, tag2: String) = {
-    if (tag1 < tag2)
-      (tag1, tag2)
-    else
-      (tag2, tag1)
-  }
-
   val tags = cluster.getNamespace[Tag]("tags")
 
   def tagToBytes(tag: String): Array[Byte] = {
@@ -121,8 +114,7 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
                .toPiql("selectTagPairQuery")
 
   def selectTags(tag1: String, tag2: String) = {
-    val t = tpair(tag1, tag2)
-    selectTagPairQuery(t._1, t._2).map(
+    selectTagPairQuery(tag1, tag2).map(
       arr => arr.head match {
         case m: MTagPair =>
           m.item
@@ -130,8 +122,7 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
   }
 
   def fastSelectTags(tag1: String, tag2: String) = {
-    val t = tpair(tag1, tag2)
-    selectTagPairQuery(t._1, t._2)
+    selectTagPairQuery(tag1, tag2)
   }
 
   def addTag(item: String, word: String, limit: Int) = {
@@ -139,8 +130,8 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
     if (assoc.length < limit) {
       var mpairs = List[MTagPair]()
       for (a <- assoc) {
-        val t = tpair(a, word)
-        mpairs ::= new MTagPair(t._1, t._2, item)
+        mpairs ::= new MTagPair(a, word, item)
+        mpairs ::= new MTagPair(word, a, item)
       }
       tags.put(new Tag(word, item))
       mpairs ::= new MTagPair(word, word, item) // the duplicate pair
@@ -151,8 +142,8 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
   def removeTag(item: String, word: String) = {
     var toDelete = List[MTagPair]()
     for (a <- selectItem(item)) {
-      val t = tpair(a, word)
-      toDelete ::= new MTagPair(t._1, t._2, item)
+      toDelete ::= new MTagPair(a, word, item)
+      toDelete ::= new MTagPair(word, a, item)
     }
     tags.put(new Tag(word, item), None)
     mTagPairs --= toDelete
@@ -166,17 +157,14 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
         val item = t._1
         var tags = t._2.map(_._2).sorted
 
+        // queue the normal put
         tags.foreach(t => allTags ::= new Tag(t, item))
 
-        // materialize all unique ordered pairs, including
-        // the duplicate pair
-        while (tags.length > 0) {
-          val head = tags.head
+        // materialize all ordered pairs, including the duplicate pair
+        for (x <- tags) {
           for (y <- tags) {
-            assert (head <= y)
-            allTagPairs ::= new MTagPair(head, y, item)
+            allTagPairs ::= new MTagPair(x, y, item)
           }
-          tags = tags.tail
         }
     }
     logger.info("Tag list size: " + allTags.length)
