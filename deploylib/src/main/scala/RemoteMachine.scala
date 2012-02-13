@@ -290,6 +290,13 @@ abstract class RemoteMachine {
       session.execCommand(prepareCommand("cat > " + file))
       session.getStdin().write(contents.getBytes)
       session.getStdin().close()
+      session.waitForCondition(ChannelCondition.STDOUT_DATA |
+          ChannelCondition.STDERR_DATA |
+          ChannelCondition.EXIT_STATUS |
+          ChannelCondition.EXIT_SIGNAL |
+          ChannelCondition.EOF |
+          ChannelCondition.CLOSED |
+          ChannelCondition.TIMEOUT, 10000)
       session.close()
     })
     this ! "chmod %s %s".format(mode, file)
