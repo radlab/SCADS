@@ -18,8 +18,8 @@ abstract class TagClient(val cluster: ScadsCluster,
                          val limit: Int = 20) {
   def selectTags(tag1: String, tag2: String): Seq[String]
   def fastSelectTags(tag1: String, tag2: String)
-  def addTag(item: String, tag: String, limit: Int = 9999): Unit
-  def removeTag(item: String, tag: String)
+  def addTag(item: String, tag: String): Tuple2[Long,Long]
+  def removeTag(item: String, tag: String): Tuple2[Long,Long]
   def initBulk(itemTagPairs: Seq[Tuple2[String,String]])
   def clear()
 
@@ -80,12 +80,16 @@ class NaiveTagClient(clus: ScadsCluster, exec: QueryExecutor)
     twoTagsPiql(tag1, tag2)
   }
 
-  def addTag(item: String, tag: String, limit: Int) = {
+  def addTag(item: String, tag: String) = {
+    val start = System.nanoTime / 1000
     tags.put(new Tag(tag, item))
+    (System.nanoTime / 1000 - start, -1)
   }
 
   def removeTag(item: String, tag: String) = {
+    val start = System.nanoTime / 1000
     tags.put(new Tag(tag, item), None)
+    (System.nanoTime / 1000 - start, -1)
   }
 
   def initBulk(itemTagPairs: Seq[Tuple2[String,String]]) = {
@@ -125,28 +129,32 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
     selectTagPairQuery(tag1, tag2)
   }
 
-  def addTag(item: String, word: String, limit: Int) = {
+  def addTag(item: String, word: String) = {
+    val start = System.nanoTime / 1000
+    tags.put(new Tag(word, item))
+    val dt1 = System.nanoTime / 1000 - start
     val assoc = selectItem(item)
-    if (assoc.length < limit) {
-      var mpairs = List[MTagPair]()
-      for (a <- assoc) {
-        mpairs ::= new MTagPair(a, word, item)
-        mpairs ::= new MTagPair(word, a, item)
-      }
-      tags.put(new Tag(word, item))
-      mpairs ::= new MTagPair(word, word, item) // the duplicate pair
-      mTagPairs ++= mpairs
+    var mpairs = List[MTagPair]()
+    for (a <- assoc) {
+      mpairs ::= new MTagPair(a, word, item)
+      mpairs ::= new MTagPair(word, a, item)
     }
+    mpairs ::= new MTagPair(word, word, item) // the duplicate pair
+    mTagPairs ++= mpairs
+    (dt1, System.nanoTime / 1000 - start)
   }
 
   def removeTag(item: String, word: String) = {
+    val start = System.nanoTime / 1000
+    tags.put(new Tag(word, item), None)
+    val dt1 = System.nanoTime / 1000 - start
     var toDelete = List[MTagPair]()
     for (a <- selectItem(item)) {
       toDelete ::= new MTagPair(a, word, item)
       toDelete ::= new MTagPair(word, a, item)
     }
-    tags.put(new Tag(word, item), None)
     mTagPairs --= toDelete
+    (dt1, System.nanoTime / 1000 - start)
   }
 
   def initBulk(itemTagPairs: Seq[Tuple2[String,String]]) = {

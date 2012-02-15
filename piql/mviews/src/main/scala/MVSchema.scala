@@ -25,7 +25,7 @@ case class MTagPair(var tag1: String,
 }
 
 object Results {
-  val suffix = "results6"
+  val suffix = "results7"
 }
 
 case class MVResult(
@@ -53,7 +53,7 @@ case class MVResult(
   }
 }
 
-case class ParResult(
+case class ParResult2(
   var timestamp: Long,
   var hostname: String,
   var iteration: Int,
@@ -72,6 +72,8 @@ case class ParResult(
   var putTimes: Histogram = null
   var getTimes: Histogram = null
   var delTimes: Histogram = null
+  var nvputTimes: Histogram = null
+  var nvdelTimes: Histogram = null
   var failures: Int = _
   var readFrac: Double = _
 
@@ -96,6 +98,8 @@ case class ParResult(
                "get=%.1f/%.1f".format(getTimes.quantile(0.5)/1000.0, getTimes.quantile(0.99)/1000.0),
                "put=%.1f/%.1f".format(putTimes.quantile(0.5)/1000.0, putTimes.quantile(0.99)/1000.0),
                "del=%.1f/%.1f".format(delTimes.quantile(0.5)/1000.0, delTimes.quantile(0.99)/1000.0),
+               "nvput=%.1f/%.1f".format(nvputTimes.quantile(0.5)/1000.0, nvputTimes.quantile(0.99)/1000.0),
+               "nvdel=%.1f/%.1f".format(nvdelTimes.quantile(0.5)/1000.0, nvdelTimes.quantile(0.99)/1000.0),
                "ops/s=" + (getTimes.totalRequests + putTimes.totalRequests + delTimes.totalRequests)*1.0/runTimeMs*1000,
                "rep=" + replicas,
                "par=" + partitions,

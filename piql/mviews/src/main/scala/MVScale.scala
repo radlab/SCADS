@@ -78,7 +78,7 @@ case class ScaleTask(var replicas: Int = 1,
     cluster.blockUntilReady(replicas * partitions)
 
     val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
-    val results = resultCluster.getNamespace[ParResult]("ParResult")
+    val results = resultCluster.getNamespace[ParResult2]("ParResult2")
 
     val hostname = java.net.InetAddress.getLocalHost.getHostName
 
@@ -122,6 +122,8 @@ case class ScaleTask(var replicas: Int = 1,
           val geth = Histogram(100,10000)
           val puth = Histogram(100,10000)
           val delh = Histogram(100,10000)
+          val nvputh = Histogram(100,10000)
+          val nvdelh = Histogram(100,10000)
           var i = 100000 / threadCount
           while (i > 0) {
             i -= 1
@@ -136,16 +138,15 @@ case class ScaleTask(var replicas: Int = 1,
             try {
               if (rnd.nextDouble() < readFrac) {
                 val respTime = scenario.randomGet
-                logger.debug("Get response time: %d", respTime)
                 geth.add(respTime)
               } else if (rnd.nextDouble() < putDelRatio) {
-                val respTime = scenario.randomPut(maxTagsPerItem)
-                logger.debug("Put response time: %d", respTime)
+                val (noViewRespTime, respTime) = scenario.randomPut(maxTagsPerItem)
                 puth.add(respTime)
+                nvputh.add(noViewRespTime)
               } else {
-                val respTime = scenario.randomDel
-                logger.debug("Del response time: %d", respTime)
+                val (noViewRespTime, respTime) = scenario.randomDel
                 delh.add(respTime)
+                nvdelh.add(noViewRespTime)
               }
             } catch {
               case e => 
@@ -153,10 +154,10 @@ case class ScaleTask(var replicas: Int = 1,
                 failures.getAndAdd(1)
             }
           }
-          (geth, puth, delh)
+          (geth, puth, delh, nvputh, nvdelh)
         })
 
-        val r = ParResult(System.currentTimeMillis, hostname, iteration, clientId)
+        val r = ParResult2(System.currentTimeMillis, hostname, iteration, clientId)
         r.threadCount = threadCount
         r.clientNumber = clientNumber
         r.nClients = nClients
@@ -168,10 +169,12 @@ case class ScaleTask(var replicas: Int = 1,
         r.loadTimeMs = loadTimeMs
         r.runTimeMs = System.currentTimeMillis - iterationStartMs
         r.readFrac = readFrac
-        var h = histograms.reduceLeft((a, b) => (a._1 + b._1, a._2 + b._2, a._3 + b._3))
+        var h = histograms.reduceLeft((a, b) => (a._1 + b._1, a._2 + b._2, a._3 + b._3, a._4 + b._4, a._5 + b._5))
         r.getTimes = h._1
         r.putTimes = h._2
         r.delTimes = h._3
+        r.nvputTimes = h._4
+        r.nvdelTimes = h._5
         r.failures = failures.get()
         results.put(r)
       })

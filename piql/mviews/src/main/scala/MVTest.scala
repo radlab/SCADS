@@ -110,7 +110,7 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     System.nanoTime / 1000 - start
   }
 
-  def randomPut(limit: Int)(implicit rnd: Random) = {
+  def randomPut(limit: Int)(implicit rnd: Random): Tuple2[Long,Long] = {
     var item = randomItem
     var tag = randomTag
     var tries = 0
@@ -124,12 +124,10 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
       tries += 1
     }
     assert (!hasTag(item, tag))
-    val start = System.nanoTime / 1000
-    client.addTag(item, tag, limit)
-    System.nanoTime / 1000 - start
+    client.addTag(item, tag)
   }
 
-  def randomDel(implicit rnd: Random) = {
+  def randomDel(implicit rnd: Random): Tuple2[Long,Long] = {
     var item = randomItem
     var assoc = client.selectItem(item)
     var tries = 0
@@ -139,10 +137,8 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
       tries += 1
     }
     assert (assoc.length > 0)
-    val start = System.nanoTime / 1000
     val a = assoc(rnd.nextInt(assoc.length))
     client.removeTag(item, a)
-    System.nanoTime / 1000 - start
   }
 }
 
@@ -188,7 +184,7 @@ class MVPessimalTest(val cluster: ScadsCluster, val client: TagClient) {
 object MVTest extends ExperimentBase {
   val rc = new ScadsCluster(ZooKeeperNode(relativeAddress(Results.suffix)))
   val pessimal = rc.getNamespace[MVResult]("MVResult")
-  val scaled = rc.getNamespace[ParResult]("ParResult")
+  val scaled = rc.getNamespace[ParResult2]("ParResult2")
   implicit val exec = new ParallelExecutor
 
   def newNaive(): MVPessimalTest = {
