@@ -642,11 +642,34 @@ class MDCCRecordHandler (
         debug("We got an old message. We ignore it")
         return
       }
-      case 0 => responses += src -> msg
+      case 0 => {
+        if(!currentBallot.fast){
+          responses += src -> msg
+        }else{
+          request match {
+            case StorageEnvelope(_, propose: SinglePropose)  =>  {
+              if( msg.value.commands.exists(_.xid == propose.xid)){
+                debug("We got a valid Phase2b message for a fast round")
+                responses += src -> msg
+              }else  {
+                debug("We got an old Phase2b Fast message. We ignore it")
+                return
+              }
+            }
+            case _  =>  {
+                debug("We have not a single fast propose. So we just use it")
+                responses += src -> msg
+            }
+          }
+        }
+      }
+
       case -1 => throw new RuntimeException("Should never happen as the storage node should send a Phase2bMasterFailure message: current:" + currentBallot + " received:" + msg.ballot)
     }
 
+
     val quorum = if(currentBallot.fast) fastQuorum else classicQuorum
+    debug("Current quorum size size: %s quorum: %s", responses.size ,quorum)
     if(responses.size >= quorum){
       debug("We got a quorum")
       val values = responses.map(_._2.asInstanceOf[Phase2b].value).toSeq

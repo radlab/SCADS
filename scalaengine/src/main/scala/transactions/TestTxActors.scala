@@ -31,7 +31,7 @@ case class DataRecordActor(var id: Int) extends AvroPair {
 object Config {
   val PRODUCTS = 1
   val TRX_SIZE = 1
-  val CLIENTS = 1
+  val CLIENTS = 3
   val ROUNDS = 15
   val LOGICAL = true
 }
