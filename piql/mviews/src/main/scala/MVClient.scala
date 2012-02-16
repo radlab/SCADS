@@ -135,11 +135,11 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
     val dt1 = System.nanoTime / 1000 - start
     val assoc = selectItem(item)
     var mpairs = List[MTagPair]()
+    // includes the duplicate pair
     for (a <- assoc) {
       mpairs ::= new MTagPair(a, word, item)
       mpairs ::= new MTagPair(word, a, item)
     }
-    mpairs ::= new MTagPair(word, word, item) // the duplicate pair
     mTagPairs ++= mpairs
     (dt1, System.nanoTime / 1000 - start)
   }
@@ -153,6 +153,7 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
       toDelete ::= new MTagPair(a, word, item)
       toDelete ::= new MTagPair(word, a, item)
     }
+    toDelete ::= new MTagPair(word, word, item) // the duplicate pair
     mTagPairs --= toDelete
     (dt1, System.nanoTime / 1000 - start)
   }
