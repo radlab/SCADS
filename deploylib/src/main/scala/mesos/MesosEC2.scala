@@ -14,13 +14,13 @@ import java.lang.RuntimeException
 object ServiceSchedulerDaemon extends optional.Application {
   val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
 
-  def main(mesosMaster: String, zooKeeperAddress: String): Unit = {
+  def main(mesosMaster: String, zooKeeperAddress: Option[String]): Unit = {
     System.loadLibrary("mesos")
     val scheduler = new ServiceScheduler(
       mesosMaster,
       javaExecutorPath
     )
-    val serviceSchedulerNode = ZooKeeperNode(zooKeeperAddress)
+    val serviceSchedulerNode = zooKeeperAddress.map(ZooKeeperNode(_)).getOrElse(ZooKeeperHelper.getTestZooKeeper())
     val remoteService = scheduler.remoteHandle
     serviceSchedulerNode.data = new RemoteServiceScheduler(remoteService.remoteNode, remoteService.id).toBytes
   }
@@ -35,10 +35,15 @@ object MesosCluster {
   //HACK
   var jarFiles: Seq[java.io.File] = _
 
+  def buildAllRegions =
+    EC2Region.allRegions
+      .pmap(r => (r, buildNewAmi(r)))
+      .toMap
+
   /**
    * Start a new plain ubuntu ami, install java/mesos on it, bundle it as a new AMI.
    */
-  def buildNewAmi(region: EC2Region): String = {
+  def buildNewAmi(region: EC2Region, gitRepo: String = "https://github.com/apache/mesos.git", branch: String = "trunk"): String = {
     region.update()
     val oldInst = region.client.describeTags().getTags()
       .filter(_.getResourceType equals "instance")
@@ -73,7 +78,8 @@ object MesosCluster {
     logger.info("installing autoconf...")
     inst ! "apt-get install -y autoconf"
     logger.info("cloning mesos")
-    inst ! "git clone https://github.com/mesos/mesos.git"
+    inst ! ("git clone -b %s %s".format(branch, gitRepo))
+
     logger.info("building and installing mesos...")
     inst ! "cd mesos; ./configure --with-python-headers=/usr/include/python2.6 --with-java-home=/usr/lib/jvm/java-6-sun --with-webui --with-included-zookeeper; make; make install"
 
@@ -85,10 +91,20 @@ object MesosCluster {
   }
 }
 
+object DefaultRegion {
+  var value: EC2Region = USEast1
+  val preferred = System.getenv("AWS_DEFAULT_REGION")
+  for (region <- EC2Region.allRegions) {
+    if (region.location equals preferred) {
+      value = region
+    }
+  }
+}
+
 /**
  * Functions to help maintain a mesos cluster on EC2.
  */
-class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
+class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = false) {
   val logger = Logger()
 
   /**
@@ -107,13 +123,13 @@ class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
    * The ami used when launching new instances
    */
   val mesosAmi = region match {
-    case EC2East => "ami-d373b1ba"
-    case EC2West => "ami-1f08545a"
-    case USEast1 => "ami-d373b1ba"
-    case USWest1 => "ami-1f08545a"
-    case EUWest1 => "ami-43b38137"
-    case APNortheast1 => "ami-04912505"
-    case APSoutheast1 => "ami-92057fc0"
+    case USEast1 => "ami-7913d810"
+    case USWest1 => "ami-29b6e96c"
+    case USWest2 => "ami-d29f12e2"
+    case EUWest1 => "ami-350d3141"
+    case APNortheast1 => "ami-bea017bf"
+    case APSoutheast1 => "ami-a02d68f2"
+    case r => throw new RuntimeException("No AMI for region: " + r)
   }
 
   /**
@@ -213,7 +229,7 @@ class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
     firstMaster.getService("service-scheduler", serviceSchedulerCmd).restart
   }
 
-  protected def slaveService(inst: EC2Instance): ServiceManager#RemoteService = inst.getService("mesos-slave", new File(binDir, "mesos-slave").getCanonicalPath)
+  protected def slaveService(inst: EC2Instance): ServiceManager#RemoteService = inst.getService("mesos-slave", new File(binDir, "mesos-slave").getCanonicalPath, Map("MESOS_PUBLIC_DNS" -> inst.publicDnsName))
 
   def slaveServices = slaves.map(slaveService)
 
@@ -466,7 +482,8 @@ class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
   /**
    * Returns the contents of the mesos slave configuration file.
    */
-  def slaveConf(instance: EC2Instance) = (("mem=" + (instance.free.total - 1024)) ::
+  def slaveConf(instance: EC2Instance) = (
+    ("resources=cpus:%d;mem:%d".format(instance.numCpus, instance.free.total - 512)) ::
     confWithUrl).mkString("\n")
 
   /**
@@ -570,5 +587,12 @@ class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
         case e => logger.warning("No frameworks on %s", s.publicDnsName)
       }
     })
+  }
+
+  /**
+   * Open the webui in a browser.  note, only works in osx
+   */
+  def openWebUI: Unit = {
+    Runtime.getRuntime.exec(Array("open","http://%s:8080".format(firstMaster.publicDnsName)))
   }
 }

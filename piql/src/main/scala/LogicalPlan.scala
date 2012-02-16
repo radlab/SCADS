@@ -4,14 +4,16 @@ package piql
 package plans
 
 import language.Queryable
+import javax.xml.soap.SOAPElementFactory
 
 /**
  * A node in a logical query plan.
  */
-abstract class LogicalPlan extends Queryable {
+trait PlanWalker {
+  self: LogicalPlan =>
   def walkPlan[A](f: LogicalPlan => A): A = {
     this match {
-      case in: InnerNode => {
+      case in: SingleChildNode => {
         f(this)
         in.child.walkPlan(f)
       }
@@ -24,55 +26,20 @@ abstract class LogicalPlan extends Queryable {
       return (Nil, Some(this))
 
     this match {
-      case in: InnerNode => {
+      case in: SingleChildNode => {
         val childRes = in.child.gatherUntil(f)
         (f(this) +: childRes._1, childRes._2)
       }
       case leaf => (f(leaf) :: Nil, None)
     }
   }
+
+  def flatGather[A](f: LogicalPlan => Seq[A]): Seq[A] = this match {
+    case in: SingleChildNode =>
+      in.child.flatGather(f) ++ f(in)
+    case leaf => f(leaf)
+  }
 }
 
-/**
- * An non-leaf node of a query plan, guaranteed to have a child.
- */
-abstract trait InnerNode {
-  val child: LogicalPlan
-}
 
-/**
- * Filters child by predicate.
- */
-case class Selection(predicate: Predicate, child: LogicalPlan) extends LogicalPlan with InnerNode
 
-/**
- * Sorts child by the values specified in attributes.
- */
-case class Sort(attributes: Seq[Value], ascending: Boolean, child: LogicalPlan) extends LogicalPlan with InnerNode
-
-/**
- * An operator that returns no more than count tuples
- */
-trait StopOperator extends InnerNode {
-  val count: Limit
-}
-
-/**
- * Returns the first count tuples from child.
- */
-case class StopAfter(count: Limit, child: LogicalPlan) extends LogicalPlan with StopOperator
-
-/**
- * A promise (i.e. due to external relationship cardinality constraints) that child will return no more than count tuples.
- */
-case class DataStopAfter(count: Limit, child: LogicalPlan) extends LogicalPlan with StopOperator
-
-/**
- * Compute the join of the two child query plans.
- */
-case class Join(left: LogicalPlan, right: LogicalPlan) extends LogicalPlan
-
-/**
- * A source of tuples.
- */
-case class Relation(ns: Namespace) extends LogicalPlan

@@ -249,9 +249,9 @@ class InMemStorageManager
   (func:(EQArray,(Array[Byte],ScalaSpecificRecord))=>Unit):Unit = {
     val eMap = (minKey,maxKey) match {
       case (None, None) => map
-      case (None, Some(endKey)) => map.headMap(endKey,false)
+      case (None, Some(endKey)) => map.headMap(endKey,true)
       case (Some(startKey), None) => map.tailMap(startKey,true)
-      case (Some(startKey), Some(endKey)) => map.subMap(startKey,true,endKey,false)
+      case (Some(startKey), Some(endKey)) => map.subMap(startKey,true,endKey,true)
     }
 
     val it = 

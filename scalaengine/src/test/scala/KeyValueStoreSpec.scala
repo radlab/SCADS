@@ -91,9 +91,9 @@ class RangeKeyValueStoreSpec extends AbstractKeyValueStoreSpec {
 
       val queriesAnswers =
        ((null, null), (1 to 100)) ::
-       ((null, IntRec(50)), (1 until 50)) ::
+       ((null, IntRec(50)), (1 to 50)) ::
        ((IntRec(50), null), (50 to 100)) ::
-       ((IntRec(10), IntRec(90)), (10 until 90)) ::
+       ((IntRec(10), IntRec(90)), (10 to 90)) ::
        ((IntRec(-10), null), (1 to 100)) ::
        ((null, IntRec(110)), (1 to 100)) ::
        ((IntRec(-10), IntRec(110)), (1 to 100)) :: Nil
@@ -194,9 +194,9 @@ class RangeKeyValueStoreSpec extends AbstractKeyValueStoreSpec {
 
       /* Various range checks */
       ns.getRange(None, None).map(_._1.f1) should equal(1 to 100)
-      ns.getRange(None, IntRec(50)).map(_._1.f1) should equal(1 until 50)
+      ns.getRange(None, IntRec(50)).map(_._1.f1) should equal(1 to 50)
       ns.getRange(IntRec(50), None).map(_._1.f1) should equal(50 to 100)
-      ns.getRange(IntRec(10), IntRec(90)).map(_._1.f1) should equal(10 until 90)
+      ns.getRange(IntRec(10), IntRec(90)).map(_._1.f1) should equal(10 to 90)
       ns.getRange(IntRec(-10), None).map(_._1.f1) should equal(1 to 100)
       ns.getRange(None, IntRec(110)).map(_._1.f1) should equal(1 to 100)
       ns.getRange(IntRec(-10), IntRec(110)).map(_._1.f1) should equal(1 to 100)
@@ -226,9 +226,9 @@ class RangeKeyValueStoreSpec extends AbstractKeyValueStoreSpec {
 
       /* Various range checks */
       ns.getRange(None, None, ascending = false).map(_._1.f1) should equal(100 to 1 by -1)
-      ns.getRange(None, IntRec(50), ascending = false).map(_._1.f1) should equal(49 to 1 by -1)
+      ns.getRange(None, IntRec(50), ascending = false).map(_._1.f1) should equal(50 to 1 by -1)
       ns.getRange(IntRec(50), None, ascending = false).map(_._1.f1) should equal(100 to 50 by -1)
-      ns.getRange(IntRec(10), IntRec(90), ascending = false).map(_._1.f1) should equal(89 to 10 by -1)
+      ns.getRange(IntRec(10), IntRec(90), ascending = false).map(_._1.f1) should equal(90 to 10 by -1)
       ns.getRange(IntRec(-10), None, ascending = false).map(_._1.f1) should equal(100 to 1 by -1)
       ns.getRange(None, IntRec(110), ascending = false).map(_._1.f1) should equal(100 to 1 by -1)
       ns.getRange(IntRec(-10), IntRec(110), ascending = false).map(_._1.f1) should equal(100 to 1 by -1)
@@ -241,9 +241,9 @@ class RangeKeyValueStoreSpec extends AbstractKeyValueStoreSpec {
       (1 to 100).foreach(i => ns.put(IntRec(i), IntRec(i)))
 
       ns.getRange(None, None, limit = 10, ascending = false).map(_._1.f1) should equal(100 to 91 by -1)
-      ns.getRange(None, IntRec(50), limit = 10, ascending = false).map(_._1.f1) should equal(49 to 40 by -1)
+      ns.getRange(None, IntRec(50), limit = 10, ascending = false).map(_._1.f1) should equal(50 to 41 by -1)
       ns.getRange(IntRec(50), None, limit = 10, ascending = false).map(_._1.f1) should equal(100 to 91 by -1)
-      ns.getRange(IntRec(10), IntRec(90), limit = 10, ascending = false).map(_._1.f1) should equal(89 to 80 by -1)
+      ns.getRange(IntRec(10), IntRec(90), limit = 10, ascending = false).map(_._1.f1) should equal(90 to 81 by -1)
       ns.getRange(IntRec(-10), None, limit = 10, ascending = false).map(_._1.f1) should equal(100 to 91 by -1)
       ns.getRange(None, IntRec(110), limit = 10, ascending = false).map(_._1.f1) should equal(100 to 91 by -1)
       ns.getRange(IntRec(-10), IntRec(110), limit = 10, ascending = false).map(_._1.f1) should equal(100 to 91 by -1)
@@ -260,9 +260,9 @@ class RangeKeyValueStoreSpec extends AbstractKeyValueStoreSpec {
 
       /* Various range checks */
       ns.asyncGetRange(None, None).get.map(_._1.f1) should equal(1 to 100)
-      ns.asyncGetRange(None, IntRec(50)).get.map(_._1.f1) should equal(1 until 50)
+      ns.asyncGetRange(None, IntRec(50)).get.map(_._1.f1) should equal(1 to 50)
       ns.asyncGetRange(IntRec(50), None).get.map(_._1.f1) should equal(50 to 100)
-      ns.asyncGetRange(IntRec(10), IntRec(90)).get.map(_._1.f1) should equal(10 until 90)
+      ns.asyncGetRange(IntRec(10), IntRec(90)).get.map(_._1.f1) should equal(10 to 90)
       ns.asyncGetRange(IntRec(-10), None).get.map(_._1.f1) should equal(1 to 100)
       ns.asyncGetRange(None, IntRec(110)).get.map(_._1.f1) should equal(1 to 100)
       ns.asyncGetRange(IntRec(-10), IntRec(110)).get.map(_._1.f1) should equal(1 to 100)

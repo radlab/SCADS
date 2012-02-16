@@ -9,6 +9,8 @@ import plans._
 trait Queryable {
   self: LogicalPlan =>
 
+  def select(values: Value*) = Project(values, this)
+
   def where(predicate: Predicate) = Selection(predicate, this)
 
   def join(inner: LogicalPlan) = Join(this, inner)
@@ -21,5 +23,5 @@ trait Queryable {
 
   def sort(attributes: Seq[Value], ascending: Boolean = true) = Sort(attributes, ascending, this)
 
-
+  def paginate(count: Int) = Paginate(FixedLimit(count), this)
 }

@@ -254,8 +254,13 @@ class BdbStorageManager(val db: Database,
 
   def bulkPut(records:Seq[PutRequest]):Unit = {
     val txn = db.getEnvironment.beginTransaction(null, null)
-    var reccount = 0
-    records.foreach(rec => { db.put(txn, new DatabaseEntry(rec.key), new DatabaseEntry(rec.value.get)); reccount+=1})
+    records.foreach(rec => {
+      rec.value match {
+        case Some(v) => db.put(txn, new DatabaseEntry(rec.key),
+                                    new DatabaseEntry(v))
+        case None => db.delete(txn, new DatabaseEntry(rec.key))
+      }
+    })
     txn.commit()  // exception here will get caught above
   }
 
@@ -485,7 +490,7 @@ class BdbStorageManager(val db: Database,
    */
   def deleteRange(lowerKey: Option[Array[Byte]], upperKey: Option[Array[Byte]], txn: Option[je.Transaction]) {
     assert(isStartKeyLEQ(lowerKey) && isEndKeyGEQ(upperKey), "startKey <= lowerKey && endKey >= upperKey required")
-    iterateOverRange(lowerKey, upperKey, txn = txn)((_, _, cursor) => {
+    iterateOverRange(lowerKey, upperKey, txn = txn, includeLast = false)((_, _, cursor) => {
       cursor.delete()
     })
   }
@@ -524,7 +529,8 @@ class BdbStorageManager(val db: Database,
                                maxKey: Option[Array[Byte]], 
                                limit: Option[Int] = None, 
                                offset: Option[Int] = None, 
-                               ascending: Boolean = true, 
+                               ascending: Boolean = true,
+                               includeLast: Boolean = true,
                                txn: Option[je.Transaction] = None)
       (func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit): Unit = {
     val (dbeKey, dbeValue) = (new DatabaseEntry, new DatabaseEntry)
@@ -544,7 +550,7 @@ class BdbStorageManager(val db: Database,
           // is LESS THAN maxKey. getSearchKeyRange semantics only guarantee
           // that the cursor is pointing to the smallest key >= maxKey
           var status = cur.getCurrent(dbeKey, dbeValue, null)
-          if(status == OperationStatus.SUCCESS && compare(startKey, dbeKey.getData) <= 0)
+          if(status == OperationStatus.SUCCESS && compare(startKey, dbeKey.getData) < 0)
             status = cur.getPrev(dbeKey, dbeValue, null)
           status
         }
@@ -569,7 +575,8 @@ class BdbStorageManager(val db: Database,
       iterateRangeBreakable.breakable { // used to allow func to break out early
         while(status == OperationStatus.SUCCESS &&
               limit.map(_ > returnedCount).getOrElse(true) &&
-              maxKey.map(mk => compare(dbeKey.getData, mk) < 0 /* Exclude maxKey from range */).getOrElse(true)) {
+              ((includeLast && maxKey.map(mk => compare(dbeKey.getData, mk) <= 0).getOrElse(true)) || /* Include maxKey in range */
+              (!includeLast && maxKey.map(mk => compare(dbeKey.getData, mk) < 0).getOrElse(true))) /* Exclude maxKey in range */) {
                 func(dbeKey, dbeValue, cur)
                 returnedCount += 1
                 status = cur.getNext(dbeKey, dbeValue, null)

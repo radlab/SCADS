@@ -15,6 +15,8 @@ import edu.berkeley.cs.avro.marker._
 import org.apache.avro.util.Utf8
 
 private[storage] object IndexManager {
+  implicit def toOption[A](a: A): Option[A] = Option(a)
+
   val indexValueSchema = {
     val schema = Schema.createRecord("DummyValue", "", "", false)
     schema.setFields(Seq(new Schema.Field("b", Schema.create(Schema.Type.BOOLEAN), "", null)))
@@ -56,6 +58,8 @@ class IndexNamespace(
   with DebuggingClient
 { 
   import IndexManager._
+
+  def schema: Schema = keySchema
 
   val valueClass = classOf[IndexedRecord].getName
 
@@ -153,7 +157,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
   }
 
   override def ++=(that: TraversableOnce[BulkType]): Unit = {
-    logger.info("Putting index entries")
+    logger.debug("Putting index entries")
     that.foreach { pair => {
       putBulkBytes(keyToBytes(pair.key), valueToBytes(pair.value))
 
@@ -161,6 +165,22 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
 	      makeIndexFor(pair.key, pair.value, ns.keySchema, mapping)
           .map(ns.keyToBytes)
           .foreach(ns.putBulkBytes(_, dummyIndexValueBytes))
+      }
+    }}
+
+    flushBulkBytes
+    indexCache.values.foreach(_._1.flushBulkBytes)
+  }
+
+  override def --=(that: TraversableOnce[BulkType]): Unit = {
+    logger.debug("Deleting index entries")
+    that.foreach { pair => {
+      putBulkBytes(keyToBytes(pair.key), None)
+
+      indexCache.values.foreach { case (ns, mapping) =>
+	      makeIndexFor(pair.key, pair.value, ns.keySchema, mapping)
+          .map(ns.keyToBytes)
+          .foreach(ns.putBulkBytes(_, None))
       }
     }}
 

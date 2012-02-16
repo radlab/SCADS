@@ -2,10 +2,10 @@ import sbt._
 import Keys._
 
 object ScadsBuild extends Build {
-  val buildVersion = "2.1.3-SNAPSHOT"
+  val buildVersion = "2.1.4-SNAPSHOT"
   val defaultScalaVersion = "2.9.1"
 
-  val buildSettings = Defaults.defaultSettings ++ GhPages.ghpages.settings ++ Seq(
+  val buildSettings = Defaults.defaultSettings ++ GhPages.ghpages.settings ++ sbtassembly.Plugin.assemblySettings ++ Seq(
     organization := "edu.berkeley.cs",
     scalaVersion := defaultScalaVersion,
     version := buildVersion,
@@ -76,7 +76,11 @@ object ScadsBuild extends Build {
   lazy val piql = Project(
     "piql", file("piql"),
     settings = deploySettings ++ Seq(
-      libraryDependencies ++= useAvroPlugin)
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands in console += (
+        "import edu.berkeley.cs.scads.piql._\n" +
+          "import edu.berkeley.cs.scads.piql.viz._\n"
+        ))
   ) dependsOn (config, comm, scalaEngine)
 
   lazy val perf = Project(
@@ -100,20 +104,37 @@ object ScadsBuild extends Build {
       libraryDependencies ++= useAvroPlugin,
       initialCommands in console += (
         "import edu.berkeley.cs.scads.piql.modeling._\n" +
-          "import edu.berkeley.cs.scads.piql.modeling.Experiments._")
-    )
+          "import edu.berkeley.cs.scads.piql.modeling.Experiments._"))
   ) dependsOn (piql, perf, deploylib, scadr, tpcw)
 
   lazy val scadr = Project(
     "scadr",
     file("piql/scadr"),
-    settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
+    settings = deploySettings ++ Seq(
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands in console += (
+        "import edu.berkeley.cs.scads.piql._\n" +
+          "import edu.berkeley.cs.scads.piql.viz._\n" +
+          "import edu.berkeley.cs.scads.piql.scadr._\n" +
+          "object testScadrClient extends ScadrClient(edu.berkeley.cs.scads.storage.TestScalaEngine.newScadsCluster(), new ParallelExecutor)"))
   ) dependsOn (piql % "compile;test->test", perf)
 
   lazy val tpcw = Project(
     "tpcw",
     file("piql/tpcw"),
     settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
+  ) dependsOn (piql, perf)
+
+  lazy val mviews = Project(
+    "mviews",
+    file("piql/mviews"),
+    settings = deploySettings ++ Seq(
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands in console += (
+        "import edu.berkeley.cs.scads.piql.mviews._\n" +
+        "import edu.berkeley.cs.scads.storage._\n" + 
+        "import edu.berkeley.cs.scads.piql.exec._"
+        ))
   ) dependsOn (piql, perf)
 
   lazy val axer = Project(
@@ -154,8 +175,8 @@ object ScadsBuild extends Build {
 
   def avroPluginDeps = Seq(avroJava, avroIpc, scalaCompiler, configgy) ++ testDeps
 
-  val avroJava = "org.apache.avro" % "avro" % "1.6.0-SNAPSHOT"
-  val avroIpc = "org.apache.avro" % "avro-ipc" % "1.6.0-SNAPSHOT"
+  val avroJava = "org.apache.avro" % "avro" % "1.6.0"
+  val avroIpc = "org.apache.avro" % "avro-ipc" % "1.6.0"
   val scalaCompiler = "org.scala-lang" % "scala-compiler" % defaultScalaVersion
   val avroPluginDep = "edu.berkeley.cs" %% "avro-plugin" % buildVersion % "plugin"
   val avroPluginCompile = "edu.berkeley.cs" %% "avro-plugin" % buildVersion
@@ -176,7 +197,7 @@ object ScadsBuild extends Build {
 
   def deploylibDeps = Seq(mesos, protoBuff, staxApi, jaxbApi, json, awsSdk, ganymedSsh2, commonsLoggingApi, commonsHttpClient, jets3t, jetty, mysql, javaSysMon, avroPluginDep, avroPluginCompile)
 
-  val mesos = "org.apache" % "mesos" % "1.1"
+  val mesos = "org.apache" % "mesos" % "1.2"
   val protoBuff = "com.google.protobuf" % "protobuf-java" % "2.3.0"
   val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
   val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.1"
@@ -267,7 +288,7 @@ object DeployConsole extends BuildCommon {
           "implicit def serviceScheduler = cluster.serviceScheduler"
         ).mkString("\n") + "\n" + initCmds
 
-        (new Console(cs.scalac))(Build.data(cp), options, cmds, s.log).foreach(msg => error(msg))
+        (new Console(cs.scalac))(Build.data(cp), options, cmds, "", s.log).foreach(msg => error(msg))
         println()
       }
     }

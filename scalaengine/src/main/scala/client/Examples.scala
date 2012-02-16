@@ -161,7 +161,9 @@ class PairNamespace[Pair <: AvroPair : Manifest](
   
   override protected val pairManifest = manifest[Pair]
 
-  override def asyncGetRecord(key: IndexedRecord): ScadsFuture[Option[Pair]] = {
+  def schema: Schema = pairSchema
+
+  def asyncGetRecord(key: IndexedRecord): ScadsFuture[Option[Pair]] = {
     val keyBytes = keyToBytes(key)
     asyncGetBytes(keyBytes) map (_.map(bytesToBulk(keyBytes, _)))
   }

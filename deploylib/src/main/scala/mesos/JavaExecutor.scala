@@ -167,7 +167,7 @@ class JavaExecutor extends Executor {
     logger.debug("Requested memory: " + heapSize)
     val cmdLine = List[String]("/usr/bin/java",
       "-server",
-      "-Xmx6G",//HACK to deal with meoso not telling us the right amount of memory"-Xmx" + heapSize + "M",
+      "-Xmx" + heapSize + "M",
       //HACK to deal with mesos lying about available memory "-Xms" + heapSize + "M",
       "-XX:+HeapDumpOnOutOfMemoryError",
       "-verbosegc",

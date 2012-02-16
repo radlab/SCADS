@@ -29,7 +29,7 @@ class WebAppScheduler protected(name: String, mesosMaster: String, executor: Str
 
   val logger = Logger()
   var listeners: List[String => Unit] = Nil
-  var driver = new MesosSchedulerDriver(this, mesosMaster)
+  var driver = new MesosSchedulerDriver(this, "Webapp Scheduler", execInfo, mesosMaster)
   val driverThread = new Thread("ExperimentScheduler Mesos Driver Thread") {
     override def run(): Unit = driver.run()
   }
@@ -243,18 +243,16 @@ class WebAppScheduler protected(name: String, mesosMaster: String, executor: Str
     }
   }
 
-  override def getFrameworkName(d: SchedulerDriver): String = "WebAppScheduler: " + name
-
-  override def getExecutorInfo(d: SchedulerDriver): ExecutorInfo = ExecutorInfo.newBuilder.setUri(executor).build()
+  val execInfo = ExecutorInfo.newBuilder.setUri(executor).build()
 
   override def registered(d: SchedulerDriver, fid: FrameworkID): Unit = logger.info("Registered Framework.  Fid: " + fid)
 
   val webAppTask = JvmWebAppTask(warFile, properties)
   var taskIdCounter = 0
 
-  override def resourceOffer(driver: SchedulerDriver, oid: OfferID, offers: java.util.List[SlaveOffer]): Unit = {
+  override def resourceOffers(driver: SchedulerDriver, offers: java.util.List[Offer]): Unit = {
 
-    val tasks = offers.flatMap(offer => {
+    val tasks = offers.foreach(offer => {
       logger.debug("In resourceOffer, taskIdCounter is " + taskIdCounter + ", targetNumServers is " + targetNumServers)
       logger.debug("servers.size is %d.", servers.size)
       logger.debug("pendingServers.size is %d.", pendingServers.size)
@@ -276,13 +274,9 @@ class WebAppScheduler protected(name: String, mesosMaster: String, executor: Str
                                 .addAllResources(offer.getResourcesList)
                                 .setData(ByteString.copyFrom(JvmTask(webAppTask)))
                                 .build() :: Nil
-        td
+        driver.launchTasks(offer.getId, td)
       }
-      else
-        Nil
     })
-
-    driver.replyToOffer(oid, tasks, Map[String, String]())
   }
 
 

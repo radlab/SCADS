@@ -21,6 +21,10 @@ case class Subscription(var owner: String, var target: String) extends AvroPair 
   var approved: Boolean = _
 }
 
+case class Tag(var owner: String, var timestamp: Int, var word: String) extends AvroPair {
+
+}
+
 class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new ParallelExecutor) {
   val maxSubscriptions = 10000
   val maxResultsPerPage = 10000
@@ -34,6 +38,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new Paral
   val users = cluster.getNamespace[User]("users")
   val thoughts = cluster.getNamespace[Thought]("thoughts")
   val subscriptions = cluster.getNamespace[Subscription]("subscriptions")
+  val tags = cluster.getNamespace[Subscription]("tags")
 
   val namespaces = List(users, thoughts, subscriptions)
   //val allNamespaces = namespaces.flatMap(ns => ns :: ns.listIndexes.map(_._2).toList)
@@ -43,39 +48,60 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new Paral
 
   val myThoughts = (
     thoughts.where("thoughts.owner".a === (0.?))
-	    .sort("thoughts.timestamp".a :: Nil, false)
-	    .limit(1.?, maxResultsPerPage)
-  ).toPiql("myThoughts")
+      .sort("thoughts.timestamp".a :: Nil, false)
+      .limit(1.?, maxResultsPerPage)
+    ).toPiql("myThoughts")
 
   val usersFollowedBy = (
     subscriptions.where("subscriptions.owner".a === (0.?))
-	 .limit(1.?, maxResultsPerPage)
-	 .join(users)
-	 .where("subscriptions.target".a === "users.username".a)
-  ).toPiql("usersFollowedBy")
+      .limit(1.?, maxResultsPerPage)
+      .join(users)
+      .where("subscriptions.target".a === "users.username".a)
+    ).toPiql("usersFollowedBy")
 
 
   val thoughtstream = (
     subscriptions.where("subscriptions.owner".a === (0.?))
-		 .dataLimit(maxSubscriptions)
-		 .join(thoughts)
-		 .where("thoughts.owner".a === "subscriptions.target".a)
-		 .sort("thoughts.timestamp".a :: Nil, false)
-		 .limit(1.?, maxResultsPerPage)
-  ).toPiql("thoughtstream")
+      .dataLimit(maxSubscriptions)
+      .where("subscriptions.approved".a === true)
+      .join(thoughts)
+      .where("thoughts.owner".a === "subscriptions.target".a)
+      .sort("thoughts.timestamp".a :: Nil, false)
+      .limit(1.?, maxResultsPerPage)
+    ).toPiql("thoughtstream")
+
+  val tsAddThoughtDelta =
+    subscriptions.where("subscriptions.target".a === "@t.owner".a)
+      .where("subscriptions.approved".a === true)
+      .select("subscription.owner".a, "@t.timestamp".a, "@t.owner".a)
+
+  val tsAddSubscriptionDelta =
+    thoughts.where("thoughts.owner".a === "@s.target".a)
+      .where("@s.approved".a === true)
+      .select("@s.owner".a, "thoughts.timestamp".a, "thoughts.owner".a)
+      .sort("thoughts.timestamp".a :: Nil, false)
+      .limit(1.?, maxResultsPerPage)
 
   /**
    * Who is following ME?
    */
   val usersFollowing = (
     subscriptions.where("subscriptions.target".a === (0.?))
-		 .limit(1.?, maxResultsPerPage)
-		 .join(users)
-		 .where("users.username".a === "subscriptions.owner".a)
+      .limit(1.?, maxResultsPerPage)
+      .join(users)
+      .where("users.username".a === "subscriptions.owner".a)
     ).toPiql("usersFollowing")
-  
+
   val findSubscription = (
     subscriptions.where("subscriptions.owner".a === (0.?))
-		 .where("subscriptions.target".a === (1.?))
+      .where("subscriptions.target".a === (1.?))
     ).toPiql("findSubscription")
+
+  val twoTags = (
+    tags.join(tags)
+      .where("t1.owner".a === "t2.owner".a)
+      .where("t1.timestamp".a === "t2.timestamp".a)
+      .where("t1.word".a === (0.?))
+      .where("t2.word".a === (1.?))
+    )
 }
