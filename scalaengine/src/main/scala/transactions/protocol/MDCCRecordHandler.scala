@@ -13,6 +13,9 @@ import conflict.ConflictResolver
 import actors.{TIMEOUT, Actor}
 import collection.mutable.{HashMap, ArrayBuffer}
 import storage.SCADSService
+import _root_.org.fusesource.hawtdispatch._
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.TimeUnit._
 
 
 sealed trait RecordStatus {def name: String}
@@ -29,6 +32,22 @@ object ServerMessageHelper {
     def !(msg : MDCCProtocol)(implicit sender: RemoteServiceProxy[StorageMessage]) = s.foreach(_ ! msg)
   }
   implicit def smh(i: Seq[PartitionService]) = new SMH(i)
+}
+
+object RoundStats{
+    var fast = new AtomicInteger(0)
+    var classic = new AtomicInteger(0)
+    var forward = new AtomicInteger(0)
+    var recovery = new AtomicInteger(0)
+
+    monitor_hawtdispatch()
+
+    def monitor_hawtdispatch() :Unit = {
+        getGlobalQueue().after(30, SECONDS) {
+        println("Round Stats -> Fast: " + fast + " Classic:" + classic + " Forward:" + forward +" Recovery:" + recovery)
+        monitor_hawtdispatch
+      }
+    }
 }
 
 
@@ -275,6 +294,7 @@ class MDCCRecordHandler (
       //We are not responsible for doing the conflict resolution
       //So we go in Recovery mode
       currentBallot.server ! msg
+      RoundStats.recovery.incrementAndGet()
       status = RECOVERY
       return
 
@@ -316,6 +336,7 @@ class MDCCRecordHandler (
         status = FAST_PROPOSED
         debug("Sending fast propose from " + remoteHandle + " to " + servers.mkString(":"))
         servers.foreach(_ ! propose)
+        RoundStats.fast.incrementAndGet()
       }else{
         debug("We do have a confirmed ballot number")
         if(stableRound){
@@ -337,6 +358,7 @@ class MDCCRecordHandler (
             debug("We start the next round with forwarding the request we: %s ballot: %s", master, nBallot)
             status = FORWARDED
             nBallot.server ! propose
+            RoundStats.forward.incrementAndGet()
             return
           }
         }
@@ -351,6 +373,7 @@ class MDCCRecordHandler (
           debug("We are not the master forward the request we: %s ballot: %s", master, currentBallot)
           status = FORWARDED
           currentBallot.server ! propose
+          RoundStats.forward.incrementAndGet()
           return
         }
       }
@@ -534,6 +557,7 @@ class MDCCRecordHandler (
       debug("we are in a fast ballot")
       //We are just opening a fast next round as part of conflict resolution
       servers ! Phase2a(key, cBallot, value, Nil, Nil, unsafeCommands ++ seq(propose))
+      RoundStats.classic.incrementAndGet()
     }else{
 
       if(stableRound) {
@@ -548,6 +572,7 @@ class MDCCRecordHandler (
           debug("Next ballot is fast, we are opening a fast round ballot" + nBallot)
           moveToNextRound()
           servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, unsafeCommands ++ seq(propose))
+          RoundStats.classic.incrementAndGet()
         }else{
           //We are in the classic mode
           debug("Testing for pending updates")
@@ -568,12 +593,14 @@ class MDCCRecordHandler (
               val props = seq(propose)
               moveToNextRound()
               servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, props.head :: Nil)
+              RoundStats.classic.incrementAndGet()
               forwardRequest(src, MultiPropose(props.tail))
             }else{
               error("Classic rounds: No pending updates but unsafe commands -> we resolve the unsafe commands first")
               fullDebug("Unsafe commands")
               moveToNextRound()
               servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, unsafeCommands.head :: Nil)
+              RoundStats.classic.incrementAndGet()
               forwardRequest(src, propose, unsafeCommands.tail)
             }
           }
@@ -596,6 +623,7 @@ class MDCCRecordHandler (
               debug("Current classic round is still empty, and there are no unsafe commands. Perfect, we take the round")
               val props = seq(propose)
               servers ! Phase2a(key, cBallot, rebase, commitXids, abortXids, props.head :: Nil)
+              RoundStats.classic.incrementAndGet()
               forwardRequest(src, MultiPropose(props.tail))
             }else{
               fullDebug("Current classic round is still empty, but we have unsafe commands")
@@ -606,6 +634,7 @@ class MDCCRecordHandler (
             debug("Current round is still unstable, but the next is fast, so better accept everything")
             //Next ballot is fast, so better try to accept everything
             servers ! Phase2a(key, cBallot, rebase, commitXids, abortXids, unsafeCommands ++ seq(propose))
+            RoundStats.classic.incrementAndGet()
           }
         }else{
           error("We have a value bigger than the provedSafe size. That should never happen. ")
