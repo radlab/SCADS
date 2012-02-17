@@ -138,7 +138,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
   private def makeBDBPendingUpdates(database: Database, namespace: String) = {
     val schemasvc = schemasAndValueClassFor(namespace)
     val nsRoot = getNamespaceRoot(namespace)
-    val routingTable = new MDCCRoutingTable(nsRoot, schemasvc._1)
+    val routingTable = new MDCCRoutingTable(nsRoot)
 
     val pu = new PendingUpdatesController(
       new BDBTxDB[Array[Byte], Array[Byte]](
