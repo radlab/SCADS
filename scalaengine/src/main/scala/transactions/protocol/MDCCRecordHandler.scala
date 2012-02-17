@@ -59,7 +59,7 @@ class MDCCRecordHandler (
        var confirmedBallot : Boolean, //Is the ballot confirmed by a majority?
        var servers: Seq[PartitionService],
        var resolver : ConflictResolver,
-       var master : SCADSService //If we are master, this is outer not garbage collected remote handler
+       var thisService : SCADSService //If we are master, this is outer not garbage collected remote handler
   ) {
 
   import ServerMessageHelper._
@@ -96,7 +96,7 @@ class MDCCRecordHandler (
     + "\n Value:" + value
     + "\n ProvedSafe:" + provedSafe
     + "\n UnsafeCommands:" + unsafeCommands
-    + "\n Master:" + master
+    + "\n ThisService:" + thisService
     + "\n Mailbox: " +mailbox
     + msg, items:_*)
 
@@ -116,9 +116,9 @@ class MDCCRecordHandler (
 
   implicit def toStorageService(service : RemoteServiceProxy[StorageMessage]) : StorageService = StorageService(service)
 
-  @inline def areWeMaster(service : SCADSService) : Boolean = {
-    debug("Checking for mastership current: %s - master: %s == %s", service, master, service == master)
-    val r = service == master
+  @inline def areWeMaster(master : SCADSService) : Boolean = {
+    debug("Checking for mastership thisService: %s - master: %s == %s", thisService, master, master == thisService)
+    val r = master == thisService
     r
   }
 
@@ -323,7 +323,7 @@ class MDCCRecordHandler (
       }
       case _ => throw new RuntimeException("Unvalid compare type")
     }
-    startPhase1a(getOwnership(ballots, maxRound, maxRound, ballots.head.fast, master))
+    startPhase1a(getOwnership(ballots, maxRound, maxRound, ballots.head.fast, thisService))
   }
 
 
@@ -355,7 +355,7 @@ class MDCCRecordHandler (
             return
           }else{
             //We are not the master, so we let the master handle it
-            debug("We start the next round with forwarding the request we: %s ballot: %s", master, nBallot)
+            debug("We start the next round with forwarding the request we: %s ballot: %s", thisService, nBallot)
             status = FORWARDED
             nBallot.server ! propose
             RoundStats.forward.incrementAndGet()
@@ -370,7 +370,7 @@ class MDCCRecordHandler (
           return
         }else{
           //We are not the master, so we let the master handle it
-          debug("We are not the master forward the request we: %s ballot: %s", master, currentBallot)
+          debug("We are not the master forward the request we: %s ballot: %s", thisService, currentBallot)
           status = FORWARDED
           currentBallot.server ! propose
           RoundStats.forward.incrementAndGet()
@@ -386,8 +386,8 @@ class MDCCRecordHandler (
     }
   }
 
-  def startPhase1a(startRound: Long, endRound: Long, fast : Boolean)  : Unit =
-    startPhase1a ( getOwnership(ballots, startRound, endRound, fast, master)   )
+  def startPhase1a(startRound: Long, endRound: Long, fast : Boolean) : Unit =
+    startPhase1a(getOwnership(ballots, startRound, endRound, fast, thisService))
 
   def startPhase1a(ballots : Seq[MDCCBallotRange]) : Unit  = {
     debug("Starting Phase1a - ballots: %s", ballots)
@@ -638,7 +638,7 @@ class MDCCRecordHandler (
           }
         }else{
           error("We have a value bigger than the provedSafe size. That should never happen. ")
-          error("Current Meta-Data: %s, confirmedBallot: %s, Current Ballat: %s,  Version: %s, Value: %s ProvedSafe: %s, UnsafeCommands: %s, master: %s mailbox: %s",
+          error("Current Meta-Data: %s, confirmedBallot: %s, Current Ballat: %s,  Version: %s, Value: %s ProvedSafe: %s, UnsafeCommands: %s, thisService: %s mailbox: %s",
             ballots,
             confirmedBallot,
             currentBallot,
@@ -646,7 +646,7 @@ class MDCCRecordHandler (
             value,
             provedSafe,
             unsafeCommands,
-            master,
+            thisService,
             mailbox)
           assert(false)
         }
