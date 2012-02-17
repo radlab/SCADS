@@ -17,6 +17,9 @@ import edu.berkeley.cs.scads.storage.transactions.FieldAnnotations._
 import edu.berkeley.cs.scads.perf._
 import edu.berkeley.cs.scads.piql.tpcw._
 
+import scala.actors.Future
+import scala.actors.Futures._
+
 import tpcw._
 
 object MicroBenchmark extends ExperimentBase {
@@ -29,11 +32,11 @@ object MicroBenchmark extends ExperimentBase {
   }
 
   def restartClusters(c: Seq[deploylib.mesos.Cluster] = clusters) = {
-    c.map(v => new Future(v.restart)).map(_())
+    c.map(v => future {println("restarting " + v); v.restart}).map(_())
   }
 
   def updateJars(c: Seq[deploylib.mesos.Cluster] = clusters) = {
-    c.map(v => new Future(v.slaves.pforeach(_.pushJars(MesosCluster.jarFiles)))).map(_())
+    c.map(v => future {println("updating " + v); v.slaves.pforeach(_.pushJars(MesosCluster.jarFiles))}).map(_())
   }
 
   private var actionHistograms: Map[String, scala.collection.mutable.HashMap[String, Histogram]] = null
@@ -200,21 +203,21 @@ case class MicroBenchmarkTask()
     clusterAddress = scadsCluster.root.canonicalAddress
 
     // Start loaders.
-    val loaderTasks = MDCCTpcwMicroLoaderTask(numClusters * numPartitions, 2, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol, namespace="items").getLoadingTasks(clusters.head.classSource, scadsCluster.root)
+    val loaderTasks = MDCCTpcwMicroLoaderTask(numClusters * numPartitions, 2, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol, namespace="items").getLoadingTasks(clusters.head.classSource, scadsCluster.root, addlProps)
     clusters.head.serviceScheduler.scheduleExperiment(loaderTasks)
 
     var expStartTime: String = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new java.util.Date)
 
     // Start clients.
     val tpcwTasks = MDCCTpcwMicroWorkflowTask(
-      numClients=2,
+      numClients=16,
       executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
-      numThreads=2,
+      numThreads=6,
       iterations=1,
       runLengthMin=3,
       startTime=expStartTime,
       useLogical=useLogicalUpdates,
-      note=notes).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress, List("scads.comm.externalip" -> "true"))
+      note=notes).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))
     clusters.head.serviceScheduler.scheduleExperiment(tpcwTasks)
 
     // Start the task.
