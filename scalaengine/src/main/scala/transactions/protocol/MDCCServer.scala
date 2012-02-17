@@ -80,6 +80,12 @@ class MDCCServer(val namespace : String,
     val meta = getMeta(proposes.head.update.key)
     val ballot = meta.ballots.head.ballot
     meta.validate() //just to make sure
+    // TODO(kraska): there is a potential for an infinite loop, if the default
+    //               metadata was fast, but then the metadata was switched to
+    //               classic by the master.
+    //               The main problem is that the code is making a decision
+    //               based on the default metadata, which is really old, and
+    //               potentially wrong.
     if(ballot.fast){
       //TODO can we optimize the accept?
       val results = proposes.map(prop => (prop, pendingUpdates.acceptOption(prop.xid, prop.update, true)))
