@@ -39,6 +39,14 @@ object MicroBenchmark extends ExperimentBase {
     c.map(v => future {println("updating " + v); v.slaves.pforeach(_.pushJars(MesosCluster.jarFiles))}).map(_())
   }
 
+  def setupClusters(sizes: Seq[Int], c: Seq[deploylib.mesos.Cluster] = clusters) = {
+    if (sizes.size != c.size) {
+      println("sizes has to be the same length has c. " + sizes.size + " != " + c.size)
+    } else {
+      c.zip(sizes).map(v => future {println("setup " + v._1); v._1.setup(v._2)}).map(_())
+    }
+  }
+
   private var actionHistograms: Map[String, scala.collection.mutable.HashMap[String, Histogram]] = null
 
   private def addHist(aggHist: scala.collection.mutable.HashMap[String, Histogram], key: String, hist: Histogram) = {
