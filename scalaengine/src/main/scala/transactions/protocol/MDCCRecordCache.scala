@@ -16,7 +16,7 @@ class MDCCClientServer(ns : TransactionI) extends  MDCCRecordCache {
 
    def forwardToRecordHandler(key : Array[Byte], env : Envelope[StorageMessage]) = {
      val servers = ns.serversForKey(key)
-     val handler = getOrCreate(key, CStruct(None, Nil), ns.getDefaultMeta(), servers, ns.getConflictResolver, remoteHandle)
+     val handler = getOrCreate(key, CStruct(None, Nil), ns.getDefaultMeta(key), servers, ns.getConflictResolver, remoteHandle)
      handler.forwardRequest(env)
    }
 
@@ -93,7 +93,6 @@ class MDCCRecordCache() {
     cache.synchronized{
       cache.get(keyWrapper) match {
         case None => {
-          logger.debug("Hash " + hashCode() + ":" + cache.elements.map(_._1.hashCode()).mkString)
           var handler = new MDCCRecordHandler(key, value, mt.currentVersion, mt.ballots,  mt.confirmedBallot, servers, conflictResolver, master)
           cache.update(keyWrapper, handler)
           logger.debug("No record handler exists, we create a new one: hash: %s remote: %s", handler.hashCode(), handler.remoteHandle.id)

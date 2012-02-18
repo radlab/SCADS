@@ -150,7 +150,7 @@ trait RecordMetadata {
   def hashKey(x: Array[Byte]): Int
 
   /** Create a value w/ metadata prepended */
-  def createMetadata(rec: Array[Byte]): Array[Byte]
+  def createMetadata(key: Array[Byte], rec: Array[Byte]): Array[Byte]
 
   /** Compare 2 values based on metadata */
   def compareMetadata(lhs: Array[Byte], rhs: Array[Byte]): Int

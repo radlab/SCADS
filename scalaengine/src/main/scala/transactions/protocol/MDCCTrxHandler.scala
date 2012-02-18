@@ -63,7 +63,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
       update match {
         case ValueUpdateInfo(ns, servers, key, value) => {
           val (md, oldBytes) = readList.getRecord(key) match {
-            case None => (ns.getDefaultMeta(), None)
+            case None => (ns.getDefaultMeta(key), None)
             case Some(r) => (r.metadata, Some(MDCCRecordUtil.toBytes(r)))
           }
           val newBytes = MDCCRecordUtil.toBytes(value, md)
@@ -71,13 +71,13 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
           val propose = SinglePropose(Xid, ValueUpdate(key, oldBytes, newBytes))  //TODO: We need a read-strategy
           val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), md, servers, ns.getConflictResolver)
           participants += rHandler
-          info("" + Xid + ": Sending physical update propose to MCCCRecordHandler", propose)
+          debug("" + Xid + ": Sending physical update propose to MCCCRecordHandler", propose)
           debug("Record handler " + rHandler.hashCode )
           rHandler.remoteHandle ! propose
         }
         case LogicalUpdateInfo(ns, servers, key, value) => {
           val md = readList.getRecord(key) match {
-            case None => ns.getDefaultMeta()
+            case None => ns.getDefaultMeta(key)
             case Some(r) => r.metadata
           }
           val newBytes = MDCCRecordUtil.toBytes(value, md)
@@ -127,14 +127,14 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
             debug("Received record commit: %s src: %s", msg, src)
             debug("Receive record commit %s status: %s committed: %s of %s. Participants: %s", Xid, status, count, participants.size, participants  )
             if(count == participants.size && status == UNKNOWN){
-              info("Transaction " + Xid + " committed")
+              debug("Transaction " + Xid + " committed")
               status = COMMITTED
               this ! TRX_EXIT
             }
           }else{
             if(status == UNKNOWN) {
               debug("" + Xid + ": Receive record abort")
-              info("Transaction " + Xid + " aborted")
+              debug("Transaction " + Xid + " aborted")
               status = ABORTED
               this ! TRX_EXIT
             }

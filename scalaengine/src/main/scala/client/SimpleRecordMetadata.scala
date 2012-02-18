@@ -64,7 +64,7 @@ trait SimpleRecordMetadata extends RecordMetadata
     hash
   }
 
-  override def createMetadata(rec: Array[Byte]): Array[Byte] = {
+  override def createMetadata(key: Array[Byte], rec: Array[Byte]): Array[Byte] = {
     val buffer = ByteBuffer.allocate(rec.length + 16)
     buffer.putLong(System.currentTimeMillis)
     buffer.putLong(cluster.clientID)

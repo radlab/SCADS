@@ -52,12 +52,12 @@ class MDCCServer(val namespace : String,
   }
 
   @inline def getMeta(key : Array[Byte])(implicit txn : TransactionData) : MDCCMetadata = {
-    extractMeta(getRecord(key))
+    extractMeta(key, getRecord(key))
   }
 
-  @inline def extractMeta(record : Option[MDCCRecord])(implicit txn : TransactionData) : MDCCMetadata = {
+  @inline def extractMeta(key : Array[Byte], record : Option[MDCCRecord])(implicit txn : TransactionData) : MDCCMetadata = {
      if(record.isEmpty)
-      return default.defaultMetaData
+      return default.defaultMetaData(key)
      else
       return record.get.metadata
   }
@@ -130,7 +130,7 @@ class MDCCServer(val namespace : String,
     debug(key, "Process Phase1a", src, newMeta)
     implicit val trx = startTrx()
     val record = getRecord(key)
-    val meta : MDCCMetadata = extractMeta(record)
+    val meta : MDCCMetadata = extractMeta(key, record)
     val maxRound = max(meta.ballots.head.startRound, newMeta.head.startRound)
     compareRanges(meta.ballots, newMeta, maxRound) match {
       case -1 => {
@@ -162,7 +162,7 @@ class MDCCServer(val namespace : String,
     })
     implicit val trx = startTrx()
     var record = getRecord(key)
-    val meta = extractMeta(record)
+    val meta = extractMeta(key, record)
     val myBallot = getBallot(meta.ballots, reqBallot.round)
     if (myBallot.isEmpty || myBallot.get.compare(reqBallot) != 0) {
       commitTrx(trx)
