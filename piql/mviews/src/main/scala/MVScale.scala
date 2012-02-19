@@ -14,6 +14,7 @@ import config._
 import storage._
 import exec._
 import storage.client.index._
+import storage.transactions._
 
 import net.lag.logging.Logger
 
@@ -60,10 +61,10 @@ case class ScaleTask(var replicas: Int = 1,
     p = p.reverse
     logger.info("Partition scheme: " + p)
 
-    val tags = cluster.getNamespace[Tag]("tags")
+    val tags = cluster.getNamespace[Tag]("tags", NSTxProtocolMDCC())
     val nn = List(tags,
       tags.getOrCreateIndex(AttributeIndex("item") :: Nil),
-      cluster.getNamespace[MTagPair]("mTagPairs"))
+      cluster.getNamespace[MTagPair]("mTagPairs", NSTxProtocolMDCC()))
 
     // assume they all have prefixes sampled from the same keyspace
     for (n <- nn) {
@@ -127,9 +128,9 @@ case class ScaleTask(var replicas: Int = 1,
           var i = 100000 / threadCount
           while (i > 0) {
             i -= 1
-            /* TODO apparently counting is really expensive and
-               tag population is roughly stable over time anyways */
-//              if (tid == 0 && i % 3000 == 0) {
+//            /* TODO apparently counting is really expensive and
+//               tag population is roughly stable over time anyways */
+//              if (tid == 0 && i % 100 == 0) {
 //                val countStart = System.currentTimeMillis
 //                val count = scenario.client.count
 //                logger.info("current tag count = " + count
