@@ -25,7 +25,7 @@ case class MTagPair(var tag1: String,
 }
 
 object Results {
-  val suffix = "results7"
+  val suffix = "results6"
 }
 
 case class MVResult(
