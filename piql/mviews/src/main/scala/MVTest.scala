@@ -11,6 +11,7 @@ import exec._
 import perf._
 import deploylib._
 import deploylib.mesos._
+import storage.transactions._
 
 import scala.math._
 import scala.util.Random
@@ -127,6 +128,14 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     client.addTag(item, tag)
   }
 
+  def randomPutTxn(limit: Int)(implicit rnd: Random): Tuple2[Long,Long] = {
+    var res: Tuple2[Long,Long] = (-1, -1)
+    new Tx(1000) ({
+      res = randomPut(limit)
+    }).Execute()
+    res
+  }
+
   def randomDel(implicit rnd: Random): Tuple2[Long,Long] = {
     var item = randomItem
     var assoc = client.selectItem(item)
@@ -139,6 +148,14 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     assert (assoc.length > 0)
     val a = assoc(rnd.nextInt(assoc.length))
     client.removeTag(item, a)
+  }
+
+  def randomDelTxn(implicit rnd: Random): Tuple2[Long,Long] = {
+    var res: Tuple2[Long,Long] = (-1, -1)
+    new Tx(1000) ({
+      res = randomDel
+    }).Execute()
+    res
   }
 }
 

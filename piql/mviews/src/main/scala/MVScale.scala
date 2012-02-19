@@ -141,11 +141,11 @@ case class ScaleTask(var replicas: Int = 1,
                 val respTime = scenario.randomGet
                 geth.add(respTime)
               } else if (rnd.nextDouble() < putDelRatio) {
-                val (noViewRespTime, respTime) = scenario.randomPut(maxTagsPerItem)
+                val (noViewRespTime, respTime) = scenario.randomPutTxn(maxTagsPerItem)
                 puth.add(respTime)
                 nvputh.add(noViewRespTime)
               } else {
-                val (noViewRespTime, respTime) = scenario.randomDel
+                val (noViewRespTime, respTime) = scenario.randomDelTxn
                 delh.add(respTime)
                 nvdelh.add(noViewRespTime)
               }
