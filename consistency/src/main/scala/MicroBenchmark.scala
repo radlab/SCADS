@@ -32,18 +32,18 @@ object MicroBenchmark extends ExperimentBase {
   }
 
   def restartClusters(c: Seq[deploylib.mesos.Cluster] = clusters) = {
-    c.map(v => future {println("restarting " + v); v.restart}).map(_())
+    c.map(v => future {println("restarting " + v); v.restart; println("done " + v)}).map(_())
   }
 
   def updateJars(c: Seq[deploylib.mesos.Cluster] = clusters) = {
-    c.map(v => future {println("updating " + v); v.slaves.pforeach(_.pushJars(MesosCluster.jarFiles))}).map(_())
+    c.map(v => future {println("updating " + v); v.slaves.pforeach(_.pushJars(MesosCluster.jarFiles)); println("done " + v)}).map(_())
   }
 
   def setupClusters(sizes: Seq[Int], c: Seq[deploylib.mesos.Cluster] = clusters) = {
     if (sizes.size != c.size) {
       println("sizes has to be the same length has c. " + sizes.size + " != " + c.size)
     } else {
-      c.zip(sizes).map(v => future {println("setup " + v._1); v._1.setup(v._2)}).map(_())
+      c.zip(sizes).map(v => future {println("setup " + v._1); v._1.setup(v._2); println("done " + v)}).map(_())
     }
   }
 
@@ -148,14 +148,16 @@ object MicroBenchmark extends ExperimentBase {
 
   def run(c: Seq[deploylib.mesos.Cluster] = clusters,
           protocol: NSTxProtocol,
-          useLogical: Boolean, useFast: Boolean, classicDemarcation: Boolean): Unit = {
+          useLogical: Boolean, useFast: Boolean,
+          classicDemarcation: Boolean,
+          localMasterPercentage: Int): Unit = {
     if (c.size < 1) {
       logger.error("cluster list must not be empty")
     } else if (c.head.slaves.size < 2) {
       logger.error("first cluster must have at least 2 slaves")
     } else {
       task = MicroBenchmarkTask()
-      task.schedule(resultClusterAddress, c, protocol, useLogical, useFast, classicDemarcation)
+      task.schedule(resultClusterAddress, c, protocol, useLogical, useFast, classicDemarcation, localMasterPercentage)
     }
   }
 
@@ -169,7 +171,7 @@ case class MicroBenchmarkTask()
   var numPartitions: Int = _
   var numClusters: Int = _
 
-  def schedule(resultClusterAddress: String, clusters: Seq[deploylib.mesos.Cluster], protocol: NSTxProtocol, useLogicalUpdates: Boolean, useFast: Boolean, classicDemarcation: Boolean): Unit = {
+  def schedule(resultClusterAddress: String, clusters: Seq[deploylib.mesos.Cluster], protocol: NSTxProtocol, useLogicalUpdates: Boolean, useFast: Boolean, classicDemarcation: Boolean, localMasterPercentage: Int): Unit = {
     this.resultClusterAddress = resultClusterAddress
 
     val firstSize = clusters.head.slaves.size - 1
@@ -204,6 +206,9 @@ case class MicroBenchmarkTask()
     }
     if (protocol != NSTxProtocolMDCC()) {
       notes = "2pc"
+    } else {
+      addlProps.append("scads.mdcc.localMasterPercentage" -> localMasterPercentage.toString)
+      notes += "_local_" + localMasterPercentage
     }
 
     // Start the storage servers.
