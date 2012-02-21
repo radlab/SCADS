@@ -76,7 +76,11 @@ object ScadsBuild extends Build {
   lazy val piql = Project(
     "piql", file("piql"),
     settings = deploySettings ++ Seq(
-      libraryDependencies ++= useAvroPlugin)
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands in console += (
+        "import edu.berkeley.cs.scads.piql._\n" +
+          "import edu.berkeley.cs.scads.piql.viz._\n"
+        ))
   ) dependsOn (config, comm, scalaEngine)
 
   lazy val perf = Project(
@@ -100,14 +104,19 @@ object ScadsBuild extends Build {
       libraryDependencies ++= useAvroPlugin,
       initialCommands in console += (
         "import edu.berkeley.cs.scads.piql.modeling._\n" +
-          "import edu.berkeley.cs.scads.piql.modeling.Experiments._")
-    )
+          "import edu.berkeley.cs.scads.piql.modeling.Experiments._"))
   ) dependsOn (piql, perf, deploylib, scadr, tpcw)
 
   lazy val scadr = Project(
     "scadr",
     file("piql/scadr"),
-    settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
+    settings = deploySettings ++ Seq(
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands in console += (
+        "import edu.berkeley.cs.scads.piql._\n" +
+          "import edu.berkeley.cs.scads.piql.viz._\n" +
+          "import edu.berkeley.cs.scads.piql.scadr._\n" +
+          "object testScadrClient extends ScadrClient(edu.berkeley.cs.scads.storage.TestScalaEngine.newScadsCluster(), new ParallelExecutor)"))
   ) dependsOn (piql % "compile;test->test", perf)
 
   lazy val tpcw = Project(
@@ -115,6 +124,24 @@ object ScadsBuild extends Build {
     file("piql/tpcw"),
     settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
   ) dependsOn (piql, perf)
+
+  lazy val mviews = Project(
+    "mviews",
+    file("piql/mviews"),
+    settings = deploySettings ++ Seq(
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands in console += (
+        "import edu.berkeley.cs.scads.piql.mviews._\n" +
+        "import edu.berkeley.cs.scads.storage._\n" + 
+        "import edu.berkeley.cs.scads.piql.exec._"
+        ))
+  ) dependsOn (piql, perf)
+
+  lazy val repl = Project(
+    "repl",
+    file("repl"),
+    settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin, libraryDependencies ++= replDeps) ++ seq(com.github.siasia.WebPlugin.webSettings: _*))
+
 
   lazy val axer = Project(
     "axer",
@@ -177,12 +204,11 @@ object ScadsBuild extends Build {
   val javaSysMon = "github.jezhumble" % "javasysmon" % "0.3.3"
 
 
-  def replDeps = Seq(lift, jetty6, servlet, sl4jConfiggy)
+  def replDeps = Seq(lift, jetty6, servlet)
 
-  val lift = "net.liftweb" %% "lift-mapper" % "2.2-SNAPSHOT" % "compile"
-  val jetty6 = "org.mortbay.jetty" % "jetty" % "6.1.25" % "test"
+  val lift = "net.liftweb" %% "lift-webkit" % "2.4" % "compile"
+  val jetty6 = "org.mortbay.jetty" % "jetty" % "6.1.22" % "container"
   val servlet = "javax.servlet" % "servlet-api" % "2.5" % "provided"
-  val sl4jConfiggy = "com.notnoop.logging" % "slf4j-configgy" % "0.0.1"
 }
 
 /**
