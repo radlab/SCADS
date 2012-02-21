@@ -172,6 +172,7 @@ class MDCCServer(val namespace : String,
       // Update metadata.
       meta.ballots = adjustRound(meta.ballots, reqBallot.round)
       meta.currentVersion = myBallot.get
+      meta.confirmedBallot = true
       // TODO shorten meta data
 
       debug(key, "Writing new value value: %s updates: %s", value, newUpdates)
@@ -179,14 +180,16 @@ class MDCCServer(val namespace : String,
         val oR = pendingUpdates.overwrite(key, value, Some(meta), committedXids, abortedXids, myBallot.get.fast)
         debug(key, "Overwrite value: %s \n - committedXids %s \n - abortedXids %s, \n - newUpdates %s, \n - myBallot.get.fast %s - status \n %s", value, committedXids, abortedXids, newUpdates, myBallot.get.fast, oR)
         if (!oR) debug(key, "Not accepted overwrite")
-      }
-      if (record.isDefined) {
-        val r = record.get
-        r.metadata = meta
-        meta.confirmedBallot = true
-        putRecord(key, r)
       } else {
-        // What should we do when it is empty.  Can this ever happen?
+        // Write the new metadata to db record.
+        if (record.isDefined) {
+          val r = record.get
+          r.metadata = meta
+          // This record is still correct since overwrite() was not called.
+          putRecord(key, r)
+        } else {
+          // What should we do when it is empty.  Can this ever happen?
+        }
       }
       val pendingOptions = newUpdates.map(c => {
         (c.xid, c.update, pendingUpdates.acceptOption(c.xid, c.update, myBallot.get.fast)._1)
