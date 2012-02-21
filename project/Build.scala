@@ -139,8 +139,10 @@ object ScadsBuild extends Build {
 
   lazy val repl = Project(
     "repl",
-    file("repl"),
-    settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin, libraryDependencies ++= replDeps) ++ seq(com.github.siasia.WebPlugin.webSettings: _*))
+    file("experiments/repl"),
+    settings = deploySettings ++
+      Seq(libraryDependencies ++= useAvroPlugin,
+          libraryDependencies ++= replDeps) ++ seq(com.github.siasia.WebPlugin.webSettings: _*)) dependsOn(deploylib, piql)
 
 
   lazy val axer = Project(
