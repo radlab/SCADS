@@ -649,7 +649,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
       }
       case ValueUpdate(key, oldValue, newValue) => {
         // Value updates conflict with all pending updates
-        if (commandsInfo.commands.indexWhere(x => x.pending && x.commit) == -1) {
+        if (commandsInfo.commands.indexWhere(x => x.pending) == -1) {
           // No pending commands.
           val newRec = MDCCRecordUtil.fromBytes(newValue)
           (oldValue, dbValue) match {
@@ -678,7 +678,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
       }
       case VersionUpdate(key, newValue) => {
         // Version updates conflict with all pending updates
-        if (commandsInfo.commands.indexWhere(x => x.pending && x.commit) == -1) {
+        if (commandsInfo.commands.indexWhere(x => x.pending) == -1) {
           // No pending commands.
           val newRec = MDCCRecordUtil.fromBytes(newValue)
           dbValue match {
