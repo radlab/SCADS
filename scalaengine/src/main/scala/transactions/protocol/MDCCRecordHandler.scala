@@ -666,36 +666,33 @@ class MDCCRecordHandler (
 
   def processPhase2b(src : ServiceType, msg : Phase2b) : Unit = {
     debug("Received 2b message %s %s", msg, src)
-    currentBallot.compare(msg.ballot) match {
-      case 1 => {
-        debug("We got an old message. We ignore it")
-        return
-      }
-      case 0 => {
-        if(!currentBallot.fast){
-          responses += src -> msg
-        }else{
-          request match {
-            case StorageEnvelope(_, propose: SinglePropose)  =>  {
-              if( msg.value.commands.exists(_.xid == propose.xid)){
-                debug("We got a valid Phase2b message for a fast round")
-                responses += src -> msg
-              }else  {
-                debug("We got an old Phase2b Fast message. We ignore it")
-                return
-              }
+    val cmp = currentBallot.compare(msg.ballot)
+    if (cmp > 0) {
+      debug("We got an old message. We ignore it")
+      return
+    } else if (cmp == 0) {
+      if (!currentBallot.fast) {
+        responses += src -> msg
+      } else {
+        request match {
+          case StorageEnvelope(_, propose: SinglePropose) => {
+            if (msg.value.commands.exists(_.xid == propose.xid)) {
+              debug("We got a valid Phase2b message for a fast round")
+              responses += src -> msg
+            } else {
+              debug("We got an old Phase2b Fast message. We ignore it")
+              return
             }
-            case _  =>  {
-                debug("We have not a single fast propose. So we just use it")
-                responses += src -> msg
-            }
+          }
+          case _  => {
+            debug("We have not a single fast propose. So we just use it")
+            responses += src -> msg
           }
         }
       }
-
-      case -1 => throw new RuntimeException("Should never happen as the storage node should send a Phase2bMasterFailure message: current:" + currentBallot + " received:" + msg.ballot)
+    } else {
+      throw new RuntimeException("Should never happen as the storage node should send a Phase2bMasterFailure message: current:" + currentBallot + " received:" + msg.ballot)
     }
-
 
     val quorum = if(currentBallot.fast) fastQuorum else classicQuorum
     debug("Current quorum size size: %s quorum: %s", responses.size ,quorum)
