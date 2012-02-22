@@ -49,6 +49,8 @@ trait TaskBase {
   def newScadsCluster(size: Int)(implicit cluster: Cluster, classSource: Seq[ClassSource]): ScadsCluster = {
     val clusterRoot = cluster.zooKeeperRoot.getOrCreate("scads").createChild("experimentCluster", mode = CreateMode.PERSISTENT_SEQUENTIAL)
     val serverProcs = Array.fill(size)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress).toJvmTask)
+    serverProcs.foreach(_.foreach(_.props += "scads.mdcc.fastDefault" -> "false"))
+    serverProcs.foreach(_.foreach(_.props += "scads.mdcc.DefaultRounds" -> "999999999999"))
 
     cluster.serviceScheduler.scheduleExperiment(serverProcs)
     new ScadsCluster(clusterRoot)
@@ -59,6 +61,7 @@ trait TaskBase {
 
     val serverProcs = ((0 until clusters.size) zip clusters).map(c => (0 until size).map(i => ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress, name="cluster-" + c._1 + "!" + i).toJvmTask(c._2.classSource)))
 
+    serverProcs.foreach(_.foreach(_.props += "scads.comm.externalip" -> "true"))
     serverProcs.foreach(_.foreach(_.props += "scads.comm.externalip" -> "true"))
     serverProcs.foreach(_.foreach(_.props ++= addlProps))
     (clusters zip serverProcs).foreach(x => x._1.serviceScheduler.scheduleExperiment(x._2))
