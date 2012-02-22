@@ -45,6 +45,8 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
       1
     }
   })
+  // -1 means only use ap-southeast.
+  // -2 means pick a random one.
   protected val localMasterPercentage : Long =  Config.config.getLong("scads.mdcc.localMasterPercentage").getOrElse({
     logger.error("Config does not define scads.mdcc.localMasterPercentage.")
     val sysVal = System.getProperty("scads.mdcc.localMasterPercentage")
@@ -91,7 +93,6 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
     _defaultMeta
   }
 
-  val rand = new scala.util.Random
   val routingTable = new MDCCRoutingTable(nsRoot)
 
   // "us-west-1", "compute-1", "eu-west-1", "ap-northeast-1", "ap-southeast-1"
@@ -99,23 +100,29 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
     assert(_defaultMeta != null)
 
     val hash = java.util.Arrays.hashCode(key)
-    val randVal = scala.math.abs(hash) % 100
+    val rand = new scala.util.Random(hash)
 
-    val randomRegion = if (localMasterPercentage < 0) {
-      "ap-southeast-1"
-    } else if (randVal < localMasterPercentage) {
-      "us-west-1"
-    } else {
-      val l = List("compute-1", "eu-west-1", "ap-northeast-1", "ap-southeast-1")
+    val randomService = if (localMasterPercentage == -2) {
+      val l = _serviceMap.values.reduceLeft(_ ++ _)
       l(rand.nextInt(l.size))
-    }
-    val randomHost = routingTable.serversForKey(key).find(x => x.host.split("\\.")(1) == randomRegion).get.host
-    val randomService = _serviceMap(randomRegion).find(x => x.host == randomHost) match {
-      case None =>
-        // This should never happen.
-        logger.error("serviceMap does not have correct partition. serviceMap: " + _serviceMap(randomRegion) + " host: " + randomHost)
-        _serviceMap(randomRegion)(randVal % _serviceMap(randomRegion).size)
-      case Some(h) => h
+    } else {
+      val randomRegion = if (localMasterPercentage == -1) {
+        "ap-southeast-1"
+      } else if (rand.nextInt(100) < localMasterPercentage) {
+        "us-west-1"
+      } else {
+        val l = List("compute-1", "eu-west-1", "ap-northeast-1", "ap-southeast-1")
+        l(rand.nextInt(l.size))
+      }
+      val randomHost = routingTable.serversForKey(key).find(x => x.host.split("\\.")(1) == randomRegion).get.host
+
+      _serviceMap(randomRegion).find(x => x.host == randomHost) match {
+        case None =>
+          // This should never happen.
+          logger.error("serviceMap does not have correct partition. serviceMap: " + _serviceMap(randomRegion) + " host: " + randomHost)
+          _serviceMap(randomRegion)(rand.nextInt(_serviceMap(randomRegion).size))
+        case Some(h) => h
+      }
     }
 
     val r = MDCCMetadata(MDCCBallot(0, 0, randomService, fastDefault), MDCCBallotRange(0, defaultRounds-1, 0, randomService, fastDefault) :: Nil, true, true)
