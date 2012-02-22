@@ -26,8 +26,9 @@ case class ScaleTask(var replicas: Int = 1,
                      var itemsPerMachine: Int = 500000,
                      var maxTagsPerItem: Int = 20,
                      var meanTagsPerItem: Int = 4,
-                     var readFrac: Double = 0.8,
-                     var threadCount: Int = 32)
+                     var readFrac: Double = 0.9,
+                     var threadCount: Int = 32,
+                     var comment: String = "")
             extends AvroTask with AvroRecord with TaskBase {
   
   var resultClusterAddress: String = _
@@ -79,7 +80,7 @@ case class ScaleTask(var replicas: Int = 1,
     cluster.blockUntilReady(replicas * partitions)
 
     val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
-    val results = resultCluster.getNamespace[ParResult2]("ParResult2")
+    val results = resultCluster.getNamespace[ParResult3]("ParResult3")
 
     val hostname = java.net.InetAddress.getLocalHost.getHostName
 
@@ -117,20 +118,20 @@ case class ScaleTask(var replicas: Int = 1,
         coordination.registerAndAwait("it:" + iteration + ",th:" + threadCount, nClients)
         val iterationStartMs = System.currentTimeMillis
         val failures = new java.util.concurrent.atomic.AtomicInteger()
+        val i = new java.util.concurrent.atomic.AtomicInteger(100000)
         var putDelRatio = 0.5
         val histograms = (0 until threadCount).pmap(tid => {
           implicit val rnd = new Random()
+          val tfrac: Double = tid.doubleValue / threadCount.doubleValue
           val geth = Histogram(100,10000)
           val puth = Histogram(100,10000)
           val delh = Histogram(100,10000)
           val nvputh = Histogram(100,10000)
           val nvdelh = Histogram(100,10000)
-          var i = 100000 / threadCount
-          while (i > 0) {
-            i -= 1
-//            /* TODO apparently counting is really expensive and
-//               tag population is roughly stable over time anyways */
-//              if (tid == 0 && i % 100 == 0) {
+          while (i.getAndDecrement() > 0) {
+            /* TODO apparently counting is really expensive and
+               tag population is roughly stable over time anyways */
+//              if (tid == 0 && i.get() % 100 == 0) {
 //                val countStart = System.currentTimeMillis
 //                val count = scenario.client.count
 //                logger.info("current tag count = " + count
@@ -141,11 +142,11 @@ case class ScaleTask(var replicas: Int = 1,
                 val respTime = scenario.randomGet
                 geth.add(respTime)
               } else if (rnd.nextDouble() < putDelRatio) {
-                val (noViewRespTime, respTime) = scenario.randomPutTxn(maxTagsPerItem)
+                val (noViewRespTime, respTime) = scenario.randomPut(maxTagsPerItem)
                 puth.add(respTime)
                 nvputh.add(noViewRespTime)
               } else {
-                val (noViewRespTime, respTime) = scenario.randomDelTxn
+                val (noViewRespTime, respTime) = scenario.randomDel
                 delh.add(respTime)
                 nvdelh.add(noViewRespTime)
               }
@@ -158,7 +159,7 @@ case class ScaleTask(var replicas: Int = 1,
           (geth, puth, delh, nvputh, nvdelh)
         })
 
-        val r = ParResult2(System.currentTimeMillis, hostname, iteration, clientId)
+        val r = ParResult3(System.currentTimeMillis, hostname, iteration, clientId)
         r.threadCount = threadCount
         r.clientNumber = clientNumber
         r.nClients = nClients
@@ -168,6 +169,7 @@ case class ScaleTask(var replicas: Int = 1,
         r.maxTags = maxTagsPerItem
         r.meanTags = meanTagsPerItem
         r.loadTimeMs = loadTimeMs
+        r.comment = comment
         r.runTimeMs = System.currentTimeMillis - iterationStartMs
         r.readFrac = readFrac
         var h = histograms.reduceLeft((a, b) => (a._1 + b._1, a._2 + b._2, a._3 + b._3, a._4 + b._4, a._5 + b._5))

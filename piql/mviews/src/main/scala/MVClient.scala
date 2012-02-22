@@ -141,7 +141,10 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
       mpairs ::= new MTagPair(a, word, item)
       mpairs ::= new MTagPair(word, a, item)
     }
-    mTagPairs ++= mpairs
+//    mTagPairs ++= mpairs
+//    for (p <- mpairs) { /* de-bulkified put */
+//      mTagPairs.put(p)
+//    }
     (dt1, System.nanoTime / 1000 - start)
   }
 

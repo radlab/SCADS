@@ -25,7 +25,7 @@ case class MTagPair(var tag1: String,
 }
 
 object Results {
-  val suffix = "results6"
+  val suffix = "results9"
 }
 
 case class MVResult(
@@ -53,7 +53,7 @@ case class MVResult(
   }
 }
 
-case class ParResult2(
+case class ParResult3(
   var timestamp: Long,
   var hostname: String,
   var iteration: Int,
@@ -76,6 +76,7 @@ case class ParResult2(
   var nvdelTimes: Histogram = null
   var failures: Int = _
   var readFrac: Double = _
+  var comment: String = _
 
   def timeSince(): String = {
     val dt = System.currentTimeMillis - timestamp
@@ -98,13 +99,14 @@ case class ParResult2(
                "get=%.1f/%.1f".format(getTimes.quantile(0.5)/1000.0, getTimes.quantile(0.99)/1000.0),
                "put=%.1f/%.1f".format(putTimes.quantile(0.5)/1000.0, putTimes.quantile(0.99)/1000.0),
                "del=%.1f/%.1f".format(delTimes.quantile(0.5)/1000.0, delTimes.quantile(0.99)/1000.0),
-               "nvput=%.1f/%.1f".format(nvputTimes.quantile(0.5)/1000.0, nvputTimes.quantile(0.99)/1000.0),
-               "nvdel=%.1f/%.1f".format(nvdelTimes.quantile(0.5)/1000.0, nvdelTimes.quantile(0.99)/1000.0),
+//               "nvput=%.1f/%.1f".format(nvputTimes.quantile(0.5)/1000.0, nvputTimes.quantile(0.99)/1000.0),
+//               "nvdel=%.1f/%.1f".format(nvdelTimes.quantile(0.5)/1000.0, nvdelTimes.quantile(0.99)/1000.0),
                "ops/s=" + (getTimes.totalRequests + putTimes.totalRequests + delTimes.totalRequests)*1.0/runTimeMs*1000,
                "rep=" + replicas,
                "par=" + partitions,
                "threads=" + threadCount,
-               "items/m=" + itemsPerMachine)
+               "items/m=" + itemsPerMachine,
+               comment)
       val s = x.toString
       var s2 = s.replaceAll(","," ").substring(1, s.length-1)
       if (failures > 0) {

@@ -129,11 +129,25 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
   }
 
   def randomPutTxn(limit: Int)(implicit rnd: Random): Tuple2[Long,Long] = {
-    var res: Tuple2[Long,Long] = (-1, -1)
+    var start: Long = System.nanoTime / 1000
     new Tx(1000) ({
-      res = randomPut(limit)
+      var item = randomItem
+      var tag = randomTag
+      var tries = 0
+      def hasTag(item: String, tag: String) = {
+        val assoc = client.selectItem(item)
+        assoc.length >= limit || assoc.contains(tag)
+      }
+      while (hasTag(item, tag) && tries < 7) {
+        item = randomItem
+        tag = randomTag
+        tries += 1
+      }
+      assert (!hasTag(item, tag))
+      start = System.nanoTime / 1000
+      client.addTag(item, tag)
     }).Execute()
-    res
+    (System.nanoTime / 1000 - start, -1)
   }
 
   def randomDel(implicit rnd: Random): Tuple2[Long,Long] = {
@@ -201,7 +215,7 @@ class MVPessimalTest(val cluster: ScadsCluster, val client: TagClient) {
 object MVTest extends ExperimentBase {
   val rc = new ScadsCluster(ZooKeeperNode(relativeAddress(Results.suffix)))
   val pessimal = rc.getNamespace[MVResult]("MVResult")
-  val scaled = rc.getNamespace[ParResult2]("ParResult2")
+  val scaled = rc.getNamespace[ParResult3]("ParResult3")
   implicit val exec = new ParallelExecutor
 
   def newNaive(): MVPessimalTest = {
@@ -210,17 +224,17 @@ object MVTest extends ExperimentBase {
     new MVPessimalTest(cluster, client)
   }
 
-  def newM(): MVPessimalTest = {
+  def newM(): MVScaleTest = {
     val cluster = TestScalaEngine.newScadsCluster(3)
     val client = new MTagClient(cluster, exec)
-    new MVPessimalTest(cluster, client)
+    new MVScaleTest(cluster, client, 10, 40, 100, 200)
   }
 
   def goPessimal(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
     new Task().schedule(relativeAddress(Results.suffix))
   }
 
-  def go(replicas: Int = 1, partitions: Int = 8, nClients: Int = 8, itemsPerMachine: Int = 100000, threadCount: Int = 32)(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
-    new ScaleTask(replicas=replicas, partitions=partitions, nClients=nClients, itemsPerMachine=itemsPerMachine, threadCount=threadCount).schedule(relativeAddress(Results.suffix))
+  def go(replicas: Int = 1, partitions: Int = 8, nClients: Int = 8, itemsPerMachine: Int = 100000, threadCount: Int = 32, comment: String = "")(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
+    new ScaleTask(replicas=replicas, partitions=partitions, nClients=nClients, itemsPerMachine=itemsPerMachine, threadCount=threadCount, comment = comment).schedule(relativeAddress(Results.suffix))
   }
 }
