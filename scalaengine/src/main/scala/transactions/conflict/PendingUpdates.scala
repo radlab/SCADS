@@ -322,21 +322,26 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     val txStatusTxn = txStatus.txStart()
     logger.debug("txStatusAccept.enter: " + Thread.currentThread.getName + " xid: " + xid)
     val txInfo = txStatus.getOrPut(txStatusTxn, xid, TxStatusEntry(entryStatus, Nil))
-    // TODO: take care of possible duplicate keys?
-    val newUpdates = txInfo.updates ++ updates
+
+    val existingKeys = txInfo.updates.map(_.key)
+    val newUpdates = txInfo.updates ++ updates.filter(a => !existingKeys.exists(b => Arrays.equals(a.key, b)))
     txStatus.put(txStatusTxn, xid, TxStatusEntry(txInfo.status, newUpdates))
     txStatus.txCommit(txStatusTxn)
     logger.debug("txStatusAccept.finish: " + Thread.currentThread.getName + " xid: " + xid)
 
-    val status = Status.withName(txInfo.status)
-    if (status == Status.Commit) {
-      // It was already decided that this transaction should commit.
-      // Run commit() again to commit this record update.
-      commit(xid)
-    } else if (status == Status.Abort) {
-      // It was already decided that this transaction should abort.
-      // Run abort() again to abort this record update.
-      abort(xid)
+    if (newUpdates.size > existingKeys.size) {
+//    if (true) {
+      // Only have to redo the commit/abort if we added a NEW update.
+      val status = Status.withName(txInfo.status)
+      if (status == Status.Commit) {
+        // It was already decided that this transaction should commit.
+        // Run commit() again to commit this record update.
+        commit(xid)
+      } else if (status == Status.Abort) {
+        // It was already decided that this transaction should abort.
+        // Run abort() again to abort this record update.
+        abort(xid)
+      }
     }
   }
 
