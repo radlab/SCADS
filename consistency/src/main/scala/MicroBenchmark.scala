@@ -204,10 +204,10 @@ case class MicroBenchmarkTask()
         notes += "_demarcquorum"
       }
     }
+    addlProps.append("scads.mdcc.localMasterPercentage" -> localMasterPercentage.toString)
     if (protocol != NSTxProtocolMDCC()) {
       notes = "2pc"
     } else {
-      addlProps.append("scads.mdcc.localMasterPercentage" -> localMasterPercentage.toString)
       notes += "_local_" + localMasterPercentage
     }
 
@@ -223,11 +223,11 @@ case class MicroBenchmarkTask()
 
     // Start clients.
     val tpcwTasks = MDCCTpcwMicroWorkflowTask(
-      numClients=16,
+      numClients=15,
       executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
-      numThreads=6,
+      numThreads=7,
       iterations=1,
-      runLengthMin=3,
+      runLengthMin=5,
       startTime=expStartTime,
       useLogical=useLogicalUpdates,
       note=notes).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))
