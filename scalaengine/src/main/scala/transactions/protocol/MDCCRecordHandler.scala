@@ -88,8 +88,8 @@ class MDCCRecordHandler (
 
   @inline def debug(msg : String, items : scala.Any*) = logger.debug("id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + " " + msg, items:_*)
   @inline def error(msg : String, items : scala.Any*) = logger.error("id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + " " + msg, items:_*)
-  @inline def fullDebug(msg : String, items : scala.Any*) = debug(msg
-    + "\n Current Meta-Data: " + ballots
+  @inline def fullDebug(msg : String, items : scala.Any*) = debug(
+    "\n Current Meta-Data: " + ballots
     + "\n confirmedBallot:" + confirmedBallot
     + "\n Current Ballat:" + currentBallot
     + "\n Version:" + version
@@ -719,7 +719,7 @@ class MDCCRecordHandler (
               currentBallot.server ! BeMaster(key,  currentBallot.round, currentBallot.round + 1000, false)
 
             }
-            debug("We inform the requester about the learned value. src: %s, propose: %s", src, propose)
+            debug("We inform the requester about the learned value. cmd: %s src: %s, propose: %s", cmd, src, propose)
             src ! Learned(propose.xid, key, cmd.get.commit)
           }else{
             debug("We did not learn our transaction. TxId: %s quorum %s server-size %s \n - values %s \n - provedSafe %s \n - unsafeCommands %s \n - full responses: %s", propose.xid, quorum, servers.size, values, provedSafe, unsafeCommands, responses)
