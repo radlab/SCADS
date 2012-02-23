@@ -230,6 +230,7 @@ class MDCCServer(val namespace : String,
       case Commit(xid: ScadsXid) => processAccept(src, xid, true)
       case Abort(xid: ScadsXid) =>  processAccept(src, xid, false)
       case msg : BeMaster => processRecordHandlerMsg(src, msg.key, msg)
+      case msg : ResolveConflict => processRecordHandlerMsg(src, msg.key, msg)
       case _ => src ! ProcessingException("Trx Message Not Implemented msg: " + msg, "")
     }
   }
