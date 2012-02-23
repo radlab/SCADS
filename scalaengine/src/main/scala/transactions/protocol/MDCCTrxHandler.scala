@@ -100,7 +100,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
      val servers = new HashSet[PartitionService]()
      participants.foreach(s => {
        s.servers.foreach(servers += _)
-       debug("Notify recordhandler local:%s master:%s", s, s.masterRecordHandler)
+       debug("Notify recordhandler local:%s master:%s remoteHandle:%s", s, s.masterRecordHandler, s.remoteHandle)
        if(s.masterRecordHandler.isDefined)
          s.masterRecordHandler.get ! msg
        else
