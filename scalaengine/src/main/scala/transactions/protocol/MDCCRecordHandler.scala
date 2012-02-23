@@ -223,8 +223,32 @@ class MDCCRecordHandler (
             this.ballots = msg.meta.ballots
             confirmedBallot = true
             status = READY
-            if(src != remoteHandle)
-              remoteHandle ! msg
+
+            request match {
+              case r@StorageEnvelope(src2, ResolveConflict(_, _, propose: SinglePropose, requester)) => {
+                // Assume key is the same as this.key.
+                val cmd = this.value.commands.find(_.xid == propose.xid)
+                if(cmd.isDefined) {
+                  debug("processed recovered message: %s src: %s remoteHandle: %s inform: orig request: %s cmd: %s requester: %s", msg, src, remoteHandle, request, cmd, requester)
+                  requester ! Learned(propose.xid, key, cmd.get.commit)
+                } else {
+                  debug("recovered cmd is none: %s orig request: %s", this.value.commands, request)
+                  // Can this happen?  The point of the recovery was to decide
+                  // what happened to this xid.
+                }
+              }
+              case _ => // Do we need to handle other types of requests here?
+                debug("unexpected orig request: %s", request)
+            }
+
+            // TODO: Is this correct and/or required?  The remoteHandle is
+            //       the handle for this record handler, so why send this
+            //       message back to this handler again?  This means every
+            //       Recovered() message happens twice, where the second one
+            //       is ignored.  Is the second one required?
+//            if(src != remoteHandle) {
+//              remoteHandle ! msg
+//            }
           }
         }
         case env@StorageEnvelope(src, msg : Learned)  => {
