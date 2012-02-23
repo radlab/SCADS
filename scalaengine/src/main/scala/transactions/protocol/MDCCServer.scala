@@ -90,7 +90,7 @@ class MDCCServer(val namespace : String,
       //TODO can we optimize the accept?
       val results = proposes.map(prop => (prop, pendingUpdates.acceptOption(prop.xid, prop.update, true)))
       val cstruct = results.last._2._3
-      debug(key, "Replying with 2b to fast ballot source:%s cstruct:cstruct", src, cstruct)
+      debug(key, "Replying with 2b to fast ballot source:%s cstruct:%s", src, cstruct)
       src ! Phase2b(ballot, cstruct)
       commitTrx(trx)
       // Must be outside of db lock.
@@ -230,7 +230,7 @@ class MDCCServer(val namespace : String,
       case Commit(xid: ScadsXid) => processAccept(src, xid, true)
       case Abort(xid: ScadsXid) =>  processAccept(src, xid, false)
       case msg : BeMaster => processRecordHandlerMsg(src, msg.key, msg)
-      case _ => src ! ProcessingException("Trx Message Not Implemented", "")
+      case _ => src ! ProcessingException("Trx Message Not Implemented msg: " + msg, "")
     }
   }
 }
