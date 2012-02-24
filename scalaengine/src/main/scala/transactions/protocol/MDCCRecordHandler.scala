@@ -460,8 +460,7 @@ class MDCCRecordHandler (
           clear() //We are done
         }
         case StorageEnvelope(src, ResolveConflict(_,_, propose,requester)) => {
-          clear() //We are done
-          startPhase2a(requester, propose)
+          startPhase2a(src, propose)
         }
         case _ => throw new RuntimeException("A Phase1a should always be triggered through BeMaster")
       }
