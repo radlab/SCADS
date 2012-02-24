@@ -317,6 +317,7 @@ class MDCCRecordHandler (
     if(!areWeMaster(currentBallot.server)){
       //We are not responsible for doing the conflict resolution
       //So we go in Recovery mode
+      debug("sending resolve conflict: %s to %s", msg, currentBallot.server)
       currentBallot.server ! msg
       RoundStats.recovery.incrementAndGet()
       status = RECOVERY
@@ -325,11 +326,13 @@ class MDCCRecordHandler (
     }
     if( confirmedBallot && seq(msg.propose).forall(prop => value.commands.find(_.xid == prop.xid).isDefined)){
       //The resolve conflict is a duplicate and was already resolved
+      debug("already recovered, sending recovered back to %s", src)
       src ! Recovered(key, value, MDCCMetadata(version, ballots, true, confirmedBallot))
       return
     }
     if(seq(msg.propose).forall(prop => unsafeCommands.find(_.xid == prop.xid).isDefined)){
       //We already have it on our todo list, so we just store the propose to be on the safe side
+      debug("recovering, forward request")
       forwardRequest(src, msg.propose)
       return
     }
@@ -347,6 +350,7 @@ class MDCCRecordHandler (
       }
       case _ => throw new RuntimeException("Unvalid compare type")
     }
+    debug("recovering, starting phase1a, request: %s", request)
     startPhase1a(getOwnership(ballots, maxRound, maxRound, ballots.head.fast, thisService))
   }
 
