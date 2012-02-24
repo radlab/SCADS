@@ -223,6 +223,7 @@ class MDCCRecordHandler (
             this.ballots = msg.meta.ballots
             confirmedBallot = true
             status = READY
+            debug("We recovered and updated the meta data value:%s version:%s ballots:%s message:%s", value, version, ballots, msg)
 
             request match {
               case r@StorageEnvelope(src2, ResolveConflict(_, _, propose: SinglePropose, requester)) => {
@@ -351,7 +352,7 @@ class MDCCRecordHandler (
       case _ => throw new RuntimeException("Unvalid compare type")
     }
     debug("recovering, starting phase1a, request: %s", request)
-    startPhase1a(getOwnership(ballots, maxRound, maxRound, ballots.head.fast, thisService))
+    startPhase1a(getOwnership(ballots, maxRound, maxRound, false, thisService))
   }
 
 
@@ -697,10 +698,17 @@ class MDCCRecordHandler (
     if (cmp > 0) {
       debug("We got an old message. We ignore it")
       return
-    } else if (cmp == 0) {
+    } else {
       if (!currentBallot.fast) {
+        assert(cmp == 0, "Should never happen: somebody stole our mastership and we did not a Receive a Phase2bMaster Failure message. current ballot:" + currentBallot + " Phase2b msg:" + msg )
         responses += src -> msg
       } else {
+        if(cmp < 0){
+          responses.clear
+          val newMeta = combine(msg.ballot, ballots)
+          debug("We did a fast propose but have outdated meta data. So we brought it up to date. msg: %s, current: %s, new: %s", msg, ballots, newMeta)
+          ballots = newMeta
+        }
         request match {
           case StorageEnvelope(_, propose: SinglePropose) => {
             if (msg.value.commands.exists(_.xid == propose.xid)) {
@@ -717,8 +725,6 @@ class MDCCRecordHandler (
           }
         }
       }
-    } else {
-      throw new RuntimeException("Should never happen as the storage node should send a Phase2bMasterFailure message: current:" + currentBallot + " received:" + msg.ballot)
     }
 
     val quorum = if(currentBallot.fast) fastQuorum else classicQuorum
