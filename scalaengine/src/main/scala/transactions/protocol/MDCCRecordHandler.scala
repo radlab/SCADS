@@ -729,14 +729,14 @@ class MDCCRecordHandler (
       provedSafe = tmp._1
       unsafeCommands = tmp._2
       version = msg.ballot
-      debug("ProvedSafe CStruct: %s, Unsafe commands:s %s, Value: %s", provedSafe, unsafeCommands, value)
+      debug("ProvedSafe CStruct: %s, Unsafe commands:s %s, Value: %s request: %s", provedSafe, unsafeCommands, value, request)
       if(!unsafeCommands.isEmpty){
         fullDebug("We have unsafe commands \n Responses: %s \n Values: %s", responses, value)
       }
       request match {
         case msg@StorageEnvelope(src, propose: SinglePropose)  =>  {
           val cmd = value.commands.find(_.xid == propose.xid)
-          if(cmd.isDefined){
+          if(cmd.isDefined) {
             debug("We learned the value")
             if(currentBallot.fast && !cmd.get.commit && cmd.get.command.isInstanceOf[LogicalUpdate]){
               debug("We learned an abort in a fast classic round with logical updates. This can only happend when we violate the limit. So we switch to classic")
@@ -776,7 +776,7 @@ class MDCCRecordHandler (
             forwardRequest(src, MultiPropose(missing))
           }
         }
-        case _ => throw new RuntimeException("Should never happen.")
+        case _ => throw new RuntimeException("Should never happen. request: " + request)
       }
       responses.clear()
       clear()
