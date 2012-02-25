@@ -26,6 +26,7 @@ case object PHASE1A  extends RecordStatus {val name = "PHASE1A"}
 case object PHASE2A extends RecordStatus {val name = "PHASE2A"}
 case object RECOVERY extends RecordStatus {val name = "RECOVERY"}
 case object WAITING_FOR_COMMIT extends RecordStatus {val name = "WAITING_FOR_COMMIT"}
+case object WAITING_FOR_NEW_FAST_ROUND extends RecordStatus {val name = "WAITING_FOR_NEW_ROUND"}
 
 object ServerMessageHelper {
   class SMH(s: Seq[PartitionService]) {
@@ -270,7 +271,7 @@ class MDCCRecordHandler (
             case _ =>  error("We got a learned message without forwarding")
           }
         }
-        case env@StorageEnvelope(src,  GotMastership(newBallot)) if status == READY => {
+        case env@StorageEnvelope(src,  GotMastership(newBallot)) if status == READY || status == WAITING_FOR_NEW_FAST_ROUND => {
           //TODO Block in the case of remote BeMaster
           debug("Processing GotMastership message", env)
           val maxRound = max(ballots.head.startRound, newBallot.head.startRound)
@@ -293,6 +294,7 @@ class MDCCRecordHandler (
               debug("The new ballot is older than ours. our ballot:%s new Ballot:%s max Round: %s", ballots, newBallot, maxRound)
             }
           }
+          status = READY
         }
         case env@StorageEnvelope(src, msg:ResolveConflict) if status == READY => {
           debug("Processing ResolveConflict request", env)
@@ -400,6 +402,7 @@ class MDCCRecordHandler (
             }else{
               debug("We are not the master and currently we do not do master changes. So we send the master request to %s", currentBallot.server)
               currentBallot.server ! beMasterRequest
+              status = WAITING_FOR_NEW_FAST_ROUND
             }
             return
           }
