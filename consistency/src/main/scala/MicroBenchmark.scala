@@ -182,6 +182,8 @@ case class MicroBenchmarkTask()
     var addlProps = new collection.mutable.ArrayBuffer[(String, String)]()
     var notes = ""
 
+    addlProps.append("scads.mdcc.onEC2" -> "true")
+
     useFast match {
       case true => {
         addlProps.append("scads.mdcc.fastDefault" -> "true")

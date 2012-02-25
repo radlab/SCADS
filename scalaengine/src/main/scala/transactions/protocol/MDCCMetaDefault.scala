@@ -58,6 +58,17 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
       20
     }
   })
+  protected val onEC2 = Config.config.getBool("scads.mdcc.onEC2").getOrElse({
+    logger.error("Config does not define scads.mdcc.onEC2.")
+    val sysVal = System.getProperty("scads.mdcc.onEC2")
+    if (sysVal != null) {
+      logger.error("Using system property for scads.mdcc.onEC2 = " + sysVal)
+      sysVal == "true"
+    } else {
+      logger.error("Config and system property do not define scads.mdcc.onEC2. Using onEC2 = false as default")
+      false
+    }
+  })
 
 
   def loadDefault() : MDCCMetadata = {
@@ -96,9 +107,7 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
   val routingTable = new MDCCRoutingTable(nsRoot)
 
   // "us-west-1", "compute-1", "eu-west-1", "ap-northeast-1", "ap-southeast-1"
-  def defaultMetaData(key: Array[Byte]) : MDCCMetadata = {
-    assert(_defaultMeta != null)
-
+  private def ec2MetaData(key: Array[Byte]): MDCCMetadata = {
     val hash = java.util.Arrays.hashCode(key)
     val rand = new scala.util.Random(hash)
 
@@ -127,6 +136,15 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
 
     val r = MDCCMetadata(MDCCBallot(0, 0, randomService, fastDefault), MDCCBallotRange(0, defaultRounds-1, 0, randomService, fastDefault) :: Nil, true, true)
     r
+  }
+
+  def defaultMetaData(key: Array[Byte]) : MDCCMetadata = {
+    assert(_defaultMeta != null)
+    if (onEC2) {
+      ec2MetaData(key)
+    } else {
+      _defaultMeta
+    }
   }
 
   // Returns true if metadata was changed.
