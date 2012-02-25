@@ -29,7 +29,7 @@ class MDCCClientServer(ns : TransactionI) extends  MDCCRecordCache {
 
    def processMailbox(mailbox : Mailbox[StorageMessage]) {
       mailbox{
-        case env@StorageEnvelope(src, BeMaster(key, _, _, _)) => forwardToRecordHandler(key, env)
+        case env@StorageEnvelope(src, BeMaster(key, _, _, _, _)) => forwardToRecordHandler(key, env)
         case env@StorageEnvelope(src, ResolveConflict(key, _, _, _)) =>  forwardToRecordHandler(key, env)
         case env@StorageEnvelope(src, SinglePropose(_, update)) =>  forwardToRecordHandler(update.key, env)
         case env@StorageEnvelope(src, MultiPropose(proposes))  =>  {

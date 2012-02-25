@@ -189,7 +189,7 @@ class MDCCRecordHandler (
         case env@StorageEnvelope(src, msg: BeMaster) if status == READY => {
           request = env
           debug("Processing BeMaster message", env)
-          startPhase1a(msg.startRound, msg.endRound, msg.fast)
+          startBeMaster(src, msg)
         }
         case env@StorageEnvelope(src, msg: Phase1b) => {
           //we do the phase check afterwards to empty out old messages
@@ -314,6 +314,8 @@ class MDCCRecordHandler (
       }
   }
 
+
+
   def resolveConflict(src : ServiceType, msg : ResolveConflict){
     if(!areWeMaster(currentBallot.server)){
       //We are not responsible for doing the conflict resolution
@@ -356,6 +358,23 @@ class MDCCRecordHandler (
   }
 
 
+  def fastPropose(propose : Propose){
+    status = FAST_PROPOSED
+    debug("Sending fast propose from " + remoteHandle + " to " + servers.mkString(":"))
+    servers.foreach(_ ! propose)
+    RoundStats.fast.incrementAndGet()
+  }
+
+  def forwardPropose(masterServer: SCADSService, propose : Propose){
+    status = FORWARDED
+    masterServer ! propose
+    RoundStats.forward.incrementAndGet()
+  }
+
+  def createBeMasterRequest( startRound: Long, endRound: Long, fast : Boolean) : BeMaster = {
+    val maxVote = ballots.filter(range => range.endRound >= startRound && range.startRound <= endRound).maxBy(_.vote).vote
+    BeMaster(key, startRound, endRound, maxVote, fast)
+  }
 
   def processProposal(src: ServiceType, propose : Propose) : Unit = {
     responses.clear()
@@ -363,10 +382,7 @@ class MDCCRecordHandler (
     debug("Processing proposal source: %s, propose: %s", src, propose)
     if(confirmedBallot){
       if(cBallot.fast){
-        status = FAST_PROPOSED
-        debug("Sending fast propose from " + remoteHandle + " to " + servers.mkString(":"))
-        servers.foreach(_ ! propose)
-        RoundStats.fast.incrementAndGet()
+        fastPropose(propose)
       }else{
         debug("We do have a confirmed ballot number")
         if(stableRound){
@@ -386,9 +402,7 @@ class MDCCRecordHandler (
           }else{
             //We are not the master, so we let the master handle it
             debug("We start the next round with forwarding the request we: %s ballot: %s", thisService, nBallot)
-            status = FORWARDED
-            nBallot.server ! propose
-            RoundStats.forward.incrementAndGet()
+            forwardPropose(nBallot.server, propose)
             return
           }
         }
@@ -401,18 +415,41 @@ class MDCCRecordHandler (
         }else{
           //We are not the master, so we let the master handle it
           debug("We are not the master forward the request we: %s ballot: %s", thisService, currentBallot)
-          status = FORWARDED
-          currentBallot.server ! propose
-          RoundStats.forward.incrementAndGet()
+          forwardPropose(currentBallot.server, propose)
           return
         }
       }
     }else{
-      debug("We do NOT have a confirmed ballot number. Se we request the mastership first")
-      forwardRequest(src, propose)//and we try it later again
-      //If we have no idea about the ballot we just try to get a fast round accepted
-      forwardRequest(remoteHandle, BeMaster(key,  cBallot.round, cBallot.round, true)) //the last one will be the first one
+      //TODO Our handling of outdated metadata can cause a cycle of forwards. We need to fix this
+      if(cBallot.fast){
+        if(areWeMaster(cBallot.server)){
+          error("We are the master and we do not have a confirmed ballot number. This is super wierd. We try to get the master ship")
+          forwardRequest(remoteHandle, createBeMasterRequest(cBallot.round, cBallot.round, true))
+        }else{
+          debug("We have a not confirmed meta data but most likely we are in a fast round anyway. So we simply try it")
+          fastPropose(propose)
+        }
+      }else{
+        if(areWeMaster(cBallot.server)){
+          debug("We do NOT have a confirmed ballot number. Se we request the mastership first")
+          forwardRequest(src, propose)
+          forwardRequest(remoteHandle, createBeMasterRequest(cBallot.round, cBallot.round, false))
+        }else{
+          debug("We do NOT have a confirmed ballot number and we are not supposed to be the master. So we forward everything")
+          forwardPropose(currentBallot.server, propose)
+        }
+      }
       return
+    }
+  }
+
+  def startBeMaster(src : ServiceType, msg : BeMaster) = {
+    if(confirmedBallot && areWeMaster(currentBallot.server) && ballots.filter(range => range.endRound >= msg.startRound && range.startRound <= msg.endRound).forall(_.vote <= msg.maxVote)){
+      debug("Got BeMaster message, but we already are the master")
+      src ! GotMastership(ballots)
+      clear()
+    }else {
+      startPhase1a(msg.startRound, msg.endRound, msg.fast)
     }
   }
 
@@ -532,7 +569,7 @@ class MDCCRecordHandler (
   @inline def fastQuorum = MDCCRecordHandler.fastQuorumSize(servers.size)
 
   def requestNextFastRound() = {
-    forwardRequest(remoteHandle, BeMaster(key, ballots.head.startRound + 1, ballots.head.startRound + 10, true)) //Ok lets get a fast round
+    forwardRequest(remoteHandle, createBeMasterRequest(ballots.head.startRound + 1, ballots.head.startRound + 10, true)) //Ok lets get a fast round
   }
 
 //  private def !(msg : StorageMessage)(implicit sender: RemoteServiceProxy[StorageMessage]) = {
@@ -705,15 +742,19 @@ class MDCCRecordHandler (
         assert(cmp == 0, "Should never happen: somebody stole our mastership and we did not a Receive a Phase2bMaster Failure message. current ballot:" + currentBallot + " Phase2b msg:" + msg )
         responses += src -> msg
       } else {
-        if(cmp < 0){
-          responses.clear
-          val newMeta = combine(msg.ballot, ballots)
-          debug("We did a fast propose but have outdated meta data. So we brought it up to date. msg: %s, current: %s, new: %s", msg, ballots, newMeta)
-          ballots = newMeta
-        }
         request match {
           case StorageEnvelope(_, propose: SinglePropose) => {
             if (msg.value.commands.exists(_.xid == propose.xid)) {
+              if(cmp < 0){
+                if(responses.size > 0){
+                  debug("We already got responses with a different ballot number. We therefore abort and start over msg:%s, ballots: %s", msg, ballots)
+                  startOver()
+                  return
+                }
+                val newMeta = combine(msg.ballot, ballots)
+                debug("We did a fast propose but have outdated meta data. So we brought it up to date. msg: %s, current: %s, new: %s", msg, ballots, newMeta)
+                ballots = newMeta
+              }
               debug("We got a valid Phase2b message for a fast round")
               responses += src -> msg
             } else {
@@ -722,7 +763,7 @@ class MDCCRecordHandler (
             }
           }
           case _  => {
-            debug("We have not a single fast propose. So we just use it")
+            error("We see multi-proposes. Not sure if this code is actually correct.")
             responses += src -> msg
           }
         }
@@ -751,7 +792,7 @@ class MDCCRecordHandler (
             debug("We learned the value")
             if(currentBallot.fast && !cmd.get.commit && cmd.get.command.isInstanceOf[LogicalUpdate]){
               debug("We learned an abort in a fast classic round with logical updates. This can only happend when we violate the limit. So we switch to classic")
-              currentBallot.server ! BeMaster(key,  currentBallot.round, currentBallot.round + 1000, false)
+              currentBallot.server ! createBeMasterRequest( currentBallot.round, currentBallot.round + 1000, false)
 
             }
             debug("We inform the requester about the learned value. cmd: %s src: %s, propose: %s", cmd, src, propose)
