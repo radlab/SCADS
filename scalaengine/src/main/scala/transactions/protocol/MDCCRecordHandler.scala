@@ -372,8 +372,10 @@ class MDCCRecordHandler (
   }
 
   def createBeMasterRequest( startRound: Long, endRound: Long, fast : Boolean) : BeMaster = {
-    val maxVote = ballots.filter(range => range.endRound >= startRound && range.startRound <= endRound).maxBy(_.vote).vote
-    BeMaster(key, startRound, endRound, maxVote, fast)
+    val maxVote :Long = ballots.filter(range => range.endRound >= startRound && range.startRound <= endRound).maxBy(_.vote).vote
+    val beMasterMsg = BeMaster(key, startRound, endRound, maxVote, fast)
+    debug("Created BeMaster messages: %s", beMasterMsg)
+    beMasterMsg
   }
 
   def processProposal(src: ServiceType, propose : Propose) : Unit = {
@@ -391,7 +393,14 @@ class MDCCRecordHandler (
             debug("React to CSTABLE_NEXT_UNDEFINED")
             forwardRequest(src, propose)
             //Fast rounds are default
-            requestNextFastRound()
+            val beMasterRequest =  createBeMasterRequest(ballots.head.startRound + 1, ballots.head.startRound + 1, true)
+            if(areWeMaster(cBallot.server)) {
+              debug("We are supposed to be the master, so we send ourself a message")
+              forwardRequest(remoteHandle, beMasterRequest)
+            }else{
+              debug("We are not the master and currently we do not do master changes. So we send the master request to %s", currentBallot.server)
+              currentBallot.server ! beMasterRequest
+            }
             return
           }
           if(areWeMaster(nBallot.server)){
@@ -568,9 +577,6 @@ class MDCCRecordHandler (
   @inline def classicQuorum = MDCCRecordHandler.classicQuorumSize(servers.size)
   @inline def fastQuorum = MDCCRecordHandler.fastQuorumSize(servers.size)
 
-  def requestNextFastRound() = {
-    forwardRequest(remoteHandle, createBeMasterRequest(ballots.head.startRound + 1, ballots.head.startRound + 10, true)) //Ok lets get a fast round
-  }
 
 //  private def !(msg : StorageMessage)(implicit sender: RemoteServiceProxy[StorageMessage]) = {
 //    val remoteService = sender match {
