@@ -374,7 +374,8 @@ class MDCCRecordHandler (
   }
 
   def createBeMasterRequest( startRound: Long, endRound: Long, fast : Boolean) : BeMaster = {
-    val maxVote :Long = ballots.filter(range => range.endRound >= startRound && range.startRound <= endRound).maxBy(_.vote).vote
+    val overlappingBallots =  ballots.filter(range => range.endRound >= startRound && range.startRound <= endRound)
+    val maxVote :Long = if(overlappingBallots.isEmpty) 0 else  overlappingBallots.maxBy(_.vote).vote
     val beMasterMsg = BeMaster(key, startRound, endRound, maxVote, fast)
     debug("Created BeMaster messages: %s", beMasterMsg)
     beMasterMsg
