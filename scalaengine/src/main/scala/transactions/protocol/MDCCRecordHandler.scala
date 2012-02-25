@@ -523,6 +523,7 @@ class MDCCRecordHandler (
   }
 
   @inline private def clear() = {
+    responses.clear()
     request = null
     status = READY
   }
@@ -788,7 +789,6 @@ class MDCCRecordHandler (
         }
         case _ => throw new RuntimeException("Should never happen. request: " + request)
       }
-      responses.clear()
       clear()
     }
   }
