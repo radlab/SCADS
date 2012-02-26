@@ -29,11 +29,12 @@ case class DataRecordActor(var id: Int) extends AvroPair {
 }
 
 object Config {
-  val PRODUCTS = 1
-  val TRX_SIZE = 1
-  val CLIENTS = 3
+  val PRODUCTS = 5
+  val TRX_SIZE = 3
+  val CLIENTS = 1
   val ROUNDS = 15
   val LOGICAL = true
+  val STOCK = 1
 }
 
 object Client {
@@ -121,7 +122,7 @@ class TestTxActors {
     nsPair.setPartitionScheme(List((None, cluster.getAvailableServers)))
     Thread.sleep(1000)
     var dr = DataRecordActor(0)
-    dr.s = "a"; dr.a = 10; dr.b = 100; dr.c = 1.0.floatValue
+    dr.s = "a"; dr.a = STOCK ; dr.b = 100; dr.c = 1.0.floatValue
     nsPair.put(dr)
     (1 to PRODUCTS).foreach( x => {
       dr.id = x

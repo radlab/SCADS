@@ -16,6 +16,7 @@ import storage.SCADSService
 import _root_.org.fusesource.hawtdispatch._
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.TimeUnit._
+import scala.util.Random
 
 
 sealed trait RecordStatus {def name: String}
@@ -360,10 +361,15 @@ class MDCCRecordHandler (
   }
 
 
+
   def fastPropose(propose : Propose){
+    //val rnd = Random
     status = FAST_PROPOSED
     debug("Sending fast propose from " + remoteHandle + " to " + servers.mkString(":"))
-    servers.foreach(_ ! propose)
+    servers.foreach(server => {
+      //Thread.sleep(rnd.nextInt(1000))
+      server ! propose
+    })
     RoundStats.fast.incrementAndGet()
   }
 
@@ -457,7 +463,12 @@ class MDCCRecordHandler (
   }
 
   def startBeMaster(src : ServiceType, msg : BeMaster) = {
-    if(confirmedBallot && areWeMaster(currentBallot.server) && ballots.filter(range => range.endRound >= msg.startRound && range.startRound <= msg.endRound).forall(_.vote <= msg.maxVote)){
+    val cBallot = currentBallot
+    if(confirmedBallot &&
+      areWeMaster(cBallot.server) &&
+      ballots.filter(range => range.endRound >= msg.startRound && range.startRound <= msg.endRound).forall(_.vote <= msg.maxVote) &&
+      ballots.last.endRound >= msg.endRound &&
+      cBallot.fast == msg.fast ){
       debug("Got BeMaster message, but we already are the master")
       src ! GotMastership(ballots)
       clear()

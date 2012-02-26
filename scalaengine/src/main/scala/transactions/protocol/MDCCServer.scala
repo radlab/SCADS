@@ -134,16 +134,16 @@ class MDCCServer(val namespace : String,
     val maxRound = max(meta.ballots.head.startRound, newMeta.head.startRound)
     compareRanges(meta.ballots, newMeta, maxRound) match {
       case -1 => {
-        debug(key, "Setting new meta", meta.ballots, newMeta, maxRound)
+        debug(key, "Setting new meta balots:%s, new:%s, maxround:%s", meta.ballots, newMeta, maxRound)
         meta.ballots = newMeta
         meta.confirmedBallot = false
       }
       case -2 => {
-        debug(key, "Combining meta", meta.ballots, newMeta, maxRound)
+        debug(key, "Combining meta balots:%s, new:%s, maxround:%s", meta.ballots, newMeta, maxRound)
         meta.confirmedBallot = false
         meta.ballots = combine(meta.ballots, newMeta, max(meta.ballots.head.startRound, newMeta.head.startRound))
       }
-      case _ => debug(key, "Ignoring Phase1a message local-ballots:" + meta.ballots + " proposed" + newMeta)//The meta data is old or the same, so we do need to do nothing
+      case _ => debug(key, "Ignoring Phase1a message local-ballots %s, proposed: %s", meta.ballots, newMeta)//The meta data is old or the same, so we do need to do nothing
     }
     val r = record.getOrElse(new MDCCRecord(None, null))
     r.metadata = meta
