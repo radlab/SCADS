@@ -149,12 +149,12 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
   // committed and aborted txs, reflected in the base of the cstruct.
   // (cstruct, committed xid list, aborted xid list)
   def compressCStruct(c: CStruct): (CStruct, Seq[ScadsXid], Seq[ScadsXid]) = {
-    // TODO: Is reordering across pending commands allowed?
-    //       For now, not reordering...
+    // Reorder the commands so all the non-pending commands are first.
+    val commands = c.commands.filter(!_.pending) ++ c.commands.filter(_.pending)
 
     // Extract contiguous sequence of non-pending commands.
-    val pendingIndex = c.commands.indexWhere(_.pending) match {
-      case -1 => c.commands.length
+    val pendingIndex = commands.indexWhere(_.pending) match {
+      case -1 => commands.length
       case x => x
     }
 
@@ -163,7 +163,7 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
       (c, List(), List())
     } else {
       // pending is a seq of pending commands, NOT being compressed.
-      val (nonpending, pending) = c.commands.splitAt(pendingIndex)
+      val (nonpending, pending) = commands.splitAt(pendingIndex)
       val nonpendingCommit = nonpending.filter(_.commit)
 
       val newBase = ApplyUpdates.applyUpdatesToBase(
@@ -171,9 +171,6 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
 
       val nonpendingCommitXids = nonpendingCommit.map(_.xid)
       val nonpendingAbortXids = nonpending.filter(!_.commit).map(_.xid)
-
-      val avroUtil = new IndexedRecordUtil(valueSchema)
-      println("COMPRESS: " + c + " oldbase: " + avroUtil.fromBytes(c.value.get) + " newbase: " + avroUtil.fromBytes(newBase.get) + " new: " + CStruct(newBase, pending))
 
       (CStruct(newBase, pending), nonpendingCommitXids, nonpendingAbortXids)
     }
