@@ -148,8 +148,8 @@ class MDCCServer(val namespace : String,
     val r = record.getOrElse(new MDCCRecord(None, null))
     r.metadata = meta
     putRecord(key, r)
-    src ! Phase1b(meta, pendingUpdates.getCStruct(key))
     commitTrx(trx)
+    src ! Phase1b(meta, pendingUpdates.getCStruct(key))
   }
 
 

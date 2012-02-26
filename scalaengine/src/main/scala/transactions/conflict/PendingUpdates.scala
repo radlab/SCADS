@@ -70,7 +70,7 @@ trait PendingUpdates extends DBRecords {
   // DO NOT hold db locks while calling this.
   def updateAndGetTxStatus(xid: ScadsXid, status: Status.Status): TxStatusEntry
 
-  //Should return the CStruct or the default Cstruct
+  // DO NOT hold db locks while calling this.
   def getCStruct(key: Array[Byte]): CStruct
 
   def startup() = {}
@@ -563,8 +563,16 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   }
 
   override def getCStruct(key: Array[Byte]) = {
+    val storedMDCCRec: Option[MDCCRecord] =
+      db.get(null, key).map(MDCCRecordUtil.fromBytes(_))
+    val storedRecValue: Option[Array[Byte]] =
+      storedMDCCRec match {
+        case Some(v) => v.value
+        case None => None
+      }
+
     pendingCStructs.get(null, key) match {
-      case None => CStruct(None, new ArrayBuffer[CStructCommand])
+      case None => CStruct(storedRecValue, new ArrayBuffer[CStructCommand])
       case Some(c) => CStruct(c.base, c.commands)
     }
   }
