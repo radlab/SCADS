@@ -653,9 +653,9 @@ class MDCCRecordHandler (
         //OK we have a stable round, so we can just open the next round
         val nBallot = getBallot(ballots, cBallot.round + 1).getOrElse(null)
         //The round is clear and committed, time to move on
-        debug("Rebasing")
+        debug("Rebasing value before %s ")
         val (rebase, commitXids, abortXids) = resolver.compressCStruct(value)
-        debug("Rebase done")
+        debug("Rebase done. value %s")
         if(nBallot.fast){
           debug("Next ballot is fast, we are opening a fast round ballot" + nBallot)
           moveToNextRound()
@@ -677,10 +677,12 @@ class MDCCRecordHandler (
             debug("No pending updates. We are ready to go")
             //The round is clear and committed, time to move on
             if(unsafeCommands.isEmpty){
-              debug("Classic rounds: No pending updates and no unsafe commands, so we propose the next")
+
               val props = seq(propose)
               moveToNextRound()
-              servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, props.head :: Nil)
+              val msg = Phase2a(key, nBallot, rebase, commitXids, abortXids, props.head :: Nil)
+              debug("Classic rounds: No pending updates and no unsafe commands, so we propose the next. msg: %s tail: %s current value: %s, rebased value: %s", msg, props.tail, value, rebase)
+              servers ! msg
               RoundStats.classic.incrementAndGet()
               forwardRequest(src, MultiPropose(props.tail))
             }else{
