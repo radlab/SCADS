@@ -117,6 +117,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
     debug("" + this.hashCode() + "Starting to wait for messages. Setting timeout:" + tx.timeout)
     Scheduler.schedule(() => {
       this ! TRX_TIMEOUT}, tx.timeout)
+    var timedOut = false
     startTrx(tx.updateList, tx.readList)
     loop {
       react {
@@ -142,7 +143,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
         }
         case TRX_EXIT => {
           sema.release()
-          debug("" + Xid + ": TRX_EXIT requested")
+          debug("" + Xid + ": TRX_EXIT requested. timedOut: " + timedOut)
           notifyAcceptors
           StorageRegistry.unregisterService(remoteHandle)
           //TODO Add finally remote
@@ -150,6 +151,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
         }
         case TRX_TIMEOUT => {
           debug("" + Xid + "Time out")
+          timedOut = true
           sema.release()
         }
         case msg@_ =>
