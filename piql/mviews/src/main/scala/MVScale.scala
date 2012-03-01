@@ -119,7 +119,7 @@ case class ScaleTask(var replicas: Int = 1,
         coordination.registerAndAwait("it:" + iteration + ",th:" + threadCount, nClients)
         val iterationStartMs = System.currentTimeMillis
         val failures = new java.util.concurrent.atomic.AtomicInteger()
-        val i = new java.util.concurrent.atomic.AtomicInteger(400000)
+        val i = new java.util.concurrent.atomic.AtomicInteger(1000000)
         val histograms = (0 until threadCount).pmap(tid => {
           implicit val rnd = new Random()
           val tfrac: Double = tid.doubleValue / threadCount.doubleValue
