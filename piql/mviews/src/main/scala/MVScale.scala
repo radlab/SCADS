@@ -85,7 +85,8 @@ case class ScaleTask(var replicas: Int = 1,
 
     val hostname = java.net.InetAddress.getLocalHost.getHostName
 
-    val coordination = cluster.root.getOrCreate("coordination/loaders")
+    // XXX support concurrent runs with different partition counts
+    val coordination = cluster.root.getOrCreate("coordination/mvscale:id:" + partitions)
     val clientNumber = coordination.registerAndAwait("clientsStart", nClients)
 
     // setup client (AFTER namespace creation)
@@ -93,9 +94,7 @@ case class ScaleTask(var replicas: Int = 1,
       List(/*new NaiveTagClient(cluster, new ParallelExecutor),*/
            new MTagClient(cluster, new ParallelExecutor))
 
-    // agh...
     coordination.registerAndAwait("clientsStarted", nClients)
-
     clients.foreach(client => {
       val clientId = client.getClass.getSimpleName
       val totalItems = itemsPerMachine * partitions
