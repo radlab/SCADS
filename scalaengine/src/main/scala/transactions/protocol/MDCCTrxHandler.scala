@@ -35,18 +35,20 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
   //Semaphore is used for the programming model timeout SLO 300ms
   private val sema = new Semaphore(0, false)
 
+  private var notifiedAcceptors = false
+
   protected val logger = Logger(classOf[MDCCTrxHandler])
 
   implicit val remoteHandle = StorageRegistry.registerActor(this).asInstanceOf[RemoteService[StorageMessage]]
 
-  @inline def debug(msg : String, items : scala.Any*) = logger.debug("" + remoteHandle.id + ": " + msg, items:_*)
-  @inline def info(msg : String, items : scala.Any*) = logger.info("" + remoteHandle.id +   ": " + msg, items:_*)
+  @inline def debug(msg : String, items : scala.Any*) = logger.debug("" + remoteHandle.id + ": Xid:" + Xid + " ->" + msg, items:_*)
+  @inline def info(msg : String, items : scala.Any*) = logger.info("" + remoteHandle.id +   ": Xid:" + Xid + " ->" + msg, items:_*)
 
   def execute(): TxStatus = {
     this.start()
     debug("Waiting for status")
     sema.acquire()
-    debug("We got a status")
+    debug("We got a status: %s", status)
     status match {
       case UNKNOWN => tx.unknownFn()
       case COMMITTED=> tx.commitFn(COMMITTED)
@@ -61,7 +63,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
       update match {
         case ValueUpdateInfo(ns, servers, key, value) => {
           val (md, oldBytes) = readList.getRecord(key) match {
-            case None => (ns.getDefaultMeta(), None)
+            case None => (ns.getDefaultMeta(key), None)
             case Some(r) => (r.metadata, Some(MDCCRecordUtil.toBytes(r)))
           }
           val newBytes = MDCCRecordUtil.toBytes(value, md)
@@ -69,13 +71,13 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
           val propose = SinglePropose(Xid, ValueUpdate(key, oldBytes, newBytes))  //TODO: We need a read-strategy
           val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), md, servers, ns.getConflictResolver)
           participants += rHandler
-          info("" + Xid + ": Sending physical update propose to MCCCRecordHandler", propose)
+          debug("" + Xid + ": Sending physical update propose to MCCCRecordHandler", propose)
           debug("Record handler " + rHandler.hashCode )
           rHandler.remoteHandle ! propose
         }
         case LogicalUpdateInfo(ns, servers, key, value) => {
           val md = readList.getRecord(key) match {
-            case None => ns.getDefaultMeta()
+            case None => ns.getDefaultMeta(key)
             case Some(r) => r.metadata
           }
           val newBytes = MDCCRecordUtil.toBytes(value, md)
@@ -92,18 +94,30 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
 
   def notifyAcceptors() = {
     assert(status == COMMITTED || status == ABORTED )
-    val msg = if (status == COMMITTED)   edu.berkeley.cs.scads.storage.Commit(Xid)
-              else edu.berkeley.cs.scads.storage.Abort(Xid)
-    participants.foreach(s => {
-      s.remoteHandle ! msg
-      s.masterRecordHandler.map( _ ! msg)
-    })
+    if(!notifiedAcceptors) {
+     val msg = if (status == COMMITTED)   edu.berkeley.cs.scads.storage.Commit(Xid)
+                else edu.berkeley.cs.scads.storage.Abort(Xid)
+     val servers = new HashSet[PartitionService]()
+     participants.foreach(s => {
+       s.servers.foreach(servers += _)
+       debug("Notify recordhandler local:%s master:%s remoteHandle:%s", s, s.masterRecordHandler, s.remoteHandle)
+       if(s.masterRecordHandler.isDefined)
+         s.masterRecordHandler.get ! msg
+       else
+         s.remoteHandle ! msg
+      })
+     servers.foreach( _ ! msg)
+    }
+    notifiedAcceptors = true
+
+
   }
 
   def act() {
     debug("" + this.hashCode() + "Starting to wait for messages. Setting timeout:" + tx.timeout)
     Scheduler.schedule(() => {
       this ! TRX_TIMEOUT}, tx.timeout)
+    var timedOut = false
     startTrx(tx.updateList, tx.readList)
     loop {
       react {
@@ -111,16 +125,17 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
           if(success) {
             //TODO Take care of duplicate messages
             count += 1
-            debug("" + Xid + ": Receive record commit")
+            debug("Received record commit: %s src: %s", msg, src)
+            debug("Receive record commit %s status: %s committed: %s of %s. Participants: %s", Xid, status, count, participants.size, participants  )
             if(count == participants.size && status == UNKNOWN){
-              info("Transaction " + Xid + " committed")
+              debug("Transaction " + Xid + " committed")
               status = COMMITTED
               this ! TRX_EXIT
             }
           }else{
             if(status == UNKNOWN) {
               debug("" + Xid + ": Receive record abort")
-              info("Transaction " + Xid + " aborted")
+              debug("Transaction " + Xid + " aborted")
               status = ABORTED
               this ! TRX_EXIT
             }
@@ -128,7 +143,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
         }
         case TRX_EXIT => {
           sema.release()
-          debug("" + Xid + ": TRX_EXIT requested")
+          debug("" + Xid + ": TRX_EXIT requested. timedOut: " + timedOut)
           notifyAcceptors
           StorageRegistry.unregisterService(remoteHandle)
           //TODO Add finally remote
@@ -136,6 +151,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
         }
         case TRX_TIMEOUT => {
           debug("" + Xid + "Time out")
+          timedOut = true
           sema.release()
         }
         case msg@_ =>

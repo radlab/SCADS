@@ -116,7 +116,7 @@ trait QuorumProtocol
 
   override def asyncPutBytes(key: Array[Byte], value: Option[Array[Byte]]): ScadsFuture[Unit] = {
     val (servers, quorum) = writeQuorumForKey(key)
-    val putRequest = PutRequest(key, value.map(createMetadata))
+    val putRequest = PutRequest(key, value.map(createMetadata(key, _)))
     val responses = serversForKey(key).map(_ !! putRequest)
 
     new ComputationFuture[Unit] {
@@ -130,7 +130,7 @@ trait QuorumProtocol
 
   override def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit = {
     val (servers, quorum) = writeQuorumForKey(key)
-    val putRequest = PutRequest(key, value.map(createMetadata))
+    val putRequest = PutRequest(key, value.map(createMetadata(key, _)))
     val responses = serversForKey(key).map(_ !! putRequest)
     responses.blockFor(quorum, 5000, TimeUnit.MILLISECONDS)
   }
@@ -146,7 +146,7 @@ trait QuorumProtocol
    */
   override def putBulkBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit = {
     val (servers, quorum) = writeQuorumForKey(key)
-    val putRequest = PutRequest(key, value.map(createMetadata))
+    val putRequest = PutRequest(key, value.map(createMetadata(key, _)))
 
     for (server <- servers) {
       val buf = serverBuffers.getOrElseUpdate(server, new ArrayBuffer[PutRequest](BulkPutBufSize))

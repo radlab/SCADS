@@ -17,6 +17,9 @@ import edu.berkeley.cs.scads.storage.transactions.FieldAnnotations._
 import edu.berkeley.cs.scads.perf._
 import edu.berkeley.cs.scads.piql.tpcw._
 
+import scala.actors.Future
+import scala.actors.Futures._
+
 import tpcw._
 
 object MicroBenchmark extends ExperimentBase {
@@ -29,11 +32,19 @@ object MicroBenchmark extends ExperimentBase {
   }
 
   def restartClusters(c: Seq[deploylib.mesos.Cluster] = clusters) = {
-    c.map(v => new Future(v.restart)).map(_())
+    c.map(v => future {println("restarting " + v); v.restart; println("done " + v)}).map(_())
   }
 
   def updateJars(c: Seq[deploylib.mesos.Cluster] = clusters) = {
-    c.map(v => new Future(v.slaves.pforeach(_.pushJars(MesosCluster.jarFiles)))).map(_())
+    c.map(v => future {println("updating " + v); v.slaves.pforeach(_.pushJars(MesosCluster.jarFiles)); println("done " + v)}).map(_())
+  }
+
+  def setupClusters(sizes: Seq[Int], c: Seq[deploylib.mesos.Cluster] = clusters) = {
+    if (sizes.size != c.size) {
+      println("sizes has to be the same length has c. " + sizes.size + " != " + c.size)
+    } else {
+      c.zip(sizes).map(v => future {println("setup " + v._1); v._1.setup(v._2); println("done " + v)}).map(_())
+    }
   }
 
   private var actionHistograms: Map[String, scala.collection.mutable.HashMap[String, Histogram]] = null
@@ -99,11 +110,11 @@ object MicroBenchmark extends ExperimentBase {
     println("deleted " + histList.size + " records")
   }
 
-  def writeHistogramCDFMap(name: String) = {
+  def writeHistogramCDFMap(name: String, write: Boolean = true) = {
     val mh = actionHistograms(name)
     try {
       val dirs = ("micro_data/" + name + "/").replaceAll(" ", "_")
-      (new java.io.File(dirs)).mkdirs
+      if (write) (new java.io.File(dirs)).mkdirs
 
       mh.foreach(t => {
         val n = t._1
@@ -112,12 +123,16 @@ object MicroBenchmark extends ExperimentBase {
         val filename = dirs + ("micro_" + n + ".csv").replaceAll(" ", "_")
         try {
           var total:Long = 0
-          val out = new java.io.BufferedWriter(new java.io.FileWriter(filename))
+          val out =
+            if (write)
+              new java.io.BufferedWriter(new java.io.FileWriter(filename))
+            else
+              null
           ((1 to h.buckets.length).map(_ * h.bucketSize) zip h.buckets).foreach(x => {
             total = total + x._2
-            out.write(" " + x._1 + ", " + total * 100.0 / totalRequests.toFloat + "\n")
+            if (write) out.write(" " + x._1 + ", " + total * 100.0 / totalRequests.toFloat + "\n")
           })
-          out.close()
+          if (write) out.close()
           println(n + ": requests: " + totalRequests + " 50%: " + h.quantile(.5) + " 90%: " + h.quantile(.9) + " 95%: " + h.quantile(.95) + " 99%: " + h.quantile(.99) + " avg: " + h.average)
         } catch {
           case e: Exception =>
@@ -133,14 +148,16 @@ object MicroBenchmark extends ExperimentBase {
 
   def run(c: Seq[deploylib.mesos.Cluster] = clusters,
           protocol: NSTxProtocol,
-          useLogical: Boolean, useFast: Boolean, classicDemarcation: Boolean): Unit = {
+          useLogical: Boolean, useFast: Boolean,
+          classicDemarcation: Boolean,
+          localMasterPercentage: Int): Unit = {
     if (c.size < 1) {
       logger.error("cluster list must not be empty")
     } else if (c.head.slaves.size < 2) {
       logger.error("first cluster must have at least 2 slaves")
     } else {
       task = MicroBenchmarkTask()
-      task.schedule(resultClusterAddress, c, protocol, useLogical, useFast, classicDemarcation)
+      task.schedule(resultClusterAddress, c, protocol, useLogical, useFast, classicDemarcation, localMasterPercentage)
     }
   }
 
@@ -154,7 +171,7 @@ case class MicroBenchmarkTask()
   var numPartitions: Int = _
   var numClusters: Int = _
 
-  def schedule(resultClusterAddress: String, clusters: Seq[deploylib.mesos.Cluster], protocol: NSTxProtocol, useLogicalUpdates: Boolean, useFast: Boolean, classicDemarcation: Boolean): Unit = {
+  def schedule(resultClusterAddress: String, clusters: Seq[deploylib.mesos.Cluster], protocol: NSTxProtocol, useLogicalUpdates: Boolean, useFast: Boolean, classicDemarcation: Boolean, localMasterPercentage: Int): Unit = {
     this.resultClusterAddress = resultClusterAddress
 
     val firstSize = clusters.head.slaves.size - 1
@@ -164,6 +181,8 @@ case class MicroBenchmarkTask()
 
     var addlProps = new collection.mutable.ArrayBuffer[(String, String)]()
     var notes = ""
+
+    addlProps.append("scads.mdcc.onEC2" -> "true")
 
     useFast match {
       case true => {
@@ -187,8 +206,11 @@ case class MicroBenchmarkTask()
         notes += "_demarcquorum"
       }
     }
+    addlProps.append("scads.mdcc.localMasterPercentage" -> localMasterPercentage.toString)
     if (protocol != NSTxProtocolMDCC()) {
       notes = "2pc"
+    } else {
+      notes += "_local_" + localMasterPercentage
     }
 
     // Start the storage servers.
@@ -196,21 +218,21 @@ case class MicroBenchmarkTask()
     clusterAddress = scadsCluster.root.canonicalAddress
 
     // Start loaders.
-    val loaderTasks = MDCCTpcwMicroLoaderTask(numClusters * numPartitions, 2, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol, namespace="items").getLoadingTasks(clusters.head.classSource, scadsCluster.root)
+    val loaderTasks = MDCCTpcwMicroLoaderTask(numClusters * numPartitions, 2, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol, namespace="items").getLoadingTasks(clusters.head.classSource, scadsCluster.root, addlProps)
     clusters.head.serviceScheduler.scheduleExperiment(loaderTasks)
 
     var expStartTime: String = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new java.util.Date)
 
     // Start clients.
     val tpcwTasks = MDCCTpcwMicroWorkflowTask(
-      numClients=2,
+      numClients=15,
       executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
-      numThreads=2,
+      numThreads=7,
       iterations=1,
       runLengthMin=5,
       startTime=expStartTime,
       useLogical=useLogicalUpdates,
-      note=notes).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress, List("scads.comm.externalip" -> "true"))
+      note=notes).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))
     clusters.head.serviceScheduler.scheduleExperiment(tpcwTasks)
 
     // Start the task.

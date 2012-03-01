@@ -24,13 +24,31 @@ class ActorReceiver[MessageType <: IndexedRecord](actor: Actor) extends MessageR
   def unregistered = null
 }
 
-
 class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](processFn: Mailbox[MessageType] => Unit,
                                                                 val receiverMailbox : Mailbox[MessageType] = new PlainMailbox[MessageType]("Mailbox") ) extends MessageReceiver[MessageType] {
+  private val logger = Logger(classOf[FastMailboxDispatchReceiver[IndexedRecord]])
+
   val senderMailbox = new PlainMailbox[MessageType]("SenderMailbox")
   val newMessages : Boolean = false
 
   val dispatcher = createQueue()
+  dispatcher.profile(true)
+  val stats : Int = 10
+  monitor_hawtdispatch()
+
+
+  def monitor_hawtdispatch() :Unit = {
+
+    import java.util.concurrent.TimeUnit._
+
+    // do the actual check in 1 second..
+    getGlobalQueue().after(20, SECONDS) {
+      logger.debug( "Maibox Stats: Hash: %s Name: %s Size: %s Stats: %s", receiverMailbox.hashCode(), receiverMailbox.getName,  receiverMailbox.size, dispatcher.metrics)
+      // to check again...
+      monitor_hawtdispatch
+    }
+  }
+
 
   class MessageReceive() extends Runnable{
     def run(): Unit = {
@@ -41,7 +59,9 @@ class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](processFn: Mailb
   def getMailbox() : Mailbox[MessageType]  = {
     senderMailbox.synchronized{
       senderMailbox.drainTo(receiverMailbox)
+      logger.debug("Drained mailbox. Hash: %s Name: %s Size: %s Content: %s", receiverMailbox.hashCode(), receiverMailbox.getName,  receiverMailbox.size, receiverMailbox.toString )
     }
+
     receiverMailbox
   }
 
@@ -50,9 +70,11 @@ class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](processFn: Mailb
       if(senderMailbox.isEmpty){
        senderMailbox.add(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
        dispatcher.execute(new MessageReceive())
+       logger.debug("Added Msg and triggered dispatcher. Hash: %s Name: %s Sender-Size: %s Receiver-Size: %s, Sender-Mailbox: %s", receiverMailbox.hashCode(), receiverMailbox.getName, receiverMailbox.size, senderMailbox.size, senderMailbox.toString)
       }else{
         //println(this.toString + ": Sender Mailbox " + senderMailbox.size)
         senderMailbox.add(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
+         logger.debug("Only added message. Hash: %s Name: %s Sender-Size: %s Receiver-Size: %s, Sender-Mailbox: %s", receiverMailbox.hashCode(), receiverMailbox.getName, receiverMailbox.size, senderMailbox.size, senderMailbox.toString)
         //dispatcher.execute(new MessageReceive())
       }
     }

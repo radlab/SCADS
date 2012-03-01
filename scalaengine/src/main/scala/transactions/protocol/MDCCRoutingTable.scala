@@ -13,9 +13,10 @@ import net.lag.logging.Logger
 /**
  * FIXME This whole class is a hack!!!!
  */
-class MDCCRoutingTable(nsRoot: ZooKeeperProxy#ZooKeeperNode, keySchema : Schema) {
+class MDCCRoutingTable(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
   private var _routingTable : RangeTable[Array[Byte], PartitionService] = null
 
+  private val keySchema = new Schema.Parser().parse(new String(nsRoot("keySchema").data))
 
   protected lazy val logger = Logger()
 

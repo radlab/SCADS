@@ -16,14 +16,18 @@ class IndexedRecordUtil(val schema: Schema) {
   val encoder = EncoderFactory.get().binaryEncoder(out, null)
 
   def fromBytes(bytes: Array[Byte]): IndexedRecord = {
-    reader.read(null, DecoderFactory.get().directBinaryDecoder(new ByteArrayInputStream(bytes), null)).asInstanceOf[IndexedRecord]
+    synchronized {
+      reader.read(null, DecoderFactory.get().directBinaryDecoder(new ByteArrayInputStream(bytes), null)).asInstanceOf[IndexedRecord]
+    }
   }
 
   def toBytes(record: IndexedRecord): Array[Byte] = {
-    out.reset()
-    writer.write(record, encoder)
-    encoder.flush
-    out.toByteArray
+    synchronized {
+      out.reset()
+      writer.write(record, encoder)
+      encoder.flush
+      out.toByteArray
+    }
   }
 }
 
@@ -113,8 +117,10 @@ class ICChecker(val schema: Schema) {
             valid = ic.upper match {
               case None => true
               case Some(FieldRestrictionLT(x)) =>
+                logger.debug(" " + Thread.currentThread.getName + " < new field: " + field + " safe field: " + safeField + " origLimit: " + x + " newLimit: " + getQuorumLimit(safeField, x, numServers, isFast) + " numServers: " + numServers + " isFast: " + isFast)
                 field < getQuorumLimit(safeField, x, numServers, isFast)
               case Some(FieldRestrictionLE(x)) =>
+                logger.debug(" " + Thread.currentThread.getName + " <= new field: " + field + " safe field: " + safeField + " origLimit: " + x + " newLimit: " + getQuorumLimit(safeField, x, numServers, isFast) + " numServers: " + numServers + " isFast: " + isFast)
                 field <= getQuorumLimit(safeField, x, numServers, isFast)
               case _ => false
             }
@@ -166,5 +172,29 @@ object ApplyUpdates {
 
     val newBase = Some(logicalRecordUpdater.applyDeltaBytes(base, remainingCommands.map(x => MDCCRecordUtil.fromBytes(x.command.asInstanceOf[LogicalUpdate].delta).value)))
     newBase
+  }
+}
+
+object ArrayLT {
+  def arrayLT(a: Array[Byte], b: Array[Byte]): Boolean = {
+    var cmp = 0
+    var done = false
+    val comp = a.zip(b).foreach(x => {
+      if (!done) {
+        if (x._1 < x._2) {
+          cmp = -1
+          done = true
+        }
+        if (x._1 > x._2) {
+          cmp = 1
+          done = true
+        }
+      }
+    })
+    if (cmp == 0) {
+      a.length < b.length
+    } else {
+      cmp == -1
+    }
   }
 }

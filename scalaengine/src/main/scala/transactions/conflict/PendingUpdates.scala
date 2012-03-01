@@ -45,29 +45,32 @@ trait PendingUpdates extends DBRecords {
   /**
    * The transaction was successful (we will never decide otherwise)
    */
-  def commit(xid: ScadsXid)(implicit dbTxn: TransactionData): Boolean
-  def commitTxn(xid: ScadsXid, dbTxn: TransactionData = null): Boolean
+  // DO NOT hold db locks while calling this.
+  def commit(xid: ScadsXid): Boolean
 
   /**
    * The transaction was learned as aborted (we will never decide otherwise)
    */
-  def abort(xid: ScadsXid)(implicit dbTxn: TransactionData): Boolean
-
-  // If dbTxn is non null, it is used for all db operations, and the commit is
-  // NOT performed at the end.  Otherwise, a new transaction is started and
-  // committed.
-  def abortTxn(xid: ScadsXid, dbTxn: TransactionData = null): Boolean
+  // DO NOT hold db locks while calling this.
+  def abort(xid: ScadsXid): Boolean
 
   /**
    * Writes the new truth. Should only return false if something is messed up with the db
    */
-  def overwrite(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates: Seq[SinglePropose], isFast: Boolean = false)(implicit dbTxn: TransactionData): Boolean
+  def overwrite(key: Array[Byte], safeValue: CStruct, meta: Option[MDCCMetadata], committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], isFast: Boolean = false)(implicit dbTxn: TransactionData): Boolean
 
-  def overwriteTxn(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates: Seq[SinglePropose], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean
+  def overwriteTxn(key: Array[Byte], safeValue: CStruct, meta: Option[MDCCMetadata], committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean
 
   def getDecision(xid: ScadsXid): Status.Status
 
-  //Should return the CStruct or the default Cstruct
+  // Must call this after acceptOption, in order to add updates to xid.
+  // DO NOT hold db locks while calling this.
+  def txStatusAccept(xid: ScadsXid, updates: Seq[RecordUpdate], success: Boolean)
+  // Atomically updates the status, while getting the list of updates for xid.
+  // DO NOT hold db locks while calling this.
+  def updateAndGetTxStatus(xid: ScadsXid, status: Status.Status): TxStatusEntry
+
+  // DO NOT hold db locks while calling this.
   def getCStruct(key: Array[Byte]): CStruct
 
   def startup() = {}
@@ -91,6 +94,10 @@ case class PendingStateInfo(var state: Array[Byte],
 case class PendingCommandsInfo(var base: Option[Array[Byte]],
                                var commands: ArrayBuffer[CStructCommand],
                                var states: ArrayBuffer[PendingStateInfo]) extends Serializable with AvroRecord {
+  def getCommand(xid: ScadsXid): Option[CStructCommand] = {
+    commands.find(x => x.xid == xid)
+  }
+
   def appendCommand(command: CStructCommand) = {
     commands.append(command)
   }
@@ -127,6 +134,7 @@ case class PendingCommandsInfo(var base: Option[Array[Byte]],
           x})
       }
     } else {
+      // TODO(gpang): move this to the end of the list for correct ordering?
       commands.update(index, command)
       // Update all the states and the xid lists.
       val deltaBytes = command.command match {
@@ -200,6 +208,10 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
   private var conflictResolver: ConflictResolver = null
 
+  private val avroUtil = new IndexedRecordUtil(valueSchema)
+
+  private val committedXidMap = new java.util.concurrent.ConcurrentHashMap[(ScadsXid, Int), Boolean](1000000, 0.75f, 50)
+
   def setICs(ics: FieldICList) = {
     valueICs = ics
     newUpdateResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs)
@@ -214,6 +226,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   }
 
   // Returns a tuple (success, list of (key, cstruct) pairs)
+  // TODO: Handle duplicate accept messages?
   override def acceptOptionTxn(xid: ScadsXid, updates: Seq[RecordUpdate], dbTxn: TransactionData = null, isFast: Boolean = false): (Boolean, Seq[(Array[Byte], CStruct)]) = {
     var success = true
     val txn = dbTxn match {
@@ -221,10 +234,17 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       case x => x
     }
     val pendingCommandsTxn = pendingCStructs.txStart()
-    val txStatusTxn = txStatus.txStart()
     var cstructs: Seq[(Array[Byte], CStruct)] = Nil
     try {
       cstructs = updates.map(r => {
+        val ignore = if (committedXidMap.containsKey((xid, Arrays.hashCode(r.key)))) {
+          // If this transaction for this record already committed earlier,
+          // do not accept this option again.
+          true
+        } else {
+          false
+        }
+
         if (success) {
           val storedMDCCRec: Option[MDCCRecord] =
             db.get(txn, r.key).map(MDCCRecordUtil.fromBytes(_))
@@ -241,23 +261,19 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
             case Some(c) => c
           }
 
-          val numServers = routingTable.serversForKey(r.key).size
+          if (!ignore) {
+            val numServers = routingTable.serversForKey(r.key).size
 
-          // Add the updates to the pending list, if compatible.
-          if (newUpdateResolver.isCompatible(xid, commandsInfo, storedMDCCRec, commandsInfo.base, r, numServers, isFast)) {
-            logger.debug("Update is compatible %s %s %s %s", xid, commandsInfo, storedMDCCRec, r)
-            commandsInfo.appendCommand(CStructCommand(xid, r, true, true))
-            pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
-          } else {
-            logger.debug("Update is not compatible %s %s %s %s", xid, commandsInfo, storedMDCCRec, r)
-            success = false
-          }
+            // Add the updates to the pending list, if compatible.
+            if (newUpdateResolver.isCompatible(xid, commandsInfo, storedMDCCRec, commandsInfo.base, r, numServers, isFast)) {
+              logger.debug("Update is compatible %s %s %s %s", xid, commandsInfo, storedMDCCRec, r)
 
-          if (commandsInfo.base.isDefined) {
-            val avroUtil = new IndexedRecordUtil(valueSchema)
-            logger.debug(" ACCEPT " + xid + " base: " + avroUtil.fromBytes(commandsInfo.base.get) + " commands: " + commandsInfo.commands)
-          } else {
-            logger.debug(" ACCEPT " + xid + " base: NONE" + " commands: " + commandsInfo.commands)
+              commandsInfo.appendCommand(CStructCommand(xid, r, true, true))
+              pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
+            } else {
+              logger.debug("Update is not compatible %s %s %s %s", xid, commandsInfo, storedMDCCRec, r)
+              success = false
+            }
           }
 
           (r.key, CStruct(commandsInfo.base, commandsInfo.commands))
@@ -277,260 +293,236 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
         db.txCommit(txn)
       }
     } else {
-      pendingCStructs.txAbort(pendingCommandsTxn)
-
-      // On abort, still append a "reject" command to all the cstructs.
-      // TODO(gpang): Haven't seen this yet, but this abort, then start may
-      //              cause deadlock.  Get rid of the abort.
-      val pendingCommandsTxn2 = pendingCStructs.txStart()
       cstructs = updates.map(r => {
-        val commandsInfo = pendingCStructs.get(pendingCommandsTxn2, r.key) match {
-          case None => PendingCommandsInfo(None,
+        val ignore = if (committedXidMap.containsKey((xid, Arrays.hashCode(r.key)))) {
+          // If this transaction for this record already committed earlier,
+          // do not accept this option again.
+          true
+        } else {
+          false
+        }
+
+        val storedMDCCRec: Option[MDCCRecord] =
+          db.get(txn, r.key).map(MDCCRecordUtil.fromBytes(_))
+        val storedRecValue: Option[Array[Byte]] =
+          storedMDCCRec match {
+            case Some(v) => v.value
+            case None => None
+          }
+        val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key) match {
+          case None => PendingCommandsInfo(storedRecValue,
                                            new ArrayBuffer[CStructCommand],
                                            new ArrayBuffer[PendingStateInfo])
           case Some(c) => c
         }
-        commandsInfo.replaceCommand(CStructCommand(xid, r, true, false))
-        pendingCStructs.put(pendingCommandsTxn2, r.key, commandsInfo)
+        if (!ignore) {
+          commandsInfo.replaceCommand(CStructCommand(xid, r, true, false))
+          pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
+        }
+
         (r.key, CStruct(commandsInfo.base, commandsInfo.commands))
       })
-      pendingCStructs.txCommit(pendingCommandsTxn2)
+      pendingCStructs.txCommit(pendingCommandsTxn)
 
       if (dbTxn == null) {
         db.txAbort(txn)
       }
     }
 
+    (success, cstructs)
+  }
+
+  // DO NOT hold db locks while calling this.
+  override def txStatusAccept(xid: ScadsXid, updates: Seq[RecordUpdate], success: Boolean) = {
     val entryStatus = success match {
       case true => Status.Accept.toString
       case false => Status.Reject.toString
     }
 
     // Merge the updates to the state of tx, in a transaction.
-    val (newUpdates, emptyGet) = txStatus.get(txStatusTxn, xid) match {
-      case None => (updates, true)
-      case Some(s) => (s.updates ++ updates, false)
-    }
-
-    if (emptyGet) {
-      val noOverwrite = txStatus.putNoOverwrite(txStatusTxn, xid, TxStatusEntry(entryStatus, newUpdates))
-      if (!noOverwrite) {
-        txStatus.put(txStatusTxn, xid, TxStatusEntry(entryStatus, newUpdates))
-      }
-    } else {
-      txStatus.put(txStatusTxn, xid, TxStatusEntry(entryStatus, newUpdates))
-    }
-    txStatus.txCommit(txStatusTxn)
-
-    (success, cstructs)
-  }
-
-  override def commit(xid: ScadsXid)(implicit dbTxn : TransactionData) : Boolean = {
-    commitTxn(xid, dbTxn)
-  }
-
-  override def commitTxn(xid: ScadsXid, dbTxn : TransactionData = null) : Boolean = {
-    // TODO: Handle out of order commits to same records.
-    var success = true
-    val txn = dbTxn match {
-      case null => db.txStart()
-      case x => x
-    }
-
-    // First get the records in the tx, WITHOUT locks.
-    val txRecords = txStatus.get(null, xid) match {
-      case None => Nil
-      case Some(s) =>
-        val decision = Status.withName(s.status)
-        if (decision == Status.Commit || decision == Status.Abort) {
-          // This tx is already committed or aborted.
-          logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " previously done")
-          Nil
-        } else {
-          logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " apply now")
-          s.updates
-        }
-    }
-
-    val pendingCommandsTxn = pendingCStructs.txStart()
     val txStatusTxn = txStatus.txStart()
+    logger.debug("txStatusAccept.enter: " + Thread.currentThread.getName + " xid: " + xid)
+    val txInfo = txStatus.getOrPut(txStatusTxn, xid, TxStatusEntry(entryStatus, Nil))
+
+    val existingKeys = txInfo.updates.map(_.key)
+    val newUpdates = txInfo.updates ++ updates.filter(a => !existingKeys.exists(b => Arrays.equals(a.key, b)))
+    txStatus.put(txStatusTxn, xid, TxStatusEntry(txInfo.status, newUpdates))
+    txStatus.txCommit(txStatusTxn)
+    logger.debug("txStatusAccept.finish: " + Thread.currentThread.getName + " xid: " + xid)
+
+    if (newUpdates.size > existingKeys.size) {
+//    if (true) {
+      // Only have to redo the commit/abort if we added a NEW update.
+      val status = Status.withName(txInfo.status)
+      if (status == Status.Commit) {
+        // It was already decided that this transaction should commit.
+        // Run commit() again to commit this record update.
+        commit(xid)
+      } else if (status == Status.Abort) {
+        // It was already decided that this transaction should abort.
+        // Run abort() again to abort this record update.
+        abort(xid)
+      }
+    }
+  }
+
+  // DO NOT hold db locks while calling this.
+  def updateAndGetTxStatus(xid: ScadsXid, status: Status.Status): TxStatusEntry = {
+    // Atomically set the tx status to Commit, and get the list of updates.
+    val txTxn = txStatus.txStart()
+    val txInfo = txStatus.getOrPut(txTxn, xid, TxStatusEntry(status.toString, Nil))
+    txStatus.put(txTxn, xid, TxStatusEntry(status.toString, txInfo.updates))
+    txStatus.txCommit(txTxn)
+    txInfo
+  }
+
+  // DO NOT hold db locks while calling this.
+  override def commit(xid: ScadsXid) : Boolean = {
+    // TODO: Handle out of order commits to same records.
+
+    // Atomically set the tx status to Commit, and get the list of updates.
+    val txInfo = updateAndGetTxStatus(xid, Status.Commit)
+
+    // Sort the updates by key.
+    val txRecords = txInfo.updates.sortWith((a, b) => ArrayLT.arrayLT(a.key, b.key))
+
+    var success = true
+    val txn = db.txStart()
+    val pendingCommandsTxn = pendingCStructs.txStart()
 
     try {
       txRecords.foreach(r => {
-        r match {
-          case LogicalUpdate(key, delta) => {
-            val dbVal = db.get(txn, key)
-            val applyUpdate = txStatus.get(txStatusTxn, xid) match {
-              case None => false
-              case Some(s) =>
-                val decision = Status.withName(s.status)
-                if (decision == Status.Commit || decision == Status.Abort) {
-                  // This tx is already committed or aborted.
-                  logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " previously done2")
-                  false
-                } else {
-                  s.updates.exists(x => Arrays.equals(x.key, key))
-                }
-            }
-            if (!applyUpdate) {
-              logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " already applied earlier.")
-            } else {
-              logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " actually trying to apply now.")
+        val dbVal = db.get(txn, r.key)
+        val storedMDCCRec: Option[MDCCRecord] =
+          dbVal.map(MDCCRecordUtil.fromBytes(_))
+        val storedRecValue: Option[Array[Byte]] =
+          storedMDCCRec match {
+            case Some(v) => v.value
+            case None => None
+          }
+
+        val commandsInfo = pendingCStructs.getOrPut(pendingCommandsTxn, r.key, PendingCommandsInfo(storedRecValue, new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
+        val applyUpdate = commandsInfo.getCommand(xid) match {
+          case None =>
+            // Update is not in the pending list, so that means the option was
+            // never received.  Do not apply update, and just stay out of date.
+            false
+          case Some(c) =>
+            // Only apply the update if the command is still pending.
+            // TODO(gpang): also look at the commit status?
+            c.pending
+        }
+
+        if (applyUpdate) {
+          var skippedPut = false
+          r match {
+            case LogicalUpdate(key, delta) => {
               dbVal match {
-                case None => db.put(txn, key, delta)
+                case None => {
+                  val deltaRec = MDCCRecordUtil.fromBytes(delta)
+                  logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " writing delta: " + avroUtil.fromBytes(deltaRec.value.get))
+                  db.put(txn, key, delta)
+                }
                 case Some(recBytes) => {
                   val deltaRec = MDCCRecordUtil.fromBytes(delta)
                   val dbRec = MDCCRecordUtil.fromBytes(recBytes)
                   val newBytes = logicalRecordUpdater.applyDeltaBytes(dbRec.value, deltaRec.value)
 
-                  val avroUtil = new IndexedRecordUtil(valueSchema)
-                  logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " oldbytes: " + avroUtil.fromBytes(dbRec.value.get) + " newbytes: " + avroUtil.fromBytes(newBytes))
+                  logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " oldbytes: " + avroUtil.fromBytes(dbRec.value.get) + " newbytes: " + avroUtil.fromBytes(newBytes) + " dbRec.metadata: " + dbRec.metadata)
 
                   val newRec = MDCCRecordUtil.toBytes(MDCCRecord(Some(newBytes), dbRec.metadata))
                   db.put(txn, key, newRec)
                 }
               }
             }
-          }
-          case ValueUpdate(key, oldValue, newValue) => {
-            db.get(txn, key) match {
-              case None => db.put(txn, key, newValue)
-              case Some(recBytes) => {
-                // Do not overwrite the metadata in the db.
-                val newRec = MDCCRecordUtil.fromBytes(newValue)
-                val dbRec = MDCCRecordUtil.fromBytes(recBytes)
-                val newDbRec = MDCCRecordUtil.toBytes(MDCCRecord(newRec.value, dbRec.metadata))
-                db.put(txn, key, newDbRec)
+            case ValueUpdate(key, oldValue, newValue) => {
+              dbVal match {
+                case None => db.put(txn, key, newValue)
+                case Some(recBytes) => {
+                  // Do not overwrite the metadata in the db.
+                  val dbRec = MDCCRecordUtil.fromBytes(recBytes)
+                  val oldRec = MDCCRecordUtil.fromBytes(oldValue.get)
+                  if (!Arrays.equals(oldRec.value.get, dbRec.value.get)) {
+                    // The old and db values do not match.
+                    skippedPut = true
+                  } else {
+                    val newRec = MDCCRecordUtil.fromBytes(newValue)
+                    val newDbRec = MDCCRecordUtil.toBytes(MDCCRecord(newRec.value, dbRec.metadata))
+                    db.put(txn, key, newDbRec)
+                  }
+                }
               }
             }
+            case VersionUpdate(key, newValue) => {
+              db.put(txn, key, newValue)
+            }
           }
-          case VersionUpdate(key, newValue) => {
-            db.put(txn, key, newValue)
+
+          // Commit the updates in the pending list.
+          if (!skippedPut) {
+            commandsInfo.commitCommand(CStructCommand(xid, r, false, true), logicalRecordUpdater)
           }
-        }
-        // Commit the updates in the pending list.
-        val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key).getOrElse(PendingCommandsInfo(None, new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
-        commandsInfo.commitCommand(CStructCommand(xid, r, false, true), logicalRecordUpdater)
+
+        } // applyUpdate
 
         pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
       })
-      txStatus.put(txStatusTxn, xid, TxStatusEntry(Status.Commit.toString, txRecords))
-      txStatus.txCommit(txStatusTxn)
-      logger.debug("COMMIT: " + xid + " stored commit status")
+
+      txRecords.map(r => Arrays.hashCode(r.key)).foreach(h => committedXidMap.put((xid, h), true))
+
       pendingCStructs.txCommit(pendingCommandsTxn)
-      if (dbTxn == null) {
-        db.txCommit(txn)
-      }
+      db.txCommit(txn)
     } catch {
       case e: Exception => {
         println("commitTxn Exception " + e)
         e.printStackTrace()
       }
-      txStatus.txAbort(txStatusTxn)
       pendingCStructs.txAbort(pendingCommandsTxn)
-      if (dbTxn == null) {
-        db.txAbort(txn)
-      }
+      db.txAbort(txn)
       success = false
     }
-/*
-    txStatus.get(txStatusTxn, xid) match {
-      case None => success = false
-      case Some(s) => try {
-        val decision = Status.withName(s.status)
-        if (decision == Status.Commit || decision == Status.Abort) {
-          // This tx is already committed or aborted.
-          logger.debug("COMMIT: " + xid + " previously done")
-          success = true
-        } else {
-          logger.debug("COMMIT: " + xid + " apply now")
-          s.updates.foreach(r => {
-            // TODO: These updates overwrite the metadata.  Probably have to
-            //       selectively update only the value part of the record.
-            r match {
-              case LogicalUpdate(key, delta) => {
-                db.get(txn, key) match {
-                  case None => db.put(txn, key, delta)
-                  case Some(recBytes) => {
-                    val deltaRec = MDCCRecordUtil.fromBytes(delta)
-                    val dbRec = MDCCRecordUtil.fromBytes(recBytes)
-                    val newBytes = logicalRecordUpdater.applyDeltaBytes(dbRec.value, deltaRec.value)
 
-                    val avroUtil = new IndexedRecordUtil(valueSchema)
-                    logger.debug("COMMIT: " + xid + " oldbytes: " + avroUtil.fromBytes(dbRec.value.get) + " newbytes: " + avroUtil.fromBytes(newBytes))
-
-                    val newRec = MDCCRecordUtil.toBytes(MDCCRecord(Some(newBytes), dbRec.metadata))
-                    db.put(txn, key, newRec)
-                  }
-                }
-              }
-              case ValueUpdate(key, oldValue, newValue) => {
-                db.put(txn, key, newValue)
-              }
-              case VersionUpdate(key, newValue) => {
-                db.put(txn, key, newValue)
-              }
-            }
-
-            // Commit the updates in the pending list.
-            val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key).getOrElse(PendingCommandsInfo(None, new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
-            commandsInfo.commitCommand(CStructCommand(xid, r, false, true), logicalRecordUpdater)
-
-            pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
-          })
-
-          txStatus.put(txStatusTxn, xid, TxStatusEntry(Status.Commit.toString, s.updates))
-        }
-        txStatus.txCommit(txStatusTxn)
-        pendingCStructs.txCommit(pendingCommandsTxn)
-        if (dbTxn == null) {
-          db.txCommit(txn)
-        }
-      } catch {
-        case e: Exception => {
-          println("commitTxn Exception " + e)
-          e.printStackTrace()
-        }
-        txStatus.txAbort(txStatusTxn)
-        pendingCStructs.txAbort(pendingCommandsTxn)
-        if (dbTxn == null) {
-          db.txAbort(txn)
-        }
-        success = false
-      }
-    }
-*/
     success
   }
 
-  override def abort(xid: ScadsXid)(implicit dbTxn : TransactionData): Boolean = {
-    abortTxn(xid, dbTxn)
-  }
+  // DO NOT hold db locks while calling this.
+  override def abort(xid: ScadsXid) : Boolean = {
+    // Atomically set the tx status to Commit, and get the list of updates.
+    val txInfo = updateAndGetTxStatus(xid, Status.Abort)
 
-  override def abortTxn(xid: ScadsXid, dbTxn: TransactionData = null) : Boolean = {
+    // Sort the updates by key.
+    val txRecords = txInfo.updates.sortWith((a, b) => ArrayLT.arrayLT(a.key, b.key))
+
     val pendingCommandsTxn = pendingCStructs.txStart()
     try {
-      txStatus.get(null, xid) match {
-        case None => {
-          txStatus.put(null, xid, TxStatusEntry(Status.Abort.toString, List[RecordUpdate]()))
+      txRecords.foreach(r => {
+        // Remove the updates in the pending list.
+        val commandsInfo = pendingCStructs.getOrPut(pendingCommandsTxn, r.key, PendingCommandsInfo(None, new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
+        val applyAbort = commandsInfo.getCommand(xid) match {
+          case None =>
+            // Update is not in the pending list, so that means the option was
+            // never received.  Do not abort update, and just stay out of date.
+            false
+          case Some(c) =>
+            // Only apply the abort if the command is still pending.
+            c.pending
         }
-        case Some(status) => {
-          status.updates.foreach(r => {
-            // Remove the updates in the pending list.
-            val commandsInfo = pendingCStructs.get(pendingCommandsTxn, r.key).getOrElse(PendingCommandsInfo(None, new ArrayBuffer[CStructCommand], new ArrayBuffer[PendingStateInfo]))
-            commandsInfo.abortCommand(CStructCommand(xid, r, false, false))
+        if (applyAbort) {
+          commandsInfo.abortCommand(CStructCommand(xid, r, false, false))
+          pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
+        }
 
-            pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
-          })
-          txStatus.put(null, xid, TxStatusEntry(Status.Abort.toString, status.updates))
-        }
-      }
+      })
+
       pendingCStructs.txCommit(pendingCommandsTxn)
-      return true
+      true
     } catch {
-      case e: Exception => {}
+      case e: Exception => {
+        println("commitTxn Exception " + e)
+        e.printStackTrace()
+      }
       pendingCStructs.txAbort(pendingCommandsTxn)
-      return false
+      false
     }
   }
 
@@ -539,22 +531,18 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   //               ConflictResolver should just be created elsewhere.
   def getConflictResolver : ConflictResolver = conflictResolver
 
-  def overwrite(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates: Seq[SinglePropose], isFast: Boolean = false)(implicit dbTxn: TransactionData) : Boolean = {
-    overwriteTxn(key, safeValue, committedXids, abortedXids, newUpdates, dbTxn, isFast)
+  def overwrite(key: Array[Byte], safeValue: CStruct, meta: Option[MDCCMetadata], committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], isFast: Boolean = false)(implicit dbTxn: TransactionData) : Boolean = {
+    overwriteTxn(key, safeValue, meta, committedXids, abortedXids, dbTxn, isFast)
 }
 
-  def overwriteTxn(key: Array[Byte], safeValue: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates: Seq[SinglePropose], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean = {
+  def overwriteTxn(key: Array[Byte], safeValue: CStruct, meta: Option[MDCCMetadata], committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean = {
     var success = true
     val txn = dbTxn match {
       case null => db.txStart()
       case x => x
     }
 
-    val avroUtil = new IndexedRecordUtil(valueSchema)
-    logger.debug("\n\nOVERWRITE: safebase: " + avroUtil.fromBytes(safeValue.value.get) + " cstruct: " + safeValue + " new updates: " + newUpdates + "\n")
-
     val pendingCommandsTxn = pendingCStructs.txStart()
-    val txStatusTxn = txStatus.txStart()
 
     // Apply all nonpending commands to the base of the cstruct.
     // TODO: This will apply all nonpending, committed updates, even if there
@@ -563,78 +551,65 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       logicalRecordUpdater, safeValue.value,
       safeValue.commands.filter(x => !x.pending && x.commit))
 
-    logger.debug("OVERWRITE: newdbrec: " + avroUtil.fromBytes(newDBrec.get))
-
     val storedMDCCRec: Option[MDCCRecord] =
       db.get(txn, key).map(MDCCRecordUtil.fromBytes(_))
     val newMDCCRec = storedMDCCRec match {
       // TODO: I don't know if it is possible to not have a db record but have
       //       a cstruct.
       case None => throw new RuntimeException("When overwriting, db record should already exist.")
-      case Some(r) => MDCCRecord(newDBrec, r.metadata)
+      case Some(r) => MDCCRecord(newDBrec, meta.getOrElse(r.metadata))
     }
+
+    // Write the record to the database.
+    db.put(txn, key, MDCCRecordUtil.toBytes(newMDCCRec))
 
     // Update the stored cstruct.
     val commandsInfo = PendingCommandsInfo(safeValue.value,
                                            new ArrayBuffer[CStructCommand],
                                            new ArrayBuffer[PendingStateInfo])
-    commandsInfo.commands ++= safeValue.commands
 
     // Update the pending states.
     // Assumption: The pending updates are all logical, or there is a single
     //             physical update.  Also, the command should already be
     //             compatible.
-    val pending = safeValue.commands.filter(_.pending)
-    pending.foreach(c => {
-      if (!newUpdateResolver.isCompatible(c.xid, commandsInfo, newMDCCRec, safeValue.value, c.command)) {
-        throw new RuntimeException("All of the overwriting commands should be compatible.")
+    safeValue.commands.foreach(c => {
+      if (c.pending && c.commit) {
+        if (!newUpdateResolver.isCompatible(c.xid, commandsInfo, newMDCCRec, safeValue.value, c.command)) {
+          c.command match {
+            case ValueUpdate(key1, oldValue1, newValue1) => {
+              logger.error("committedXids: " + committedXids)
+              logger.error("abortedXids: " + abortedXids)
+              logger.error("safeValue: " + safeValue)
+              logger.error("command: " + c.command)
+              logger.error("in committed map: " + committedXidMap.containsKey((c.xid, Arrays.hashCode(key1))))
+              // No pending commands.
+              // Record found in db, compare with the old version
+              val oldRec = MDCCRecordUtil.fromBytes(oldValue1.get)
+              (oldRec.value, newDBrec) match {
+                case (Some(a), Some(b)) =>
+                  logger.error("array compare: " + Arrays.equals(a, b))
+                  logger.error("safe compare: " + Arrays.equals(a, safeValue.value.get))
+                  logger.error("old: " + avroUtil.fromBytes(a))
+                  logger.error("db: " + avroUtil.fromBytes(b))
+                  logger.error("safe: " + avroUtil.fromBytes(safeValue.value.get))
+                case (_, _) =>
+              }
+            }
+            case _ =>
+          }
+          throw new RuntimeException("All of the overwriting commands should be compatible. key: " + (new mdcc.ByteArrayWrapper(key)).hashCode() + " safeValue: " + safeValue)
+        }
       }
+      commandsInfo.appendCommand(c)
     })
+
+    if (committedXids.size > 0) {
+      committedXids.foreach(x => committedXidMap.put((x, Arrays.hashCode(key)), true))
+    }
 
     // Store the new cstruct info.
     pendingCStructs.put(pendingCommandsTxn, key, commandsInfo)
     pendingCStructs.txCommit(pendingCommandsTxn)
-
-    // For the committed txs, remove this key from the update list in txStatus,
-    // since it is already reflected in this overwrite.  Don't need to do this
-    // for aborted txs, since they will not be executed anyways.
-    committedXids.foreach(xid => {
-      txStatus.get(txStatusTxn, xid) match {
-        case None =>
-        case Some(s) =>
-          val newUpdates = s.updates.filter(x => !Arrays.equals(x.key, key))
-          if (newUpdates.size == 0) {
-            // Single record tx, so commit the tx.
-            logger.debug(" OVERWRITE: committing only key from txstatus. xid: " + xid + " oldUpdates: " + s.updates)
-            txStatus.put(txStatusTxn, xid, TxStatusEntry(Status.Commit.toString, newUpdates))
-          } else {
-            // Remove this key from this tx, so the update does not get applied
-            // twice.
-            logger.debug(" OVERWRITE: committing one of many keys from txstatus. xid: " + xid + " oldUpdates: " + s.updates + " newUpdates: " + newUpdates)
-            txStatus.put(txStatusTxn, xid, TxStatusEntry(s.status, newUpdates))
-          }
-      }
-    })
-
-    // For aborted txs, abort the tx in txStatus, since if any of the keys
-    // are aborted, the entire tx cannot commit.
-    abortedXids.foreach(xid => {
-      txStatus.get(txStatusTxn, xid) match {
-        case None =>
-        case Some(s) =>
-          logger.debug(" OVERWRITE: abort tx in txStatus. xid: " + xid)
-          txStatus.put(txStatusTxn, xid, TxStatusEntry(Status.Abort.toString, s.updates))
-      }
-    })
-    txStatus.txCommit(txStatusTxn)
-
-    // Write the record to the database.
-    db.put(txn, key, MDCCRecordUtil.toBytes(newMDCCRec))
-
-    // Try the new updates.
-    newUpdates.foreach(c => {
-      acceptOption(c.xid, c.update, isFast)(dbTxn)
-    })
 
     if (dbTxn == null) {
       db.txCommit(txn)
@@ -653,8 +628,16 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   }
 
   override def getCStruct(key: Array[Byte]) = {
+    val storedMDCCRec: Option[MDCCRecord] =
+      db.get(null, key).map(MDCCRecordUtil.fromBytes(_))
+    val storedRecValue: Option[Array[Byte]] =
+      storedMDCCRec match {
+        case Some(v) => v.value
+        case None => None
+      }
+
     pendingCStructs.get(null, key) match {
-      case None => CStruct(None, new ArrayBuffer[CStructCommand])
+      case None => CStruct(storedRecValue, new ArrayBuffer[CStructCommand])
       case Some(c) => CStruct(c.base, c.commands)
     }
   }
@@ -705,6 +688,9 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
         val newState = newStateBytes.toList
         val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ List(List(xid))
 
+        logger.debug(" " + Thread.currentThread.getName + " base: " + avroUtil.fromBytes(dbValue.get.value.get) + " delta: " + avroUtil.fromBytes(deltaRec.value.get) + " newState: " + avroUtil.fromBytes(newState.toArray))
+//        oldStates.toList.foreach(x =>
+//          logger.debug(" " + Thread.currentThread.getName + " oldStates: " + avroUtil.fromBytes(x._1.toArray)))
         var valid = newStates.put(newState, newXidList) match {
           case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, safeBase, dbValue.get.value, numServers, isFast)
           case Some(_) => true
@@ -713,6 +699,9 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
         if (!valid) {
           newStates.remove(newState)
           commandsInfo.updateStates(newStates.toList.map(x => PendingStateInfo(x._1.toArray, x._2)))
+          logger.debug(" " + Thread.currentThread.getName + " isCompatible1: " + false + " newState: " + avroUtil.fromBytes(newState.toArray))
+//          newStates.toList.foreach(x =>
+//            logger.debug(" " + Thread.currentThread.getName + " newStates1: " + avroUtil.fromBytes(x._1.toArray)))
           false
         } else {
 
@@ -738,7 +727,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
       }
       case ValueUpdate(key, oldValue, newValue) => {
         // Value updates conflict with all pending updates
-        if (commandsInfo.commands.indexWhere(x => x.pending && x.commit) == -1) {
+        if (commandsInfo.commands.indexWhere(x => x.pending) == -1) {
           // No pending commands.
           val newRec = MDCCRecordUtil.fromBytes(newValue)
           (oldValue, dbValue) match {
@@ -767,7 +756,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
       }
       case VersionUpdate(key, newValue) => {
         // Version updates conflict with all pending updates
-        if (commandsInfo.commands.indexWhere(x => x.pending && x.commit) == -1) {
+        if (commandsInfo.commands.indexWhere(x => x.pending) == -1) {
           // No pending commands.
           val newRec = MDCCRecordUtil.fromBytes(newValue)
           dbValue match {

@@ -15,7 +15,7 @@ import org.apache.zookeeper._
 import java.util.concurrent.TimeUnit
 
 trait TransactionI {
-  def getDefaultMeta() : MDCCMetadata
+  def getDefaultMeta(key: Array[Byte]) : MDCCMetadata
   def keySchema: Schema
   def valueSchema: Schema
   def getConflictResolver: ConflictResolver
@@ -175,7 +175,7 @@ with TransactionI {
 
   def getConflictResolver = conflictResolver
 
-  def getDefaultMeta = defaultMeta.defaultMetaData
+  def getDefaultMeta(key: Array[Byte]) = defaultMeta.defaultMetaData(key)
 
   // TODO: Don't know why implicit manifest did not work.
   lazy val protocolType: NSTxProtocol = NSTxProtocolNone()
@@ -214,7 +214,7 @@ with TransactionI {
         // TODO: what does it mean to do puts outside of a tx?
         //       for now, just writes to all servers
         val putRequest = PutRequest(key,
-                                    Some(MDCCRecordUtil.toBytes(value, getDefaultMeta)))
+                                    Some(MDCCRecordUtil.toBytes(value, getDefaultMeta(key))))
         val responses = servers.map(_ !! putRequest)
         responses.blockFor(servers.length, 5000, TimeUnit.MILLISECONDS)
       }
@@ -249,7 +249,7 @@ with TransactionI {
         // TODO: what does it mean to do puts outside of a tx?
         //       for now, just writes to all servers
         val putRequest = PutRequest(key,
-                                    Some(MDCCRecordUtil.toBytes(value, getDefaultMeta)))
+                                    Some(MDCCRecordUtil.toBytes(value, getDefaultMeta(key))))
         val responses = servers.map(_ !! putRequest)
         new ComputationFuture[Unit] {
           def compute(timeoutHint: Long, unit: TimeUnit) = {
@@ -363,8 +363,8 @@ with TransactionI {
 }
 
 trait TransactionRecordMetadata extends SimpleRecordMetadata with TransactionI {
-  override def createMetadata(rec: Array[Byte]): Array[Byte] = {
-    MDCCRecordUtil.toBytes(Some(rec), getDefaultMeta)
+  override def createMetadata(key: Array[Byte], rec: Array[Byte]): Array[Byte] = {
+    MDCCRecordUtil.toBytes(Some(rec), getDefaultMeta(key))
   }
 
   override def compareMetadata(lhs: Array[Byte], rhs: Array[Byte]): Int = {

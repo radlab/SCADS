@@ -5,11 +5,15 @@ package mdcc
 
 import comm._
 
+import edu.berkeley.cs.avro.marker.{AvroPair, AvroRecord, AvroUnion}
 import net.lag.logging.Logger
 import org.apache.zookeeper._
 import collection.mutable.HashMap
 import java.util.concurrent.ConcurrentHashMap
 import config.Config
+import _root_.transactions.protocol.MDCCRoutingTable
+
+case class ServiceList(var services: Seq[SCADSService]) extends AvroRecord
 
 class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
   import MDCCMetaDefault._
@@ -17,6 +21,7 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
   protected lazy val logger = Logger()
 
   @volatile var _defaultMeta : MDCCMetadata = null
+  @volatile var _serviceMap: Map[String, Seq[SCADSService]] = null
 
   protected val fastDefault = Config.config.getBool("scads.mdcc.fastDefault").getOrElse({
     logger.error("Config does not define scads.mdcc.fastDefault.")
@@ -40,6 +45,31 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
       1
     }
   })
+  // -1 means only use ap-southeast.
+  // -2 means pick a random one.
+  protected val localMasterPercentage : Long =  Config.config.getLong("scads.mdcc.localMasterPercentage").getOrElse({
+    logger.error("Config does not define scads.mdcc.localMasterPercentage.")
+    val sysVal = System.getProperty("scads.mdcc.localMasterPercentage")
+    if (sysVal != null) {
+      logger.error("Using system property for scads.mdcc.localMasterPercentage = " + sysVal)
+      sysVal.toLong
+    } else {
+      logger.error("Config and system property do not define scads.mdcc.localMasterPercentage. Using localMasterPercentage = 20 as default")
+      20
+    }
+  })
+  protected val onEC2 = Config.config.getBool("scads.mdcc.onEC2").getOrElse({
+    logger.error("Config does not define scads.mdcc.onEC2.")
+    val sysVal = System.getProperty("scads.mdcc.onEC2")
+    if (sysVal != null) {
+      logger.error("Using system property for scads.mdcc.onEC2 = " + sysVal)
+      sysVal == "true"
+    } else {
+      logger.error("Config and system property do not define scads.mdcc.onEC2. Using onEC2 = false as default")
+      false
+    }
+  })
+
 
   def loadDefault() : MDCCMetadata = {
     val defaultNode =
@@ -53,24 +83,73 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
         case Some(x) => x
       }
 
+    val listWriter = new AvroSpecificReaderWriter[ServiceList](None)
+    val serviceList = nsRoot.get(MDCC_META_LIST) match {
+      case None => ServiceList(Nil)
+      case Some(m) => listWriter.deserialize(m.data)
+    }
+
+    _serviceMap = serviceList.services.zipWithIndex.groupBy(t => t._1.host.split("\\.")(1)).map {
+      case (host, results) => {
+        // For each distinct ip, find the newest result.
+        // Basically, gets the newest service per hostname.
+        val uniques = results.map(r => r._1.host.split("\\.")(0)).distinct.map(d => results.sortWith((a, b) => b._2 < a._2).find(x => d == x._1.host.split("\\.")(0)).get).map(x => x._1)
+        (host, uniques)
+      }
+    }.toMap
+
     val reader = new AvroSpecificReaderWriter[MDCCMetadata](None)
     _defaultMeta = reader.deserialize(defaultNode.onDataChange(loadDefault))
     logger.debug("Reloaded default metadata: %s", _defaultMeta)
     _defaultMeta
   }
 
-  def defaultMetaData : MDCCMetadata = {
-    assert(_defaultMeta != null)
-    _defaultMeta
+  val routingTable = new MDCCRoutingTable(nsRoot)
+
+  // "us-west-1", "compute-1", "eu-west-1", "ap-northeast-1", "ap-southeast-1"
+  private def ec2MetaData(key: Array[Byte]): MDCCMetadata = {
+    val hash = java.util.Arrays.hashCode(key)
+    val rand = new scala.util.Random(hash)
+
+    val randomService = if (localMasterPercentage == -2) {
+      val l = _serviceMap.values.reduceLeft(_ ++ _)
+      l(rand.nextInt(l.size))
+    } else {
+      val randomRegion = if (localMasterPercentage == -1) {
+        "ap-southeast-1"
+      } else if (rand.nextInt(100) < localMasterPercentage) {
+        "us-west-1"
+      } else {
+        val l = List("compute-1", "eu-west-1", "ap-northeast-1", "ap-southeast-1")
+        l(rand.nextInt(l.size))
+      }
+      val randomHost = routingTable.serversForKey(key).find(x => x.host.split("\\.")(1) == randomRegion).get.host
+
+      _serviceMap(randomRegion).find(x => x.host == randomHost) match {
+        case None =>
+          // This should never happen.
+          logger.error("serviceMap does not have correct partition. serviceMap: " + _serviceMap(randomRegion) + " host: " + randomHost)
+          _serviceMap(randomRegion)(rand.nextInt(_serviceMap(randomRegion).size))
+        case Some(h) => h
+      }
+    }
+
+    val r = MDCCMetadata(MDCCBallot(0, 0, randomService, fastDefault), MDCCBallotRange(0, defaultRounds-1, 0, randomService, fastDefault) :: Nil, true, true)
+    r
   }
 
-  def defaultBallot : MDCCBallot = {
+  def defaultMetaData(key: Array[Byte]) : MDCCMetadata = {
     assert(_defaultMeta != null)
-    _defaultMeta.currentVersion
+    if (onEC2) {
+      ec2MetaData(key)
+    } else {
+      _defaultMeta
+    }
   }
 
-
-  def init(defaultPartition : SCADSService,  forceNewMeta : Boolean = false) : MDCCMetadata = {
+  // Returns true if metadata was changed.
+  def init(defaultPartition : SCADSService,  forceNewMeta : Boolean = false) : Boolean = {
+    var changed = false
     if(!nsRoot.get(MDCC_DEFAULT_META).isDefined || forceNewMeta) {
       try {
         val createLock = nsRoot.createChild("trxLock", mode=CreateMode.EPHEMERAL)
@@ -80,7 +159,19 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
         val defaultBytes = writer.serialize(_defaultMeta)
         val defaultNode = nsRoot.getOrCreate(MDCC_DEFAULT_META)
         defaultNode.data = defaultBytes
+
+        val listWriter = new AvroSpecificReaderWriter[ServiceList](None)
+        val services = nsRoot.get(MDCC_META_LIST) match {
+          case None => ServiceList(Nil)
+          case Some(m) => listWriter.deserialize(m.data)
+        }
+        val listNode = nsRoot.getOrCreate(MDCC_META_LIST)
+        val newServices = ServiceList(services.services ++ List(defaultPartition))
+        logger.info("newServices: " + newServices)
+        listNode.data = listWriter.serialize(newServices)
+
         nsRoot("trxLock").delete()
+        changed = true
       } catch {
         /* Someone else has the create lock, so we should wait until they finish */
         case e: KeeperException if e.code == KeeperException.Code.NODEEXISTS => {
@@ -89,12 +180,14 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
       }
     }
     loadDefault()
+    changed
   }
 
 }
 
 object MDCCMetaDefault {
   protected val MDCC_DEFAULT_META = "mdccdefaultmeta"
+  protected val MDCC_META_LIST = "mdccservicelist"
 
   protected val defaults = new ConcurrentHashMap[ZooKeeperProxy#ZooKeeperNode,  MDCCMetaDefault]
 
@@ -107,8 +200,9 @@ object MDCCMetaDefault {
         defaults.put(nsRoot, default)
       }
     }
-    if(forceNewMeta)
-      default.init(defaultPartition, forceNewMeta)
+    if(forceNewMeta) {
+      while (default.init(defaultPartition, forceNewMeta) == false) {}
+    }
     default
   }
 
@@ -120,6 +214,8 @@ object MDCCMetaDefault {
         default.loadDefault()
         defaults.put(nsRoot, default)
       }
+    } else {
+      default.loadDefault()
     }
     default
   }

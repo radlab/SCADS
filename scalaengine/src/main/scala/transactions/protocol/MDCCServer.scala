@@ -52,12 +52,12 @@ class MDCCServer(val namespace : String,
   }
 
   @inline def getMeta(key : Array[Byte])(implicit txn : TransactionData) : MDCCMetadata = {
-    extractMeta(getRecord(key))
+    extractMeta(key, getRecord(key))
   }
 
-  @inline def extractMeta(record : Option[MDCCRecord])(implicit txn : TransactionData) : MDCCMetadata = {
+  @inline def extractMeta(key : Array[Byte], record : Option[MDCCRecord])(implicit txn : TransactionData) : MDCCMetadata = {
      if(record.isEmpty)
-      return default.defaultMetaData
+      return default.defaultMetaData(key)
      else
       return record.get.metadata
   }
@@ -80,12 +80,25 @@ class MDCCServer(val namespace : String,
     val meta = getMeta(proposes.head.update.key)
     val ballot = meta.ballots.head.ballot
     meta.validate() //just to make sure
+    // TODO(kraska): there is a potential for an infinite loop, if the default
+    //               metadata was fast, but then the metadata was switched to
+    //               classic by the master.
+    //               The main problem is that the code is making a decision
+    //               based on the default metadata, which is really old, and
+    //               potentially wrong.
     if(ballot.fast){
       //TODO can we optimize the accept?
-      val cstruct = proposes.map(prop => pendingUpdates.acceptOption(prop.xid, prop.update, true)).last._3
-      debug(key, "Replying with 2b to fast ballot source:%s cstruct:cstruct", src, cstruct)
+      val results = proposes.map(prop => (prop, pendingUpdates.acceptOption(prop.xid, prop.update, true)))
+      val cstruct = results.last._2._3
+      debug(key, "Replying with 2b to fast ballot source:%s cstruct:%s", src, cstruct)
       src ! Phase2b(ballot, cstruct)
+      commitTrx(trx)
+      // Must be outside of db lock.
+      results.foreach(r => {
+        pendingUpdates.txStatusAccept(r._1.xid, List(r._1.update), r._2._1)
+      })
     }else{
+      commitTrx(trx)
       debug(key, "Classic ballot: We get or start our own MDCCRecordHandler")
       val recordHandler = recordCache.getOrCreate(
         key,
@@ -96,79 +109,114 @@ class MDCCServer(val namespace : String,
         partition)
       recordHandler.remoteHandle.forward(msg, src)
     }
+  }
+
+  protected  def processRecordHandlerMsg(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], msg : MDCCProtocol) : Unit = {
+    implicit val trx = startTrx()
+    val meta = getMeta(key)
     commitTrx(trx)
+    debug(key, "We got a recordhandler request")
+    val recordHandler = recordCache.getOrCreate(
+        key,
+        pendingUpdates.getCStruct(key),
+        meta,
+        routingTable.serversForKey(key),
+        pendingUpdates.getConflictResolver,
+        partition)
+    recordHandler.remoteHandle.forward(msg, src)
   }
 
   protected def processPhase1a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], newMeta: Seq[MDCCBallotRange]) = {
     debug(key, "Process Phase1a", src, newMeta)
     implicit val trx = startTrx()
     val record = getRecord(key)
-    val meta : MDCCMetadata = extractMeta(record)
+    val meta : MDCCMetadata = extractMeta(key, record)
     val maxRound = max(meta.ballots.head.startRound, newMeta.head.startRound)
     compareRanges(meta.ballots, newMeta, maxRound) match {
       case -1 => {
-        debug(key, "Setting new meta", meta.ballots, newMeta, maxRound)
+        debug(key, "Setting new meta balots:%s, new:%s, maxround:%s", meta.ballots, newMeta, maxRound)
         meta.ballots = newMeta
         meta.confirmedBallot = false
       }
       case -2 => {
-        debug(key, "Combining meta", meta.ballots, newMeta, maxRound)
+        debug(key, "Combining meta balots:%s, new:%s, maxround:%s", meta.ballots, newMeta, maxRound)
         meta.confirmedBallot = false
         meta.ballots = combine(meta.ballots, newMeta, max(meta.ballots.head.startRound, newMeta.head.startRound))
       }
-      case _ => debug(key, "Ignoring Phase1a message local-ballots:" + meta.ballots + " proposed" + newMeta)//The meta data is old or the same, so we do need to do nothing
+      case _ => debug(key, "Ignoring Phase1a message local-ballots %s, proposed: %s", meta.ballots, newMeta)//The meta data is old or the same, so we do need to do nothing
     }
     val r = record.getOrElse(new MDCCRecord(None, null))
     r.metadata = meta
     putRecord(key, r)
-    src ! Phase1b(meta, pendingUpdates.getCStruct(key))
     commitTrx(trx)
+    src ! Phase1b(meta, pendingUpdates.getCStruct(key))
   }
+
+
 
   protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates : Seq[SinglePropose] ) = {
     debug(key, "Process Phase2a", src, value, newUpdates)
+    // A seq of all pending commands in the cstruct.
+    val safePendingOptions = value.commands.filter(_.pending).map(c => {
+      (c.xid, c.command, c.commit)
+    })
     implicit val trx = startTrx()
     var record = getRecord(key)
-    val meta = extractMeta(record)
+    val meta = extractMeta(key, record)
     val myBallot = getBallot(meta.ballots, reqBallot.round)
-    if(myBallot.isEmpty || myBallot.get.compare(reqBallot) != 0){
+    if (myBallot.isEmpty || myBallot.get.compare(reqBallot) != 0) {
+      commitTrx(trx)
       debug(key, "Sending Master Failure local: %s - request: %s", myBallot, reqBallot)
       src ! Phase2bMasterFailure(meta.ballots, false)
-    }else{
+    } else {
+      // Update metadata.
+      meta.ballots = adjustRound(meta.ballots, reqBallot.round)
+      meta.currentVersion = myBallot.get
+      meta.confirmedBallot = true
+      // TODO shorten meta data
+
       debug(key, "Writing new value value: %s updates: %s", value, newUpdates)
-      if (value.value.isEmpty && value.commands.isEmpty) {
-        newUpdates.foreach(c => {
-          // TODO(kraska): how to find out if this is a fast or classic round?
-          pendingUpdates.acceptOption(c.xid, c.update, myBallot.get.fast)
-        })
+      if (!(value.value.isEmpty && value.commands.isEmpty)) {
+        val oR = pendingUpdates.overwrite(key, value, Some(meta), committedXids, abortedXids, myBallot.get.fast)
+        debug(key, "Overwrite value: %s \n - committedXids %s \n - abortedXids %s, \n - newUpdates %s, \n - myBallot.get.fast %s - status \n %s", value, committedXids, abortedXids, newUpdates, myBallot.get.fast, oR)
+        if (!oR) debug(key, "Not accepted overwrite")
       } else {
-        // TODO(kraska): how to find out if this is a fast or classic round?
-        pendingUpdates.overwrite(key, value, committedXids, abortedXids, newUpdates, myBallot.get.fast)
+        // Write the new metadata to db record.
+        if (record.isDefined) {
+          val r = record.get
+          r.metadata = meta
+          // This record is still correct since overwrite() was not called.
+          putRecord(key, r)
+        } else {
+          // What should we do when it is empty.  Can this ever happen?
+        }
       }
-      val r = getRecord(key)
-      if(r.isDefined){
-        val record = r.get
-        record.metadata.currentVersion = myBallot.get
-        //TODO shorten meta data
-        putRecord(key, record)
-      }else{
-        //What shoudl we do when it is empty
-      }
+      val pendingOptions = newUpdates.map(c => {
+        (c.xid, c.update, pendingUpdates.acceptOption(c.xid, c.update, myBallot.get.fast)._1)
+      })
+      commitTrx(trx)
+
+      // Must be outside of db lock.
+      (safePendingOptions ++ pendingOptions).foreach(r => {
+        pendingUpdates.txStatusAccept(r._1, List(r._2), r._3)
+      })
+
+      // TODO: More efficient way to get the cstruct.
       val msg = Phase2b(myBallot.get, pendingUpdates.getCStruct(key)) //TODO Ask Gene if this is correct
       debug(key, "Sending Phase2b back %s %s", src, msg)
       src ! msg //TODO Ask Gene if this is correct
     }
-    commitTrx(trx)
+
+    // TODO: Can also update status for committedXids and abortedXids, but it
+    //       not necessary for correctness.
   }
 
   protected def processAccept(src: RemoteServiceProxy[StorageMessage], xid: ScadsXid, commit : Boolean) = {
     logger.debug("Id: %s Trx-Id: %s Process commit message. Status: %s", this.hashCode(), xid, commit )
-    implicit val trx = startTrx()
     if(commit)
       pendingUpdates.commit(xid)
     else
       pendingUpdates.abort(xid)
-    commitTrx(trx)
   }
 
 
@@ -181,7 +229,9 @@ class MDCCServer(val namespace : String,
       case Phase2a(key, ballot, safeValue, committedXids, abortedXids, proposes) => processPhase2a(src, key, ballot, safeValue, committedXids, abortedXids, proposes)
       case Commit(xid: ScadsXid) => processAccept(src, xid, true)
       case Abort(xid: ScadsXid) =>  processAccept(src, xid, false)
-      case _ => src ! ProcessingException("Trx Message Not Implemented", "")
+      case msg : BeMaster => processRecordHandlerMsg(src, msg.key, msg)
+      case msg : ResolveConflict => processRecordHandlerMsg(src, msg.key, msg)
+      case _ => src ! ProcessingException("Trx Message Not Implemented msg: " + msg, "")
     }
   }
 }

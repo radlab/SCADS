@@ -16,7 +16,7 @@ class MDCCClientServer(ns : TransactionI) extends  MDCCRecordCache {
 
    def forwardToRecordHandler(key : Array[Byte], env : Envelope[StorageMessage]) = {
      val servers = ns.serversForKey(key)
-     val handler = getOrCreate(key, CStruct(None, Nil), ns.getDefaultMeta(), servers, ns.getConflictResolver, remoteHandle)
+     val handler = getOrCreate(key, CStruct(None, Nil), ns.getDefaultMeta(key), servers, ns.getConflictResolver, remoteHandle)
      handler.forwardRequest(env)
    }
 
@@ -29,7 +29,7 @@ class MDCCClientServer(ns : TransactionI) extends  MDCCRecordCache {
 
    def processMailbox(mailbox : Mailbox[StorageMessage]) {
       mailbox{
-        case env@StorageEnvelope(src, BeMaster(key, _, _, _)) => forwardToRecordHandler(key, env)
+        case env@StorageEnvelope(src, BeMaster(key, _, _, _, _)) => forwardToRecordHandler(key, env)
         case env@StorageEnvelope(src, ResolveConflict(key, _, _, _)) =>  forwardToRecordHandler(key, env)
         case env@StorageEnvelope(src, SinglePropose(_, update)) =>  forwardToRecordHandler(update.key, env)
         case env@StorageEnvelope(src, MultiPropose(proposes))  =>  {
@@ -62,13 +62,15 @@ class MDCCRecordCache() {
 
   private val logger = Logger(classOf[MDCCRecordCache])
 
-  val CACHE_SIZE = 500
+  val CACHE_SIZE = 1000000
 
   def killHandler (key : ByteArrayWrapper, handler : MDCCRecordHandler) = handler.kill
 
   //TODO: If we wanna use the cache for reads, we should use a lock-free structure
   lazy val cache = new LRUMap[ByteArrayWrapper, MDCCRecordHandler](CACHE_SIZE, None, killHandler){
-      protected override def canExpire(k: ByteArrayWrapper, v: MDCCRecordHandler): Boolean = v.getStatus == READY
+      protected override def canExpire(k: ByteArrayWrapper, v: MDCCRecordHandler): Boolean = {
+        v.getStatus == READY && v.mailbox.size == 0
+      }
     }
 
   def get(key : Array[Byte]) : Option[MDCCRecordHandler] = {
@@ -91,7 +93,6 @@ class MDCCRecordCache() {
     cache.synchronized{
       cache.get(keyWrapper) match {
         case None => {
-          logger.debug("Hash " + hashCode() + ":" + cache.elements.map(_._1.hashCode()).mkString)
           var handler = new MDCCRecordHandler(key, value, mt.currentVersion, mt.ballots,  mt.confirmedBallot, servers, conflictResolver, master)
           cache.update(keyWrapper, handler)
           logger.debug("No record handler exists, we create a new one: hash: %s remote: %s", handler.hashCode(), handler.remoteHandle.id)

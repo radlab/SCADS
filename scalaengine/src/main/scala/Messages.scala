@@ -222,7 +222,7 @@ case class ResolveConflict(var key: Array[Byte], var ballots: Seq[MDCCBallotRang
 
 case class Recovered(var key: Array[Byte], var value: CStruct, var meta : MDCCMetadata) extends AvroRecord with MDCCProtocol
 
-case class BeMaster(var key: Array[Byte], var startRound: Long, var endRound: Long, var fast : Boolean) extends AvroRecord with MDCCProtocol
+case class BeMaster(var key: Array[Byte], var startRound: Long, var endRound: Long, var maxVote : Long, var fast : Boolean) extends AvroRecord with MDCCProtocol
 
 case class GotMastership(var ballots: Seq[MDCCBallotRange]) extends AvroRecord with MDCCProtocol
 

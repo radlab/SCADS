@@ -138,7 +138,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
   private def makeBDBPendingUpdates(database: Database, namespace: String) = {
     val schemasvc = schemasAndValueClassFor(namespace)
     val nsRoot = getNamespaceRoot(namespace)
-    val routingTable = new MDCCRoutingTable(nsRoot, schemasvc._1)
+    val routingTable = new MDCCRoutingTable(nsRoot)
 
     val pu = new PendingUpdatesController(
       new BDBTxDB[Array[Byte], Array[Byte]](
@@ -206,7 +206,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     trxMgrType match {
       case "2PC" =>
         val partition = PartitionService(handler.remoteHandle, partitionIdLock.name, StorageService(remoteHandle))
-        val defaultMeta = MDCCMetaDefault.getOrCreateDefault(nsRoot, partition)
+        val defaultMeta = MDCCMetaDefault.getOrCreateDefault(nsRoot, partition, true)
         new Protocol2PCManager(pu, storageMgr, PartitionService(handler.remoteHandle, partitionIdLock.name, StorageService(remoteHandle)))
       case "MDCC" => {
         assert(db != null)
