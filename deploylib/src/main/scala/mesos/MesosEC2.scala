@@ -231,7 +231,7 @@ class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = 
 
   protected def slaveService(inst: EC2Instance): ServiceManager#RemoteService = inst.getService("mesos-slave", new File(binDir, "mesos-slave").getCanonicalPath, Map("MESOS_PUBLIC_DNS" -> inst.publicDnsName))
 
-  def slaveServices = slaves.map(slaveService)
+  def slaveServices = slaves.pmap(slaveService)
 
   /**
    * Returns a list of EC2Instances for all the slaves in the cluster
@@ -246,7 +246,7 @@ class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = 
       .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
-  def masterServices = masters.map(_.getService("mesos-master", new File(binDir, "mesos-master").getCanonicalPath))
+  def masterServices = masters.pmap(_.getService("mesos-master", new File(binDir, "mesos-master").getCanonicalPath))
 
   /**
    * Returns a list of EC2Instances for all the masters in the cluster
