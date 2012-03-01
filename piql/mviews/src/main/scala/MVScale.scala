@@ -26,7 +26,7 @@ case class ScaleTask(var replicas: Int = 1,
                      var itemsPerMachine: Int = 500000,
                      var maxTagsPerItem: Int = 20,
                      var meanTagsPerItem: Int = 4,
-                     var readFrac: Double = 0.9,
+                     var readFrac: Double = 0.95,
                      var threadCount: Int = 32,
                      var comment: String = "")
             extends AvroTask with AvroRecord with TaskBase {
@@ -36,7 +36,8 @@ case class ScaleTask(var replicas: Int = 1,
 
   def schedule(resultClusterAddress: String)(implicit cluster: deploylib.mesos.Cluster,
                                              classSource: Seq[ClassSource]): Unit = {
-    val scadsCluster = newScadsCluster(replicas * partitions)
+    var extra = java.lang.Math.sqrt(replicas * partitions / 5).intValue
+    val scadsCluster = newScadsCluster(replicas * partitions + extra)
     clusterAddress = scadsCluster.root.canonicalAddress
     this.resultClusterAddress = resultClusterAddress
     val task = this.toJvmTask
@@ -62,10 +63,10 @@ case class ScaleTask(var replicas: Int = 1,
     p = p.reverse
     logger.info("Partition scheme: " + p)
 
-    val tags = cluster.getNamespace[Tag]("tags", NSTxProtocolMDCC())
+    val tags = cluster.getNamespace[Tag]("tags")
     val nn = List(tags,
       tags.getOrCreateIndex(AttributeIndex("item") :: Nil),
-      cluster.getNamespace[MTagPair]("mTagPairs", NSTxProtocolMDCC()))
+      cluster.getNamespace[MTagPair]("mTagPairs"))
 
     // assume they all have prefixes sampled from the same keyspace
     for (n <- nn) {
@@ -119,7 +120,6 @@ case class ScaleTask(var replicas: Int = 1,
         val iterationStartMs = System.currentTimeMillis
         val failures = new java.util.concurrent.atomic.AtomicInteger()
         val i = new java.util.concurrent.atomic.AtomicInteger(100000)
-        var putDelRatio = 0.5
         val histograms = (0 until threadCount).pmap(tid => {
           implicit val rnd = new Random()
           val tfrac: Double = tid.doubleValue / threadCount.doubleValue
@@ -141,14 +141,10 @@ case class ScaleTask(var replicas: Int = 1,
               if (rnd.nextDouble() < readFrac) {
                 val respTime = scenario.randomGet
                 geth.add(respTime)
-              } else if (rnd.nextDouble() < putDelRatio) {
+              } else {
                 val (noViewRespTime, respTime) = scenario.randomPut(maxTagsPerItem)
                 puth.add(respTime)
                 nvputh.add(noViewRespTime)
-              } else {
-                val (noViewRespTime, respTime) = scenario.randomDel
-                delh.add(respTime)
-                nvdelh.add(noViewRespTime)
               }
             } catch {
               case e => 
@@ -180,6 +176,27 @@ case class ScaleTask(var replicas: Int = 1,
         r.nvdelTimes = h._5
         r.failures = failures.get()
         results.put(r)
+
+          val countStart = System.currentTimeMillis
+          val count = scenario.client.count
+          logger.info("current tag count = " + count
+            + ", count ms = " + (System.currentTimeMillis - countStart))
+/* TODO enable if needed (doesn't look like it is) */
+//        if (iteration != iterations) {
+//          logger.info("cleaning up puts")
+//          val count = scenario.client.count
+//          logger.info("current tag count = " + count
+//            + ", count ms = " + (System.currentTimeMillis - countStart))
+//          count = scenario.client.count
+//          (0 until 30).pmap(tid => {
+//            for (j <- ((1-readFrac) * 3333)) {
+//              scenario.randomDel
+//            }
+//          })
+//          logger.info("current tag count = " + count
+//            + ", count ms = " + (System.currentTimeMillis - countStart))
+//        }
+
       })
     })
 
