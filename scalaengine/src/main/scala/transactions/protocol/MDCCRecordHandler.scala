@@ -46,7 +46,7 @@ object RoundStats{
 
     def monitor_hawtdispatch() :Unit = {
         getGlobalQueue().after(30, SECONDS) {
-        println("Round Stats -> Fast: " + fast + " Classic:" + classic + " Forward:" + forward +" Recovery:" + recovery)
+//        println("Round Stats -> Fast: " + fast + " Classic:" + classic + " Forward:" + forward +" Recovery:" + recovery)
         monitor_hawtdispatch
       }
     }

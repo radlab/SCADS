@@ -190,6 +190,8 @@ trait QuorumProtocol
     if (tries > 5)
       throw new RuntimeException("Retries exceeded for server %s".format(server))
 
+    assert(sendBuffer.length > 0)
+
     outstandingPuts enqueue OutstandingPut(
       System.currentTimeMillis,
       server,

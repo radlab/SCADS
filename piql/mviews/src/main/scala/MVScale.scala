@@ -24,9 +24,9 @@ case class ScaleTask(var replicas: Int = 1,
                      var nClients: Int = 8,
                      var iterations: Int = 2,
                      var itemsPerMachine: Int = 500000,
-                     var maxTagsPerItem: Int = 20,
+                     var maxTagsPerItem: Int = 10,
                      var meanTagsPerItem: Int = 4,
-                     var readFrac: Double = 0.95,
+                     var readFrac: Double = 0.8,
                      var threadCount: Int = 32,
                      var comment: String = "")
             extends AvroTask with AvroRecord with TaskBase {
@@ -63,10 +63,10 @@ case class ScaleTask(var replicas: Int = 1,
     p = p.reverse
     logger.info("Partition scheme: " + p)
 
-    val tags = cluster.getNamespace[Tag]("tags")
+    val tags = cluster.getNamespace[Tag]("tags", NSTxProtocolMDCC())
     val nn = List(tags,
       tags.getOrCreateIndex(AttributeIndex("item") :: Nil),
-      cluster.getNamespace[MTagPair]("mTagPairs"))
+      cluster.getNamespace[MTagPair]("mTagPairs", NSTxProtocolMDCC()))
 
     // assume they all have prefixes sampled from the same keyspace
     for (n <- nn) {
@@ -115,37 +115,28 @@ case class ScaleTask(var replicas: Int = 1,
       coordination.registerAndAwait("it:" + iteration + ",th:" + threadCount, nClients)
       val iterationStartMs = System.currentTimeMillis
       val failures = new java.util.concurrent.atomic.AtomicInteger()
-      val nops = 500000
-      val i = new java.util.concurrent.atomic.AtomicInteger(nops)
       val histograms = (0 until threadCount).pmap(tid => {
         implicit val rnd = new Random()
         val tfrac: Double = tid.doubleValue / threadCount.doubleValue
-        val geth = Histogram(100,10000)
-        val puth = Histogram(100,10000)
-        val delh = Histogram(100,10000)
-        val nvputh = Histogram(100,10000)
-        val nvdelh = Histogram(100,10000)
-        while (i.getAndDecrement() > 0) {
-          /* TODO apparently counting is really expensive and
-             tag population is roughly stable over time anyways */
-//              if (tid == 0 && i.get() % 100 == 0) {
-//                val countStart = System.currentTimeMillis
-//                val count = scenario.client.count
-//                logger.info("current tag count = " + count
-//                  + ", count ms = " + (System.currentTimeMillis - countStart))
-//              }
+        val geth = Histogram(1000,1000)
+        val puth = Histogram(1000,1000)
+        val delh = Histogram(1000,1000)
+        val nvputh = Histogram(1000,1000)
+        val nvdelh = Histogram(1000,1000)
+        while (System.currentTimeMillis - iterationStartMs < 3*60*1000) {
           try {
             if (rnd.nextDouble() < readFrac) {
               val respTime = scenario.randomGet
               geth.add(respTime)
             } else {
-              val (noViewRespTime, respTime) = scenario.randomPut(maxTagsPerItem)
+              val (noViewRespTime, respTime) = scenario.randomPutTxn(maxTagsPerItem)
+              logger.info("put time " + respTime)
               puth.add(respTime)
               nvputh.add(noViewRespTime)
             }
           } catch {
             case e => 
-              logger.warning(e.getMessage)
+              logger.error(e.getMessage)
               failures.getAndAdd(1)
           }
         }
@@ -178,23 +169,6 @@ case class ScaleTask(var replicas: Int = 1,
       val count = scenario.client.count
       logger.info("current tag count = " + count
         + ", count ms = " + (System.currentTimeMillis - countStart))
-/* TODO enable if needed (doesn't look like it is) */
-//        if (iteration != iterations) {
-//          logger.info("cleaning up puts")
-//          val count = scenario.client.count
-//          logger.info("current tag count = " + count
-//            + ", count ms = " + (System.currentTimeMillis - countStart))
-//          count = scenario.client.count
-//          val cleanupThreads = 30
-//          (0 until cleanupThreads).pmap(tid => {
-//            for (j <- ((1-readFrac) * (nops/cleanupThreads))) {
-//              scenario.randomDel
-//            }
-//          })
-//          logger.info("current tag count = " + count
-//            + ", count ms = " + (System.currentTimeMillis - countStart))
-//        }
-
     })
 
     coordination.registerAndAwait("experimentDone", nClients)
