@@ -65,7 +65,7 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
       var item = randomItemInSegment(segment, numSegments)
       var tag = randomTag
       while (tagsof(item).size > maxTagsPerItem) {
-        randomItemInSegment(segment, numSegments)
+        item = randomItemInSegment(segment, numSegments)
       }
       while (tagsof(item).contains(tag)) {
         tag = randomTag
@@ -147,7 +147,7 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
       start = System.nanoTime / 1000
       client.addTag(item, tag)
     }).Execute()
-    (System.nanoTime / 1000 - start, -1)
+    (-1, System.nanoTime / 1000 - start)
   }
 
   def randomDel(implicit rnd: Random): Tuple2[Long,Long] = {
@@ -214,7 +214,6 @@ class MVPessimalTest(val cluster: ScadsCluster, val client: TagClient) {
 /* convenient test configurations */
 object MVTest extends ExperimentBase {
   val rc = new ScadsCluster(ZooKeeperNode(relativeAddress(Results.suffix)))
-  val pessimal = rc.getNamespace[MVResult]("MVResult")
   val scaled = rc.getNamespace[ParResult3]("ParResult3")
   implicit val exec = new ParallelExecutor
 
@@ -228,6 +227,16 @@ object MVTest extends ExperimentBase {
     val cluster = TestScalaEngine.newScadsCluster(3)
     val client = new MTagClient(cluster, exec)
     new MVScaleTest(cluster, client, 10, 40, 100, 200)
+  }
+
+  def summarize(comment: String, partitions: Int) = {
+    val data = scaled.iterateOverRange(None,None).toList.filter(x => x.comment.equals(comment) && x.partitions == partitions && x.iteration > 1)
+    val totals = data.map(x =>
+      (x.getTimes,
+       x.putTimes,
+       (x.getTimes.totalRequests + x.putTimes.totalRequests + x.delTimes.totalRequests)*1.0/x.runTimeMs*1000))
+      .reduceLeft((x,y) => (x._1 + y._1, x._2 + y._2, x._3 + y._3))
+    (totals._1.quantile(0.99)/1000.0, totals._2.quantile(0.99)/1000.0, totals._3)
   }
 
   def goPessimal(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {

@@ -12,6 +12,7 @@ import comm._
 import storage._
 import storage.client.index._
 import storage.transactions._
+import deploylib._
 
 /* unified interface to tag store */
 abstract class TagClient(val cluster: ScadsCluster,
@@ -24,7 +25,7 @@ abstract class TagClient(val cluster: ScadsCluster,
   def initBulk(itemTagPairs: Seq[Tuple2[String,String]])
   def clear()
 
-  val tags = cluster.getNamespace[Tag]("tags")
+  val tags = cluster.getNamespace[Tag]("tags", NSTxProtocolMDCC())
 
   def tagToBytes(tag: String): Array[Byte] = {
     tags.keyToBytes(new Tag(tag, "foo"))
@@ -110,7 +111,7 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
   protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.MTagClient")
 
   // materialized pairs of tags, including the duplicate pair
-  val mTagPairs = cluster.getNamespace[MTagPair]("mTagPairs")
+  val mTagPairs = cluster.getNamespace[MTagPair]("mTagPairs", NSTxProtocolMDCC())
 
   val selectTagPairQuery =
     mTagPairs.where("tag1".a === (0.?))
@@ -141,10 +142,25 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
       mpairs ::= new MTagPair(a, word, item)
       mpairs ::= new MTagPair(word, a, item)
     }
-    mTagPairs ++= mpairs
+//    val bptime = System.nanoTime / 1000
+//    mTagPairs ++= mpairs
+//    logger.info("bptime " + (System.nanoTime / 1000 - bptime)/1000 + ", "
+//      + "alltime " + (System.nanoTime / 1000 - start)/1000)
 //    for (p <- mpairs) { /* de-bulkified put */
 //      mTagPairs.put(p)
 //    }
+    val times = new ParallelSeq(
+      mpairs
+        .map(p => mTagPairs.asyncPut(p.key, Some(p.value)))
+        .map(_.map(t => (System.nanoTime / 1000 - start)))
+      ).pmap(_())
+    if ((System.nanoTime / 1000 - start) / 1000 > 1000) {
+      var acc = "SLOW : async put times: "
+      for (dt <- times) {
+        acc += (dt/1000) + " "
+      }
+      logger.info(acc)
+    }
     (dt1, System.nanoTime / 1000 - start)
   }
 
