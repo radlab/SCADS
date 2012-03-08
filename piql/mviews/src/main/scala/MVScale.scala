@@ -63,10 +63,10 @@ case class ScaleTask(var replicas: Int = 1,
     p = p.reverse
     logger.info("Partition scheme: " + p)
 
-    val tags = cluster.getNamespace[Tag]("tags", NSTxProtocolMDCC())
+    val tags = cluster.getNamespace[Tag]("tags")
     val nn = List(tags,
       tags.getOrCreateIndex(AttributeIndex("item") :: Nil),
-      cluster.getNamespace[MTagPair]("mTagPairs", NSTxProtocolMDCC()))
+      cluster.getNamespace[MTagPair]("mTagPairs"))
 
     // assume they all have prefixes sampled from the same keyspace
     for (n <- nn) {
@@ -119,17 +119,20 @@ case class ScaleTask(var replicas: Int = 1,
         implicit val rnd = new Random()
         val tfrac: Double = tid.doubleValue / threadCount.doubleValue
         val geth = Histogram(1000,1000)
-        val puth = Histogram(1000,1000)
-        val delh = Histogram(1000,1000)
+        val puth = Histogram(1000,5000)
         val nvputh = Histogram(1000,1000)
-        val nvdelh = Histogram(1000,1000)
+
+        /* don't care for now */
+        val delh = Histogram(1000,1)
+        val nvdelh = Histogram(1000,1)
+
         while (System.currentTimeMillis - iterationStartMs < 3*60*1000) {
           try {
             if (rnd.nextDouble() < readFrac) {
               val respTime = scenario.randomGet
               geth.add(respTime)
             } else {
-              val (noViewRespTime, respTime) = scenario.randomPutTxn(maxTagsPerItem)
+              val (noViewRespTime, respTime) = scenario.randomPut(maxTagsPerItem)
               logger.info("put time " + respTime)
               puth.add(respTime)
               nvputh.add(noViewRespTime)

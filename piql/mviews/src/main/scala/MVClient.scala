@@ -25,7 +25,7 @@ abstract class TagClient(val cluster: ScadsCluster,
   def initBulk(itemTagPairs: Seq[Tuple2[String,String]])
   def clear()
 
-  val tags = cluster.getNamespace[Tag]("tags", NSTxProtocolMDCC())
+  val tags = cluster.getNamespace[Tag]("tags")
 
   def tagToBytes(tag: String): Array[Byte] = {
     tags.keyToBytes(new Tag(tag, "foo"))
@@ -111,7 +111,7 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
   protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.MTagClient")
 
   // materialized pairs of tags, including the duplicate pair
-  val mTagPairs = cluster.getNamespace[MTagPair]("mTagPairs", NSTxProtocolMDCC())
+  val mTagPairs = cluster.getNamespace[MTagPair]("mTagPairs")
 
   val selectTagPairQuery =
     mTagPairs.where("tag1".a === (0.?))
