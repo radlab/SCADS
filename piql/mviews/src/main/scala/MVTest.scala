@@ -234,9 +234,14 @@ object MVTest extends ExperimentBase {
     val totals = data.map(x =>
       (x.getTimes,
        x.putTimes,
+       x.nvputTimes,
        (x.getTimes.totalRequests + x.putTimes.totalRequests + x.delTimes.totalRequests)*1.0/x.runTimeMs*1000))
-      .reduceLeft((x,y) => (x._1 + y._1, x._2 + y._2, x._3 + y._3))
-    (totals._1.quantile(0.99)/1000.0, totals._2.quantile(0.99)/1000.0, totals._3)
+      .reduceLeft((x,y) => (x._1 + y._1, x._2 + y._2, x._3 + y._3, x._4 + y._4))
+    ("getl=" + (totals._1.quantile(0.99)/1000.0),
+     "putl=" + (totals._2.quantile(0.99)/1000.0),
+     "nvputl=" + (totals._3.quantile(0.99)/1000.0),
+     "ops/s=" + (totals._4/(data.length.doubleValue/partitions)),
+     "runs=" + (data.length.doubleValue/partitions))
   }
 
   def goPessimal(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {

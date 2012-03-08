@@ -134,7 +134,6 @@ case class ScaleTask(var replicas: Int = 1,
               geth.add(respTime)
             } else {
               val (noViewRespTime, respTime) = scenario.randomPut(maxTagsPerItem)
-              logger.info("put time " + respTime)
               puth.add(respTime)
               nvputh.add(noViewRespTime)
             }
