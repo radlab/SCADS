@@ -46,9 +46,9 @@ trait ExperimentBase {
 }
 
 trait TaskBase {
-  def newScadsCluster(size: Int)(implicit cluster: Cluster, classSource: Seq[ClassSource]): ScadsCluster = {
+  def newScadsCluster(size: Int, preallocSize: Long = 0L)(implicit cluster: Cluster, classSource: Seq[ClassSource]): ScadsCluster = {
     val clusterRoot = cluster.zooKeeperRoot.getOrCreate("scads").createChild("experimentCluster", mode = CreateMode.PERSISTENT_SEQUENTIAL)
-    val serverProcs = Array.fill(size)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress).toJvmTask)
+    val serverProcs = Array.fill(size)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress, preallocSize = preallocSize).toJvmTask)
     serverProcs.foreach(_.foreach(_.props += "scads.mdcc.fastDefault" -> "false"))
     serverProcs.foreach(_.foreach(_.props += "scads.mdcc.DefaultRounds" -> "999999999999"))
 
