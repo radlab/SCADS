@@ -75,6 +75,18 @@ class BdbStorageManager(val db: Database,
   private val openCursors = new ConcurrentHashMap[Int, CursorContext]
   private val cursorTimeoutThread = Executors.newSingleThreadExecutor
 
+  def timed[A,B](desc: String)(block: => B): B = {
+    val start = System.nanoTime
+    try {
+      block
+    } finally {
+      val ms = (System.nanoTime - start) / (1000*1000)
+      if (ms > 1000) {
+        logger.warning("SLOW " + desc + ": " + ms + "ms")
+      }
+    }
+  }
+
   protected object CursorTimeoutRunnable {
     val runnable = new Runnable {
       def run(): Unit = 
@@ -198,7 +210,7 @@ class BdbStorageManager(val db: Database,
       // reply(RequestRejected("Key(s) are out of range: %s".format(errorMsg), msg))
 
 
-   def get(key:Array[Byte]):Option[Array[Byte]] = {
+   def get(key:Array[Byte]):Option[Array[Byte]] = timed("get") {
      val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
      logger.debug("Running get %s %s", dbeKey, dbeValue)
      db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
@@ -207,14 +219,14 @@ class BdbStorageManager(val db: Database,
    }
 
 
-  def put(key:Array[Byte],value:Option[Array[Byte]]):Unit = {
+  def put(key:Array[Byte],value:Option[Array[Byte]]):Unit = timed("put") {
     value match {
       case Some(v) => db.put(null, new DatabaseEntry(key), new DatabaseEntry(v))
       case None => db.delete(null, new DatabaseEntry(key))
     }
   }
 
-  def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean = {
+  def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean = timed("testAndSet") {
     val txn = db.getEnvironment.beginTransaction(null, null)
     val dbeKey = new DatabaseEntry(key)
     val dbeCurrentValue = new DatabaseEntry
@@ -232,7 +244,7 @@ class BdbStorageManager(val db: Database,
     }
   }
 
-  def bulkUrlPut(parser:RecParser, locations:Seq[String]):Unit = {
+  def bulkUrlPut(parser:RecParser, locations:Seq[String]):Unit = timed("bulkUrlPut") {
     val txn = db.getEnvironment.beginTransaction(null,null)
     locations foreach(location => {
       parser.setLocation(location)
@@ -247,7 +259,7 @@ class BdbStorageManager(val db: Database,
     txn.commit() // exception here will get caught above
   }
 
-  def bulkPut(records:Seq[PutRequest]):Unit = {
+  def bulkPut(records:Seq[PutRequest]):Unit = timed("bulkPut") {
     val txn = db.getEnvironment.beginTransaction(null, null)
     records.foreach(rec => {
       rec.value match {
