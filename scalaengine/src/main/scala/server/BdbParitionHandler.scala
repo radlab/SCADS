@@ -81,7 +81,7 @@ class BdbStorageManager(val db: Database,
       block
     } finally {
       val ms = (System.nanoTime - start) / (1000*1000)
-      if (ms > 1000) {
+      if (ms > 500) {
         logger.warning("SLOW " + desc + ": " + ms + "ms")
       }
     }
