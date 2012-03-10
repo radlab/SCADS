@@ -128,28 +128,6 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     client.addTag(item, tag)
   }
 
-  def randomPutTxn(limit: Int)(implicit rnd: Random): Tuple2[Long,Long] = {
-    var start: Long = System.nanoTime / 1000
-    new Tx(1000) ({
-      var item = randomItem
-      var tag = randomTag
-      var tries = 0
-      def hasTag(item: String, tag: String) = {
-        val assoc = client.selectItem(item)
-        assoc.length >= limit || assoc.contains(tag)
-      }
-      while (hasTag(item, tag) && tries < 7) {
-        item = randomItem
-        tag = randomTag
-        tries += 1
-      }
-      assert (!hasTag(item, tag))
-      start = System.nanoTime / 1000
-      client.addTag(item, tag)
-    }).Execute()
-    (-1, System.nanoTime / 1000 - start)
-  }
-
   def randomDel(implicit rnd: Random): Tuple2[Long,Long] = {
     var item = randomItem
     var assoc = client.selectItem(item)
@@ -162,14 +140,6 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     assert (assoc.length > 0)
     val a = assoc(rnd.nextInt(assoc.length))
     client.removeTag(item, a)
-  }
-
-  def randomDelTxn(implicit rnd: Random): Tuple2[Long,Long] = {
-    var res: Tuple2[Long,Long] = (-1, -1)
-    new Tx(1000) ({
-      res = randomDel
-    }).Execute()
-    res
   }
 }
 
