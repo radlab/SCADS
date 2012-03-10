@@ -20,14 +20,14 @@ import net.lag.logging.Logger
 
 /* task to run MVScaleTest on EC2 */
 case class ScaleTask(var replicas: Int = 1,
-                     var partitions: Int = 8,
-                     var nClients: Int = 8,
+                     var partitions: Int = 1,
+                     var nClients: Int = 1,
                      var iterations: Int = 2,
-                     var itemsPerMachine: Int = 500000,
+                     var itemsPerMachine: Int = 5000,
                      var maxTagsPerItem: Int = 10,
                      var meanTagsPerItem: Int = 4,
                      var readFrac: Double = 0.8,
-                     var threadCount: Int = 32,
+                     var threadCount: Int = 8,
                      var comment: String = "")
             extends AvroTask with AvroRecord with TaskBase {
   
@@ -78,10 +78,12 @@ case class ScaleTask(var replicas: Int = 1,
 
   def run(): Unit = {
     val logger = Logger()
-    val cluster = new ExperimentalScadsCluster(ZooKeeperNode(clusterAddress))
+    val cluster = TestScalaEngine.newScadsCluster(3)
+//    val cluster = new ExperimentalScadsCluster(ZooKeeperNode(clusterAddress))
     cluster.blockUntilReady(replicas * partitions)
 
-    val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
+//    val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
+    val resultCluster = TestScalaEngine.newScadsCluster(3)
     val results = resultCluster.getNamespace[ParResult3]("ParResult3")
 
     val hostname = java.net.InetAddress.getLocalHost.getHostName
