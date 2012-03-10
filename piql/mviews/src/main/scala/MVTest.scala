@@ -219,6 +219,6 @@ object MVTest extends ExperimentBase {
   }
 
   def go(replicas: Int = 1, partitions: Int = 8, nClients: Int = 8, itemsPerMachine: Int = 100000, threadCount: Int = 32, comment: String = "")(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
-    new ScaleTask(replicas=replicas, partitions=partitions, nClients=nClients, itemsPerMachine=itemsPerMachine, threadCount=threadCount, comment = comment).schedule(relativeAddress(Results.suffix))
+    new ScaleTask(replicas=replicas, partitions=partitions, nClients=nClients, itemsPerMachine=itemsPerMachine, threadCount=threadCount, comment=comment, local=false).schedule(relativeAddress(Results.suffix))
   }
 }

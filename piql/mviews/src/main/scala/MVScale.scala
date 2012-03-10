@@ -20,15 +20,16 @@ import net.lag.logging.Logger
 
 /* task to run MVScaleTest on EC2 */
 case class ScaleTask(var replicas: Int = 1,
-                     var partitions: Int = 1,
+                     var partitions: Int = 5,
                      var nClients: Int = 1,
                      var iterations: Int = 2,
-                     var itemsPerMachine: Int = 5000,
+                     var itemsPerMachine: Int = 100,
                      var maxTagsPerItem: Int = 10,
                      var meanTagsPerItem: Int = 4,
-                     var readFrac: Double = 0.8,
+                     var readFrac: Double = 0.5,
                      var threadCount: Int = 8,
-                     var comment: String = "")
+                     var comment: String = "",
+                     var local: Boolean = true)
             extends AvroTask with AvroRecord with TaskBase {
   
   var resultClusterAddress: String = _
@@ -76,14 +77,28 @@ case class ScaleTask(var replicas: Int = 1,
     }
   }
 
+  private def createStorageCluster(capacity: Int) = {
+    if (local) {
+      TestScalaEngine.newScadsCluster(2 + capacity)
+    } else {
+      val c = new ExperimentalScadsCluster(ZooKeeperNode(clusterAddress))
+      c.blockUntilReady(capacity)
+      c
+    }
+  }
+
+  private def createResultsCluster() = {
+    if (local) {
+      TestScalaEngine.newScadsCluster(1)
+    } else {
+      new ScadsCluster(ZooKeeperNode(resultClusterAddress))
+    }
+  }
+
   def run(): Unit = {
     val logger = Logger()
-    val cluster = TestScalaEngine.newScadsCluster(3)
-//    val cluster = new ExperimentalScadsCluster(ZooKeeperNode(clusterAddress))
-    cluster.blockUntilReady(replicas * partitions)
-
-//    val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
-    val resultCluster = TestScalaEngine.newScadsCluster(3)
+    val cluster = createStorageCluster(replicas * partitions)
+    val resultCluster = createResultsCluster
     val results = resultCluster.getNamespace[ParResult3]("ParResult3")
 
     val hostname = java.net.InetAddress.getLocalHost.getHostName
@@ -118,26 +133,39 @@ case class ScaleTask(var replicas: Int = 1,
       coordination.registerAndAwait("it:" + iteration + ",th:" + threadCount, nClients)
       val iterationStartMs = System.currentTimeMillis
       val failures = new java.util.concurrent.atomic.AtomicInteger()
+      val ops = new java.util.concurrent.atomic.AtomicInteger()
       val histograms = (0 until threadCount).pmap(tid => {
         implicit val rnd = new Random()
         val tfrac: Double = tid.doubleValue / threadCount.doubleValue
-        val geth = Histogram(1000,1000)
-        val puth = Histogram(1000,5000)
+        val geth = Histogram(100,4000)
+        val puth = Histogram(1000,3000)
         val nvputh = Histogram(1000,1000)
 
         /* don't care for now */
         val delh = Histogram(1000,1)
         val nvdelh = Histogram(1000,1)
+        if (tfrac < readFrac) {
+          logger.info("Thread " + tid + " reporting as reader")
+        } else {
+          logger.info("Thread " + tid + " reporting as writer")
+        }
 
         while (System.currentTimeMillis - iterationStartMs < 3*60*1000) {
           try {
-            if (rnd.nextDouble() < readFrac) {
+            if (tfrac < readFrac) {
               val respTime = scenario.randomGet
               geth.add(respTime)
-            } else {
+            } else if (rnd.nextDouble() < 0.5) {
               val (noViewRespTime, respTime) = scenario.randomPut(maxTagsPerItem)
               puth.add(respTime)
               nvputh.add(noViewRespTime)
+            } else {
+              val (noViewRespTime, respTime) = scenario.randomDel
+              delh.add(respTime)
+              nvdelh.add(noViewRespTime)
+            }
+            if (ops.getAndAdd(1) % 10000 == 0) {
+              logger.info("ops/s: " + (1000 * ops.get() / (System.currentTimeMillis - iterationStartMs)))
             }
           } catch {
             case e => 
@@ -169,11 +197,6 @@ case class ScaleTask(var replicas: Int = 1,
       r.nvdelTimes = h._5
       r.failures = failures.get()
       results.put(r)
-
-      val countStart = System.currentTimeMillis
-      val count = scenario.client.count
-      logger.info("current tag count = " + count
-        + ", count ms = " + (System.currentTimeMillis - countStart))
     })
 
     coordination.registerAndAwait("experimentDone", nClients)

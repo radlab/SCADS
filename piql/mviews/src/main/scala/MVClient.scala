@@ -13,6 +13,7 @@ import storage._
 import storage.client.index._
 import storage.transactions._
 import deploylib._
+import java.util.concurrent.TimeUnit
 
 /* unified interface to tag store */
 abstract class TagClient(val cluster: ScadsCluster,
@@ -142,23 +143,14 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
       mpairs ::= new MTagPair(a, word, item)
       mpairs ::= new MTagPair(word, a, item)
     }
-//    val bptime = System.nanoTime / 1000
-//    mTagPairs ++= mpairs
-//    logger.info("bptime " + (System.nanoTime / 1000 - bptime)/1000 + ", "
-//      + "alltime " + (System.nanoTime / 1000 - start)/1000)
-//    for (p <- mpairs) { /* de-bulkified put */
-//      mTagPairs.put(p)
-//    }
-    val times = new ParallelSeq(
-      mpairs
-        .map(p => mTagPairs.asyncPut(p.key, Some(p.value)))
-        .map(_.map(t => (System.nanoTime / 1000 - start)))
-      ).pmap(_())
+    var futures = List[ScadsFuture[Unit]]()
+    for (p <- mpairs) {
+      futures ::= mTagPairs.asyncPut(p.key, Some(p.value))
+    }
+    futures.map(_.get(5000, TimeUnit.MILLISECONDS).getOrElse(assert(false))) /* block until completion */
     if ((System.nanoTime / 1000 - start) / 1000 > 1000) {
-      var acc = "SLOW : async put times: "
-      for (dt <- times) {
-        acc += (dt/1000) + " "
-      }
+      var acc = "SLOW client side put times: "
+      acc += (System.nanoTime / 1000 - start) / 1000
       logger.info(acc)
     }
     (dt1, System.nanoTime / 1000 - start)

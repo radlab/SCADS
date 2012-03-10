@@ -229,7 +229,7 @@ class ManagedScadsCluster(_root: ZooKeeperProxy#ZooKeeperNode) extends ScadsClus
 
   private def newStorageHandler(name:Option[String] = None): StorageHandler = {
     val config = new EnvironmentConfig
-    config.setConfigParam(EnvironmentConfig.LOG_MEM_ONLY, "true")
+//    config.setConfigParam(EnvironmentConfig.LOG_MEM_ONLY, "true")
     config.setAllowCreate(true)
     config.setTransactional(true)
     config.setSharedCache(true) /* share cache w/ all other test handlers in proces */
