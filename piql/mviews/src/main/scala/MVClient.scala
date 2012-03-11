@@ -147,7 +147,7 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
     for (p <- mpairs) {
       futures ::= mTagPairs.asyncPut(p.key, Some(p.value))
     }
-    futures.map(_.get(5000, TimeUnit.MILLISECONDS).getOrElse(assert(false))) /* block until completion */
+    futures.map(_.get(5000, TimeUnit.MILLISECONDS).getOrElse(assert(false)))
     if ((System.nanoTime / 1000 - start) / 1000 > 1000) {
       var acc = "SLOW client side put times: "
       acc += (System.nanoTime / 1000 - start) / 1000
@@ -166,7 +166,11 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
       toDelete ::= new MTagPair(word, a, item)
     }
     toDelete ::= new MTagPair(word, word, item) // the duplicate pair
-    mTagPairs --= toDelete
+    var futures = List[ScadsFuture[Unit]]()
+    for (p <- toDelete) {
+      futures ::= mTagPairs.asyncPut(p.key, None)
+    }
+    futures.map(_.get(5000, TimeUnit.MILLISECONDS).getOrElse(assert(false)))
     (dt1, System.nanoTime / 1000 - start)
   }
 
