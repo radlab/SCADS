@@ -121,7 +121,7 @@ trait QuorumProtocol
 
     new ComputationFuture[Unit] {
       def compute(timeoutHint: Long, unit: TimeUnit) = {
-        responses.blockFor(quorum)
+        responses.blockFor(quorum, timeoutHint, unit)
       }
 
       def cancelComputation = sys.error("NOT IMPLEMENTED")
