@@ -231,7 +231,18 @@ class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = 
 
   protected def slaveService(inst: EC2Instance): ServiceManager#RemoteService = inst.getService("mesos-slave", new File(binDir, "mesos-slave").getCanonicalPath, Map("MESOS_PUBLIC_DNS" -> inst.publicDnsName))
 
-  def slaveServices = slaves.pmap(slaveService)
+  /* running slave services */
+  def slaveServices: List[ServiceManager#RemoteService] = {
+    slaves.pmap(s => {
+      try {
+        Some(slaveService(s))
+      } catch {
+        case e =>
+          logger.error(e.getMessage)
+          None
+      }
+    }).filter(_ != None).map(_.get)
+  }
 
   /**
    * Returns a list of EC2Instances for all the slaves in the cluster
