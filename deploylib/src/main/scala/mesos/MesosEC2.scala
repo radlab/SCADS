@@ -386,7 +386,7 @@ class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = 
     masters.pforeach(_ executeCommand "killall -9 mesos-master")
     masters.pforeach(_ executeCommand "killall -9 java")
     slaves.pforeach(_ executeCommand "killall -9 mesos-slave")
-    slaves.pforeach(_.executeCommand("killall -9 java"))
+    slaves.pforeach(_ executeCommand "killall -9 java")
 
     restartMasters
     restartSlaves

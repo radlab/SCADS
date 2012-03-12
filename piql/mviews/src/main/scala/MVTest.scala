@@ -205,13 +205,16 @@ object MVTest extends ExperimentBase {
         (x.getTimes,
          x.putTimes,
          x.nvputTimes,
+         x.getTimes.totalRequests,
+         x.putTimes.totalRequests + x.delTimes.totalRequests,
          (x.getTimes.totalRequests + x.putTimes.totalRequests + x.delTimes.totalRequests)*1.0/x.runTimeMs*1000))
-        .reduceLeft((x,y) => (x._1 + y._1, x._2 + y._2, x._3 + y._3, x._4 + y._4))
+        .reduceLeft((x,y) => (x._1 + y._1, x._2 + y._2, x._3 + y._3, x._4 + y._4, x._5 + y._5, x._6 + y._6))
       (n,
        "getl=" + (totals._1.quantile(0.99)/1000.0),
        "putl=" + (totals._2.quantile(0.99)/1000.0),
        "nvputl=" + (totals._3.quantile(0.99)/1000.0),
-       "ops/s=" + (totals._4/(data.length.doubleValue/n)),
+       "r:w=" + (totals._4/totals._5) + ":1",
+       "ops/s=" + (totals._6/(data.length.doubleValue/n)),
        "runs=" + (data.length.doubleValue/n))
     }).toList.sorted
   }
