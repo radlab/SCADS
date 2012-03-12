@@ -17,7 +17,7 @@ class ExperimentalScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) extends Scads
   def blockUntilReady(clusterSize: Int): Unit = {
     while(getAvailableServers.size < clusterSize) {
       logger.info("Waiting for cluster to start " + cluster.getAvailableServers.size + " of " + clusterSize + " ready.")
-      Thread.sleep(1000)
+      Thread.sleep(5000)
     }
   }
 }
