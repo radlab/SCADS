@@ -149,7 +149,7 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
     }
     futures.map(_.get(5000, TimeUnit.MILLISECONDS).getOrElse(assert(false)))
     if ((System.nanoTime / 1000 - start) / 1000 > 1000) {
-      var acc = "SLOW client side put times: "
+      var acc = "SLOW client side put time: "
       acc += (System.nanoTime / 1000 - start) / 1000
       logger.info(acc)
     }

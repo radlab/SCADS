@@ -53,8 +53,12 @@ object ScalaEngine extends optional.Application {
  */
 case class ScalaEngineTask(var clusterAddress: String, var dbDir: Option[String] = None, var cachePercentage: Option[Int] = None, var name: Option[String] = None, var preallocSize: Long = 0) extends AvroTask with AvroRecord {
 
+  /**
+   * It's a good idea to exercise the storage on EC2 before writing
+   * large amounts of data to avoid latency spikes.
+   */
   def prealloc(dir: File, bytes: Long) {
-    val chunksize = 1 << 28 /* 256 MiB chunks */
+    val chunksize = 1 << 28 /* 256 MiB chunks to avoid map size limit */
     val nChunks = (bytes / chunksize).intValue
     val chunks = (0 until nChunks).map(c => new File(dir, "zero_chunk_" + c))
     for (chunk <- chunks) {
