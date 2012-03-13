@@ -12,6 +12,7 @@ import perf._
 import deploylib._
 import deploylib.mesos._
 import storage.transactions._
+import scala.math.pow
 
 import scala.math._
 import scala.util.Random
@@ -199,8 +200,17 @@ object MVTest extends ExperimentBase {
     new MVScaleTest(cluster, client, 10, 40, 100, 200)
   }
 
+  def variance(seq: Seq[Double]): Double = {
+      (seq.map(pow(_, 2)).reduce(_+_) / seq.length) - pow(seq.reduce(_+_) / seq.length, 2)
+  }
+
+  def stdev(seq: Seq[Double]): Double = pow(variance(seq), 0.5)
+
   def summarize(comment: String) = {
     scaled.iterateOverRange(None,None).toList.filter(x => x.comment.equals(comment) && x.iteration > 1).groupBy(_.partitions).map({ case (n, data) =>
+      val putTimes = data.map(_.putTimes.quantile(0.99)/1000.0)
+      val nvPutTimes = data.map(_.nvputTimes.quantile(0.99)/1000.0)
+      val ops = data.map(x => (x.getTimes.totalRequests + x.putTimes.totalRequests + x.delTimes.totalRequests)*1.0/x.runTimeMs*1000*n)
       val totals = data.map(x =>
         (x.getTimes,
          x.putTimes,
@@ -212,6 +222,9 @@ object MVTest extends ExperimentBase {
       (n,
        "getl=" + (totals._1.quantile(0.99)/1000.0),
        "putl=" + (totals._2.quantile(0.99)/1000.0),
+       "std(putl)=" + stdev(putTimes).intValue + "," +
+       "std(nvputl)=" + stdev(nvPutTimes).intValue + "," +
+       "std(ops)=" + stdev(ops).intValue,
        "nvputl=" + (totals._3.quantile(0.99)/1000.0),
        "r:w=" + (totals._4/totals._5) + ":1",
        "ops/s=" + (totals._6/(data.length.doubleValue/n)),
