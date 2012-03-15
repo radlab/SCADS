@@ -210,7 +210,7 @@ object MVTest extends ExperimentBase {
     scaled.iterateOverRange(None,None).toList.filter(x => x.comment.equals(comment) && x.iteration > 1).groupBy(_.partitions).map({ case (n, data) =>
       val putTimes = data.map(_.putTimes.quantile(0.99)/1000.0)
       val nvPutTimes = data.map(_.nvputTimes.quantile(0.99)/1000.0)
-      val ops = data.map(x => (x.getTimes.totalRequests + x.putTimes.totalRequests + x.delTimes.totalRequests)*1.0/x.runTimeMs*1000*n)
+      val ops = data.map(x => (x.getTimes.totalRequests + x.putTimes.totalRequests + x.delTimes.totalRequests)*1.0/x.runTimeMs*1000)
       val totals = data.map(x =>
         (x.getTimes,
          x.putTimes,
@@ -222,9 +222,9 @@ object MVTest extends ExperimentBase {
       (n,
        "getl=" + (totals._1.quantile(0.99)/1000.0),
        "putl=" + (totals._2.quantile(0.99)/1000.0),
-       "std(putl)=" + stdev(putTimes).intValue + "," +
-       "std(nvputl)=" + stdev(nvPutTimes).intValue + "," +
-       "std(ops)=" + stdev(ops).intValue,
+//       "std(putl)=" + stdev(putTimes).intValue + "," +
+//       "std(nvputl)=" + stdev(nvPutTimes).intValue + "," +
+//       "std(ops)=" + stdev(ops).intValue,
        "nvputl=" + (totals._3.quantile(0.99)/1000.0),
        "r:w=" + (totals._4/totals._5) + ":1",
        "ops/s=" + (totals._6/(data.length.doubleValue/n)),

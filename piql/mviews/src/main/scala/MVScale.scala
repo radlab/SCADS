@@ -73,6 +73,7 @@ case class ScaleTask(var replicas: Int = 1,
     // assume they all have prefixes sampled from the same keyspace
     for (n <- nn) {
       n.setPartitionScheme(p)
+//      n.setReadWriteQuorum(0.5, 0.5)
       n.setReadWriteQuorum(.001, 1.00)
     }
   }
