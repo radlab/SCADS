@@ -248,7 +248,7 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
     registerService(receiver)
   }
 
-  def getService(id: String): MessageReceiver[MessageType] =
+  def getService(id: ServiceId): MessageReceiver[MessageType] =
     serviceRegistry.get(id)
 
   /**
