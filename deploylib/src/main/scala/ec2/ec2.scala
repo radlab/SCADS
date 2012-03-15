@@ -76,7 +76,7 @@ class EC2Region(val endpoint: String, val location: String, val defaultAMI: Stri
   }
 
   def openPorts: Unit = {
-    Seq(22, 2181, 5050, 8080, 8081, 9000).foreach(p => {
+    Seq(22, 2181, 5050, 6777, 8080, 8081, 9000).foreach(p => {
       val port = new IpPermission().withIpProtocol("tcp").withFromPort(p).withToPort(p).withIpRanges("0.0.0.0/0")
       try client.authorizeSecurityGroupIngress(new AuthorizeSecurityGroupIngressRequest("default", port :: Nil)) catch { 
         case e => logger.debug("Failed to open port %d.", p)

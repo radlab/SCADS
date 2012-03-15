@@ -76,7 +76,11 @@ object ScadsBuild extends Build {
   lazy val piql = Project(
     "piql", file("piql"),
     settings = deploySettings ++ Seq(
-      libraryDependencies ++= useAvroPlugin)
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands in console += (
+        "import edu.berkeley.cs.scads.piql._\n" +
+          "import edu.berkeley.cs.scads.piql.viz._\n"
+        ))
   ) dependsOn (config, comm, scalaEngine)
 
   lazy val perf = Project(
@@ -100,20 +104,37 @@ object ScadsBuild extends Build {
       libraryDependencies ++= useAvroPlugin,
       initialCommands in console += (
         "import edu.berkeley.cs.scads.piql.modeling._\n" +
-          "import edu.berkeley.cs.scads.piql.modeling.Experiments._")
-    )
+          "import edu.berkeley.cs.scads.piql.modeling.Experiments._"))
   ) dependsOn (piql, perf, deploylib, scadr, tpcw)
 
   lazy val scadr = Project(
     "scadr",
     file("piql/scadr"),
-    settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
+    settings = deploySettings ++ Seq(
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands in console += (
+        "import edu.berkeley.cs.scads.piql._\n" +
+          "import edu.berkeley.cs.scads.piql.viz._\n" +
+          "import edu.berkeley.cs.scads.piql.scadr._\n" +
+          "object testScadrClient extends ScadrClient(edu.berkeley.cs.scads.storage.TestScalaEngine.newScadsCluster(), new ParallelExecutor)"))
   ) dependsOn (piql % "compile;test->test", perf)
 
   lazy val tpcw = Project(
     "tpcw",
     file("piql/tpcw"),
     settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
+  ) dependsOn (piql, perf)
+
+  lazy val mviews = Project(
+    "mviews",
+    file("piql/mviews"),
+    settings = deploySettings ++ Seq(
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands in console += (
+        "import edu.berkeley.cs.scads.piql.mviews._\n" +
+        "import edu.berkeley.cs.scads.storage._\n" + 
+        "import edu.berkeley.cs.scads.piql.exec._"
+        ))
   ) dependsOn (piql, perf)
 
   lazy val axer = Project(
@@ -246,7 +267,7 @@ object DeployConsole extends BuildCommon {
           "import deploylib.mesos._",
           "val allJars = " + allJars.map(f => "new java.io.File(\"%s\")".format(f.getCanonicalPath)).mkString("Seq(", ",", ")"),
           "deploylib.mesos.MesosCluster.jarFiles = allJars",
-          "implicit val cluster = new Cluster()",
+          "implicit val cluster = new Cluster()", // defaults to USEast1 unless overriden by AWS_DEFAULT_REGION env variable
           "implicit def zooKeeperRoot = cluster.zooKeeperRoot",
           "implicit def classSource = cluster.classSource",
           "implicit def serviceScheduler = cluster.serviceScheduler"

@@ -7,7 +7,9 @@ import com.sleepycat.je.EnvironmentConfig
 import com.sleepycat.je.jmx.JEMonitor
 
 import net.lag.logging.Logger
-import java.io.File
+import java.io.RandomAccessFile
+import java.io._
+import java.nio.channels.FileChannel.MapMode._
 
 import comm._
 import storage._
@@ -53,7 +55,32 @@ object ScalaEngine extends optional.Application {
 /**
  * Task for running scads storage engine on mesos
  */
-case class ScalaEngineTask(var clusterAddress: String, var dbDir: Option[String] = None, var cachePercentage: Option[Int] = None, var name: Option[String] = None) extends AvroTask with AvroRecord {
+case class ScalaEngineTask(var clusterAddress: String, var dbDir: Option[String] = None, var cachePercentage: Option[Int] = None, var name: Option[String] = None, var preallocSize: Long = 0) extends AvroTask with AvroRecord {
+
+  /**
+   * It's a good idea to exercise the storage on EC2 before writing
+   * large amounts of data to avoid latency spikes.
+   */
+  def prealloc(dir: File, bytes: Long) {
+    val chunksize = 1 << 28 /* 256 MiB chunks to avoid map size limit */
+    val nChunks = (bytes / chunksize).intValue
+    val chunks = (0 until nChunks).map(c => new File(dir, "zero_chunk_" + c))
+    for (chunk <- chunks) {
+      logger.info("Writing zeros to " + chunk.getName)
+      var f = new RandomAccessFile(chunk, "rw");
+      f.setLength(chunksize);
+      val buffer = f.getChannel.map(READ_WRITE, 0, chunksize)
+      for (i <- 0 until chunksize by 1024) {
+        buffer.put(i, 0);
+      }
+      f.close()
+    }
+    for (chunk <- chunks) {
+      logger.info("Deleting " + chunk.getName)
+      chunk.delete();
+    }
+  }
+
   def run(): Unit = {
     val logger = Logger()
     val config = new EnvironmentConfig()
@@ -64,6 +91,11 @@ case class ScalaEngineTask(var clusterAddress: String, var dbDir: Option[String]
     val dir = dbDir.map(new File(_)).getOrElse(new File("db"))
     if (!dir.exists()) {
       dir.mkdir
+    }
+
+    if (preallocSize > 0) {
+      logger.info("Preallocating bytes in block of size " + preallocSize)
+      prealloc(dir, preallocSize)
     }
 
     val zooRoot = ZooKeeperNode(clusterAddress)

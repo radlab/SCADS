@@ -121,7 +121,7 @@ trait QuorumProtocol
 
     new ComputationFuture[Unit] {
       def compute(timeoutHint: Long, unit: TimeUnit) = {
-        responses.blockFor(quorum)
+        responses.blockFor(quorum, timeoutHint, unit)
       }
 
       def cancelComputation = sys.error("NOT IMPLEMENTED")
@@ -144,9 +144,9 @@ trait QuorumProtocol
    *
    * Note: the current implementation is Write All not quorum based.
    */
-  override def putBulkBytes(key: Array[Byte], value: Array[Byte]): Unit = {
+  override def putBulkBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit = {
     val (servers, quorum) = writeQuorumForKey(key)
-    val putRequest = PutRequest(key, Some(createMetadata(value)))
+    val putRequest = PutRequest(key, value.map(createMetadata))
 
     for (server <- servers) {
       val buf = serverBuffers.getOrElseUpdate(server, new ArrayBuffer[PutRequest](BulkPutBufSize))
@@ -172,16 +172,25 @@ trait QuorumProtocol
       processNextOutstandingRequest
   }
 
-  protected val serverBuffers = new HashMap[PartitionService, ArrayBuffer[PutRequest]]
-
   protected case class OutstandingPut(timestamp: Long, server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], future: MessageFuture[StorageMessage], tries: Int = 0)
 
-  protected val outstandingPuts = new collection.mutable.Queue[OutstandingPut]
+  /* bulk put buffers are thread-local */
+  implicit def accessLocal[A](a: ThreadLocal[A]): A = a.get
+
+  protected val serverBuffers = new ThreadLocal[HashMap[PartitionService, ArrayBuffer[PutRequest]]] {
+    override def initialValue() = new HashMap[PartitionService, ArrayBuffer[PutRequest]]()
+  }
+
+  protected val outstandingPuts = new ThreadLocal[collection.mutable.Queue[OutstandingPut]] {
+    override def initialValue() = new collection.mutable.Queue[OutstandingPut]()
+  }
 
   /* send the request and append it to the list of outstanding requests */
   @inline private def sendBuffer(server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], tries: Int = 0): Unit = {
     if (tries > 5)
       throw new RuntimeException("Retries exceeded for server %s".format(server))
+
+    assert(sendBuffer.length > 0)
 
     outstandingPuts enqueue OutstandingPut(
       System.currentTimeMillis,

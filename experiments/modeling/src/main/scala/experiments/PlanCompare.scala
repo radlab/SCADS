@@ -7,6 +7,7 @@ import deploylib.mesos._
 import perf._
 import comm._
 import piql.plans._
+import piql.opt._
 import storage._
 import avro.runtime._
 import avro.marker._

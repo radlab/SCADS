@@ -21,6 +21,11 @@ trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
     flushBulkBytes
   }
 
+  override def --=(that: TraversableOnce[B]) = {
+    that.toIterable.map(bulkToBytes).foreach(b => putBulkBytes(b._1, None))
+    flushBulkBytes
+  }
+
   override def get(key: K): Option[V] =
     getBytes(keyToBytes(key)) map bytesToValue     
 
@@ -155,6 +160,8 @@ trait RecordStore[RecType <: IndexedRecord] extends Namespace
   with KeyPartitionable
   with GlobalMetadata
   with BaseRangeKeyValueStoreImpl[IndexedRecord, IndexedRecord, RecType] {
+
+  def schema: Schema
 
   def asyncGetRecord(key: IndexedRecord): ScadsFuture[Option[RecType]]
   def getRecord(key: IndexedRecord): Option[RecType]

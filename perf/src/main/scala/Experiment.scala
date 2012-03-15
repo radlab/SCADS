@@ -17,14 +17,19 @@ class ExperimentalScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) extends Scads
   def blockUntilReady(clusterSize: Int): Unit = {
     while(getAvailableServers.size < clusterSize) {
       logger.info("Waiting for cluster to start " + cluster.getAvailableServers.size + " of " + clusterSize + " ready.")
-      Thread.sleep(1000)
+      Thread.sleep(5000)
     }
   }
 }
 
 trait ExperimentBase {
-  var resultClusterAddress = Config.config.getString("scads.perf.resultZooKeeperAddress").getOrElse(sys.error("need to specify scads.perf.resultZooKeeperAddress")) + "home/" + System.getenv("USER") + "/deploylib/"
+  var resultClusterBase = Config.config.getString("scads.perf.resultZooKeeperAddress").getOrElse(sys.error("need to specify scads.perf.resultZooKeeperAddress"))
+  var resultClusterAddress = resultClusterBase + "home/" + System.getenv("USER") + "/deploylib/"
   val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
+
+  def relativeAddress(suffix: String): String = {
+    resultClusterBase + "home/" + System.getenv("USER") + "/" + suffix
+  }
 
   implicit def productSeqToExcel(lines: Seq[Product]) = new {
     import java.io._
@@ -41,9 +46,11 @@ trait ExperimentBase {
 }
 
 trait TaskBase {
-  def newScadsCluster(size: Int)(implicit cluster: Cluster, classSource: Seq[ClassSource]): ScadsCluster = {
+  def newScadsCluster(size: Int, preallocSize: Long = 0L)(implicit cluster: Cluster, classSource: Seq[ClassSource]): ScadsCluster = {
     val clusterRoot = cluster.zooKeeperRoot.getOrCreate("scads").createChild("experimentCluster", mode = CreateMode.PERSISTENT_SEQUENTIAL)
-    val serverProcs = Array.fill(size)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress).toJvmTask)
+    val serverProcs = Array.fill(size)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress, preallocSize = preallocSize).toJvmTask)
+    serverProcs.foreach(_.foreach(_.props += "scads.mdcc.fastDefault" -> "false"))
+    serverProcs.foreach(_.foreach(_.props += "scads.mdcc.DefaultRounds" -> "999999999999"))
 
     cluster.serviceScheduler.scheduleExperiment(serverProcs)
     new ScadsCluster(clusterRoot)

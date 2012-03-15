@@ -91,10 +91,20 @@ object MesosCluster {
   }
 }
 
+object DefaultRegion {
+  var value: EC2Region = USEast1
+  val preferred = System.getenv("AWS_DEFAULT_REGION")
+  for (region <- EC2Region.allRegions) {
+    if (region.location equals preferred) {
+      value = region
+    }
+  }
+}
+
 /**
  * Functions to help maintain a mesos cluster on EC2.
  */
-class Cluster(val region: EC2Region = USWest2, val useFT: Boolean = false) {
+class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = false) {
   val logger = Logger()
 
   /**
@@ -221,7 +231,18 @@ class Cluster(val region: EC2Region = USWest2, val useFT: Boolean = false) {
 
   protected def slaveService(inst: EC2Instance): ServiceManager#RemoteService = inst.getService("mesos-slave", new File(binDir, "mesos-slave").getCanonicalPath, Map("MESOS_PUBLIC_DNS" -> inst.publicDnsName))
 
-  def slaveServices = slaves.map(slaveService)
+  /* running slave services */
+  def slaveServices: List[ServiceManager#RemoteService] = {
+    slaves.pmap(s => {
+      try {
+        Some(slaveService(s))
+      } catch {
+        case e =>
+          logger.error(e.getMessage)
+          None
+      }
+    }).filter(_ != None).map(_.get)
+  }
 
   /**
    * Returns a list of EC2Instances for all the slaves in the cluster
@@ -236,7 +257,7 @@ class Cluster(val region: EC2Region = USWest2, val useFT: Boolean = false) {
       .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
-  def masterServices = masters.map(_.getService("mesos-master", new File(binDir, "mesos-master").getCanonicalPath))
+  def masterServices = masters.pmap(_.getService("mesos-master", new File(binDir, "mesos-master").getCanonicalPath))
 
   /**
    * Returns a list of EC2Instances for all the masters in the cluster
@@ -365,7 +386,7 @@ class Cluster(val region: EC2Region = USWest2, val useFT: Boolean = false) {
     masters.pforeach(_ executeCommand "killall -9 mesos-master")
     masters.pforeach(_ executeCommand "killall -9 java")
     slaves.pforeach(_ executeCommand "killall -9 mesos-slave")
-    slaves.pforeach(_.executeCommand("killall -9 java"))
+    slaves.pforeach(_ executeCommand "killall -9 java")
 
     restartMasters
     restartSlaves

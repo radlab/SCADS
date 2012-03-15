@@ -63,7 +63,7 @@ object FutureReference {
       while(true) {
         val futureRef = staleMessages.remove.asInstanceOf[FutureReference[_]]
         if(futureRef.unregister)
-          logger.warning("Removing unsatisfied gced future from message regsistry: %s %s %s", futureRef.remoteService, futureRef.dest,futureRef.request)
+          logger.debug("Removing unsatisfied gced future from message regsistry: %s %s %s", futureRef.remoteService, futureRef.dest,futureRef.request)
       }
     }
   }
@@ -81,7 +81,7 @@ class FutureReference[MessageType <: IndexedRecord](future: MessageFuture[Messag
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = synchronized {
     MessageFuture.logger.debug("Attempting delivery to %s", remoteService)
     val future = get().asInstanceOf[MessageFuture[MessageType]]
-    if(!unregister) FutureReference.logger.warning("GCed future %s", remoteService)
+    if(!unregister) FutureReference.logger.debug("GCed future %s", remoteService)
     clear()
     if(future != null)
       future.receiveMessage(src, msg)
