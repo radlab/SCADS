@@ -188,7 +188,7 @@ object ScadsBuild extends Build {
   val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
   val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.1"
   val json = "org.json" % "json" % "20090211"
-  val awsSdk = "com.amazonaws" % "aws-java-sdk" % "1.1.5"
+  val awsSdk = "com.amazonaws" % "aws-java-sdk" % "1.3.2"
   val ganymedSsh2 = "ch.ethz.ganymed" % "ganymed-ssh2" % "build210"
   val commonsLoggingApi = "commons-logging" % "commons-logging-api" % "1.1"
   val commonsHttpClient = "commons-httpclient" % "commons-httpclient" % "3.0.1"
