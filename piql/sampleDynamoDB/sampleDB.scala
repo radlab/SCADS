@@ -1,4 +1,4 @@
-import com.amazonaws.auth.PropertiesCredentials
+import com.amazonaws.auth.{PropertiesCredentials, BasicAWSCredentials}
 import com.amazonaws.services.dynamodb.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodb.model.AttributeValue
 import com.amazonaws.services.dynamodb.model.PutItemRequest
@@ -7,30 +7,27 @@ import com.amazonaws.services.dynamodb.model.GetItemResult
 import com.amazonaws.services.dynamodb.model.Key
 import com.amazonaws.AmazonServiceException
 import scala.collection.JavaConversions._
-import java.io.File
-import java.text.SimpleDateFormat
 import java.util.{Map => JavaMap, Collection => JCollection, Arrays => JArrays}
 import java.util.HashMap
 
 object sampleDB {
   var client: AmazonDynamoDBClient = _
-//  var dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
 	val usersTableName = "Users"
-//	val tweetsTableName = "Tweets"
-//	val friendsTableName = "Friends"
   
 	def main(args: Array[String]) {
 	  createClient()
 	  
-//	  addUserToTable("minh_luong", "123456", 20, "SF")
-//	  getUserInfo("minh_luong")
+//	  addUserToTable("luongm", "123456", 20, "SF")
+//	  getUserInfo("luongm")
 	  
 	  println("Finished!")
 	}
   
   def createClient() {
-//    var credentials = new PropertiesCredentials(getClass().getResourceAsStream("AwsCredentials.properties"))
-    var credentials = new PropertiesCredentials(new File("AwsCredentials.properties"))
+    val accessKey = System.getenv("AWS_ACCESS_KEY_ID")
+    val secretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY")
+
+    var credentials = new BasicAWSCredentials(accessKey, secretAccessKey)
     client = new AmazonDynamoDBClient(credentials)
   }
   
@@ -50,7 +47,6 @@ object sampleDB {
   	} catch {
   	  case ase: AmazonServiceException =>
         sys.error("Failed to put item into table " + usersTableName)
-  	  case e: Exception =>
   	}
   }
   
