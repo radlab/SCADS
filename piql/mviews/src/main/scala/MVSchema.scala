@@ -20,7 +20,7 @@ case class Tag(var word: String, var item: String) extends AvroPair {
  *   exists (tag2, item)
  */
 case class MTagPair(var tag1: String,
-                      var tag2: String,
+                    var tag2: String,
                       var item: String) extends AvroPair {
 }
 

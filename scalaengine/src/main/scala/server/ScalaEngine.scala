@@ -85,6 +85,7 @@ case class ScalaEngineTask(var clusterAddress: String, var dbDir: Option[String]
     config.setCachePercent(cachePercentage.getOrElse(60))
 
     val dir = dbDir.map(new File(_)).getOrElse(new File("db"))
+    logger.info("dbdir: " + dir)
     if(!dir.exists()) {
       dir.mkdir
     }

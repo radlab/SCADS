@@ -25,14 +25,25 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
                   val maxTagsPerItem: Int, val uniqueTags: Int) {
   protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.MVScaleTest")
 
-  /* fixed parameters */
+  /* lower bound of keyspace, inclusive */
   val ksMin = 0
-  val ksMax = 1e12.longValue
+  /* upper bound of keyspace, exclusive */
+  val ksMax = 1L<<42 
+  /* random 42 digit binary number for xor permuting the keyspace */
+  val xorMap = Random.nextLong() & 0x3ffffffffffL
 
   /* returns string form of point in keyspace at k/max */
   private def ksSeek(i: Int, max: Int): String = {
     assert (i < max)
     "%013d".format(ksMax * i / max)
+  }
+
+  /* permutes point in keyspace before ksSeek
+   * useful for randomly load-balancing non-uniform distributions of i
+   */
+  private def ksPermuted(i: Int, max: Int): String = {
+    assert (i < max)
+    "%013d".format(xorMap ^ (ksMax * i / max))
   }
 
   /* returns serialized key in keyspace at k/max */
@@ -64,12 +75,12 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     /* only generate items in our segment */
     for (i <- 1 to (tagsToGenerate/numSegments)) {
       var item = randomItemInSegment(segment, numSegments)
-      var tag = randomTag
+      var tag = uniformlyRandomTag
       while (tagsof(item).size > maxTagsPerItem) {
         item = randomItemInSegment(segment, numSegments)
       }
       while (tagsof(item).contains(tag)) {
-        tag = randomTag
+        tag = uniformlyRandomTag
       }
       tagsof(item).add(tag)
       bulk ::= (item, tag)
@@ -84,8 +95,20 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     i % ns == segment
   }
 
-  private def randomTag(implicit rnd: Random) = {
-    ksSeek(rnd.nextInt(uniqueTags), uniqueTags)
+  private def uniformlyRandomTag(implicit rnd: Random) = {
+    ksPermuted(rnd.nextInt(uniqueTags), uniqueTags)
+  }
+
+  private def zipfRandomTag(implicit rnd: Random) = {
+    ksPermuted(zipf(uniqueTags), uniqueTags)
+  }
+
+  /**
+   * returns integer from [0,N) with bias towards lower digits
+   * as in zipf distribution 
+   */
+  private def zipf(N: Int)(implicit rnd: Random) = {
+    0 /* TODO */
   }
 
   private def randomItemInSegment(segment: Int, ns: Int)(implicit rnd: Random) = {
@@ -106,15 +129,15 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
 
   def randomGet(implicit rnd: Random) = {
     val start = System.nanoTime / 1000
-    val tag1 = randomTag
-    val tag2 = randomTag
+    val tag1 = uniformlyRandomTag
+    val tag2 = uniformlyRandomTag
     client.fastSelectTags(tag1, tag2)
     System.nanoTime / 1000 - start
   }
 
   def randomPut(limit: Int)(implicit rnd: Random): Tuple2[Long,Long] = {
     var item = randomItem
-    var tag = randomTag
+    var tag = uniformlyRandomTag
     var tries = 0
     def hasTag(item: String, tag: String) = {
       val assoc = client.selectItem(item)
@@ -122,7 +145,7 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     }
     while (hasTag(item, tag) && tries < 7) {
       item = randomItem
-      tag = randomTag
+      tag = uniformlyRandomTag
       tries += 1
     }
     assert (!hasTag(item, tag))

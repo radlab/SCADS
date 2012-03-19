@@ -38,8 +38,9 @@ case class ScaleTask(var replicas: Int = 1,
   def schedule(resultClusterAddress: String)(implicit cluster: deploylib.mesos.Cluster,
                                              classSource: Seq[ClassSource]): Unit = {
     var extra = java.lang.Math.sqrt(replicas * partitions / 5).intValue
-    /* preallocSize = 4GiB */
-    val scadsCluster = newScadsCluster(replicas * partitions + extra, 1L << 32)
+    val preallocSize = 0 // 1L << 32 // for 4GiB
+    val scadsCluster = newScadsCluster(replicas * partitions + extra,
+                                       preallocSize = preallocSize, mem = true)
     clusterAddress = scadsCluster.root.canonicalAddress
     this.resultClusterAddress = resultClusterAddress
     val task = this.toJvmTask
@@ -113,7 +114,7 @@ case class ScaleTask(var replicas: Int = 1,
     coordination.registerAndAwait("clientsStarted", nClients)
     val clientId = client.getClass.getSimpleName
     val totalItems = itemsPerMachine * partitions
-    val scenario = new MVScaleTest(cluster, client, totalItems, totalItems * meanTagsPerItem, maxTagsPerItem, 400)
+    val scenario = new MVScaleTest(cluster, client, totalItems, totalItems * meanTagsPerItem, maxTagsPerItem, 2000)
 
     if (clientNumber == 0) {
       logger.info("Client %d preparing partitions...", clientNumber)
