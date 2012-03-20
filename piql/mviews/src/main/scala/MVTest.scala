@@ -22,7 +22,8 @@ import scala.collection.mutable.HashMap
 /* for testing client at scale */
 class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
                   val totalItems: Int, val tagsToGenerate: Int,
-                  val maxTagsPerItem: Int, val uniqueTags: Int) {
+                  val maxTagsPerItem: Int, val uniqueTags: Int,
+                  val zipf: Boolean) {
   protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.MVScaleTest")
 
   /* lower bound of keyspace, inclusive */
@@ -75,12 +76,12 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     /* only generate items in our segment */
     for (i <- 1 to (tagsToGenerate/numSegments)) {
       var item = randomItemInSegment(segment, numSegments)
-      var tag = uniformlyRandomTag
+      var tag = chooseRandomTag
       while (tagsof(item).size > maxTagsPerItem) {
         item = randomItemInSegment(segment, numSegments)
       }
       while (tagsof(item).contains(tag)) {
-        tag = uniformlyRandomTag
+        tag = chooseRandomTag
       }
       tagsof(item).add(tag)
       bulk ::= (item, tag)
@@ -95,20 +96,12 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     i % ns == segment
   }
 
-  private def uniformlyRandomTag(implicit rnd: Random) = {
-    ksPermuted(rnd.nextInt(uniqueTags), uniqueTags)
-  }
-
-  private def zipfRandomTag(implicit rnd: Random) = {
-    ksPermuted(zipf(uniqueTags), uniqueTags)
-  }
-
-  /**
-   * returns integer from [0,N) with bias towards lower digits
-   * as in zipf distribution 
-   */
-  private def zipf(N: Int)(implicit rnd: Random) = {
-    0 /* TODO */
+  private def chooseRandomTag(implicit rnd: Random) = {
+    if (zipf) {
+      ksPermuted(ZipfDistribution.sample(uniqueTags, 1), uniqueTags)
+    } else {
+      ksPermuted(rnd.nextInt(uniqueTags), uniqueTags)
+    }
   }
 
   private def randomItemInSegment(segment: Int, ns: Int)(implicit rnd: Random) = {
@@ -129,15 +122,15 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
 
   def randomGet(implicit rnd: Random) = {
     val start = System.nanoTime / 1000
-    val tag1 = uniformlyRandomTag
-    val tag2 = uniformlyRandomTag
+    val tag1 = chooseRandomTag
+    val tag2 = chooseRandomTag
     client.fastSelectTags(tag1, tag2)
     System.nanoTime / 1000 - start
   }
 
   def randomPut(limit: Int)(implicit rnd: Random): Tuple2[Long,Long] = {
     var item = randomItem
-    var tag = uniformlyRandomTag
+    var tag = chooseRandomTag
     var tries = 0
     def hasTag(item: String, tag: String) = {
       val assoc = client.selectItem(item)
@@ -145,10 +138,12 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     }
     while (hasTag(item, tag) && tries < 7) {
       item = randomItem
-      tag = uniformlyRandomTag
+      tag = chooseRandomTag
       tries += 1
     }
-    assert (!hasTag(item, tag))
+    if (tries >= 7) {
+      assert (!hasTag(item, tag))
+    }
     client.addTag(item, tag)
   }
 
@@ -220,7 +215,7 @@ object MVTest extends ExperimentBase {
   def newM(): MVScaleTest = {
     val cluster = TestScalaEngine.newScadsCluster(3)
     val client = new MTagClient(cluster, exec)
-    new MVScaleTest(cluster, client, 10, 40, 100, 200)
+    new MVScaleTest(cluster, client, 10, 40, 100, 200, true)
   }
 
   def variance(seq: Seq[Double]): Double = {
@@ -230,7 +225,7 @@ object MVTest extends ExperimentBase {
   def stdev(seq: Seq[Double]): Double = pow(variance(seq), 0.5)
 
   def summarize(comment: String) = {
-    scaled.iterateOverRange(None,None).toList.filter(x => x.comment.equals(comment) && x.iteration > 1).groupBy(_.partitions).map({ case (n, data) =>
+    scaled.iterateOverRange(None,None).toList.filter(x => x.comment.equals(comment) && x.iteration > 1).groupBy(t => (t.partitions, t.clientId)).map({ case ((n,id), data) =>
       val putTimes = data.map(_.putTimes.quantile(0.99)/1000.0)
       val nvPutTimes = data.map(_.nvputTimes.quantile(0.99)/1000.0)
       val ops = data.map(x => (x.getTimes.totalRequests + x.putTimes.totalRequests + x.delTimes.totalRequests)*1.0/x.runTimeMs*1000)
@@ -242,14 +237,14 @@ object MVTest extends ExperimentBase {
          x.putTimes.totalRequests + x.delTimes.totalRequests,
          (x.getTimes.totalRequests + x.putTimes.totalRequests + x.delTimes.totalRequests)*1.0/x.runTimeMs*1000))
         .reduceLeft((x,y) => (x._1 + y._1, x._2 + y._2, x._3 + y._3, x._4 + y._4, x._5 + y._5, x._6 + y._6))
-      (n,
+      ((n,id),
        "getl=" + (totals._1.quantile(0.99)/1000.0),
        "putl=" + (totals._2.quantile(0.99)/1000.0),
 //       "std(putl)=" + stdev(putTimes).intValue + "," +
 //       "std(nvputl)=" + stdev(nvPutTimes).intValue + "," +
 //       "std(ops)=" + stdev(ops).intValue,
        "nvputl=" + (totals._3.quantile(0.99)/1000.0),
-       "r:w=" + (totals._4/totals._5) + ":1",
+       "r:w=" + ((1+totals._4)/(1+totals._5)) + ":1",
        "ops/s=" + (totals._6/(data.length.doubleValue/n)),
        "runs=" + (data.length.doubleValue/n))
     }).toList.sorted

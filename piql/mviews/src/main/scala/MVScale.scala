@@ -109,12 +109,12 @@ case class ScaleTask(var replicas: Int = 1,
     val clientNumber = coordination.registerAndAwait("clientsStart", nClients)
 
     // setup client (AFTER namespace creation)
-    val client = new MTagClient(cluster, new ParallelExecutor)
+    val client = new NaiveTagClient(cluster, new ParallelExecutor)
 
     coordination.registerAndAwait("clientsStarted", nClients)
     val clientId = client.getClass.getSimpleName
     val totalItems = itemsPerMachine * partitions
-    val scenario = new MVScaleTest(cluster, client, totalItems, totalItems * meanTagsPerItem, maxTagsPerItem, 2000)
+    val scenario = new MVScaleTest(cluster, client, totalItems, totalItems * meanTagsPerItem, maxTagsPerItem, 2000, true)
 
     if (clientNumber == 0) {
       logger.info("Client %d preparing partitions...", clientNumber)
@@ -138,7 +138,7 @@ case class ScaleTask(var replicas: Int = 1,
       val histograms = (0 until threadCount).pmap(tid => {
         implicit val rnd = new Random()
         val tfrac: Double = tid.doubleValue / threadCount.doubleValue
-        val geth = Histogram(100,4000)
+        val geth = Histogram(1000,3000)
         val puth = Histogram(1000,3000)
         val nvputh = Histogram(1000,1000)
 

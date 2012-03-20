@@ -49,11 +49,7 @@ trait TaskBase {
   def newScadsCluster(size: Int, preallocSize: Long = 0L, mem: Boolean = false)(implicit cluster: Cluster, classSource: Seq[ClassSource]): ScadsCluster = {
     val clusterRoot = cluster.zooKeeperRoot.getOrCreate("scads").createChild("experimentCluster", mode = CreateMode.PERSISTENT_SEQUENTIAL)
 
-    /* XXX clean up old tmpfs db */
     val dbDir: Option[String] = if (mem) "/dev/shm/db" else None
-    if (mem) {
-      Runtime.getRuntime().exec("rm -rf /dev/shm/db").waitFor(); 
-    }
 
     val serverProcs = Array.fill(size)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress, dbDir = dbDir, preallocSize = preallocSize).toJvmTask)
 
