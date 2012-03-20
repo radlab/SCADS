@@ -23,34 +23,32 @@ import scala.collection.mutable.HashMap
 class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
                   val totalItems: Int, val tagsToGenerate: Int,
                   val maxTagsPerItem: Int, val uniqueTags: Int,
-                  val zipf: Boolean) {
+                  val zipf: Double) {
   protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.MVScaleTest")
 
   /* lower bound of keyspace, inclusive */
   val ksMin = 0
   /* upper bound of keyspace, exclusive */
   val ksMax = 1L<<42 
-  /* random 42 digit binary number for xor permuting the keyspace */
-  val xorMap = Random.nextLong() & 0x3ffffffffffL
 
   /* returns string form of point in keyspace at k/max */
   private def ksSeek(i: Int, max: Int): String = {
     assert (i < max)
-    "%013d".format(ksMax * i / max)
-  }
-
-  /* permutes point in keyspace before ksSeek
-   * useful for randomly load-balancing non-uniform distributions of i
-   */
-  private def ksPermuted(i: Int, max: Int): String = {
-    assert (i < max)
-    "%013d".format(xorMap ^ (ksMax * i / max))
+    val res = "%013d".format(ksMax * i / max)
+    assert(res.length == 13)
+    res
   }
 
   /* returns serialized key in keyspace at k/max */
   def serializedPointInKeyspace(k: Int, max: Int): Option[Array[Byte]] = {
     assert (k > 0 && k < max)
     Some(client.tagToBytes(ksSeek(k, max)))
+  }
+
+  def serializedTupleInKeyspace(k: Int, l: Int, kmax: Int, lmax: Int): Option[Array[Byte]] = {
+    assert (k >= 0 && k < kmax)
+    assert (l >= 0 && l < lmax)
+    Some(client.tupleToBytes(ksSeek(k, kmax), ksSeek(l, lmax)))
   }
 
   /* distributed data load task by segment
@@ -96,11 +94,12 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     i % ns == segment
   }
 
+  /* assumes user partitions under zipf assumption */
   private def chooseRandomTag(implicit rnd: Random) = {
-    if (zipf) {
-      ksPermuted(ZipfDistribution.sample(uniqueTags, 1), uniqueTags)
+    if (zipf > 0) {
+      ksSeek(ZipfDistribution.sample(uniqueTags, zipf), uniqueTags)
     } else {
-      ksPermuted(rnd.nextInt(uniqueTags), uniqueTags)
+      ksSeek(rnd.nextInt(uniqueTags), uniqueTags)
     }
   }
 
@@ -215,7 +214,7 @@ object MVTest extends ExperimentBase {
   def newM(): MVScaleTest = {
     val cluster = TestScalaEngine.newScadsCluster(3)
     val client = new MTagClient(cluster, exec)
-    new MVScaleTest(cluster, client, 10, 40, 100, 200, true)
+    new MVScaleTest(cluster, client, 10, 40, 100, 2000, 1)
   }
 
   def variance(seq: Seq[Double]): Double = {
@@ -245,7 +244,7 @@ object MVTest extends ExperimentBase {
 //       "std(ops)=" + stdev(ops).intValue,
        "nvputl=" + (totals._3.quantile(0.99)/1000.0),
        "r:w=" + ((1+totals._4)/(1+totals._5)) + ":1",
-       "ops/s=" + (totals._6/(data.length.doubleValue/n)),
+       "ops/s=" + (totals._6/(data.length.doubleValue/n)).intValue,
        "runs=" + (data.length.doubleValue/n))
     }).toList.sorted
   }

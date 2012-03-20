@@ -28,8 +28,17 @@ abstract class TagClient(val cluster: ScadsCluster,
 
   val tags = cluster.getNamespace[Tag]("tags")
 
+  // materialized pairs of tags, including the duplicate pair
+  val mTagPairs = cluster.getNamespace[MTagPair]("mTagPairs")
+
   def tagToBytes(tag: String): Array[Byte] = {
     tags.keyToBytes(new Tag(tag, "foo"))
+  }
+
+  /* slight hack: work around bug (?) in avro compareBytes
+   * by adding unique "foo" to end */
+  def tupleToBytes(k: String, l: String): Array[Byte] = {
+    mTagPairs.keyToBytes(new MTagPair(k, l, "foo"))
   }
 
   def all() = {
@@ -110,9 +119,6 @@ class MTagClient(clus: ScadsCluster, exec: QueryExecutor)
       extends TagClient(clus, exec) {
 
   protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.MTagClient")
-
-  // materialized pairs of tags, including the duplicate pair
-  val mTagPairs = cluster.getNamespace[MTagPair]("mTagPairs")
 
   val selectTagPairQuery =
     mTagPairs.where("tag1".a === (0.?))

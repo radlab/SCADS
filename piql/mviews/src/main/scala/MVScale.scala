@@ -34,6 +34,8 @@ case class ScaleTask(var replicas: Int = 1,
   
   var resultClusterAddress: String = _
   var clusterAddress: String = _
+  var zipfExponent = 0.2
+  var uniqueTags = 2000
 
   def schedule(resultClusterAddress: String)(implicit cluster: deploylib.mesos.Cluster,
                                              classSource: Seq[ClassSource]): Unit = {
@@ -55,28 +57,60 @@ case class ScaleTask(var replicas: Int = 1,
     assert (available.size >= numServers)
 
     val groups = available.take(numServers).grouped(replicas).toSeq
-    var p: List[(Option[Array[Byte]], Seq[StorageService])] = List()
+    var paru: List[(Option[Array[Byte]], Seq[StorageService])] = List()
     for (servers <- groups) {
-      if (p.length == 0) {
-        p ::= (None, servers)
+      if (paru.length == 0) {
+        paru ::= (None, servers)
       } else {
-        p ::= (client.serializedPointInKeyspace(p.length, partitions), servers)
+        paru ::= (client.serializedPointInKeyspace(paru.length, partitions), servers)
       }
     }
-    p = p.reverse
-    logger.info("Partition scheme: " + p)
+    paru = paru.reverse
+    logger.info("Uniform partition scheme: " + paru)
 
-    val tags = cluster.getNamespace[Tag]("tags")
-    val nn = List(tags,
-      tags.getOrCreateIndex(AttributeIndex("item") :: Nil),
-      cluster.getNamespace[MTagPair]("mTagPairs"))
+    val z = ZipfDistribution.getDistribution(uniqueTags, zipfExponent)
+    val zz = z.interpolate(z.cdf)
+    val u = (0.01d to 1d by .01).toArray
+    val zu = z.interpolate(u)
 
-    // assume they all have prefixes sampled from the same keyspace
-    for (n <- nn) {
-      n.setPartitionScheme(p)
-//      n.setReadWriteQuorum(0.5, 0.5)
-      n.setReadWriteQuorum(.001, 1.00)
+    var parzz: List[(Option[Array[Byte]], Seq[StorageService])] = List()
+    for (servers <- groups) {
+      if (parzz.length == 0) {
+        parzz ::= (None, servers)
+      } else {
+        val (i,j) = zz.fineSample(parzz.length.doubleValue / partitions)
+        parzz ::= (client.serializedTupleInKeyspace(i, j, uniqueTags, uniqueTags), servers)
+      }
     }
+    parzz = parzz.reverse
+    logger.info("Zipf-Zipf partition scheme: " + parzz)
+
+    var parzu: List[(Option[Array[Byte]], Seq[StorageService])] = List()
+    for (servers <- groups) {
+      if (parzu.length == 0) {
+        parzu ::= (None, servers)
+      } else {
+        val (i,j) = zu.fineSample(parzu.length.doubleValue / partitions)
+        parzu ::= (client.serializedTupleInKeyspace(i, j, uniqueTags, u.length), servers)
+      }
+    }
+    parzu = parzu.reverse
+    logger.info("Zipf-Uniform partition scheme: " + parzu)
+
+    /* partition by zipf(1), uniform */
+    val tags = cluster.getNamespace[Tag]("tags")
+    tags.setPartitionScheme(parzu)
+    tags.setReadWriteQuorum(.001, 1.00)
+
+    /* partition by zipf(1), zipf(1) */
+    val mtp = cluster.getNamespace[MTagPair]("mTagPairs")
+    mtp.setPartitionScheme(parzz)
+    mtp.setReadWriteQuorum(.001, 1.00)
+
+    /* partition by uniform */
+    val iidx = tags.getOrCreateIndex(AttributeIndex("item") :: Nil)
+    iidx.setPartitionScheme(paru)
+    iidx.setReadWriteQuorum(.001, 1.00)
   }
 
   private def createStorageCluster(capacity: Int) = {
@@ -114,7 +148,7 @@ case class ScaleTask(var replicas: Int = 1,
     coordination.registerAndAwait("clientsStarted", nClients)
     val clientId = client.getClass.getSimpleName
     val totalItems = itemsPerMachine * partitions
-    val scenario = new MVScaleTest(cluster, client, totalItems, totalItems * meanTagsPerItem, maxTagsPerItem, 2000, true)
+    val scenario = new MVScaleTest(cluster, client, totalItems, totalItems * meanTagsPerItem, maxTagsPerItem, uniqueTags, zipfExponent)
 
     if (clientNumber == 0) {
       logger.info("Client %d preparing partitions...", clientNumber)
@@ -151,7 +185,7 @@ case class ScaleTask(var replicas: Int = 1,
           logger.info("Thread " + tid + " reporting as writer")
         }
 
-        while (System.currentTimeMillis - iterationStartMs < 3*60*1000) {
+        while (System.currentTimeMillis - iterationStartMs < iteration*60*1000) {
           try {
             if (tfrac < readFrac) {
               val respTime = scenario.randomGet

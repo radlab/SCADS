@@ -21,7 +21,7 @@ case class Tag(var word: String, var item: String) extends AvroPair {
  */
 case class MTagPair(var tag1: String,
                     var tag2: String,
-                      var item: String) extends AvroPair {
+                    var item: String) extends AvroPair {
 }
 
 object Results {
