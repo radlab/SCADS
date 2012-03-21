@@ -31,12 +31,12 @@ abstract class TagClient(val cluster: ScadsCluster,
   // materialized pairs of tags, including the duplicate pair
   val mTagPairs = cluster.getNamespace[MTagPair]("mTagPairs")
 
+  /* suitable for String String records */
   def tagToBytes(tag: String): Array[Byte] = {
     tags.keyToBytes(new Tag(tag, "foo"))
   }
 
-  /* slight hack: work around bug (?) in avro compareBytes
-   * by adding unique "foo" to end */
+  /* suitable for String String String records */
   def tupleToBytes(k: String, l: String): Array[Byte] = {
     mTagPairs.keyToBytes(new MTagPair(k, l, "foo"))
   }
