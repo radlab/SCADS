@@ -29,6 +29,8 @@ object ScalaEngine extends optional.Application {
     val config = new EnvironmentConfig()
     config.setAllowCreate(true)
     config.setTransactional(true)
+//    config.setTxnNoSync(true)
+//    config.setTxnWriteNoSync(true)
     config.setCachePercent(cachePercentage.getOrElse(80))
 
     val dir = dbDir.getOrElse(new java.io.File("db"))

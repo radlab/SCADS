@@ -42,7 +42,7 @@ case class ScaleTask(var replicas: Int = 1,
     var extra = java.lang.Math.sqrt(replicas * partitions / 5).intValue
     val preallocSize = 0 // 1L << 32 // for 4GiB
     val scadsCluster = newScadsCluster(replicas * partitions + extra,
-                                       preallocSize = preallocSize, mem = true)
+                                       preallocSize = preallocSize, mem = false)
     clusterAddress = scadsCluster.root.canonicalAddress
     this.resultClusterAddress = resultClusterAddress
     val task = this.toJvmTask
@@ -143,7 +143,7 @@ case class ScaleTask(var replicas: Int = 1,
     val clientNumber = coordination.registerAndAwait("clientsStart", nClients)
 
     // setup client (AFTER namespace creation)
-    val client = new NaiveTagClient(cluster, new ParallelExecutor)
+    val client = new MTagClient(cluster, new ParallelExecutor)
 
     coordination.registerAndAwait("clientsStarted", nClients)
     val clientId = client.getClass.getSimpleName

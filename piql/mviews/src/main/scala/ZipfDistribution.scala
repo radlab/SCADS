@@ -20,6 +20,7 @@ object ZipfDistribution {
 }
 
 trait Samplable {
+  /* like [0.2 0.4 0.75 1.0] */
   val cdf: Array[Double]
 
   def icdf(p: Double): Int = {
