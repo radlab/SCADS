@@ -46,12 +46,10 @@ trait ExperimentBase {
 }
 
 trait TaskBase {
-  def newScadsCluster(size: Int, preallocSize: Long = 0L, mem: Boolean = false)(implicit cluster: Cluster, classSource: Seq[ClassSource]): ScadsCluster = {
+  def newScadsCluster(size: Int, preallocSize: Long = 0L, noSync: Boolean = false)(implicit cluster: Cluster, classSource: Seq[ClassSource]): ScadsCluster = {
     val clusterRoot = cluster.zooKeeperRoot.getOrCreate("scads").createChild("experimentCluster", mode = CreateMode.PERSISTENT_SEQUENTIAL)
 
-    val dbDir: Option[String] = if (mem) "/dev/shm/db" else None
-
-    val serverProcs = Array.fill(size)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress, dbDir = dbDir, preallocSize = preallocSize).toJvmTask)
+    val serverProcs = Array.fill(size)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress, preallocSize = preallocSize, noSync = noSync).toJvmTask)
 
     cluster.serviceScheduler.scheduleExperiment(serverProcs)
     new ScadsCluster(clusterRoot)

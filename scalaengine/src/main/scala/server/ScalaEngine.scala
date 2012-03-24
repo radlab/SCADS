@@ -2,6 +2,7 @@ package edu.berkeley.cs
 package scads
 package storage
 
+import com.sleepycat.je.Durability
 import com.sleepycat.je.Environment
 import com.sleepycat.je.EnvironmentConfig
 import com.sleepycat.je.jmx.JEMonitor
@@ -29,8 +30,6 @@ object ScalaEngine extends optional.Application {
     val config = new EnvironmentConfig()
     config.setAllowCreate(true)
     config.setTransactional(true)
-//    config.setTxnNoSync(true)
-//    config.setTxnWriteNoSync(true)
     config.setCachePercent(cachePercentage.getOrElse(80))
 
     val dir = dbDir.getOrElse(new java.io.File("db"))
@@ -53,7 +52,7 @@ object ScalaEngine extends optional.Application {
 /**
  * Task for running scads storage engine on mesos
  */
-case class ScalaEngineTask(var clusterAddress: String, var dbDir: Option[String] = None, var cachePercentage: Option[Int] = None, var name: Option[String] = None, var preallocSize: Long = 0) extends AvroTask with AvroRecord {
+case class ScalaEngineTask(var clusterAddress: String, var dbDir: Option[String] = None, var cachePercentage: Option[Int] = None, var name: Option[String] = None, var preallocSize: Long = 0, var noSync: Boolean = false) extends AvroTask with AvroRecord {
 
   /**
    * It's a good idea to exercise the storage on EC2 before writing
@@ -85,6 +84,9 @@ case class ScalaEngineTask(var clusterAddress: String, var dbDir: Option[String]
     config.setAllowCreate(true)
     config.setTransactional(true)
     config.setCachePercent(cachePercentage.getOrElse(60))
+    if (noSync) {
+      config.setDurability(Durability.COMMIT_NO_SYNC)
+    }
 
     val dir = dbDir.map(new File(_)).getOrElse(new File("db"))
     logger.info("dbdir: " + dir)

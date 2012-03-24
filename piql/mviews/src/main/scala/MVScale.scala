@@ -40,9 +40,9 @@ case class ScaleTask(var replicas: Int = 1,
   def schedule(resultClusterAddress: String)(implicit cluster: deploylib.mesos.Cluster,
                                              classSource: Seq[ClassSource]): Unit = {
     var extra = java.lang.Math.sqrt(replicas * partitions / 5).intValue
-    val preallocSize = 0 // 1L << 32 // for 4GiB
+    val preallocSize = 1L << 31 // 1L << 32 for 4GiB
     val scadsCluster = newScadsCluster(replicas * partitions + extra,
-                                       preallocSize = preallocSize, mem = false)
+                                       preallocSize = preallocSize, noSync = true)
     clusterAddress = scadsCluster.root.canonicalAddress
     this.resultClusterAddress = resultClusterAddress
     val task = this.toJvmTask

@@ -32,10 +32,15 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
   val ksMax = 1L<<42 
 
   /* returns string form of point in keyspace at k/max */
-  private def ksSeek(i: Int, max: Int): String = {
+  private def ksSeek(i: Long, max: Long): String = {
     assert (i < max)
-    val res = "%013d".format(ksMax * i / max)
-    assert(res.length == 13)
+    val res = "%013d".format(ksMax / max * i)
+    if (res.length != 13) {
+      logger.error("too long: " + res)
+      logger.error("val was: " + i)
+      logger.error("max was: " + max)
+      assert(false)
+    }
     res
   }
 
