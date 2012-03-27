@@ -34,7 +34,7 @@ case class ScaleTask(var replicas: Int = 1,
   
   var resultClusterAddress: String = _
   var clusterAddress: String = _
-  var zipfExponent = 0.2
+  var zipfExponent = 0.1
   var uniqueTags = 2000
 
   def schedule(resultClusterAddress: String)(implicit cluster: deploylib.mesos.Cluster,
@@ -143,7 +143,7 @@ case class ScaleTask(var replicas: Int = 1,
     val clientNumber = coordination.registerAndAwait("clientsStart", nClients)
 
     // setup client (AFTER namespace creation)
-    val client = new MTagClient(cluster, new ParallelExecutor)
+    val client = new NaiveTagClient(cluster, new ParallelExecutor)
 
     coordination.registerAndAwait("clientsStarted", nClients)
     val clientId = client.getClass.getSimpleName

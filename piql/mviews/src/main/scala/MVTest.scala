@@ -228,8 +228,8 @@ object MVTest extends ExperimentBase {
 
   def stdev(seq: Seq[Double]): Double = pow(variance(seq), 0.5)
 
-  def summarize(comment: String) = {
-    scaled.iterateOverRange(None,None).toList.filter(x => x.comment.equals(comment) && x.iteration > 1).groupBy(t => (t.partitions, t.clientId)).map({ case ((n,id), data) =>
+  def summarize(comment: String, hours: Int = 999999) = {
+    scaled.iterateOverRange(None,None).toList.filter(x => x.comment.equals(comment) && x.iteration > 1 && x.fromLastHours(hours)).groupBy(t => (t.partitions, t.clientId)).map({ case ((n,id), data) =>
       val putTimes = data.map(_.putTimes.quantile(0.99)/1000.0)
       val nvPutTimes = data.map(_.nvputTimes.quantile(0.99)/1000.0)
       val ops = data.map(x => (x.getTimes.totalRequests + x.putTimes.totalRequests + x.delTimes.totalRequests)*1.0/x.runTimeMs*1000)

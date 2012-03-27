@@ -77,6 +77,10 @@ case class ParResult3(
   var failures: Int = _
   var readFrac: Double = _
   var comment: String = _
+  
+  def fromLastHours(hours: Int) = {
+    ((System.currentTimeMillis - timestamp) / 1000 / 60 / 60 / 24) < hours
+  }
 
   def timeSince(): String = {
     val dt = System.currentTimeMillis - timestamp
