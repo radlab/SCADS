@@ -229,6 +229,7 @@ class ManagedScadsCluster(_root: ZooKeeperProxy#ZooKeeperNode) extends ScadsClus
 
   private def newStorageHandler(name:Option[String] = None): StorageHandler = {
     val config = new EnvironmentConfig
+/* TODO: why does enabling this cause huge memory leaks on puts() */
 //    config.setConfigParam(EnvironmentConfig.LOG_MEM_ONLY, "true")
     config.setAllowCreate(true)
     config.setTransactional(true)

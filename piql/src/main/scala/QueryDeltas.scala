@@ -15,6 +15,40 @@ class QueryDeltas(plan: LogicalPlan) {
     case r: Relation => r :: Nil
   }
 
+  def rewriteQuery(): LogicalPlan = {
+    /* TODO construct view schema ? */
+    val view = LocalTuples(0, "the_view", null, null)
+    rewrite(plan)(view)
+  }
+
+  def rewrite(plan: LogicalPlan)(implicit view: LocalTuples): LogicalPlan = {
+    plan match {
+      case Project(values: Seq[QualifiedAttributeValue], child) =>
+        /* TODO need to decide when to pull from join or view? */
+        Project(values.map(rewrite), rewrite(child))
+      case StopAfter(limit, child) =>
+        StopAfter(limit, rewrite(child))
+      case Selection(EqualityPredicate(v1: ParameterValue, v2: QualifiedAttributeValue), child) =>
+        Selection(EqualityPredicate(v1, rewrite(v2)), rewrite(child))
+      case Selection(EqualityPredicate(v1: QualifiedAttributeValue, v2: ParameterValue), child) =>
+        Selection(EqualityPredicate(rewrite(v1), v2), rewrite(child))
+      case Selection(p, child) =>
+        rewrite(child)
+      case Join(Selection(p, child), right) =>
+        /* TODO this is almost certainly wrong */
+        Selection(p, rewrite(child))
+      case Join(left, Selection(p, child)) =>
+        Selection(p, rewrite(child))
+      case Join(left, right) => view
+      case r: Relation => view
+    }
+  }
+  
+  /* TODO get field from schema */
+  def rewrite(v: QualifiedAttributeValue)(implicit view: LocalTuples): QualifiedAttributeValue = {
+    QualifiedAttributeValue(view, v.field)
+  }
+
   lazy val deltaQueries =
     relations.map(r => {
       logger.debug("delta calc %s", r)
@@ -41,6 +75,7 @@ class QueryDeltas(plan: LogicalPlan) {
         (viewAttrs ++ suffixAttrs)
           .foldRight((List[Value](), List[Value]())) { case (a, (p, cov)) =>  if(cov contains a) (p, cov) else  (a +: p, cov ++ unityMap.get(a).getOrElse(Nil)) }._1
           .map(calcDelta(_, r))
+      println(delta)
       (r, Project(projAttrs, delta.plan))
     }).toMap
 
@@ -71,6 +106,8 @@ class QueryDeltas(plan: LogicalPlan) {
         deltaChild.copy(plan= StopAfter(count, deltaChild.plan))
       else deltaChild
     case DataStopAfter(count, child) =>
+      calcDelta(child, relation)
+    case Project(values, child) =>
       calcDelta(child, relation)
     case Join(left, right) =>
       val deltaLeft = calcDelta(left, relation)

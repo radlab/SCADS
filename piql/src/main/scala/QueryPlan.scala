@@ -68,7 +68,7 @@ trait LogicalPlan extends language.Queryable with PlanWalker
 /**
  * Project a subset of the fields from the child
  */
-case class Project(values: Seq[Value], child: LogicalPlan) extends LogicalPlan
+case class Project(values: Seq[Value], child: LogicalPlan) extends LogicalPlan with SingleChildNode
 
 /**
  * Filters child by predicate.

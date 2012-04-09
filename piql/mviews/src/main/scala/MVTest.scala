@@ -206,8 +206,8 @@ class MVPessimalTest(val cluster: ScadsCluster, val client: TagClient) {
 
 /* convenient test configurations */
 object MVTest extends ExperimentBase {
-  val rc = new ScadsCluster(ZooKeeperNode(relativeAddress(Results.suffix)))
-  val scaled = rc.getNamespace[ParResult3]("ParResult3")
+  lazy val rc = new ScadsCluster(ZooKeeperNode(relativeAddress(Results.suffix)))
+  lazy val scaled = rc.getNamespace[ParResult3]("ParResult3")
   implicit val exec = new ParallelExecutor
 
   def newNaive(): MVPessimalTest = {

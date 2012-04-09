@@ -63,6 +63,8 @@ class Qualifier(plan: LogicalPlan) {
       Paginate(cnt, qualifyAttributes(c))
     case Join(left, right) =>
       Join(qualifyAttributes(left), qualifyAttributes(right))
+    case Project(values, child) =>
+      Project(values.map(qualifyAttributes), qualifyAttributes(child))
     case r: Relation => r
   }
 

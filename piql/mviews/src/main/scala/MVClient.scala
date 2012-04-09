@@ -72,6 +72,25 @@ class NaiveTagClient(clus: ScadsCluster, exec: QueryExecutor)
 
   protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.NaiveTagClient")
 
+  /* begin random test stuff for querydeltas */
+  val posts = cluster.getNamespace[Post]("posts")
+  val subs = cluster.getNamespace[Subscription]("subscr")
+  val unopt2 =
+    posts.as("p")
+      .join(subs.as("s"))
+      .where("p.topicId".a === "s.topicId".a)
+      .where("s.userId".a === (0.?))
+      .select("p.text".a)
+
+  val unopt =
+    tags.as("t1")
+        .where("t1.word".a === (0.?))
+        .join(tags.as("t2"))
+        .where("t2.word".a === (1.?))
+        .where("t1.item".a === "t2.item".a)
+        .limit(limit)
+  /* end random test stuff */
+
   val twoTagsPiql =
     tags.as("t1")
         .where("t1.word".a === (0.?))

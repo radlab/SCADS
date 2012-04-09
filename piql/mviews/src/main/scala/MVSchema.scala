@@ -9,6 +9,11 @@ import perf._
 
 import org.apache.avro.util._
 
+case class Subscription(var userId: Int, var topicId: Int) extends AvroPair {}
+case class Post(var topicId: Int, var timestamp: Int) extends AvroPair {
+  var text: String = _
+}
+
 case class Tag(var word: String, var item: String) extends AvroPair {
 }
 

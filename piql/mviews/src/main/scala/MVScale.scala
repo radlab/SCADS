@@ -20,7 +20,7 @@ import net.lag.logging.Logger
 
 /* task to run MVScaleTest on EC2 */
 case class ScaleTask(var replicas: Int = 1,
-                     var partitions: Int = 5,
+                     var partitions: Int = 1,
                      var nClients: Int = 1,
                      var iterations: Int = 2,
                      var itemsPerMachine: Int = 100,
