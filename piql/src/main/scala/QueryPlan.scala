@@ -52,6 +52,29 @@ case class InPredicate(v1: Value, v2: Value) extends Predicate
  */
 abstract trait InnerNode {
   def children: Seq[LogicalPlan]
+
+  override def toString = prettyPrint(new StringBuilder).toString
+
+  protected def prettyPrint(sb: StringBuilder, depth: Int = 0): StringBuilder = {
+    val S = "  " * depth
+    sb.append(S + getClass.getSimpleName + "(\n")
+    var first = true
+    getClass.getDeclaredFields.foreach(field => {
+      field.setAccessible(true)
+      if (first)
+        first = false
+      else
+        sb.append(",\n")
+      field.get(this) match {
+        case in: InnerNode =>
+          in.prettyPrint(sb, depth + 1)
+        case other =>
+          sb.append(S + "  " + other)
+      }
+    })
+    sb.append(")")
+    sb
+  }
 }
 
 /**
