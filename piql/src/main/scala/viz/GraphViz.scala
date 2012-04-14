@@ -19,7 +19,7 @@ object Test {
       .paginate(10)
     )
 
-  def deltas = new QueryDeltas(new Qualifier(query).qualifiedPlan)
+  def deltas = new QueryViewAnalyzer(new Qualifier(query).qualifiedPlan)
 
   val boundQuery = (
     r2.where(QualifiedAttributeValue(r2, r2.schema.getField("f1")) === (0.?))
@@ -113,7 +113,7 @@ protected class GraphLogicalPlan extends GraphViz {
 
   /* Recursive function to draw individual plan nodes */
   protected def generatePlan(plan: LogicalPlan): DotNode = plan match {
-    case Project(values, child) =>
+    case Project(values, child, schema) =>
       outputNode(projectSym + " " + values.map(prettyPrint).mkString(", "),
         children = Seq(generatePlan(child)))
     case Selection(predicate, child) =>

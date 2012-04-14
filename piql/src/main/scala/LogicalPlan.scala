@@ -14,8 +14,12 @@ trait PlanWalker {
   def walkPlan[A](f: LogicalPlan => A): A = {
     this match {
       case in: SingleChildNode => {
-        f(this)
         in.child.walkPlan(f)
+        f(this)
+      }
+      case in: InnerNode => {
+        in.children.map(_.walkPlan(f))
+        f(this)
       }
       case leaf => f(leaf)
     }
@@ -30,6 +34,8 @@ trait PlanWalker {
         val childRes = in.child.gatherUntil(f)
         (f(this) +: childRes._1, childRes._2)
       }
+      case in: InnerNode =>
+        throw new RuntimeException("NOTIMPLEMENTED")
       case leaf => (f(leaf) :: Nil, None)
     }
   }
@@ -37,6 +43,8 @@ trait PlanWalker {
   def flatGather[A](f: LogicalPlan => Seq[A]): Seq[A] = this match {
     case in: SingleChildNode =>
       in.child.flatGather(f) ++ f(in)
+    case in: InnerNode =>
+      in.children.flatMap(_.flatGather(f)) ++ f(in)
     case leaf => f(leaf)
   }
 }

@@ -170,6 +170,20 @@ object Optimizer {
       case Selection(pred, child) => {
         LocalSelection(pred, apply(child))
       }
+      case Project(values, child, optSchema) => {
+        val schema = optSchema.getOrElse({
+          val tmp = Schema.createRecord("LocalProjection", null, null, false)
+          tmp.setFields(values.map(_ match {
+            case QualifiedAttributeValue(relation, field) =>
+              new Schema.Field(field.name, field.schema, field.doc, null)
+            case other =>
+              throw new RuntimeException("Must specify schema to project non-attributes.")
+          }))
+          tmp
+        })
+
+        LocalProjection(values, apply(child), schema)
+      }
     }
   }
 

@@ -2,6 +2,7 @@ package edu.berkeley.cs.scads.piql
 package plans
 
 import edu.berkeley.cs.scads.storage.client.index._
+import edu.berkeley.cs.scads.storage.GenericNamespace
 
 import collection.JavaConversions._
 import org.apache.avro.Schema
@@ -89,9 +90,9 @@ abstract trait SingleChildNode extends InnerNode {
 trait LogicalPlan extends language.Queryable with PlanWalker
 
 /**
- * Project a subset of the fields from the child
+ * Project a subset of the fields from the child onto a Schema
  */
-case class Project(values: Seq[Value], child: LogicalPlan) extends LogicalPlan with SingleChildNode
+case class Project(values: Seq[Value], child: LogicalPlan, schema: Option[Schema]) extends LogicalPlan with SingleChildNode
 
 /**
  * Filters child by predicate.
@@ -164,6 +165,17 @@ case class ScadsRelation(ns: IndexedNamespace, alias: Option[String] = None) ext
   }
 }
 
+case class ScadsView(ns: IndexNamespace) extends Relation with LogicalPlan {
+  def name = ns.name
+  def schema = ns.keySchema
+  def keySchema = ns.keySchema
+  def provider = ns
+
+  def index(attrs: Seq[QualifiedAttributeValue]): TupleProvider = {
+    throw new RuntimeException("Should Not Index")
+  }
+}
+
 case class ScadsIndex(ns: Namespace) extends TupleProvider with LogicalPlan {
   def name = ns.name
   def schema = ns.schema
@@ -189,6 +201,7 @@ case class IndexScanJoin(namespace: TupleProvider, keyPrefix: KeyGenerator, limi
 case class IndexMergeJoin(namespace: TupleProvider, keyPrefix: KeyGenerator, sortFields: Seq[Value], limit: Limit, ascending: Boolean, child: QueryPlan) extends RemotePlan with InnerPlan
 
 case class LocalSelection(predicate: Predicate, child: QueryPlan) extends QueryPlan with InnerPlan
+case class LocalProjection(fields: KeyGenerator, child: QueryPlan, schema: Schema) extends QueryPlan with InnerPlan
 case class LocalSort(sortFields: Seq[Value], ascending: Boolean, child: QueryPlan) extends QueryPlan with InnerPlan
 case class LocalStopAfter(count: Limit, child: QueryPlan) extends QueryPlan with InnerPlan
 

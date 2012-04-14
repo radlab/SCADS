@@ -49,8 +49,10 @@ trait QueryExecutor {
     }
   }
 
-  final protected def bindKey(ns: TupleProvider, key: KeyGenerator, currentTuple: Tuple = null)(implicit ctx: Context): Key = {
-    val boundKey = new GenericData.Record(ns.keySchema)
+  final protected def bindKey(ns: TupleProvider, key: KeyGenerator, currentTuple: Tuple = null)(implicit ctx: Context): Key = bindKey(ns.keySchema, key, currentTuple)
+
+  final protected def bindKey(schema: Schema, key: KeyGenerator, currentTuple: Tuple)(implicit ctx: Context): Key = {
+    val boundKey = new GenericData.Record(schema)
 
     key.map(bindValue(_, currentTuple)).zipWithIndex.foreach {
       case (value: Any, idx: Int) => boundKey.put(idx, value)
@@ -368,6 +370,22 @@ class SimpleExecutor extends QueryExecutor {
 
         def next = {
           taken += 1; childIterator.next
+        }
+      }
+    }
+    case LocalProjection(values, child, schema) => {
+      new QueryIterator {
+        val name = "Projection"
+        private val childIterator = apply(child)
+
+        def open = childIterator.open
+        def close = childIterator.close
+        def hasNext = childIterator.hasNext
+
+        def next = {
+          val childTuple = childIterator.next
+          val boundKey = bindKey(schema, values, childTuple)
+          IndexedSeq[Record](boundKey)
         }
       }
     }

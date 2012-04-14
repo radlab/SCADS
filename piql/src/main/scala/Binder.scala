@@ -63,9 +63,9 @@ class Qualifier(plan: LogicalPlan) {
       Paginate(cnt, qualifyAttributes(c))
     case Join(left, right) =>
       Join(qualifyAttributes(left), qualifyAttributes(right))
-    case Project(values, child) =>
-      Project(values.map(qualifyAttributes), qualifyAttributes(child))
-    case r: Relation => r
+    case Project(values, child, schema) =>
+      Project(values.map(qualifyAttributes), qualifyAttributes(child), schema)
+    case r: TupleProvider => r
   }
 
   protected def qualifyAttributes(plan: Predicate): Predicate = plan match {
@@ -128,6 +128,8 @@ class Binder(plan: QueryPlan) {
       LocalSort(sf.map(bindValue), asc, bindPlan(c))
     case LocalStopAfter(cnt, c) =>
       LocalStopAfter(cnt, bindPlan(c))
+    case LocalProjection(attrs, c, schema) =>
+      LocalProjection(attrs.map(bindValue(_)), bindPlan(c), schema)
   }
 
   protected def bindValue(v: Value): Value = v match {

@@ -80,7 +80,7 @@ class NaiveTagClient(clus: ScadsCluster, exec: QueryExecutor)
       .join(subs.as("s"))
       .where("p.topicId".a === "s.topicId".a)
       .where("s.userId".a === (0.?))
-      .select("p.text".a)
+      .select("p.text".a, "p.topicId".a)
 
   val unopt =
     tags.as("t1")
@@ -89,6 +89,7 @@ class NaiveTagClient(clus: ScadsCluster, exec: QueryExecutor)
         .where("t2.word".a === (1.?))
         .where("t1.item".a === "t2.item".a)
         .limit(limit)
+        .select("t1.item".a)
   /* end random test stuff */
 
   val twoTagsPiql =

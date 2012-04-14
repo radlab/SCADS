@@ -9,7 +9,7 @@ import plans._
 trait Queryable {
   self: LogicalPlan =>
 
-  def select(values: Value*) = Project(values, this)
+  def select(values: Value*) = Project(values, this, None)
 
   def where(predicate: Predicate) = Selection(predicate, this)
 
