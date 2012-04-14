@@ -69,7 +69,12 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
     case Project(values, child, s) =>
       var inner = rewrite(child)
       for (r <- relationsNeededToProject(values)) {
-        inner = Join(r.asInstanceOf[LogicalPlan], inner)
+        inner = Join(inner, r.asInstanceOf[LogicalPlan])
+        for (k <- r.keyAttributes) {
+          inner = Selection(
+            EqualityPredicate(k, QualifiedAttributeValue(view, fieldInView(k))),
+            inner)
+        }
       }
       Project(values.map(rewrite), inner, s)
     case StopAfter(limit, child) =>
