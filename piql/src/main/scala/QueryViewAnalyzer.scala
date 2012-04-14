@@ -10,7 +10,7 @@ import plans._
 
 import net.lag.logging.Logger
 
-class QueryViewAnalyzer(plan: LogicalPlan) {
+class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
   val logger = Logger()
 
   lazy val relations = plan.flatGather(_ match {
@@ -23,7 +23,7 @@ class QueryViewAnalyzer(plan: LogicalPlan) {
     case other => Nil
   })
 
-  lazy val viewName = "view__" + viewAttrs.map(a => a.field.name).mkString("_")
+  lazy val viewName = "view_" + queryName.getOrElse("anonymous") + "__" + viewAttrs.map(a => a.field.name).mkString("_")
 
   lazy val (viewSchema, fieldInView) = {
     val fieldInView = scala.collection.mutable.Map[Value,Field]()

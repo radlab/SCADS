@@ -36,6 +36,7 @@ abstract class TagClient(val cluster: ScadsCluster,
       .join(subs.as("s"))
       .where("p.topicId".a === "s.topicId".a)
       .where("s.userId".a === (0.?))
+      .limit(limit)
       .select("p.text".a, "p.topicId".a)
 
   val unopt =

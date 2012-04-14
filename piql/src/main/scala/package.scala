@@ -62,8 +62,6 @@ package object piql {
 
   /* Helper functions for running logical plans through optimizer pipeline */
 
-
-
   implicit def toPiql(logicalPlan: LogicalPlan)(implicit executor: QueryExecutor) = new {
     def toPiql(queryName: Option[String] = None) = {
       logger.info("Begining Optimization of query %s: %s", queryName, logicalPlan)
@@ -74,6 +72,26 @@ package object piql {
       val boundPlan = new Binder(physicalPlan).boundPlan
       logger.debug("Bound piql query %s: %s", queryName, boundPlan)
       new OptimizedQuery(queryName, boundPlan, executor, Some(logicalPlan))
+    }
+  }
+
+  /* tries once to find a view producing a bounded plan */
+  implicit def toPiqlWithView(logicalPlan: LogicalPlan)(implicit executor: QueryExecutor) = new {
+    def toPiqlWithView(queryName: Option[String] = None) = {
+      var res: Option[OptimizedQuery] = None
+      try {
+        res = Some(logicalPlan.toPiql(queryName))
+      } catch {
+        /* TODO precise detection of unbounded query */
+        case e: scala.MatchError =>
+          res = Some(
+            new QueryViewAnalyzer(
+              new Qualifier(logicalPlan).qualifiedPlan,
+              queryName)
+            .rewrittenQuery.toPiql(queryName))
+        case other => throw other
+      }
+      res.getOrElse(throw new AssertionError())
     }
   }
 
