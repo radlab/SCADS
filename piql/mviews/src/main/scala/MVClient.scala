@@ -28,6 +28,31 @@ abstract class TagClient(val cluster: ScadsCluster,
 
   val tags = cluster.getNamespace[Tag]("tags")
 
+  /* begin random test stuff for querydeltas */
+  val posts = cluster.getNamespace[Post]("posts")
+  val subs = cluster.getNamespace[Subscription]("subscr")
+  val unopt2 =
+    posts.as("p")
+      .join(subs.as("s"))
+      .where("p.topicId".a === "s.topicId".a)
+      .where("s.userId".a === (0.?))
+      .select("p.text".a, "p.topicId".a)
+
+  val unopt =
+    tags.as("t1")
+        .where("t1.word".a === (0.?))
+        .join(tags.as("t2"))
+        .where("t2.word".a === (1.?))
+        .where("t1.item".a === "t2.item".a)
+        .limit(limit)
+        .select("t1.item".a)
+
+  val simple =
+    tags.where("item".a === (0.?))
+        .limit(limit)
+  /* end random test stuff */
+
+
   // materialized pairs of tags, including the duplicate pair
   val mTagPairs = cluster.getNamespace[MTagPair]("mTagPairs")
 
@@ -71,26 +96,6 @@ class NaiveTagClient(clus: ScadsCluster, exec: QueryExecutor)
       extends TagClient(clus, exec) {
 
   protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.NaiveTagClient")
-
-  /* begin random test stuff for querydeltas */
-  val posts = cluster.getNamespace[Post]("posts")
-  val subs = cluster.getNamespace[Subscription]("subscr")
-  val unopt2 =
-    posts.as("p")
-      .join(subs.as("s"))
-      .where("p.topicId".a === "s.topicId".a)
-      .where("s.userId".a === (0.?))
-      .select("p.text".a, "p.topicId".a)
-
-  val unopt =
-    tags.as("t1")
-        .where("t1.word".a === (0.?))
-        .join(tags.as("t2"))
-        .where("t2.word".a === (1.?))
-        .where("t1.item".a === "t2.item".a)
-        .limit(limit)
-        .select("t1.item".a)
-  /* end random test stuff */
 
   val twoTagsPiql =
     tags.as("t1")
