@@ -156,6 +156,7 @@ class PairNamespace[Pair <: AvroPair : Manifest](
   with AvroPairSerializer[Pair]
   with RecordStore[Pair]
   with index.IndexManager[Pair]
+  with index.ViewManager[Pair]
   with DebuggingClient 
   with NamespaceIterator[Pair] {
   

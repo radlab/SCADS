@@ -2,6 +2,7 @@ package edu.berkeley.cs.scads.piql
 package opt
 
 import org.apache.avro.Schema
+import org.apache.avro.generic.IndexedRecord
 import scala.collection.JavaConversions._
 
 import edu.berkeley.cs.scads.storage.client.index._
@@ -44,6 +45,11 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
     val base = viewAttrs(0).relation.provider
     val ns = new IndexNamespace(viewName, base.cluster, base.cluster.namespaces, viewSchema)
     ns.open()
+    for (r <- relations) {
+      // TODO any way to get rid of this cast?
+      val manager = r.provider.asInstanceOf[ViewManager[edu.berkeley.cs.avro.marker.AvroPair]]
+      manager.registerView(r.name, ns, deltaQueries(r))
+    }
     ScadsView(ns)
   }
 
@@ -144,8 +150,8 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
 
   lazy val deltaQueries = {
     relations.map(r => {
-      val delta = calcDelta(plan, r)
-      val fields = scala.collection.mutable.Map[QualifiedAttributeValue,Int]()
+      val predelta = calcDelta(plan, r)
+      val fields = scala.collection.mutable.Map[Int,Int]()
       var i = -1
 
       /* pass to replace delta relation with parameters */
@@ -171,21 +177,31 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
       def parameterize(w: Value): Value = w match {
         case v: QualifiedAttributeValue => v
           if (v.relation == r) {
-            if (fields.contains(v)) {
-              ParameterValue(fields(v))
+            val pos = r.schema.getField(v.field.name).pos
+            if (fields.contains(pos)) {
+              ParameterValue(fields(pos))
             } else {
               i += 1
-              fields(v) = i
+              fields(pos) = i
               ParameterValue(i)
             }
           } else {
             v
           }
       }
-      val ret = (r, deltify(Project(viewAttrs, delta.plan, viewSchema)))
-      /* TODO figure out how to hook this into base relations */
+
+      val query = deltify(Project(viewAttrs, predelta.plan, viewSchema))
+      implicit val exec = new ParallelExecutor
+      val opt = query.toPiql()
+
       logger.debug("remapped fields to parameters: " + fields)
-      ret
+      val params = fields.toList.sortBy(_._2).map(_._1)
+
+      def delta(key: IndexedRecord): Seq[IndexedRecord] = {
+        opt(params.map(key.get(_)) : _*).map(_(0))
+      }
+
+      (r, delta _ )
     }).toMap
   }
 
