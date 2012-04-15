@@ -189,7 +189,7 @@ case class LocalTuples(ordinal: Int, alias: String, keySchema: Schema, schema: S
 }
 
 /* Physical Query Plan Nodes */
-abstract class QueryPlan
+sealed abstract class QueryPlan
 abstract class RemotePlan extends QueryPlan { val namespace: TupleProvider }
 abstract trait InnerPlan extends QueryPlan { val child: QueryPlan}
 
@@ -202,11 +202,7 @@ case class IndexMergeJoin(namespace: TupleProvider, keyPrefix: KeyGenerator, sor
 
 case class LocalSelection(predicate: Predicate, child: QueryPlan) extends QueryPlan with InnerPlan
 case class LocalProjection(fields: KeyGenerator, child: QueryPlan, schema: Schema) extends QueryPlan with InnerPlan
-case class LocalSort(sortFields: Seq[Value], ascending: Boolean, child: QueryPlan) extends QueryPlan with InnerPlan
 case class LocalStopAfter(count: Limit, child: QueryPlan) extends QueryPlan with InnerPlan
 
 /* Testing iterator that simply emits tuples from an iterator that is passed to the query as a parameter */
 case class LocalIterator(parameterOrdinal: Int, wrap: Boolean = false) extends QueryPlan
-
-
-case class Union(child1 : QueryPlan, child2 : QueryPlan, eqField : AttributeValue) extends QueryPlan

@@ -124,12 +124,12 @@ class Binder(plan: QueryPlan) {
       IndexMergeJoin(ns, kp.map(bindValue), sf.map(bindValue), l, asc, bindPlan(c))
     case LocalSelection(p, c) =>
       LocalSelection(bindPredicate(p), bindPlan(c))
-    case LocalSort(sf, asc, c) =>
-      LocalSort(sf.map(bindValue), asc, bindPlan(c))
     case LocalStopAfter(cnt, c) =>
       LocalStopAfter(cnt, bindPlan(c))
     case LocalProjection(attrs, c, schema) =>
       LocalProjection(attrs.map(bindValue(_)), bindPlan(c), schema)
+    case LocalIterator(param, wrap) =>
+      LocalIterator(param, wrap)
   }
 
   protected def bindValue(v: Value): Value = v match {

@@ -409,9 +409,6 @@ class SimpleExecutor extends QueryExecutor {
         def next = delegate.next
       }
     }
-    case Union(chil1, child2, eqField) => {
-      throw new RuntimeException("Not yet implemented")
-    }
   }
 }
 
