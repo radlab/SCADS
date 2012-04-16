@@ -48,11 +48,11 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
     for (r <- relations) {
       // TODO any way to get rid of this cast?
       val manager = r.provider.asInstanceOf[ViewManager[edu.berkeley.cs.avro.marker.AvroPair]]
-      manager.registerView(r.name, ns, deltaQueries(r))
+      manager.registerView(r.name, ns, deltaFunctions(r))
     }
     ScadsView(ns)
   }
-
+  
   lazy val rewrittenQuery = {
     rewrite(plan)(getViewNamespace)
   }
@@ -67,7 +67,7 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
         case other => other
       }
     }
-    logger.info("need these extra relations to project: " + relations)
+    logger.debug("need these extra relations to project: " + relations)
     relations
   }
  
@@ -191,6 +191,12 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
       }
 
       val query = deltify(Project(viewAttrs, predelta.plan, viewSchema))
+      (r, (query, fields))
+    }).toMap
+  }
+
+  lazy val deltaFunctions = deltaQueries map {
+    case (r, (query, fields)) => {
       implicit val exec = new ParallelExecutor
       val opt = query.toPiql()
 
@@ -202,7 +208,7 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
       }
 
       (r, delta _ )
-    }).toMap
+    }
   }
 
   case class SubPlan(plan: LogicalPlan, equalityAttributes: Seq[QualifiedAttributeValue], unified: Seq[EqualityPredicate], ordering: Seq[Value], ordered: Boolean)
