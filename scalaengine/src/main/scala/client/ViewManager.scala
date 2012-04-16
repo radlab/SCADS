@@ -15,39 +15,63 @@ import edu.berkeley.cs.avro.marker._
 import org.apache.avro.util.Utf8
 
 trait ViewManager[BulkType <: AvroPair] extends RangeKeyValueStoreLike[IndexedRecord, IndexedRecord, BulkType] {
-  import IndexManager._
 
   type ViewDelta = (IndexedRecord) => Seq[IndexedRecord]
   @volatile var updateRules = Map[(String, String), (IndexNamespace, ViewDelta)]()
 
-  // deltaId is unique for every (relationAlias, view.name)
+  // delta unique for every (relationAlias, view.name)
   def registerView(relationAlias: String, view: IndexNamespace, delta: ViewDelta) = {
     updateRules += (((relationAlias, view.name), (view, delta)))
   }
 
   override abstract def put(key: IndexedRecord, value: Option[IndexedRecord]): Unit = {
-    // do deletes before base update (for self joins)
+    // order is important for self-joins
     value match {
       case None =>
-        for ((view, delta) <- updateRules.values) {
-          for (t <- delta(key)) {
-            view.put(t, None)
-          }
-        }
-      case _ =>
+        updateViews(key, None)
+        super.put(key, value)
+      case Some(_) =>
+        super.put(key, value)
+        updateViews(key, nilValueBytes)
     }
+  }
 
-    super.put(key, value)
+  override abstract def ++=(that: TraversableOnce[BulkType]): Unit = {
+    val traversable = that.toTraversable
+    super.++=(traversable)
+    updateViews(traversable, nilValueBytes)
+  }
 
-    // do puts after base update (for self joins)
-    value match {
-      case Some(value) =>
-        for ((view, delta) <- updateRules.values) {
-          for (t <- delta(key)) {
-            view.put(t, Some(dummyIndexValue))
-          }
+  override abstract def --=(that: TraversableOnce[BulkType]): Unit = {
+    val traversable = that.toTraversable
+    updateViews(traversable, None)
+    super.--=(traversable)
+  }
+
+  private implicit def bulkToKey(b: BulkType): IndexedRecord = b.key
+  private implicit def toMany(r: IndexedRecord): Traversable[IndexedRecord] = Traversable(r)
+
+  private def updateViews(that: TraversableOnce[IndexedRecord],
+                          valueBytes: Option[Array[Byte]]): Unit = {
+    val rules = updateRules.values
+    for (t <- that) {
+      for ((view, delta) <- rules) {
+        for (u <- delta(t)) {
+          view.putBulkBytes(view.keyToBytes(u), valueBytes)
         }
-      case _ =>
+      }
     }
+    for ((view, _) <- rules) {
+      view.flushBulkBytes
+    }
+  }
+
+  private val nilValueBytes = {
+    val schema = Schema.createRecord("NilValue", "", "", false)
+    schema.setFields(Nil)
+    val exemplar = new GenericData.Record(schema)
+    val valueReaderWriter = new AvroGenericReaderWriter[IndexedRecord](None, schema)
+    val exemplarBytes = valueReaderWriter.serialize(exemplar)
+    Some(exemplarBytes)
   }
 }
