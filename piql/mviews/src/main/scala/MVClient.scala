@@ -20,7 +20,7 @@ abstract class TagClient(val cluster: ScadsCluster,
                          implicit val executor: QueryExecutor,
                          val limit: Int = 20) {
   def selectTags(tag1: String, tag2: String): Seq[String]
-  def fastSelectTags(tag1: String, tag2: String)
+  def fastSelectTags(tag1: String, tag2: String): Any
   def addTag(item: String, tag: String): Tuple2[Long,Long]
   def removeTag(item: String, tag: String): Tuple2[Long,Long]
   def initBulk(itemTagPairs: Seq[Tuple2[String,String]])
@@ -98,24 +98,36 @@ class NaiveTagClient(clus: ScadsCluster, exec: QueryExecutor)
 
   protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.NaiveTagClient")
 
-  val twoTagsPiql =
+  val twoTagsPiqlWithView =
+    tags.as("t1")
+        .where("t1.word".a === (0.?))
+        .join(tags.as("t2"))
+        .where("t2.word".a === (1.?))
+        .where("t1.item".a === "t2.item".a)
+        .limit(limit)
+        .select("t1.item".a)
+        .toPiqlWithView("twoTags")
+
+  val twoTagsPiqlNoView =
     tags.as("t1")
         .where("t1.word".a === (0.?))
         .dataLimit(1024) // arbitrary false promise
         .join(tags.as("t2"))
         .where("t2.word".a === (1.?))
         .where("t1.item".a === "t2.item".a)
-        .limit(limit).toPiql("twoTagsPiql")
+        .limit(limit)
+        .select("t1.item".a)
+        .toPiql("twoTagsNoView")
 
   def selectTags(tag1: String, tag2: String) = {
-    twoTagsPiql(tag1, tag2).map(
+    twoTagsPiqlWithView(tag1, tag2).map(
       arr => arr.head match {
-        case m => m.get(1).toString
+        case m => m.get(0).toString
       })
   }
 
   def fastSelectTags(tag1: String, tag2: String) = {
-    twoTagsPiql(tag1, tag2)
+    twoTagsPiqlWithView(tag1, tag2)
   }
 
   def addTag(item: String, tag: String) = {
