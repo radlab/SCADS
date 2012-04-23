@@ -51,6 +51,39 @@ abstract class TagClient(val cluster: ScadsCluster,
   val simple =
     tags.where("item".a === (0.?))
         .limit(limit)
+
+  val threeTagsUnopt =
+    tags.as("t1")
+        .where("t1.word".a === (0.?))
+        .join(tags.as("t2"))
+        .where("t2.word".a === (1.?))
+        .join(tags.as("t3"))
+        .where("t3.word".a === (2.?))
+        .where("t1.item".a === "t2.item".a)
+        .where("t2.item".a === "t3.item".a)
+        .limit(limit)
+        .select("t1.item".a)
+
+  val threeTags = threeTagsUnopt.toPiqlWithView("threeTags")
+
+  // select all tags combinations for this item
+  val dq =
+    tags.as("t2")
+        .join(tags.as("t3"))
+        .where("t2.item".a === (0.?))
+        .where("t2.item".a === "t3.item".a)
+        .limit(limit)
+        .select("t3.word".a, "t2.word".a, "t3.item".a)
+
+  // select all tag combinations for this rewritten variant
+  // TODO fix bug in algorithm (in paper?)
+  val dq2 =
+    tags.as("t1")
+        .join(tags.as("t3"))
+        .where("t1.item".a === (0.?))
+        .where("t3.item".a === (0.?))
+        .limit(limit)
+        .select("t3.word".a, "t1.word".a, "t1.item".a)
   /* end random test stuff */
 
 
@@ -133,7 +166,7 @@ class NaiveTagClient(clus: ScadsCluster, exec: QueryExecutor)
   def addTag(item: String, tag: String) = {
     val start = System.nanoTime / 1000
     tags.put(new Tag(tag, item))
-    (System.nanoTime / 1000 - start, -1)
+    (System.nanoTime / 1000 - start, -2)
   }
 
   def removeTag(item: String, tag: String) = {

@@ -11,7 +11,7 @@ import plans._
 
 import net.lag.logging.Logger
 
-class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
+class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None, maxDepth: Int = 3) {
   val logger = Logger()
 
   lazy val relations = plan.flatGather(_ match {
@@ -24,7 +24,7 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
     case other => Nil
   })
 
-  lazy val viewName = "view_" + queryName.getOrElse("anonymous") + "__" + viewAttrs.map(a => a.field.name).mkString("_")
+  lazy val viewName = "view_" + queryName.getOrElse("anon") + "__" + viewAttrs.map(a => a.relation.name + a.field.name).mkString("_")
 
   lazy val (viewSchema, fieldInView) = {
     val fieldInView = scala.collection.mutable.Map[Value,Field]()
@@ -46,7 +46,6 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
     val ns = new IndexNamespace(viewName, base.cluster, base.cluster.namespaces, viewSchema)
     ns.open()
     for (r <- relations) {
-      // TODO any way to get rid of this cast?
       val manager = r.provider.asInstanceOf[ViewManager[edu.berkeley.cs.avro.marker.AvroPair]]
       manager.registerView(r.name, ns, deltaFunctions(r))
     }
@@ -85,6 +84,8 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
       Project(values.map(rewrite), inner, s)
     case StopAfter(limit, child) =>
       StopAfter(limit, rewrite(child))
+    case DataStopAfter(limit, child) =>
+      DataStopAfter(limit, rewrite(child))
     case Selection(EqualityPredicate(v1: ParameterValue, v2: QualifiedAttributeValue), child) =>
       Selection(EqualityPredicate(v1, rewrite(v2)), rewrite(child))
     case Selection(EqualityPredicate(v1: QualifiedAttributeValue, v2: ParameterValue), child) =>
@@ -115,9 +116,10 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
         a // will fetch its value from join with base relation
     case other => other
   }
+
+  lazy val delta = calcDelta(plan, null)
   
   lazy val (viewAttrs, unityMap) = {
-    val delta = calcDelta(plan, null)
 
     val keyAttrs = relations.flatMap(_.keyAttributes)
     logger.debug("key attrs: %s", keyAttrs)
@@ -128,23 +130,38 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
     val suffixAttrs = keyAttrs.filterNot(viewAttrs contains _)
     logger.debug("suffix attrs: %s", suffixAttrs)
 
-    val unityMap =
+    var unityMap =
       delta.unified
         .flatMap { case EqualityPredicate(v1, v2) => (v1, v2) :: (v2, v1) :: Nil }
         .groupBy(_._1)
         .map { case (v1, v2s) => (v1, v2s.map(_._2).toSet) }
         .toMap
+
+    // iterate to fixed point (TODO union find would be nice...)
+    var prev = Map[Value,Set[Value]]()
+    while (unityMap != prev) {
+      prev = unityMap
+      unityMap = unityMap.map(_ match {
+        case (k,v) => (k, v.flatMap(u => unityMap.getOrElse(u, Set(u)) + u).toSet)
+      })
+    }
+
     logger.debug("unity map: %s", unityMap)
 
-    val attrs = (viewAttrs ++ suffixAttrs)
-      .foldRight((List[Value](), List[Value]())) {
-        case (a, (p, cov)) =>
-          if (cov contains a)
-            (p, cov)
-          else
-            (a +: p, cov ++ unityMap.get(a).getOrElse(Nil))
-      }._1.map(_ match { case a: QualifiedAttributeValue => a })
-    
+    val attrs = {
+      var cov = Set[Value]()
+      var aa = List[Value]()
+      for (a <- viewAttrs ++ suffixAttrs) {
+        if (!(cov contains a)) {
+          for (b <- unityMap.get(a).getOrElse(Nil)){ 
+            cov += b
+          }
+          aa ::= a
+        }
+      }
+      aa.reverse
+    }.map(_ match { case a: QualifiedAttributeValue => a })
+
     (attrs, unityMap)
   }
 
@@ -154,15 +171,25 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
       val fields = scala.collection.mutable.Map[Int,Int]()
       var i = -1
 
+      /* for hack */
+      var limited = false
+      var visited = Set[Int]()
+
       /* pass to replace delta relation with parameters */
       def deltify(plan: LogicalPlan): LogicalPlan = plan match {
         case Project(values, child, s) =>
-          Project(values.map(parameterize), deltify(child), s)
+          Project(values.map(parameterize(_, false)), deltify(child), s)
         case StopAfter(limit, child) =>
           StopAfter(limit, deltify(child))
         case Selection(p, child) =>
-          /* TODO use cardinality constraints instead of lying */
-          DataStopAfter(FixedLimit(123), Selection(deltifyp(p), deltify(child)))
+          /* TODO use combined cardinality constraints instead of lying
+             and picking an arbitrary number */
+          if (limited) {
+            Selection(deltifyp(p), deltify(child))
+          } else {
+            limited = true
+            DataStopAfter(FixedLimit(123), Selection(deltifyp(p), deltify(child)))
+          }
         case Join(left, right) if (left == r) => deltify(right)
         case Join(left, right) if (right == r) => deltify(left)
         case Join(left, right) => Join(deltify(left), deltify(right))
@@ -171,13 +198,29 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
 
       def deltifyp(predicate: Predicate): Predicate = predicate match {
         case EqualityPredicate(v1, v2) =>
-          EqualityPredicate(parameterize(v1), parameterize(v2))
+          EqualityPredicate(parameterize(v1, true), parameterize(v2, true))
       }
 
-      def parameterize(w: Value): Value = w match {
+      def parameterize(w: Value, inEquality: Boolean): Value = w match {
         case v: QualifiedAttributeValue => v
           if (v.relation == r) {
             val pos = r.schema.getField(v.field.name).pos
+
+            /* HACK: put in a unified attribute instead if possible.
+             * this works around a bug where for param X,
+             * a == X, b == X is not treated as an attribute equality */
+            if (inEquality) {
+              if (visited contains pos) {
+                for (t <- unityMap.getOrElse(v, Nil)) {
+                  t match {
+                    case u: QualifiedAttributeValue => if (u.relation != r) return u
+                  }
+                }
+              }
+              visited += pos
+            }
+            /* end HACK (TODO fix bug) */
+
             if (fields.contains(pos)) {
               ParameterValue(fields(pos))
             } else {
@@ -198,7 +241,7 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
   lazy val deltaFunctions = deltaQueries map {
     case (r, (query, fields)) => {
       implicit val exec = new ParallelExecutor
-      val opt = query.toPiql()
+      val opt = query.toPiqlWithView(queryName.getOrElse("anon") + "_delta", maxDepth - 1)
 
       logger.debug("remapped fields to parameters: " + fields)
       val params = fields.toList.sortBy(_._2).map(_._1)
@@ -213,13 +256,13 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None) {
 
   case class SubPlan(plan: LogicalPlan, equalityAttributes: Seq[QualifiedAttributeValue], unified: Seq[EqualityPredicate], ordering: Seq[Value], ordered: Boolean)
 
-  protected def calcDelta(plan: LogicalPlan, relation: TupleProvider): SubPlan = plan match {
+  def calcDelta(plan: LogicalPlan, relation: TupleProvider): SubPlan = plan match {
     case Selection(EqualityPredicate(v1: ParameterValue, v2: QualifiedAttributeValue), child) =>
       val deltaChild = calcDelta(child, relation)
-      deltaChild.copy(equalityAttributes=(v2 +: deltaChild.equalityAttributes))
+      deltaChild.copy(equalityAttributes=v2 +: deltaChild.equalityAttributes, unified=EqualityPredicate(v1, v2) +: deltaChild.unified)
     case Selection(EqualityPredicate(v1: QualifiedAttributeValue, v2: ParameterValue), child) =>
       val deltaChild = calcDelta(child, relation)
-      deltaChild.copy(equalityAttributes=v1 +: deltaChild.equalityAttributes)
+      deltaChild.copy(equalityAttributes=v1 +: deltaChild.equalityAttributes, unified=EqualityPredicate(v1, v2) +: deltaChild.unified)
     case Selection(p, child) =>
       val deltaChild = calcDelta(child, relation)
       p match {

@@ -189,7 +189,7 @@ case class LocalTuples(ordinal: Int, alias: String, keySchema: Schema, schema: S
 }
 
 /* Physical Query Plan Nodes */
-sealed abstract class QueryPlan
+abstract class QueryPlan
 abstract class RemotePlan extends QueryPlan { val namespace: TupleProvider }
 abstract trait InnerPlan extends QueryPlan { val child: QueryPlan}
 
