@@ -193,6 +193,8 @@ class EC2Region(val endpoint: String, val location: String, val defaultAMI: Stri
             new Tag(key, value) :: Nil))
       }
 
+      def +=(tag: (String, String)): Unit = +=(tag._1, tag._2)
+
       def -=(key: String, value: String = ""): Unit =
         client.deleteTags(
           new DeleteTagsRequest(instanceId :: Nil).withTags(new Tag(key, value)))
