@@ -144,7 +144,7 @@ class EC2Region(val endpoint: String, val location: String, val defaultAMI: Stri
   /**
    * Launches a set of instances with the given parameters
    */
-  def runInstances(imageId: String, min: Int, max: Int, keyName: String, instanceType: String, location: Option[String], userData: Option[String] = None): Seq[EC2Instance] = {
+  def runInstances(imageId: String, min: Int, max: Int, keyName: String, instanceType: String, location: Option[String] = None, userData: Option[String] = None): Seq[EC2Instance] = {
     val encoder = new sun.misc.BASE64Encoder
     val request = new RunInstancesRequest(imageId, min, max)
       .withKeyName(keyName)
