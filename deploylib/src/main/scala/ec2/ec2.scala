@@ -206,6 +206,9 @@ class EC2Region(val endpoint: String, val location: String, val defaultAMI: Stri
     def halt: Unit =
       client.terminateInstances(new TerminateInstancesRequest(instanceId :: Nil))
 
+    def reboot: Unit =
+      client.rebootInstances(new RebootInstancesRequest(instanceId :: Nil))
+
     def currentState: Instance =
       instanceData(instanceId)
 
