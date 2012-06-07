@@ -356,8 +356,8 @@ class EC2Region(val endpoint: String, val location: String, val defaultAMI: Stri
     def bundleNewAMI(bucketName: String): String = {
       //TODO(andyk): Verify that the bucketname isn't already used or this will
       //             fail when we get to ec2-upload-bundle anyway.
-      upload(ec2Cert, new File("/tmp"))
-      upload(ec2PrivateKey, new File("/tmp"))
+      upload(ec2Cert, new File("/mnt"))
+      upload(ec2PrivateKey, new File("/mnt"))
 
       logger.info("installing ec2-ami-tools")
       //UGH: the version in the repo is so old it doesn't produce valid (read labeled) images.
@@ -367,19 +367,19 @@ class EC2Region(val endpoint: String, val location: String, val defaultAMI: Stri
       this ! "apt-get install -y ruby"
       this ! "apt-get install -y libopenssl-ruby"
       this ! "apt-get install -y unzip"
-      this ! "cd /tmp; wget http://s3.amazonaws.com/ec2-downloads/ec2-ami-tools.zip"
-      this ! "cd /tmp; unzip -o ec2-ami-tools.zip"
-      val version = ls(new File("/tmp")).filter(_.name contains "ec2-ami-tools-").head.name
-      val header = "EC2_HOME=/tmp/%s/ /tmp/%s/bin".format(version, version)
+      this ! "cd /mnt; wget http://s3.amazonaws.com/ec2-downloads/ec2-ami-tools.zip"
+      this ! "cd /mnt; unzip -o ec2-ami-tools.zip"
+      val version = ls(new File("/mnt")).filter(_.name contains "ec2-ami-tools-").head.name
+      val header = "EC2_HOME=/mnt/%s/ /mnt/%s/bin".format(version, version)
 
-      logger.info("Removing /tmp/image, if it exists.")
-      this.executeCommand("rm -rf /tmp/image*")
+      logger.info("Removing /mnt/image, if it exists.")
+      this.executeCommand("rm -rf /mnt/image*")
 
       logger.info("Running ec2-bundle-vol.")
-      this ! "%s/ec2-bundle-vol -c /tmp/%s -k /tmp/%s -u %s --arch %s -e /mnt,/root/.ssh".format(header, ec2Cert.getName, ec2PrivateKey.getName, userID, "x86_64")
+      this ! "%s/ec2-bundle-vol -d /mnt -c /mnt/%s -k /mnt/%s -u %s --arch %s -e /tmp,/mnt,/root/.ssh".format(header, ec2Cert.getName, ec2PrivateKey.getName, userID, "x86_64")
 
       logger.info("Running ec2-upload-bundle.")
-      this ! "%s/ec2-upload-bundle -b %s --location %s -m %s -a %s -s %s".format(header, bucketName, location, "/tmp/image.manifest.xml", accessKeyId, secretAccessKey)
+      this ! "%s/ec2-upload-bundle -b %s --location %s -m %s -a %s -s %s".format(header, bucketName, location, "/mnt/image.manifest.xml", accessKeyId, secretAccessKey)
 
       logger.info("Registering the new image with Amazon to be assigned an AMI ID#.")
       val registerRequest = new RegisterImageRequest(bucketName + "/image.manifest.xml")
