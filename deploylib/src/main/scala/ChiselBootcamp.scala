@@ -12,7 +12,7 @@ import java.io.File
 
 object Bootcamp {
   val region = USWest2
-  val imageId = USWest2.defaultAMI
+  val imageId = "ami-820f83b2"
   val instanceTag = ("chisel", "bootcamp")
   val userTag = "chiselUser"
 
