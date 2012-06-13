@@ -111,6 +111,8 @@ case class CopyDataResponse() extends AvroRecord with PartitionServiceOperation
 case class GetResponsibilityRequest() extends AvroRecord with PartitionServiceOperation
 case class GetResponsibilityResponse(var startKey: Option[Array[Byte]], var endKey: Option[Array[Byte]]) extends AvroRecord with PartitionServiceOperation
 
+case class IgnoreAllMessages() extends AvroRecord with PartitionServiceOperation
+
 /* Test Record Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
 case class IntRec(var f1: Int) extends AvroRecord
 case class IntRec2(var f1: Int, var f2: Int) extends AvroRecord
