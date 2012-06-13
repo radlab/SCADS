@@ -117,7 +117,7 @@ object Experiment extends ExperimentBase {
           val out = new java.io.BufferedWriter(new java.io.FileWriter(filename))
           ((1 to h.buckets.length).map(_ * h.bucketSize) zip h.buckets).foreach(x => {
             total = total + x._2
-            out.write(" " + x._1 + ", " + total * 100 / totalRequests + "\n")
+            out.write(" " + x._1 + ", " + total * 100.0 / totalRequests.toFloat + "\n")
           })
           out.close()
           println(n + ": requests: " + totalRequests + " 50%: " + h.quantile(.5) + " 90%: " + h.quantile(.9) + " 95%: " + h.quantile(.95) + " 99%: " + h.quantile(.99) + " avg: " + h.average)
@@ -195,9 +195,9 @@ case class Task()
 
     // Start clients.
     val tpcwTasks = MDCCTpcwWorkflowTask(
-      numClients=16,
+      numClients=15,
       executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
-      numThreads=32,
+      numThreads=7,
       iterations=1,
       runLengthMin=5).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress)
     clusters.head.serviceScheduler.scheduleExperiment(tpcwTasks)
