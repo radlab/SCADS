@@ -67,6 +67,7 @@ abstract trait StorageManager {
 case class PartitionHandler(manager: StorageManager) extends ServiceHandler[StorageMessage] {
 
   protected val logger = Logger("PartitionHandler")
+//  logger.setLevel(java.util.logging.Level.FINEST)
 
   protected def startup(): Unit = manager.startup()
 
@@ -117,8 +118,15 @@ case class PartitionHandler(manager: StorageManager) extends ServiceHandler[Stor
 
   // end workload stats stuff
 
-  protected def process(src: Option[RemoteServiceProxy[StorageMessage]], msg: StorageMessage): Unit = {
+  var ignoreMessages = false
+
+  protected def process(src: Option[RemoteServiceProxy[StorageMessage]], message: StorageMessage): Unit = {
     def reply(msg: StorageMessage) = src.foreach(_ ! msg)
+    val msg = if (ignoreMessages) {
+      IgnoreAllMessages()
+    } else {
+      message
+    }
     try {
       msg match {
         case GetRequest(key) => {
@@ -172,6 +180,10 @@ case class PartitionHandler(manager: StorageManager) extends ServiceHandler[Stor
         }
         case AggRequest(groups, keyType, valType, filters, aggs) =>
           reply(AggReply(manager.applyAggregate(groups, keyType, valType, filters, aggs)))
+        case IgnoreAllMessages() => {
+          if (!ignoreMessages) logger.info("Ignoring all messages. this: " + this)
+          ignoreMessages = true
+        }
 
         case msg : TrxMessage => {
           if(src.isEmpty)
@@ -180,6 +192,7 @@ case class PartitionHandler(manager: StorageManager) extends ServiceHandler[Stor
           assert(src.isDefined)
           // Partition must be created as part of a transactional namespace.
           assert(trxManager != null)
+          logger.debug("sending to trxmanager: %s src: %s", trxManager, src)
           trxManager.process(src.get, msg)
         }
         case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
