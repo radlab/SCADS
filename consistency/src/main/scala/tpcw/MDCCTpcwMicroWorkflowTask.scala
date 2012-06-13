@@ -81,7 +81,6 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
 
     val results = resultCluster.getNamespace[MDCCMicroBenchmarkResult]("MicroBenchmarkResults")
     val executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
-    val microItems = cluster.getNamespace[MicroItem]("microItems", loaderConfig.txProtocol)
 
     val loader = new TpcwLoader(
       numEBs = loaderConfig.numEBs,
@@ -103,23 +102,26 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
 
     // buyList is a list of ((itemName, itemId), # to buy)
     def getBuyList() = {
-      val itemIds = (1 to random.nextInt(10) + 1).map(_ => randomItem).toSet.toSeq
+//      val itemIds = (1 to random.nextInt(10) + 1).map(_ => randomItem).toSet.toSeq
+      val itemIds = (1 to 3).map(_ => randomItem).toSet.toSeq
+//      val itemIds = (1 to random.nextInt(3) + 1).map(_ => randomItem).toSet.toSeq
       itemIds.map(i => (i, random.nextInt(3) + 1))
     }
 
-    def buyAction(): (Boolean, String) = {
+    def buyAction(ns: PairNamespace[MicroItem] with PairTransactions[MicroItem]): (Boolean, String) = {
       val buyList = getBuyList()
 
       var commit = true
       val txStatus = new Tx(4000, ReadLocal()) ({
         val i1 = buyList.map(i => {
           // ((future, item id), buy amt)
-          ((microItems.asyncGetRecord(MicroItem(i._1._1)), i._1._2), i._2)
+          ((ns.asyncGetRecord(MicroItem(i._1._1)), i._1._2), i._2)
         })
         val i2 = i1.map(i => {
           val x = i._1._1().get
           if (x.I_STOCK == 0) {
             oosItems.add(i._1._2)
+            println("oos: " + oosItems.size)
           }
           // (MicroItem, buy amt)
           (x, scala.math.min(x.I_STOCK, i._2))
@@ -133,11 +135,11 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
             if (!useLogical) {
               val item = i._1
               item.I_STOCK -= i._2
-              microItems.put(item)
+              ns.put(item)
             } else {
               val item = clearItem(i._1.I_ID)
               item.I_STOCK = -i._2
-              microItems.putLogical(item)          
+              ns.putLogical(item)          
             }
           })
         }
@@ -149,11 +151,14 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
       (txStatus, aName)
     }
 
+    val warmupTime = 1 * 60 * 1000
+
     logger.info("starting experiment at: " + startTime)
 
     for(iteration <- (1 to iterations)) {
       logger.info("Begining iteration %d", iteration)
       val resultList = (1 to numThreads).pmap(threadId => {
+        val microItems = cluster.getNamespace[MicroItem]("microItems", loaderConfig.txProtocol)
         def getTime = System.nanoTime / 1000000
         val histograms = new mu.HashMap[String, Histogram]
         val runTime = runLengthMin * 60 * 1000L
@@ -161,25 +166,27 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
         var endTime = iterationStartTime
         var failures = 0
 
-        while(endTime - iterationStartTime < runTime) {
+        while(endTime - iterationStartTime < (runTime + warmupTime)) {
           val startTime = getTime
           try {
-            val (actionCommit, aName) = buyAction()
-            val actionName = if (actionCommit) {
-              aName + "-COMMIT"
-            } else {
-              aName + "-ABORT"
-            }
+            val (actionCommit, aName) = buyAction(microItems)
             endTime = getTime
-            val elapsedTime = endTime - startTime
-            if (histograms.isDefinedAt(actionName)) {
-              // Histogram for this action already exists.
-              histograms.get(actionName).get += elapsedTime
-            } else {
-              // Create a histogram for this action.
-              val newHist = Histogram(1, 10000)
-              newHist += elapsedTime
-              histograms.put(actionName, newHist)
+            if (endTime - iterationStartTime > warmupTime) {
+              val actionName = if (actionCommit) {
+                aName + "-COMMIT"
+              } else {
+                aName + "-ABORT"
+              }
+              val elapsedTime = endTime - startTime
+              if (histograms.isDefinedAt(actionName)) {
+                // Histogram for this action already exists.
+                histograms.get(actionName).get += elapsedTime
+              } else {
+                // Create a histogram for this action.
+                val newHist = Histogram(1, 10000)
+                newHist += elapsedTime
+                histograms.put(actionName, newHist)
+              }
             }
           } catch {
             case e => {
@@ -191,7 +198,7 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
 
         val res = MDCCMicroBenchmarkResult(this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId)
         res.startTime = startTime
-        res.totalElaspedTime = endTime - iterationStartTime
+        res.totalElaspedTime = endTime - iterationStartTime - warmupTime
         res.times = histograms.toMap
         res.failures = failures
 
