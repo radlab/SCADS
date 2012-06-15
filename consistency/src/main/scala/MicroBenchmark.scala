@@ -229,15 +229,11 @@ case class MicroBenchmarkTask()
       executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
       numThreads=7,
       iterations=1,
-      runLengthMin=5,
+      runLengthMin=2,
       startTime=expStartTime,
       useLogical=useLogicalUpdates,
       note=notes).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))
     clusters.head.serviceScheduler.scheduleExperiment(tpcwTasks)
-
-    // Start the task.
-//    val task1 = this.toJvmTask(clusters.head.classSource)
-//    clusters.head.serviceScheduler.scheduleExperiment(task1 :: Nil)
   }
 
   def run(): Unit = {
