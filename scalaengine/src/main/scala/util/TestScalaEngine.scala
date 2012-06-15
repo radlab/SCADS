@@ -28,4 +28,17 @@ object TestScalaEngine {
 
   }
 
+  // Similar to newScadsCluster(), but creates multiple clusters with numNodes
+  // in each cluster.
+  def newScadsClusters(numNodes: Int = 1, numClusters: Int = 1): ManagedScadsCluster = {
+    require(numNodes >= 0, "numNodes must be non-negative")
+    require(numClusters > 0, "numNodes must be positive")
+    /** Cannot use EPHEMERAL* here since the zooRoot must be able
+     * to have children (ie namespaces, keySchema, etc), and
+     * EPHEMERAL* nodes CANNOT have children */
+    val zooRoot = zooKeeper.createChild("scadsClient-%s".format(java.util.UUID.randomUUID.toString), Array.empty, CreateMode.PERSISTENT)
+    val cluster = new ManagedScadsCluster(zooRoot)
+    (0 until numClusters).foreach(c => (0 until numNodes).foreach(i => cluster.addNamedNode("cluster-" + c + "!" + i)))
+    cluster
+  }
 }
