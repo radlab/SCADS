@@ -582,7 +582,6 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
               logger.error("safeValue: " + safeValue)
               logger.error("command: " + c.command)
               logger.error("in committed map: " + committedXidMap.containsKey((c.xid, Arrays.hashCode(key1))))
-              logger.error("pendingCommands: " + commandsToList(commandsInfo.commands)._2.mkString(" , "))
               // No pending commands.
               // Record found in db, compare with the old version
               val oldRec = MDCCRecordUtil.fromBytes(oldValue1.get)

@@ -565,10 +565,12 @@ class MDCCRecordHandler (
     val kQuorum =  if(kBallot.fast) fastQuorum else classicQuorum
     val mQuorum =  if(ballots.head.fast) fastQuorum else classicQuorum
     var tmp = resolver.provedSafe(values, kQuorum, mQuorum, servers.size)
+    debug("calculateCStructs: kQuoru: %s mQuorum: %s server-size: %s values: %s ", kQuorum, mQuorum, servers.size, values)
     provedSafe = tmp._1
     unsafeCommands = tmp._2
     if(values.size >= kQuorum){
       value = learn(values, kQuorum)
+      debug("learned: value %s version %s", value, version)
       version = kBallot
     }
   }
