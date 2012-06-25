@@ -357,7 +357,9 @@ class MDCCRecordHandler (
       case _ => throw new RuntimeException("Unvalid compare type")
     }
     debug("recovering, starting phase1a, request: %s ballot: %s", request, ballots)
-    startPhase1a(getOwnership(ballots, maxRound, maxRound, false, thisService))
+    var nBallots = getOwnership(ballots, maxRound, maxRound, false, thisService)
+    nBallots = getOwnership(ballots, maxRound + 1, maxRound +1 , true, thisService)
+    startPhase1a(nBallots)
   }
 
 
@@ -388,6 +390,7 @@ class MDCCRecordHandler (
   }
 
   def processProposal(src: ServiceType, propose : Propose) : Unit = {
+    //TODO Gene: Filter out duplicates
     responses.clear()
     val cBallot = currentBallot
     debug("Processing proposal source: %s, propose: %s", src, propose)
@@ -496,6 +499,7 @@ class MDCCRecordHandler (
     assert(status == PHASE1A)
     //We take the max for comparing/combining ranges, as it only can mean, we are totally outdated
     val maxRound = max(msg.meta.ballots.head.startRound, ballots.head.startRound)
+    //TODO make sure we use the right startRound  --> Abort and restart
     compareRanges(ballots, msg.meta.ballots, maxRound) match {
       case 0 => { //The storage node accepted the new meta data
         responses += src -> msg
