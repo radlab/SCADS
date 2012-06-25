@@ -35,7 +35,7 @@ object StressTest extends ExperimentBase {
     println("starting stress test")
 
     val numPartitions = 2
-    val numClusters = 5
+    val numClusters = 3
     val cluster = TestScalaEngine.newScadsClusters(numPartitions, numClusters)
     val loaderTask = new StressLoaderTask(cluster.root.canonicalAddress, numPartitions * numClusters, 150, 1000, numClusters, protocol)
     loaderTask.run()
@@ -45,7 +45,7 @@ object StressTest extends ExperimentBase {
     val stressTasks = StressWorkflowTask(
       numClients=2,
       executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
-      numThreads=2,
+      numThreads=1,
       iterations=1,
       runLengthMin=1,
       startTime=expStartTime,
@@ -55,9 +55,14 @@ object StressTest extends ExperimentBase {
     val t = stressTasks.testLocally(cluster)
     t.foreach(_.join)
 
-    println("stress test done")
-
 //    cluster.shutdown
+
+    println("stress test done")
   }
 
+  def main(args: Array[String]) {
+    StressTest.run()
+    println("Exiting...")
+    System.exit(0)
+  }
 }
