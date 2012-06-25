@@ -356,7 +356,7 @@ class MDCCRecordHandler (
       }
       case _ => throw new RuntimeException("Unvalid compare type")
     }
-    debug("recovering, starting phase1a, request: %s", request)
+    debug("recovering, starting phase1a, request: %s ballot: %s", request, ballots)
     startPhase1a(getOwnership(ballots, maxRound, maxRound, false, thisService))
   }
 
@@ -398,7 +398,7 @@ class MDCCRecordHandler (
         debug("We do have a confirmed ballot number")
         if(stableRound){
           val nBallot = getBallot(ballots, cBallot.round + 1).getOrElse(null)
-          if(nBallot == null){
+          if(nBallot == null) {
             debug("React to CSTABLE_NEXT_UNDEFINED")
             forwardRequest(src, propose)
             //Fast rounds are default
@@ -406,7 +406,7 @@ class MDCCRecordHandler (
             if(areWeMaster(cBallot.server)) {
               debug("We are supposed to be the master, so we send ourself a message")
               forwardRequest(remoteHandle, beMasterRequest)
-            }else{
+            } else {
               debug("We are not the master and currently we do not do master changes. So we send the master request to %s", currentBallot.server)
               currentBallot.server ! beMasterRequest
               status = WAITING_FOR_NEW_FAST_ROUND
@@ -658,15 +658,21 @@ class MDCCRecordHandler (
         debug("Rebasing value before %s ")
         val (rebase, commitXids, abortXids) = resolver.compressCStruct(value)
         debug("Rebase done. value %s")
-        if(nBallot.fast){
-          debug("Next ballot is fast, we are opening a fast round ballot" + nBallot)
+        if (nBallot == null) {
+          debug("nullBallot1 ballots: %s, cBallot: %s, nround: %d", ballots, cBallot, cBallot.round + 1)
+        } else {
+          debug("nullBallot2 ballots: %s, cBallot: %s, nround: %d", ballots, cBallot, cBallot.round + 1)
+        }
+        if(nBallot.fast) {
+          debug("Next ballot is fast, we are opening a fast round ballot. nBallot: %s cBallot: %s ballots: %s", nBallot, cBallot, ballots)
           moveToNextRound()
           servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, unsafeCommands ++ seq(propose))
           RoundStats.classic.incrementAndGet()
-        }else{
+        } else {
           //We are in the classic mode
           debug("Testing for pending updates")
-          if(false && value.commands.exists(_.pending)){ //We have to add the optional waiting
+          if(false && value.commands.exists(_.pending)) {
+            //We have to add the optional waiting
             debug("We  have still pending update, so we postpone: Value: %s", value)
             clear()
             forwardRequest(src, propose, unsafeCommands)
@@ -675,10 +681,10 @@ class MDCCRecordHandler (
 
             status = WAITING_FOR_COMMIT
 
-          }else{
+          } else {
             debug("No pending updates. We are ready to go")
             //The round is clear and committed, time to move on
-            if(unsafeCommands.isEmpty){
+            if(unsafeCommands.isEmpty) {
 
               val props = seq(propose)
               moveToNextRound()
@@ -687,7 +693,7 @@ class MDCCRecordHandler (
               servers ! msg
               RoundStats.classic.incrementAndGet()
               forwardRequest(src, MultiPropose(props.tail))
-            }else{
+            } else {
               error("Classic rounds: No pending updates but unsafe commands -> we resolve the unsafe commands first")
               fullDebug("Unsafe commands")
               moveToNextRound()
@@ -697,38 +703,37 @@ class MDCCRecordHandler (
             }
           }
         }
-      }else{
-
+      } else {
         //The current round is instable or free
-        if(value.commands.size < provedSafe.commands.size){
+        if(value.commands.size < provedSafe.commands.size) {
           debug("The current round is unstable, so we propose provedSafe again and postpone the rest")
           //The current round is still not stable, lets make it stable
           servers ! Phase2a(key, cBallot, provedSafe)
           forwardRequest(src, propose)
-        }else if(value.commands.size == 0){
+        } else if(value.commands.size == 0) {
           //The round is still free, so lets use it.
           val nBallot = getBallot(ballots, cBallot.round + 1).getOrElse(null)
           val (rebase, commitXids, abortXids) = resolver.compressCStruct(value)
-          if(nBallot == null || !nBallot.fast){
+          if(nBallot == null || !nBallot.fast) {
             //Next is classic, so one command at a time
-            if(unsafeCommands.isEmpty){
+            if(unsafeCommands.isEmpty) {
               debug("Current classic round is still empty, and there are no unsafe commands. Perfect, we take the round")
               val props = seq(propose)
               servers ! Phase2a(key, cBallot, rebase, commitXids, abortXids, props.head :: Nil)
               RoundStats.classic.incrementAndGet()
               forwardRequest(src, MultiPropose(props.tail))
-            }else{
+            } else {
               fullDebug("Current classic round is still empty, but we have unsafe commands")
               servers ! Phase2a(key, cBallot, rebase, commitXids, abortXids, unsafeCommands.head :: Nil)
               forwardRequest(src, propose, unsafeCommands.tail)
             }
-          }else{
+          } else {
             debug("Current round is still unstable, but the next is fast, so better accept everything")
             //Next ballot is fast, so better try to accept everything
             servers ! Phase2a(key, cBallot, rebase, commitXids, abortXids, unsafeCommands ++ seq(propose))
             RoundStats.classic.incrementAndGet()
           }
-        }else{
+        } else {
           error("We have a value bigger than the provedSafe size. That should never happen. ")
           error("Current Meta-Data: %s, confirmedBallot: %s, Current Ballat: %s,  Version: %s, Value: %s ProvedSafe: %s, UnsafeCommands: %s, thisService: %s mailbox: %s",
             ballots,
@@ -742,7 +747,8 @@ class MDCCRecordHandler (
             mailbox)
           assert(false)
         }
-        stableRound
+        // This does not have to return anything.
+        // stableRound
       }
     }
   }
@@ -844,7 +850,7 @@ class MDCCRecordHandler (
             forwardRequest(src, MultiPropose(missing))
           }
         }
-        case StorageEnvelope(src, ResolveConflict(key, ballots, propose, proposer)) => {
+        case StorageEnvelope(src, ResolveConflict(key, oldBallots, propose, proposer)) => {
           debug("We recovered successfully")
           val missing = informLearners(src, propose)
            src ! Recovered(key, value, MDCCMetadata(version, ballots, true, confirmedBallot))

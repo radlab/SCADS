@@ -127,7 +127,7 @@ class MDCCServer(val namespace : String,
   }
 
   protected def processPhase1a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], newMeta: Seq[MDCCBallotRange]) = {
-    debug(key, "Process Phase1a", src, newMeta)
+    debug(key, "Process Phase1a src: %s, newMeta: %s", src, newMeta)
     implicit val trx = startTrx()
     val record = getRecord(key)
     val meta : MDCCMetadata = extractMeta(key, record)
@@ -143,7 +143,7 @@ class MDCCServer(val namespace : String,
         meta.confirmedBallot = false
         meta.ballots = combine(meta.ballots, newMeta, max(meta.ballots.head.startRound, newMeta.head.startRound))
       }
-      case _ => debug(key, "Ignoring Phase1a message local-ballots %s, proposed: %s", meta.ballots, newMeta)//The meta data is old or the same, so we do need to do nothing
+      case _ => debug(key, "Ignoring Phase1a message local-ballots %s, proposed: %s compareRanges: %d", meta.ballots, newMeta, compareRanges(meta.ballots, newMeta, maxRound))//The meta data is old or the same, so we do need to do nothing
     }
     val r = record.getOrElse(new MDCCRecord(None, null))
     r.metadata = meta
@@ -155,7 +155,7 @@ class MDCCServer(val namespace : String,
 
 
   protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates : Seq[SinglePropose] ) = {
-    debug(key, "Process Phase2a", src, value, newUpdates)
+    debug(key, "Process Phase2a src: %s, value: %s, reqBallot: %s newUpdates: %s", src, value, reqBallot, newUpdates)
     // A seq of all pending commands in the cstruct.
     val safePendingOptions = value.commands.filter(_.pending).map(c => {
       (c.xid, c.command, c.commit)
@@ -166,13 +166,14 @@ class MDCCServer(val namespace : String,
     val myBallot = getBallot(meta.ballots, reqBallot.round)
     if (myBallot.isEmpty || myBallot.get.compare(reqBallot) != 0) {
       commitTrx(trx)
-      debug(key, "Sending Master Failure local: %s - request: %s", myBallot, reqBallot)
+      debug(key, "Sending Master Failure local: %s - request: %s record: %s meta: %s", myBallot, reqBallot, record, meta)
       src ! Phase2bMasterFailure(meta.ballots, false)
     } else {
       // Update metadata.
       meta.ballots = adjustRound(meta.ballots, reqBallot.round)
       meta.currentVersion = myBallot.get
       meta.confirmedBallot = true
+      debug(key, "phase2a new meta: %s", meta)
       // TODO shorten meta data
 
       debug(key, "Writing new value value: %s updates: %s", value, newUpdates)
