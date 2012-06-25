@@ -20,6 +20,8 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
 
   protected lazy val logger = Logger()
 
+  logger.info("MDCCMetaDefault nsRoot: " + nsRoot)
+
   @volatile var _defaultMeta : MDCCMetadata = null
   @volatile var _serviceMap: Map[String, Seq[SCADSService]] = null
 
@@ -147,6 +149,14 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
     }
   }
 
+  def getServiceList(dc: String):Seq[SCADSService] = {
+    if (dc.size == 0) {
+      _serviceMap.values.reduceLeft(_ ++ _)
+    } else {
+      _serviceMap(dc)
+    }
+  }
+
   // Returns true if metadata was changed.
   def init(defaultPartition : SCADSService,  forceNewMeta : Boolean = false) : Boolean = {
     var changed = false
@@ -218,6 +228,13 @@ object MDCCMetaDefault {
       default.loadDefault()
     }
     default
+  }
+
+  // dc can be: "us-west-1", "compute-1", "eu-west-1", "ap-northeast-1", "ap-southeast-1"
+  def getServiceList(nsRoot : ZooKeeperProxy#ZooKeeperNode, dc: String):Seq[SCADSService] = {
+    val default = new MDCCMetaDefault(nsRoot)
+    default.loadDefault()
+    default.getServiceList(dc)
   }
 
 }
