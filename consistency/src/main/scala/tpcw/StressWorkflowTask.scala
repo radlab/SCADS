@@ -150,7 +150,7 @@ case class StressWorkflowTask(var numClients: Int,
       (txStatus, aName)
     }
 
-    val warmupTime = 1 * 60 * 1000
+    val warmupTime = 0
 
     logger.info("starting experiment at: " + startTime)
 
