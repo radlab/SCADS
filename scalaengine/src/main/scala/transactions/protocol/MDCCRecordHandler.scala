@@ -367,7 +367,7 @@ class MDCCRecordHandler (
   def fastPropose(propose : Propose){
     //val rnd = Random
     status = FAST_PROPOSED
-    debug("Sending fast propose from " + remoteHandle + " to " + servers.mkString(":"))
+    debug("Sending fast propose from " + remoteHandle + " to [" + servers.mkString(", ") + "]")
     servers.foreach(server => {
       //Thread.sleep(rnd.nextInt(1000))
       server ! propose
@@ -457,7 +457,7 @@ class MDCCRecordHandler (
           forwardRequest(src, propose)
           forwardRequest(remoteHandle, createBeMasterRequest(cBallot.round, cBallot.round, false))
         }else{
-          debug("We do NOT have a confirmed ballot number and we are not supposed to be the master. So we forward everything")
+          debug("We do NOT have a confirmed ballot number and we are not supposed to be the master. So we forward everything to %s", currentBallot.server)
           forwardPropose(currentBallot.server, propose)
         }
       }
