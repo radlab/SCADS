@@ -23,7 +23,7 @@ class MDCCServer(val namespace : String,
                  val routingTable : MDCCRoutingTable
                  ) extends TrxManager {
   protected val logger = Logger(classOf[MDCCServer])
-  @inline def debug(key : Array[Byte], msg : String, items : scala.Any*) = logger.debug("Id:" + this.hashCode() + " key:" + (new ByteArrayWrapper(key)).hashCode() + " - " + msg, items:_*)
+  @inline def debug(key : Array[Byte], msg : String, items : scala.Any*) = logger.debug(" Id:" + this.hashCode() + " " + partition.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + " - " + msg, items:_*)
 
 
   def startTrx() : TransactionData= {
@@ -86,6 +86,11 @@ class MDCCServer(val namespace : String,
     //               The main problem is that the code is making a decision
     //               based on the default metadata, which is really old, and
     //               potentially wrong.
+    if (getRecord(proposes.head.update.key).isEmpty) {
+      debug(key, "propose key does not exist.")
+    } else {
+      debug(key, "propose key exists.")
+    }
     if(ballot.fast){
       //TODO can we optimize the accept?
       val results = proposes.map(prop => (prop, pendingUpdates.acceptOption(prop.xid, prop.update, true)))
