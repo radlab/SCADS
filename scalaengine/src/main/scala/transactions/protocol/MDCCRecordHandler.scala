@@ -826,7 +826,7 @@ class MDCCRecordHandler (
           if(cmd.isDefined) {
             debug("We learned the value")
             if(currentBallot.fast && !cmd.get.commit && cmd.get.command.isInstanceOf[LogicalUpdate]){
-              debug("We learned an abort in a fast classic round with logical updates. This can only happend when we violate the limit. So we switch to classic")
+              debug("We learned an abort in a fast classic round with logical updates. This can only happend when we violate the limit. So we switch to classic. send BeMaster to %s", currentBallot.server)
               currentBallot.server ! createBeMasterRequest( currentBallot.round, currentBallot.round + 1000, false)
 
             }
