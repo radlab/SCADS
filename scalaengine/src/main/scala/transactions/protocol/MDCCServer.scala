@@ -120,7 +120,7 @@ class MDCCServer(val namespace : String,
     implicit val trx = startTrx()
     val meta = getMeta(key)
     commitTrx(trx)
-    debug(key, "We got a recordhandler request")
+    debug(key, "We got a recordhandler request. msg: %s", msg)
     val recordHandler = recordCache.getOrCreate(
         key,
         pendingUpdates.getCStruct(key),
