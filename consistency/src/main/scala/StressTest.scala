@@ -21,6 +21,8 @@ import edu.berkeley.cs.scads.piql.tpcw._
 import scala.actors.Future
 import scala.actors.Futures._
 
+import edu.berkeley.cs.scads.config.Config
+
 import tpcw._
 
 object StressTest extends ExperimentBase {
@@ -28,11 +30,24 @@ object StressTest extends ExperimentBase {
 
   // TODO(gpang): make the options do something.
   def run(protocol: NSTxProtocol = NSTxProtocolMDCC(),
-          useLogical: Boolean = true,
+          useLogicalUpdates: Boolean = true,
           useFast: Boolean = true,
-          classicDemarcation: Boolean = false,
-          localMasterPercentage: Int = 100): Unit = {
+          classicDemarcation: Boolean = true,
+          localMasterPercentage: Int = 20): Unit = {
     println("starting stress test")
+
+    Config.config.setBool("scads.mdcc.onEC2", false)
+
+    if (useFast) {
+      Config.config.setBool("scads.mdcc.fastDefault", true)
+      Config.config.setLong("scads.mdcc.DefaultRounds", 1)
+    } else {
+      Config.config.setBool("scads.mdcc.fastDefault", false)
+      Config.config.setLong("scads.mdcc.DefaultRounds", 9999999999L)
+    }
+
+    Config.config.setBool("scads.mdcc.classicDemarcation", classicDemarcation)
+    Config.config.setLong("scads.mdcc.localMasterPercentage", localMasterPercentage)
 
     val numPartitions = 2
     val numClusters = 3
@@ -45,10 +60,11 @@ object StressTest extends ExperimentBase {
     val stressTasks = StressWorkflowTask(
       numClients=2,
       executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
-      numThreads=1,
+      numThreads=2,
       iterations=1,
       runLengthMin=1,
       startTime=expStartTime,
+      useLogical=useLogicalUpdates,
       note="")
     println("starting txs")
 
