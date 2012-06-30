@@ -61,7 +61,7 @@ trait PendingUpdates extends DBRecords {
 
   def overwriteTxn(key: Array[Byte], safeValue: CStruct, meta: Option[MDCCMetadata], committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], dbTxn: TransactionData = null, isFast: Boolean = false): Boolean
 
-  def getDecision(xid: ScadsXid): Status.Status
+  def getDecision(xid: ScadsXid, key: Array[Byte]): Option[Boolean]
 
   // Must call this after acceptOption, in order to add updates to xid.
   // DO NOT hold db locks while calling this.
@@ -237,7 +237,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     var cstructs: Seq[(Array[Byte], CStruct)] = Nil
     try {
       cstructs = updates.map(r => {
-        val ignore = if (committedXidMap.containsKey((xid, Arrays.hashCode(r.key)))) {
+        val ignore = if (committedXidMap.get((xid, Arrays.hashCode(r.key))) == true) {
           // If this transaction for this record already committed earlier,
           // do not accept this option again.
           true
@@ -294,7 +294,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       }
     } else {
       cstructs = updates.map(r => {
-        val ignore = if (committedXidMap.containsKey((xid, Arrays.hashCode(r.key)))) {
+        val ignore = if (committedXidMap.get((xid, Arrays.hashCode(r.key))) == true) {
           // If this transaction for this record already committed earlier,
           // do not accept this option again.
           true
@@ -514,6 +514,8 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
       })
 
+      txRecords.map(r => Arrays.hashCode(r.key)).foreach(h => committedXidMap.put((xid, h), false))
+
       pendingCStructs.txCommit(pendingCommandsTxn)
       true
     } catch {
@@ -606,6 +608,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     if (committedXids.size > 0) {
       committedXids.foreach(x => committedXidMap.put((x, Arrays.hashCode(key)), true))
     }
+    if (abortedXids.size > 0) {
+      abortedXids.foreach(x => committedXidMap.put((x, Arrays.hashCode(key)), false))
+    }
 
     // Store the new cstruct info.
     pendingCStructs.put(pendingCommandsTxn, key, commandsInfo)
@@ -620,11 +625,8 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     success
   }
 
-  override def getDecision(xid: ScadsXid) = {
-    txStatus.get(null, xid) match {
-      case None => Status.Unknown
-      case Some(s) => Status.withName(s.status)
-    }
+  override def getDecision(xid: ScadsXid, key: Array[Byte]) = {
+    Option(committedXidMap.get((xid, Arrays.hashCode(key))))
   }
 
   override def getCStruct(key: Array[Byte]) = {
