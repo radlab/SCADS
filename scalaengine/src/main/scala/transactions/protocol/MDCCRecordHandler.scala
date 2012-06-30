@@ -332,7 +332,8 @@ class MDCCRecordHandler (
     }
     if( confirmedBallot && seq(msg.propose).forall(prop => value.commands.find(_.xid == prop.xid).isDefined)){
       //The resolve conflict is a duplicate and was already resolved
-      debug("already recovered, sending recovered back to %s", src)
+      val seqXids = seq(msg.propose).map(_.xid).mkString(",")
+      debug("already recovered xids: [%s], sending recovered back to %s", seqXids, src)
       src ! Recovered(key, value, MDCCMetadata(version, ballots, true, confirmedBallot))
       return
     }
@@ -476,6 +477,7 @@ class MDCCRecordHandler (
       src ! GotMastership(ballots)
       clear()
     }else {
+      debug("BeMaster starting phase1a. cBallot: %s, ballots: %s, msg: %s, src: %s", cBallot, ballots, msg, src)
       startPhase1a(msg.startRound, msg.endRound, msg.fast)
     }
   }
@@ -523,6 +525,7 @@ class MDCCRecordHandler (
       calculateCStructs()
       request match {
         case StorageEnvelope(src, x: BeMaster) => {
+          debug("finished BeMaster. send GotMastership to %s.  ballots: %s", src, ballots)
           src ! GotMastership(ballots)
           clear() //We are done
         }
