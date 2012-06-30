@@ -19,6 +19,7 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
   import MDCCMetaDefault._
 
   protected lazy val logger = Logger()
+  logger.setLevel(java.util.logging.Level.FINEST)
 
   logger.info("MDCCMetaDefault nsRoot: " + nsRoot)
 
@@ -140,12 +141,19 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
     r
   }
 
+  private def localMetaData(key: Array[Byte]): MDCCMetadata = {
+    val service = routingTable.serversForKey(key).head
+    val r = MDCCMetadata(MDCCBallot(0, 0, service, fastDefault), MDCCBallotRange(0, defaultRounds-1, 0, service, fastDefault) :: Nil, true, true)
+    r
+  }
+
   def defaultMetaData(key: Array[Byte]) : MDCCMetadata = {
     assert(_defaultMeta != null)
     if (onEC2) {
       ec2MetaData(key)
     } else {
-      _defaultMeta
+//      _defaultMeta
+      localMetaData(key)
     }
   }
 
