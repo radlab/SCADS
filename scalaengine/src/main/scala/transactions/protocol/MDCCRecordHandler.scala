@@ -257,19 +257,28 @@ class MDCCRecordHandler (
         case env@StorageEnvelope(src, msg : Learned)  => {
           debug("Processing Learned message %s", env)
           //TODO update my value and version
-          status match {
-            case FORWARDED => {
-              request match {
-                case StorageEnvelope(origRequester, x: Propose) => {
-                  debug("Master RecordHandler: "  + src + " Forward request. We inform the original requester:" + origRequester)
-                  masterRecordHandler = Some(src)
-                  origRequester ! msg
-                  clear()
+          request match {
+            case StorageEnvelope(origRequester, x: SinglePropose) => {
+              status match {
+                case FORWARDED | FAST_PROPOSED => {
+                  val xidMatch = msg.xid == x.xid
+                  debug("Got Learned. Master RecordHandler: "  + src + " We inform the original requester:" + origRequester + " propose: " + x + " origRequest: " + request + " xidMatch: " + xidMatch)
+                  if (xidMatch) {
+                    masterRecordHandler = Some(src)
+                    origRequester ! msg
+                    clear()
+                  } else {
+                    error("Ignoring Learned message with wrong xid. src: %s msg: %s currentRequest: %s", src, msg, request)
+                  }
                 }
-                case _ => error("We got a learned message, but not for a propose request. What should we do")
+                case _ => {
+                  error("We got a learned message without forwarding or fast propose. src: %s msg: %s currentRequest: %s", src, msg, request)
+                }
               }
             }
-            case _ =>  error("We got a learned message without forwarding")
+            case _ => {
+              error("We got a learned message, but not for a SinglePropose request. What should we do. src: %s msg: %s currentRequest: %s", src, msg, request)
+            }
           }
         }
         case env@StorageEnvelope(src,  GotMastership(newBallot)) if status == READY || status == WAITING_FOR_NEW_FAST_ROUND => {
