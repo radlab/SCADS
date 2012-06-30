@@ -91,12 +91,18 @@ class MDCCServer(val namespace : String,
     } else {
       debug(key, "propose key exists.")
     }
-    if(ballot.fast){
+    if(ballot.fast) {
       //TODO can we optimize the accept?
+      debug(key, "Fast ballot: update local db.")
       val results = proposes.map(prop => (prop, pendingUpdates.acceptOption(prop.xid, prop.update, true)))
       val cstruct = results.last._2._3
       debug(key, "Replying with 2b to fast ballot source:%s cstruct:%s", src, cstruct)
-      src ! Phase2b(ballot, cstruct)
+      // Get possibly old decisions on the new updates.
+      val oldCommits = proposes.map(prop => {
+        (prop.xid, pendingUpdates.getDecision(prop.xid, prop.update.key))
+      }).filter(!_._2.isEmpty).map(i => OldCommit(i._1, i._2.get))
+
+      src ! Phase2b(ballot, cstruct, oldCommits)
       commitTrx(trx)
       // Must be outside of db lock.
       results.foreach(r => {
@@ -112,6 +118,7 @@ class MDCCServer(val namespace : String,
         routingTable.serversForKey(key),
         pendingUpdates.getConflictResolver,
         partition)
+      debug(key, "Classic ballot: forwarding src: %s, msg: %s handler: %s", src, msg, recordHandler.remoteHandle)
       recordHandler.remoteHandle.forward(msg, src)
     }
   }
@@ -119,8 +126,9 @@ class MDCCServer(val namespace : String,
   protected  def processRecordHandlerMsg(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], msg : MDCCProtocol) : Unit = {
     implicit val trx = startTrx()
     val meta = getMeta(key)
+    val getRec = getRecord(key)
     commitTrx(trx)
-    debug(key, "We got a recordhandler request. msg: %s", msg)
+    debug(key, "We got a recordhandler request. msg: %s meta: %s getRecord: %s", msg, meta, getRec)
     val recordHandler = recordCache.getOrCreate(
         key,
         pendingUpdates.getCStruct(key),
@@ -207,8 +215,13 @@ class MDCCServer(val namespace : String,
         pendingUpdates.txStatusAccept(r._1, List(r._2), r._3)
       })
 
+      // Get possibly old decisions on the new updates.
+      val oldCommits = newUpdates.map(c => {
+        (c.xid, pendingUpdates.getDecision(c.xid, key))
+      }).filter(!_._2.isEmpty).map(i => OldCommit(i._1, i._2.get))
+
       // TODO: More efficient way to get the cstruct.
-      val msg = Phase2b(myBallot.get, pendingUpdates.getCStruct(key)) //TODO Ask Gene if this is correct
+      val msg = Phase2b(myBallot.get, pendingUpdates.getCStruct(key), oldCommits) //TODO Ask Gene if this is correct
       debug(key, "Sending Phase2b back %s %s", src, msg)
       src ! msg //TODO Ask Gene if this is correct
     }

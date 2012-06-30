@@ -835,6 +835,7 @@ class MDCCRecordHandler (
       request match {
         case msg@StorageEnvelope(src, propose: SinglePropose)  =>  {
           val cmd = value.commands.find(_.xid == propose.xid)
+          val oldCommit = responses.toList.map(_._2.asInstanceOf[Phase2b].oldCommits).reduce((a, b) => a ++ b).find(_.xid == propose.xid)
           if(cmd.isDefined) {
             debug("We learned the value")
             if(currentBallot.fast && !cmd.get.commit && cmd.get.command.isInstanceOf[LogicalUpdate]){
@@ -844,12 +845,15 @@ class MDCCRecordHandler (
             }
             debug("We inform the requester about the learned value. cmd: %s src: %s, propose: %s", cmd, src, propose)
             src ! Learned(propose.xid, key, cmd.get.commit)
-          }else{
-            debug("We did not learn our transaction. TxId: %s quorum %s server-size %s \n - values %s \n - provedSafe %s \n - unsafeCommands %s \n - full responses: %s", propose.xid, quorum, servers.size, values, provedSafe, unsafeCommands, responses)
+          } else if (!oldCommit.isEmpty) {
+            debug("Propose was already committed in the past. We inform the requester about the learned value. cmd: %s src: %s, propose: %s", cmd, src, propose)
+            src ! Learned(propose.xid, key, oldCommit.get.commit)
+          } else {
+            debug("We did not learn our transaction. TxId: %s quorum %s server-size %s - values %s - provedSafe %s - unsafeCommands %s - full responses: %s", propose.xid, quorum, servers.size, values, provedSafe, unsafeCommands, responses)
             if(ballots.head.fast) {
-              debug("We are in a fast round. So it can only mean, that we have a conflict (or got too old messages)\nBetter to start conflict resolution")
+              debug("We are in a fast round. So it can only mean, that we have a conflict (or got too old messages) Better to start conflict resolution")
               remoteHandle ! ResolveConflict(key, ballots, propose, src) //Using the original source to ensure that the requester gets notified
-            }else{
+            } else {
               debug("We are in a classic round, so we just try it again")
               //TODO Implement back of to guarantee progress
               forwardRequest(msg)

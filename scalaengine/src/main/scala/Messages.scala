@@ -240,7 +240,9 @@ object Phase2a{
   def apply(key: Array[Byte], ballot: MDCCBallot, safeValue: CStruct) : Phase2a = new Phase2a(key, ballot, safeValue, Nil, Nil, Nil)
 }
 
-case class Phase2b(var ballot : MDCCBallot, var value: CStruct) extends AvroRecord with MDCCProtocol
+case class OldCommit(var xid: ScadsXid, var commit: Boolean) extends AvroRecord
+
+case class Phase2b(var ballot : MDCCBallot, var value: CStruct, var oldCommits: Seq[OldCommit]) extends AvroRecord with MDCCProtocol
 
 //Used to indicate that the ballot was not valid
 case class Phase2bMasterFailure(var ballots: Seq[MDCCBallotRange], var confirmed : Boolean)  extends AvroRecord with MDCCProtocol
