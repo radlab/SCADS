@@ -28,7 +28,6 @@ import tpcw._
 object StressTest extends ExperimentBase {
   val logger = Logger()
 
-  // TODO(gpang): make the options do something.
   def run(protocol: NSTxProtocol = NSTxProtocolMDCC(),
           useLogicalUpdates: Boolean = true,
           useFast: Boolean = true,
@@ -58,9 +57,9 @@ object StressTest extends ExperimentBase {
     var expStartTime: String = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new java.util.Date)
 
     val stressTasks = StressWorkflowTask(
-      numClients=2,
+      numClients=3,
       executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
-      numThreads=2,
+      numThreads=10,
       iterations=1,
       runLengthMin=1,
       startTime=expStartTime,
