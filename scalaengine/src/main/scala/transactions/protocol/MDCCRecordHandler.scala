@@ -28,6 +28,7 @@ case object PHASE2A extends RecordStatus {val name = "PHASE2A"}
 case object RECOVERY extends RecordStatus {val name = "RECOVERY"}
 case object WAITING_FOR_COMMIT extends RecordStatus {val name = "WAITING_FOR_COMMIT"}
 case object WAITING_FOR_NEW_FAST_ROUND extends RecordStatus {val name = "WAITING_FOR_NEW_ROUND"}
+case object SCAN_FOR_PROPOSE extends RecordStatus {val name = "SCAN_FOR_PROPOSE"}
 
 object ServerMessageHelper {
   class SMH(s: Seq[PartitionService]) {
@@ -315,6 +316,26 @@ class MDCCRecordHandler (
           debug("Processing Propose request", env)
           request = env
           processProposal(src, msg)
+        }
+        case env@StorageEnvelope(src, msg: SinglePropose) if status == SCAN_FOR_PROPOSE => {
+          val sfp = request.msg.asInstanceOf[ScanForPropose]
+          if (sfp.learned.xid == msg.xid) {
+            debug("Notifying propose sender of old learned message src: %s, propose: %s, request: %s", src, env, request)
+            src ! request.msg.asInstanceOf[ScanForPropose].learned
+          } else {
+            // Skip over this message, since it does not have the same xid.
+            mailbox.keepMsgInMailbox = true
+          }
+        }
+        case env@StorageEnvelope(src, msg: ScanForPropose) if status == READY => {
+          debug("Processing ScanForPropose %s", env)
+          request = env
+          status = SCAN_FOR_PROPOSE
+        }
+        case env@StorageEnvelope(src, msg: DoneScanForPropose) if status == SCAN_FOR_PROPOSE => {
+          debug("Done ScanForPropose %s", env)
+          request = null
+          status = READY
         }
         case msg@_ => {
           debug("Mailbox-Hash:%s, Ignoring message in mailbox: msg:%s status: %s current request:%s", mailbox.hashCode(), msg, status, request)
@@ -848,10 +869,14 @@ class MDCCRecordHandler (
 
             }
             debug("We inform the requester about the learned value. cmd: %s src: %s, propose: %s", cmd, src, propose)
-            src ! Learned(propose.xid, key, cmd.get.commit)
+            val l = Learned(propose.xid, key, cmd.get.commit)
+            src ! l
+            addScanForProposeMsg(l)
           } else if (!oldCommit.isEmpty) {
             debug("Propose was already committed in the past. We inform the requester about the learned value. cmd: %s src: %s, propose: %s", cmd, src, propose)
-            src ! Learned(propose.xid, key, oldCommit.get.commit)
+            val l = Learned(propose.xid, key, oldCommit.get.commit)
+            src ! l
+            addScanForProposeMsg(l)
           } else {
             debug("We did not learn our transaction. TxId: %s quorum %s server-size %s - values %s - provedSafe %s - unsafeCommands %s - full responses: %s", propose.xid, quorum, servers.size, values, provedSafe, unsafeCommands, responses)
             if(ballots.head.fast) {
@@ -905,6 +930,11 @@ class MDCCRecordHandler (
     missing
   }
 
+  def addScanForProposeMsg(l: Learned) = {
+    // remoteHandle is only used as a dummy value.
+    mailbox.addFirst(Envelope(remoteHandle, ScanForPropose(l)))
+    mailbox.addFirst(Envelope(remoteHandle, DoneScanForPropose(l)))
+  }
 }
 
 
