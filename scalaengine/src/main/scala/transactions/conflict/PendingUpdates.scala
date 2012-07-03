@@ -237,9 +237,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     var cstructs: Seq[(Array[Byte], CStruct)] = Nil
     try {
       cstructs = updates.map(r => {
-        val ignore = if (committedXidMap.get((xid, Arrays.hashCode(r.key))) == true) {
-          // If this transaction for this record already committed earlier,
-          // do not accept this option again.
+        val ignore = if (committedXidMap.containsKey((xid, Arrays.hashCode(r.key)))) {
+          // If this transaction for this record already committed or aborted
+          // earlier, do not process this option again.
           true
         } else {
           false
@@ -294,9 +294,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       }
     } else {
       cstructs = updates.map(r => {
-        val ignore = if (committedXidMap.get((xid, Arrays.hashCode(r.key))) == true) {
-          // If this transaction for this record already committed earlier,
-          // do not accept this option again.
+        val ignore = if (committedXidMap.containsKey((xid, Arrays.hashCode(r.key)))) {
+          // If this transaction for this record already committed or aborted
+          // earlier, do not process this option again.
           true
         } else {
           false
