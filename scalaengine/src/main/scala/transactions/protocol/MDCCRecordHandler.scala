@@ -485,7 +485,11 @@ class MDCCRecordHandler (
       debug("Got BeMaster message, but we already are the master")
       src ! GotMastership(ballots)
       clear()
-    }else {
+    } else if (msg.startRound < cBallot.round) {
+      debug("Got BeMaster message, but it is for an old round. Just reply to src: %s, cBallot: %s, ballots: %s, msg: %s", src, cBallot, ballots, msg)
+      src ! GotMastership(ballots)
+      clear()
+    } else {
       debug("BeMaster starting phase1a. cBallot: %s, ballots: %s, msg: %s, src: %s", cBallot, ballots, msg, src)
       startPhase1a(msg.startRound, msg.endRound, msg.fast)
     }
