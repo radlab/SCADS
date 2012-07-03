@@ -606,7 +606,7 @@ class MDCCRecordHandler (
     val kQuorum =  if(kBallot.fast) fastQuorum else classicQuorum
     val mQuorum =  if(ballots.head.fast) fastQuorum else classicQuorum
     var tmp = resolver.provedSafe(values, kQuorum, mQuorum, servers.size)
-    debug("calculateCStructs: kQuoru: %s mQuorum: %s server-size: %s values: %s ", kQuorum, mQuorum, servers.size, values)
+    debug("calculateCStructs: kQuorum: %s mQuorum: %s server-size: %s values: %s value: %s provedSafe: %s", kQuorum, mQuorum, servers.size, values, value, tmp._1)
     provedSafe = tmp._1
     unsafeCommands = tmp._2
     if(values.size >= kQuorum){
@@ -696,9 +696,9 @@ class MDCCRecordHandler (
         //OK we have a stable round, so we can just open the next round
         val nBallot = getBallot(ballots, cBallot.round + 1).getOrElse(null)
         //The round is clear and committed, time to move on
-        debug("Rebasing value before %s ")
+        debug("Rebasing value before: %s", value)
         val (rebase, commitXids, abortXids) = resolver.compressCStruct(value)
-        debug("Rebase done. value %s")
+        debug("Rebase done. value: %s", rebase)
         if (nBallot == null) {
           debug("nullBallot1 ballots: %s, cBallot: %s, nround: %d", ballots, cBallot, cBallot.round + 1)
         } else {
