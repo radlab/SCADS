@@ -238,8 +238,12 @@ class MDCCServer(val namespace : String,
       pendingUpdates.abort(xid)
   }
 
-
-
+  protected def processRecordAccept(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], msg: TrxMessage) = {
+    val recordHandler = recordCache.get(key)
+    if (recordHandler.isDefined) {
+      recordHandler.get.remoteHandle.forward(msg, src)
+    }
+  }
 
   def process(src: RemoteServiceProxy[StorageMessage], msg: TrxMessage) = {
     msg match {
@@ -248,6 +252,8 @@ class MDCCServer(val namespace : String,
       case Phase2a(key, ballot, safeValue, committedXids, abortedXids, proposes) => processPhase2a(src, key, ballot, safeValue, committedXids, abortedXids, proposes)
       case Commit(xid: ScadsXid) => processAccept(src, xid, true)
       case Abort(xid: ScadsXid) =>  processAccept(src, xid, false)
+      case RecordCommit(key: Array[Byte], xid: ScadsXid) => processRecordAccept(src, key, msg)
+      case RecordAbort(key: Array[Byte], xid: ScadsXid) => processRecordAccept(src, key, msg)
       case msg : BeMaster => processRecordHandlerMsg(src, msg.key, msg)
       case msg : ResolveConflict => processRecordHandlerMsg(src, msg.key, msg)
       case _ => src ! ProcessingException("Trx Message Not Implemented msg: " + msg, "")

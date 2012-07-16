@@ -95,18 +95,29 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
   def notifyAcceptors() = {
     assert(status == COMMITTED || status == ABORTED )
     if(!notifiedAcceptors) {
-     val msg = if (status == COMMITTED)   edu.berkeley.cs.scads.storage.Commit(Xid)
-                else edu.berkeley.cs.scads.storage.Abort(Xid)
-     val servers = new HashSet[PartitionService]()
-     participants.foreach(s => {
-       s.servers.foreach(servers += _)
-       debug("Notify recordhandler local:%s master:%s remoteHandle:%s", s, s.masterRecordHandler, s.remoteHandle)
-       if(s.masterRecordHandler.isDefined)
-         s.masterRecordHandler.get ! msg
-       else
-         s.remoteHandle ! msg
+      val msg = if (status == COMMITTED) {
+        edu.berkeley.cs.scads.storage.Commit(Xid)
+      } else {
+        edu.berkeley.cs.scads.storage.Abort(Xid)
+      }
+      val servers = new HashSet[PartitionService]()
+      participants.foreach(s => {
+        val recordMsg = if (status == COMMITTED) {
+          edu.berkeley.cs.scads.storage.RecordCommit(s.key, Xid)
+        } else {
+          edu.berkeley.cs.scads.storage.RecordAbort(s.key, Xid)
+        }
+        s.servers.foreach(servers += _)
+        debug("Notify recordhandler xid: %s local:%s master:%s possibleMaster:%s remoteHandle:%s", Xid, s, s.masterRecordHandler, s.possibleMasterRecordHandler, s.remoteHandle)
+        if(s.masterRecordHandler.isDefined)
+          s.masterRecordHandler.get ! msg
+        else {
+          s.possibleMasterRecordHandler ! recordMsg
+          s.remoteHandle ! recordMsg
+//          s.remoteHandle ! msg
+        }
       })
-     servers.foreach( _ ! msg)
+      servers.foreach( _ ! msg)
     }
     notifiedAcceptors = true
 

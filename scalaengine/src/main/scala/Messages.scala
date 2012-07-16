@@ -253,6 +253,10 @@ case class Commit(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
 case class Abort(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
 case class Exit() extends AvroRecord with MDCCProtocol
 
+// Used to forward commit messages to the correct record handlers.
+case class RecordCommit(var key: Array[Byte], var xid: ScadsXid) extends AvroRecord with MDCCProtocol
+case class RecordAbort(var key: Array[Byte], var xid: ScadsXid) extends AvroRecord with MDCCProtocol
+
 // For notifying duplicate propose messages.
 case class ScanForPropose(var learned: Learned) extends AvroRecord with MDCCProtocol
 case class DoneScanForPropose(var learned: Learned) extends AvroRecord with MDCCProtocol

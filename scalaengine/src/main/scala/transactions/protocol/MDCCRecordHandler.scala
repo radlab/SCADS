@@ -82,7 +82,23 @@ class MDCCRecordHandler (
 
   private var request : Envelope[StorageMessage] = null
 
-  var masterRecordHandler : Option[SCADSService] = None //HACK Needed to get the commit message through
+  // HACK Needed to get the commit message through.
+  // masterRecordHandler is the master, from which this service received a
+  // Learned message.
+  // masterRecordHandlerSent is the master, to which this service sent a
+  // Propose message.
+  var masterRecordHandler : Option[SCADSService] = None
+  var masterRecordHandlerSent : Option[SCADSService] = None
+
+  // Returns what might be the master, either the last sent propose, or what
+  // metadata thinks.
+  def possibleMasterRecordHandler = {
+    if (masterRecordHandlerSent.isDefined) {
+      masterRecordHandlerSent.get
+    } else {
+      currentBallot.server
+    }
+  }
 
 
   private var status: RecordStatus = READY
@@ -175,8 +191,16 @@ class MDCCRecordHandler (
           debug("Processing Commit msg : %s", env)
           mailbox.keepMsgInMailbox= commit(msg, msg.xid, true)
         }
+        case env@StorageEnvelope(src, msg: RecordCommit) => {
+          debug("Processing RecordCommit msg : %s", env)
+          mailbox.keepMsgInMailbox= commit(msg, msg.xid, true)
+        }
         case env@StorageEnvelope(src, msg: Abort) => {
           debug("Processing Abort msg: %s", env)
+          mailbox.keepMsgInMailbox = commit(msg, msg.xid, false)
+        }
+        case env@StorageEnvelope(src, msg: RecordAbort) => {
+          debug("Processing RecordAbort msg: %s", env)
           mailbox.keepMsgInMailbox = commit(msg, msg.xid, false)
         }
         case env@StorageEnvelope(src, msg: Exit)  if status == READY => {
@@ -408,6 +432,7 @@ class MDCCRecordHandler (
 
   def forwardPropose(masterServer: SCADSService, propose : Propose){
     status = FORWARDED
+    masterRecordHandlerSent = Some(masterServer)
     masterServer ! propose
     RoundStats.forward.incrementAndGet()
   }
