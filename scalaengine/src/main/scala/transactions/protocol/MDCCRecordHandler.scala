@@ -450,19 +450,19 @@ class MDCCRecordHandler (
     responses.clear()
     val cBallot = currentBallot
     debug("Processing proposal source: %s, propose: %s", src, propose)
-    if(confirmedBallot){
-      if(cBallot.fast){
+    if (confirmedBallot) {
+      if (cBallot.fast) {
         fastPropose(propose)
-      }else{
+      } else {
         debug("We do have a confirmed ballot number")
-        if(stableRound){
+        if (stableRound) {
           val nBallot = getBallot(ballots, cBallot.round + 1).getOrElse(null)
-          if(nBallot == null) {
+          if (nBallot == null) {
             debug("React to CSTABLE_NEXT_UNDEFINED")
             forwardRequest(src, propose)
             //Fast rounds are default
             val beMasterRequest =  createBeMasterRequest(ballots.head.startRound + 1, ballots.head.startRound + 1, true)
-            if(areWeMaster(cBallot.server)) {
+            if (areWeMaster(cBallot.server)) {
               debug("We are supposed to be the master, so we send ourself a message")
               forwardRequest(remoteHandle, beMasterRequest)
             } else {
@@ -472,12 +472,12 @@ class MDCCRecordHandler (
             }
             return
           }
-          if(areWeMaster(nBallot.server)){
+          if (areWeMaster(nBallot.server)) {
             debug("We start the next round with Phase2a")
             //We are the master, so lets do a propose
             startPhase2a(src, propose)
             return
-          }else{
+          } else {
             //We are not the master, so we let the master handle it
             debug("We start the next round with forwarding the request we: %s ballot: %s", thisService, nBallot)
             forwardPropose(nBallot.server, propose)
@@ -485,34 +485,34 @@ class MDCCRecordHandler (
           }
         }
         debug("The current round might not be decided version: %s ballot: %s", version, cBallot)
-        if(areWeMaster(cBallot.server)){
-          debug("We are the  master and we start a Phase2a")
+        if (areWeMaster(cBallot.server)) {
+          debug("We are the master and we start a Phase2a")
           //We are the master, so lets do a propose
           startPhase2a(src, propose)
           return
-        }else{
+        } else {
           //We are not the master, so we let the master handle it
           debug("We are not the master forward the request we: %s ballot: %s", thisService, currentBallot)
           forwardPropose(currentBallot.server, propose)
           return
         }
       }
-    }else{
+    } else {
       //TODO Our handling of outdated metadata can cause a cycle of forwards. We need to fix this
-      if(cBallot.fast){
-        if(areWeMaster(cBallot.server)){
+      if (cBallot.fast) {
+        if (areWeMaster(cBallot.server)) {
           error("We are the master and we do not have a confirmed ballot number. This is super wierd. We try to get the master ship")
           forwardRequest(remoteHandle, createBeMasterRequest(cBallot.round, cBallot.round, true))
-        }else{
+        } else {
           debug("We have a not confirmed meta data but most likely we are in a fast round anyway. So we simply try it")
           fastPropose(propose)
         }
-      }else{
-        if(areWeMaster(cBallot.server)){
+      } else {
+        if (areWeMaster(cBallot.server)) {
           debug("We do NOT have a confirmed ballot number. Se we request the mastership first")
           forwardRequest(src, propose)
           forwardRequest(remoteHandle, createBeMasterRequest(cBallot.round, cBallot.round, false))
-        }else{
+        } else {
           debug("We do NOT have a confirmed ballot number and we are not supposed to be the master. So we forward everything to %s", currentBallot.server)
           forwardPropose(currentBallot.server, propose)
         }
