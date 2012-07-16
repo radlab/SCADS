@@ -12,6 +12,7 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
   type CommandSets = ArrayBuffer[CommandHashSet]
 
   private val logicalRecordUpdater = new LogicalRecordUpdater(valueSchema)
+  val avroUtil = new IndexedRecordUtil(valueSchema)
 
   // Assumes that the base of the cstructs are all the same.
   def getLUB(cstructs: Seq[CStruct]): CStruct = {
@@ -109,21 +110,6 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
     // Compute leftover commands, not in provedSafe.
     leftover.remove(safe.commands)
 
-    val avroUtil = new IndexedRecordUtil(valueSchema)
-    var inputVals = ""
-    cstructs.foreach(c => {
-      if (c.value.isDefined) {
-        inputVals += avroUtil.fromBytes(c.value.get) + " "
-      } else {
-        inputVals += "NONE "
-      }
-    })
-    if (safe.value.isDefined) {
-      println("provedSafe: inputVals: " + inputVals + " safe.value: " + avroUtil.fromBytes(safe.value.get))
-    } else {
-      println("provedSafe: inputVals: " + inputVals + " safe.value: " + safe.value)
-    }
-
     // TODO: Check if LUB is valid w.r.t. constraints?
     (safe, leftover.toList.map(c => SinglePropose(c.xid, c.command)))
   }
@@ -143,6 +129,25 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
     val lub = getLUB(allGLBs)
 
     lub
+  }
+
+  // Used for debugging cstructs.
+  def commandsToList(commands: Seq[CStructCommand]): (Array[Byte], Seq[(Int, Int, Boolean, Boolean, String)]) = {
+    var key = Array[Byte]()
+    var commList = commands.map(c => {
+      c.command match {
+        case ValueUpdate(key1, oldValue1, newValue1) => {
+          key = key1
+          val oldRec = MDCCRecordUtil.fromBytes(oldValue1.get)
+          val newRec = MDCCRecordUtil.fromBytes(newValue1)
+          val oldStock = avroUtil.fromBytes(oldRec.value.get).get(valueSchema.getField("I_STOCK").pos).asInstanceOf[Int]
+          val newStock = avroUtil.fromBytes(newRec.value.get).get(valueSchema.getField("I_STOCK").pos).asInstanceOf[Int]
+          (oldStock, newStock, c.pending, c.commit, c.xid.toString)
+        }
+        case _ => (0, 0, false, false, "")
+      }
+    })
+    (key, commList)
   }
 
   // Returns the new compressed cstruct, along with the list of xids of the
