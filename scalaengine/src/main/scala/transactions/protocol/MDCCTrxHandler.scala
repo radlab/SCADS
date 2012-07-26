@@ -117,6 +117,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
 //          s.remoteHandle ! msg
         }
       })
+      debug("Notify servers: %s", servers)
       servers.foreach( _ ! msg)
     }
     notifiedAcceptors = true
