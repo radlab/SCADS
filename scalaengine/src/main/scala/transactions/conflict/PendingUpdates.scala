@@ -380,6 +380,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   override def commit(xid: ScadsXid) : Boolean = {
     // TODO: Handle out of order commits to same records.
 
+    committedXidMap.put((xid, 0), true)
+    logger.debug("added committed map xid: %s true", xid)
+
     // Atomically set the tx status to Commit, and get the list of updates.
     val txInfo = updateAndGetTxStatus(xid, Status.Commit)
 
@@ -420,7 +423,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
               dbVal match {
                 case None => {
                   val deltaRec = MDCCRecordUtil.fromBytes(delta)
-                  logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " writing delta: " + avroUtil.fromBytes(deltaRec.value.get))
+                  logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " key:" + (new mdcc.ByteArrayWrapper(key)).hashCode() + " writing delta: " + avroUtil.fromBytes(deltaRec.value.get))
                   db.put(txn, key, delta)
                 }
                 case Some(recBytes) => {
@@ -428,7 +431,8 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                   val dbRec = MDCCRecordUtil.fromBytes(recBytes)
                   val newBytes = logicalRecordUpdater.applyDeltaBytes(dbRec.value, deltaRec.value)
 
-                  logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " oldbytes: " + avroUtil.fromBytes(dbRec.value.get) + " newbytes: " + avroUtil.fromBytes(newBytes) + " dbRec.metadata: " + dbRec.metadata)
+//                  logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " key:" + (new mdcc.ByteArrayWrapper(key)).hashCode() + " oldbytes: " + avroUtil.fromBytes(dbRec.value.get) + " newbytes: " + avroUtil.fromBytes(newBytes) + " dbRec.metadata: " + dbRec.metadata)
+                  logger.debug("COMMIT: " + xid + " " + Thread.currentThread.getName + " key:" + (new mdcc.ByteArrayWrapper(key)).hashCode() + " dbRec.metadata: " + dbRec.metadata)
 
                   val newRec = MDCCRecordUtil.toBytes(MDCCRecord(Some(newBytes), dbRec.metadata))
                   db.put(txn, key, newRec)
@@ -437,17 +441,30 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
             }
             case ValueUpdate(key, oldValue, newValue) => {
               dbVal match {
-                case None => db.put(txn, key, newValue)
+                case None => {
+                  logger.debug("COMMIT insert: " + xid + " " + Thread.currentThread.getName + " key:" + (new mdcc.ByteArrayWrapper(key)).hashCode())
+                  db.put(txn, key, newValue)
+                }
                 case Some(recBytes) => {
                   // Do not overwrite the metadata in the db.
                   val dbRec = MDCCRecordUtil.fromBytes(recBytes)
-                  val oldRec = MDCCRecordUtil.fromBytes(oldValue.get)
-                  if (!Arrays.equals(oldRec.value.get, dbRec.value.get)) {
+                  val dbRecVal = dbRec.value
+                  val oldRecVal = if (oldValue.isEmpty) {
+                    oldValue
+                  } else {
+                    MDCCRecordUtil.fromBytes(oldValue.get).value
+                  }
+                  if ((dbRecVal.isEmpty && !oldRecVal.isEmpty) ||
+                      (!dbRecVal.isEmpty && oldRecVal.isEmpty) ||
+                      (!dbRecVal.isEmpty && !oldRecVal.isEmpty &&
+                       !Arrays.equals(oldRecVal.get, dbRecVal.get))) {
                     // The old and db values do not match.
+                    logger.debug("COMMIT skippedPut: " + xid + " " + Thread.currentThread.getName + " key:" + (new mdcc.ByteArrayWrapper(key)).hashCode() + " oldRecVal: " + oldRecVal + " dbRecVal: " + dbRecVal)
                     skippedPut = true
                   } else {
                     val newRec = MDCCRecordUtil.fromBytes(newValue)
                     val newDbRec = MDCCRecordUtil.toBytes(MDCCRecord(newRec.value, dbRec.metadata))
+                    logger.debug("COMMIT replace: " + xid + " " + Thread.currentThread.getName + " key:" + (new mdcc.ByteArrayWrapper(key)).hashCode())
                     db.put(txn, key, newDbRec)
                   }
                 }
@@ -466,6 +483,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
         } // applyUpdate
 
         pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
+        logger.debug("COMMIT wrote command %s xid: %s commandsinfo: %s, applyUpdate: %s", Thread.currentThread.getName, xid, commandsInfo, applyUpdate)
       })
 
       txRecords.map(r => Arrays.hashCode(r.key)).foreach(h => committedXidMap.put((xid, h), true))
