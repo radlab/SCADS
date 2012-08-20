@@ -4,6 +4,7 @@ import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.storage._
 
 import java.util.concurrent._
+import net.lag.logging.Logger
 
 sealed case class RecordUpdateInfo(servers: Seq[PartitionService], update: RecordUpdate)
 
@@ -37,7 +38,10 @@ trait ProtocolBase {
 }
 
 object ProtocolNone extends ProtocolBase {
+  val logger = Logger(classOf[ProtocolBase])
+
   def RunProtocol(tx: Tx): TxStatus = {
+    logger.info("START2 %s", Thread.currentThread.getName)
     val responses = transformUpdateList(tx.updateList, tx.readList).map(t => {
       val servers = t.servers
       val recordUpdate = t.update
@@ -57,6 +61,7 @@ object ProtocolNone extends ProtocolBase {
   }
 
   private def writeQuorum(numServers: Int): Int = {
-    scala.math.ceil(numServers * 0.501).toInt
+    4
+//    scala.math.ceil(numServers * 0.501).toInt
   }
 }

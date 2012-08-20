@@ -206,7 +206,14 @@ class BdbStorageManager(val db: Database,
    def get(key:Array[Byte]):Option[Array[Byte]] = {
      val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
      logger.debug("Running get %s %s", dbeKey, dbeValue)
-     db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+//     db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+     // Try uncomitted for mdcc.
+     val startT = System.nanoTime / 1000000
+     db.get(null, dbeKey, dbeValue, LockMode.READ_UNCOMMITTED)
+     val endT = System.nanoTime / 1000000
+     if (endT - startT > 35) {
+       logger.info("slow get %s %s", dbeValue, (endT - startT))
+     }
      logger.debug("get operation complete %s %s", dbeKey, dbeValue)
      Option(dbeValue.getData())
    }
@@ -214,8 +221,22 @@ class BdbStorageManager(val db: Database,
 
   def put(key:Array[Byte],value:Option[Array[Byte]]):Unit = {
     value match {
-      case Some(v) => db.put(null, new DatabaseEntry(key), new DatabaseEntry(v))
-      case None => db.delete(null, new DatabaseEntry(key))
+      case Some(v) => {
+        val startT = System.nanoTime / 1000000
+        db.put(null, new DatabaseEntry(key), new DatabaseEntry(v))
+        val endT = System.nanoTime / 1000000
+        if (endT - startT > 35) {
+          logger.info("slow put %s", (endT - startT))
+        }
+      }
+      case None => {
+        val startT = System.nanoTime / 1000000
+        db.delete(null, new DatabaseEntry(key))
+        val endT = System.nanoTime / 1000000
+        if (endT - startT > 35) {
+          logger.info("slow delete %s", (endT - startT))
+        }
+      }
     }
   }
 

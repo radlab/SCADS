@@ -11,6 +11,9 @@ import collection.JavaConversions._
 import net.lag.logging.Logger
 import java.lang.RuntimeException
 
+import scala.actors.Future
+import scala.actors.Futures._
+
 object ServiceSchedulerDaemon extends optional.Application {
   val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
 
@@ -352,18 +355,39 @@ class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
    */
   def restartMasters(): Unit = masterServices.pforeach(_.restart)
 
+  def killMasters(): Unit = {
+    println("masters: killall -9 mesos-master")
+    masters.pforeach(_ executeCommand "killall -9 mesos-master")
+    println("masters: killall -9 java")
+    masters.pforeach(_ executeCommand "killall -9 java")
+  }
+
+  def killSlaves(): Unit = {
+    println("slaves: killall -9 mesos-slave")
+    slaves.pforeach(_ executeCommand "killall -9 mesos-slave")
+    println("slaves: killall -9 java")
+    slaves.pforeach(_.executeCommand("killall -9 java"))
+  }
+
   /**
    * Restart masters, slaves, and the service scheduler.  Also kills any java procs running on slaves.
    */
   def restart(): Unit = {
-    masters.pforeach(_ executeCommand "killall -9 mesos-master")
-    masters.pforeach(_ executeCommand "killall -9 java")
-    slaves.pforeach(_ executeCommand "killall -9 mesos-slave")
-    slaves.pforeach(_.executeCommand("killall -9 java"))
+//    masters.pforeach(_ executeCommand "killall -9 mesos-master")
+//    masters.pforeach(_ executeCommand "killall -9 java")
+//    slaves.pforeach(_ executeCommand "killall -9 mesos-slave")
+//    slaves.pforeach(_.executeCommand("killall -9 java"))
+    val f1 = future { killMasters; println("restartMasters"); restartMasters }
+    val f2 = future { killSlaves; println("restartSlaves"); restartSlaves }
+    f1()
 
-    restartMasters
-    restartSlaves
+//    restartMasters
+//    restartSlaves
+    println("restartServiceScheduler")
     restartServiceScheduler
+    println("restartServiceSchedulerDone")
+
+    f2()
   }
 
   /**

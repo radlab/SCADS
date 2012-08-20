@@ -84,7 +84,9 @@ class MDCCMicroTpcwLoader(numEBs : Double,
     item.I_SRP = to.getI_srp
     item.I_COST = to.getI_cost
     item.I_AVAIL = to.getI_avail
-    item.I_STOCK = to.getI_stock
+    item.I_STOCK = to.getI_stock + 100 //
+//    item.I_STOCK = to.getI_stock + 30 // 30 works well for 30 clients, 1 minute
+//    item.I_STOCK = to.getI_stock
     item.ISBN = to.getI_isbn
     item.I_PAGE = to.getI_page
     item.I_BACKING = to.getI_backing

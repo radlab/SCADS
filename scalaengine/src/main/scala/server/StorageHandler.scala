@@ -140,11 +140,14 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     val nsRoot = getNamespaceRoot(namespace)
     val routingTable = new MDCCRoutingTable(nsRoot)
 
+    env.getConfig.setLockTimeout(1, java.util.concurrent.TimeUnit.SECONDS)
+
     val pu = new PendingUpdatesController(
       new BDBTxDB[Array[Byte], Array[Byte]](
         database,
         new ByteArrayKeySerializer[Array[Byte]],
         new ByteArrayValueSerializer[Array[Byte]]),
+//      new MapTxDBFactory(),
       new BDBTxDBFactory(database.getEnvironment),
       schemasvc._1, schemasvc._2, routingTable)
 

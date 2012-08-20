@@ -10,6 +10,8 @@ import mdcc.MDCCProtocol
 
 import edu.berkeley.cs.avro.marker._
 
+import edu.berkeley.cs.scads.util.Logger._
+
 sealed trait TxStatus { def name: String }
 case object UNKNOWN extends TxStatus { val name = "UNKNOWN" }
 case object COMMITTED extends TxStatus { val name = "COMMIT" }
@@ -36,6 +38,8 @@ class Tx(val timeout: Int, val readType: ReadConsistency = ReadConsistent())(mai
   var readList = new ReadList
   var protocolMap = new ProtocolMap
 
+  protected val logger = Logger(classOf[Tx])
+
   def Unknown(f: => Unit) = {
     unknownFn = f _
     this 
@@ -53,6 +57,7 @@ class Tx(val timeout: Int, val readType: ReadConsistency = ReadConsistent())(mai
 
   def Execute(): TxStatus = {
     val startMS = java.util.Calendar.getInstance().getTimeInMillis()
+    logger.info("BEGIN %s", Thread.currentThread.getName)
     updateList = new UpdateList
     readList = new ReadList
     ThreadLocalStorage.updateList.withValue(Some(updateList)) {
@@ -71,6 +76,7 @@ class Tx(val timeout: Int, val readType: ReadConsistency = ReadConsistent())(mai
       case NSTxProtocolMDCC() => MDCCProtocol.RunProtocol(this)
       case null => if (updateList.size == 0) {
         // Read-only transaction.
+        logger.info("END %s", Thread.currentThread.getName)
         COMMITTED
       } else {
         throw new RuntimeException("All namespaces in a write transaction must have the same protocol.")

@@ -261,6 +261,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
 
   def orderDisplayWI(c_uname: String, c_passwd: String, numOrderLinesPerPage: Int) = {
+    Thread.sleep(50)
+    println("orderDisplayWI: " + c_uname)
     val cust = orderDisplayGetCustomer(c_uname).head.head.asInstanceOf[Customer]
     //assert(cust.C_PASSWD == c_passwd, "Passwords don't match")
 
@@ -415,6 +417,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
                    cc_name: String,
                    cc_expiry: Long,
                    shipping: String): (String, Boolean) = {
+    Thread.sleep(50)
+    println("buyConfirmWI: " + c_uname)
     val customer = homeWI(c_uname).head.head.asInstanceOf[Customer]
     val cart = retrieveShoppingCart(c_uname).map(sl => (sl(0).asInstanceOf[ShoppingCartItem], sl(1).asInstanceOf[Item]))
 

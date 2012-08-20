@@ -87,10 +87,10 @@ class ICChecker(val schema: Schema) {
       true
     } else {
       if (baseRecBytes.isEmpty) {
-        throw new RuntimeException("icchecker: base rec should not be None.")
+        throw new RuntimeException("icchecker: base rec should not be None. " + schema)
       }
       if (safeRecBytes.isEmpty) {
-        throw new RuntimeException("icchecker: safe rec should not be None.")
+        throw new RuntimeException("icchecker: safe rec should not be None. " + schema)
       }
       val baseRec = avroUtil.fromBytes(baseRecBytes.get)
       val safeRec = avroUtil.fromBytes(safeRecBytes.get)
@@ -105,11 +105,13 @@ class ICChecker(val schema: Schema) {
             valid = ic.lower match {
               case None => true
               case Some(FieldRestrictionGT(x)) =>
-                logger.debug(" " + Thread.currentThread.getName + " > new field: " + field + " safe field: " + safeField + " origLimit: " + x + " newLimit: " + getQuorumLimit(safeField, x, numServers, isFast) + " numServers: " + numServers + " isFast: " + isFast)
-                field > getQuorumLimit(safeField, x, numServers, isFast)
+                val newLimit = getQuorumLimit(safeField, x, numServers, isFast)
+                logger.debug(" " + Thread.currentThread.getName + " > new field: " + field + " safe field: " + safeField + " origLimit: " + x + " newLimit: " + getQuorumLimit(safeField, x, numServers, isFast) + " numServers: " + numServers + " isFast: " + isFast + ", icValid: " + (field > newLimit))
+                field > newLimit
               case Some(FieldRestrictionGE(x)) =>
-                logger.debug(" " + Thread.currentThread.getName + " >= new field: " + field + " safe field: " + safeField + " origLimit: " + x + " newLimit: " + getQuorumLimit(safeField, x, numServers, isFast) + " numServers: " + numServers + " isFast: " + isFast)
-                field >= getQuorumLimit(safeField, x, numServers, isFast)
+                val newLimit = getQuorumLimit(safeField, x, numServers, isFast)
+                logger.debug(" " + Thread.currentThread.getName + " >= new field: " + field + " safe field: " + safeField + " origLimit: " + x + " newLimit: " + getQuorumLimit(safeField, x, numServers, isFast) + " numServers: " + numServers + " isFast: " + isFast + ", icValid: " + (field >= newLimit))
+                field >= newLimit
               case _ => false
             }
           } else if (field > baseField) {
@@ -117,11 +119,13 @@ class ICChecker(val schema: Schema) {
             valid = ic.upper match {
               case None => true
               case Some(FieldRestrictionLT(x)) =>
-                logger.debug(" " + Thread.currentThread.getName + " < new field: " + field + " safe field: " + safeField + " origLimit: " + x + " newLimit: " + getQuorumLimit(safeField, x, numServers, isFast) + " numServers: " + numServers + " isFast: " + isFast)
-                field < getQuorumLimit(safeField, x, numServers, isFast)
+                val newLimit = getQuorumLimit(safeField, x, numServers, isFast)
+                logger.debug(" " + Thread.currentThread.getName + " < new field: " + field + " safe field: " + safeField + " origLimit: " + x + " newLimit: " + getQuorumLimit(safeField, x, numServers, isFast) + " numServers: " + numServers + " isFast: " + isFast + ", icValid: " + (field < newLimit))
+                field < newLimit
               case Some(FieldRestrictionLE(x)) =>
-                logger.debug(" " + Thread.currentThread.getName + " <= new field: " + field + " safe field: " + safeField + " origLimit: " + x + " newLimit: " + getQuorumLimit(safeField, x, numServers, isFast) + " numServers: " + numServers + " isFast: " + isFast)
-                field <= getQuorumLimit(safeField, x, numServers, isFast)
+                val newLimit = getQuorumLimit(safeField, x, numServers, isFast)
+                logger.debug(" " + Thread.currentThread.getName + " <= new field: " + field + " safe field: " + safeField + " origLimit: " + x + " newLimit: " + getQuorumLimit(safeField, x, numServers, isFast) + " numServers: " + numServers + " isFast: " + isFast + ", icValid: " + (field <= newLimit))
+                field <= newLimit
               case _ => false
             }
           }

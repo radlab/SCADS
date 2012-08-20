@@ -103,7 +103,7 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
 
     val reader = new AvroSpecificReaderWriter[MDCCMetadata](None)
     _defaultMeta = reader.deserialize(defaultNode.onDataChange(loadDefault))
-    logger.debug("Reloaded default metadata: %s", _defaultMeta)
+//    logger.debug("Reloaded default metadata: %s", _defaultMeta)
     _defaultMeta
   }
 
@@ -126,6 +126,7 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
         val l = List("compute-1", "eu-west-1", "ap-northeast-1", "ap-southeast-1")
         l(rand.nextInt(l.size))
       }
+//      logger.info("randomRegion: %s serversForKey: %s", randomRegion, routingTable.serversForKey(key))
       val randomHost = routingTable.serversForKey(key).find(x => x.host.split("\\.")(1) == randomRegion).get.host
 
       _serviceMap(randomRegion).find(x => x.host == randomHost) match {
@@ -152,8 +153,9 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
     if (onEC2) {
       ec2MetaData(key)
     } else {
-//      _defaultMeta
-      localMetaData(key)
+      _defaultMeta
+      // For local stress test, need to use this one.
+//      localMetaData(key)
     }
   }
 

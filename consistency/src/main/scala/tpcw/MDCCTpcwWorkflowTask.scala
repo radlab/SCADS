@@ -46,6 +46,10 @@ case class MDCCTpcwWorkflowTask(var numClients: Int,
 
   def run(): Unit = {
 
+    // more threads?
+//    System.setProperty("actors.corePoolSize", "20")
+//    System.setProperty("actors.maxPoolSize", "50")
+
     val clientId = coordination.registerAndAwait("clientStart", numClients, timeout=60*60*1000)
 
     logger.info("Waiting for cluster to be ready")
@@ -98,7 +102,7 @@ case class MDCCTpcwWorkflowTask(var numClients: Int,
                 newHist += elapsedTime
                 histograms.put(actionName, newHist)
               }
-              if (actionName.endsWith("Write")) {
+              if (actionName.contains("Write")) {
                 writeHistogram += elapsedTime
               } else {
                 readHistogram += elapsedTime
@@ -128,7 +132,6 @@ case class MDCCTpcwWorkflowTask(var numClients: Int,
       })
 
       logger.info("******** aggregate results.")
-
       // Aggregate all the threads into 1 result.
       var res = resultList.head
       resultList.tail.foreach(r => {

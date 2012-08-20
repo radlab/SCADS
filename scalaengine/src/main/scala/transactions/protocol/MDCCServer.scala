@@ -52,14 +52,26 @@ class MDCCServer(val namespace : String,
   }
 
   @inline def getMeta(key : Array[Byte])(implicit txn : TransactionData) : MDCCMetadata = {
-    extractMeta(key, getRecord(key))
+    val startT = System.nanoTime / 1000000
+    val rec = getRecord(key)
+    val endT = System.nanoTime / 1000000
+    if (endT - startT > 35) {
+      logger.info("slow get meta get record rec: %s, %s", rec, (endT - startT))
+    }
+    extractMeta(key, rec)
   }
 
   @inline def extractMeta(key : Array[Byte], record : Option[MDCCRecord])(implicit txn : TransactionData) : MDCCMetadata = {
-     if(record.isEmpty)
-      return default.defaultMetaData(key)
-     else
-      return record.get.metadata
+     if(record.isEmpty) {
+       val startT = System.nanoTime / 1000000
+       val ret = default.defaultMetaData(key)
+       val endT = System.nanoTime / 1000000
+       if (endT - startT > 35) {
+         logger.info("slow extract meta: %s", (endT - startT))
+       }
+       return ret
+     } else
+       return record.get.metadata
   }
 
   @inline def putMeta(key : Array[Byte], value : Option[Array[Byte]], meta : MDCCMetadata)(implicit txn : TransactionData) : Boolean  = {
@@ -72,10 +84,13 @@ class MDCCServer(val namespace : String,
       case MultiPropose(seq) => seq
     }
     val key = proposes.head.update.key
-    debug(key, "Processing Propose. src: %s, msg: %s", src, msg)
+    val previousCommits = proposes.head.previousCommits
+    val startT = System.nanoTime / 1000000
+    debug(key, "Processing Propose. %s src: %s, msg: %s previousCommits: %s", Thread.currentThread.getName, src, msg, previousCommits)
     assert(!proposes.isEmpty, "The propose has to contain at least one update")
     assert(proposes.map(_.update.key).distinct.size == 1, "Currenty we only support multi proposes for the same key")
-    debug(key, "Process propose %s %s %s", src, msg, pendingUpdates)
+    previousCommits.foreach(pc => pendingUpdates.addEarlyCommit(pc.xid, pc.status))
+    val endT2 = System.nanoTime / 1000000
     implicit val trx = startTrx()
     val meta = getMeta(proposes.head.update.key)
     val ballot = meta.ballots.head.ballot
@@ -86,15 +101,17 @@ class MDCCServer(val namespace : String,
     //               The main problem is that the code is making a decision
     //               based on the default metadata, which is really old, and
     //               potentially wrong.
-    if (getRecord(proposes.head.update.key).isEmpty) {
-      debug(key, "propose key does not exist.")
-    } else {
-      debug(key, "propose key exists.")
-    }
+
+    val endT3 = System.nanoTime / 1000000
     if(ballot.fast) {
       //TODO can we optimize the accept?
-      debug(key, "Fast ballot: update local db.")
+      debug(key, "Fast ballot: update local db. %s", Thread.currentThread.getName)
       val results = proposes.map(prop => (prop, pendingUpdates.acceptOption(prop.xid, prop.update, true)))
+      val endT4 = System.nanoTime / 1000000
+      commitTrx(trx)
+
+      val endT5 = System.nanoTime / 1000000
+
       val cstruct = results.last._2._3
       debug(key, "Replying with 2b to fast ballot source:%s cstruct:%s", src, cstruct)
       // Get possibly old decisions on the new updates.
@@ -103,11 +120,20 @@ class MDCCServer(val namespace : String,
       }).filter(!_._2.isEmpty).map(i => OldCommit(i._1, i._2.get))
 
       src ! Phase2b(ballot, cstruct, oldCommits)
-      commitTrx(trx)
+
+      val endT6 = System.nanoTime / 1000000
+
       // Must be outside of db lock.
       results.foreach(r => {
         pendingUpdates.txStatusAccept(r._1.xid, List(r._1.update), r._2._1)
       })
+
+      val endT7 = System.nanoTime / 1000000
+
+      val endT = System.nanoTime / 1000000
+      if (endT - startT >= 50) {
+        logger.info("Processing Propose DONE. key:%s %s msg: %s [%s, %s, %s, %s, %s, %s] proposeTime: %s", (new ByteArrayWrapper(key)).hashCode(), Thread.currentThread.getName, msg, (endT2 - startT), (endT3 - endT2), (endT4 - endT3), (endT5 - endT4), (endT6 - endT5), (endT7 - endT6), (endT - startT))
+      }
     }else{
       commitTrx(trx)
       debug(key, "Classic ballot: We get or start our own MDCCRecordHandler")
@@ -121,6 +147,9 @@ class MDCCServer(val namespace : String,
       debug(key, "Classic ballot: forwarding src: %s, msg: %s handler: %s", src, msg, recordHandler.remoteHandle)
       recordHandler.remoteHandle.forward(msg, src)
     }
+    val endT = System.nanoTime / 1000000
+    debug(key, "Processing Propose DONE. %s msg: %s proposeTime: %s", Thread.currentThread.getName, msg, (endT - startT))
+
   }
 
   protected  def processRecordHandlerMsg(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], msg : MDCCProtocol) : Unit = {
@@ -167,8 +196,8 @@ class MDCCServer(val namespace : String,
 
 
 
-  protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates : Seq[SinglePropose] ) = {
-    debug(key, "Process Phase2a src: %s, value: %s, reqBallot: %s newUpdates: %s", src, value, reqBallot, newUpdates)
+  protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates : Seq[SinglePropose], forceNonPending: Boolean) = {
+    debug(key, "Process Phase2a src: %s, value: %s, reqBallot: %s newUpdates: %s forceNonPending: %s", src, value, reqBallot, newUpdates, forceNonPending)
     // A seq of all pending commands in the cstruct.
     val safePendingOptions = value.commands.filter(_.pending).map(c => {
       (c.xid, c.command, c.commit)
@@ -206,7 +235,7 @@ class MDCCServer(val namespace : String,
         }
       }
       val pendingOptions = newUpdates.map(c => {
-        (c.xid, c.update, pendingUpdates.acceptOption(c.xid, c.update, myBallot.get.fast)._1)
+        (c.xid, c.update, pendingUpdates.acceptOption(c.xid, c.update, myBallot.get.fast, forceNonPending)._1)
       })
       commitTrx(trx)
 
@@ -231,27 +260,30 @@ class MDCCServer(val namespace : String,
   }
 
   protected def processAccept(src: RemoteServiceProxy[StorageMessage], xid: ScadsXid, commit : Boolean) = {
-    logger.debug("Id: %s Trx-Id: %s Process commit message. Status: %s", this.hashCode(), xid, commit )
+    logger.debug("Id: %s %s %s Trx-Id: %s Process commit message. Status: %s", this.hashCode(), partition.id, Thread.currentThread.getName, xid, commit )
     if(commit)
       pendingUpdates.commit(xid)
     else
       pendingUpdates.abort(xid)
+    logger.debug("Id: %s %s %s Trx-Id: %s Process commit message DONE.", this.hashCode(), partition.id, Thread.currentThread.getName, xid)
   }
 
   protected def processRecordAccept(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], msg: TrxMessage) = {
     val recordHandler = recordCache.get(key)
+    logger.debug("Id: %s %s key:%s Process record commit message. exists: %s msg: %s", this.hashCode(), partition.id, (new ByteArrayWrapper(key)).hashCode(), recordHandler.isDefined, msg)
     if (recordHandler.isDefined) {
       recordHandler.get.remoteHandle.forward(msg, src)
     }
+    logger.debug("Id: %s %s key:%s Process record commit message DONE. msg: %s", this.hashCode(), partition.id, (new ByteArrayWrapper(key)).hashCode(), msg)
   }
 
   def process(src: RemoteServiceProxy[StorageMessage], msg: TrxMessage) = {
     msg match {
       case msg : Propose =>  processPropose(src, msg)
       case Phase1a(key, ballot) => processPhase1a(src, key, ballot)
-      case Phase2a(key, ballot, safeValue, committedXids, abortedXids, proposes) => processPhase2a(src, key, ballot, safeValue, committedXids, abortedXids, proposes)
+      case Phase2a(key, ballot, safeValue, committedXids, abortedXids, proposes, forceNonPending) => processPhase2a(src, key, ballot, safeValue, committedXids, abortedXids, proposes, forceNonPending)
       case Commit(xid: ScadsXid) => processAccept(src, xid, true)
-      case Abort(xid: ScadsXid) =>  processAccept(src, xid, false)
+      case Abort(xid: ScadsXid) => processAccept(src, xid, false)
       case RecordCommit(key: Array[Byte], xid: ScadsXid) => processRecordAccept(src, key, msg)
       case RecordAbort(key: Array[Byte], xid: ScadsXid) => processRecordAccept(src, key, msg)
       case msg : BeMaster => processRecordHandlerMsg(src, msg.key, msg)

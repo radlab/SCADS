@@ -27,6 +27,7 @@ class ActorReceiver[MessageType <: IndexedRecord](actor: Actor) extends MessageR
 class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](processFn: Mailbox[MessageType] => Unit,
                                                                 val receiverMailbox : Mailbox[MessageType] = new PlainMailbox[MessageType]("Mailbox") ) extends MessageReceiver[MessageType] {
   private val logger = Logger(classOf[FastMailboxDispatchReceiver[IndexedRecord]])
+//  logger.setLevel(java.util.logging.Level.FINEST)
 
   val senderMailbox = new PlainMailbox[MessageType]("SenderMailbox")
   val newMessages : Boolean = false
@@ -66,7 +67,9 @@ class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](processFn: Mailb
   }
 
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
+    logger.debug("start receiveMessage: src: %s senderMailbox.hashCode: %s senderMailbox.getName: %s", src, senderMailbox.hashCode(), senderMailbox.getName)
     senderMailbox.synchronized{
+      logger.debug("in critical section receiveMessage: src: %s senderMailbox.hashCode: %s senderMailbox.getName: %s", src, senderMailbox.hashCode(), senderMailbox.getName)
       if(senderMailbox.isEmpty){
        senderMailbox.add(src.asInstanceOf[Option[RemoteService[MessageType]]], msg)
        dispatcher.execute(new MessageReceive())
@@ -78,6 +81,7 @@ class FastMailboxDispatchReceiver[MessageType <: IndexedRecord](processFn: Mailb
         //dispatcher.execute(new MessageReceive())
       }
     }
+    logger.debug("finish receiveMessage: src: %s senderMailbox.hashCode: %s senderMailbox.getName: %s", src, senderMailbox.hashCode(), senderMailbox.getName)
   }
 
   def unregistered = dispatcher.suspend()
@@ -136,7 +140,8 @@ abstract trait ServiceHandler[MessageType <: IndexedRecord] extends MessageRecei
 
   /* Threadpool for execution of incoming requests */
   protected val outstandingRequests = new ArrayBlockingQueue[Runnable](1024) // TODO: read from config
-  protected val executor = new ThreadPoolExecutor(50, 75, 30, TimeUnit.SECONDS, outstandingRequests)
+//  protected val executor = new ThreadPoolExecutor(50, 75, 30, TimeUnit.SECONDS, outstandingRequests)
+  protected val executor = new ThreadPoolExecutor(12, 12, 30, TimeUnit.SECONDS, outstandingRequests)
 
   /* Latch for waiting for startup to finish */
   private val startupGuard = new CountDownLatch(1)
@@ -181,6 +186,7 @@ abstract trait ServiceHandler[MessageType <: IndexedRecord] extends MessageRecei
   /* Request handler class to be executed on this StorageHandlers threadpool */
   class Request(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType) extends Runnable {
     def run(): Unit = {
+      logger.debug("start ServiceHandler.Runnable: src: %s msg: %s outstandingRequests: %s tp.active: %s tp.completed: %s tp.core: %s tp.pool: %s", src, msg, outstandingRequests.size, executor.getActiveCount, executor.getCompletedTaskCount, executor.getCorePoolSize, executor.getPoolSize)
       try {
         startupGuard.await(); process(src, msg)
       } catch {
@@ -197,6 +203,8 @@ abstract trait ServiceHandler[MessageType <: IndexedRecord] extends MessageRecei
 
   /* Enque a recieve message on the threadpool executor */
   final def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = {
+//    logger.setLevel(java.util.logging.Level.FINEST)
+    logger.debug("start ServiceHandler.receiveMessage: src: %s msg: %s outstandingRequests: %s tp.active: %s tp.completed: %s tp.core: %s tp.pool: %s", src, msg, outstandingRequests.size, executor.getActiveCount, executor.getCompletedTaskCount, executor.getCorePoolSize, executor.getPoolSize)
     try executor.execute(new Request(src, msg)) catch {
       case ree: java.util.concurrent.RejectedExecutionException => //TODO: Fix me: src.foreach(_ ! RequestRejected("Thread Pool Full", msg))
       case e: Throwable => {
@@ -207,5 +215,6 @@ abstract trait ServiceHandler[MessageType <: IndexedRecord] extends MessageRecei
         //TODO Fixme: src.foreach(_ ! ProcessingException(e.toString(), stackTrace))
       }
     }
+    logger.debug("finish ServiceHandler.receiveMessage: src: %s outstandingRequests: %s tp.active: %s tp.completed: %s tp.core: %s tp.pool: %s", src, outstandingRequests.size, executor.getActiveCount, executor.getCompletedTaskCount, executor.getCorePoolSize, executor.getPoolSize)
   }
 }

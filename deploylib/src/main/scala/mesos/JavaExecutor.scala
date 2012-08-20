@@ -165,6 +165,14 @@ class JavaExecutor extends Executor {
   class ForkedJvm(val taskDesc: TaskDescription, val heapSize: Int, val classpath: String, val mainClass: String, val args: Seq[String], val properties: Map[String, String], env: Map[String, String], driver: ExecutorDriver) extends RunningTask with Runnable {
      val logger = Logger()
     logger.debug("Requested memory: " + heapSize)
+    val hprof = if (args.head.contains("MDCCTpcwWorkflowTask")) {
+      "-agentlib:hprof=cpu=samples,lineno=y,file=/tmp/hprof.txt,force=y,doe=y,depth=50,interval=5"
+    } else {
+      ""
+    }
+    logger.info("mainClass: %s", mainClass)
+    logger.info("args: %s", args)
+    logger.info("hprof: %s", hprof)
     val cmdLine = List[String]("/usr/bin/java",
       "-server",
       "-Xmx6G",//HACK to deal with meoso not telling us the right amount of memory"-Xmx" + heapSize + "M",
@@ -173,6 +181,7 @@ class JavaExecutor extends Executor {
       "-verbosegc",
       "-XX:+UseConcMarkSweepGC",
       "-XX:MaxGCPauseMillis=200",
+//      hprof,
       "-Djava.library.path=" + new File("/usr/local/mesos/lib/java")) ++
       properties.map(kv => "-D%s=%s".format(kv._1, kv._2)) ++
       Seq("-cp", classpath, mainClass) ++ args

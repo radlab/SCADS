@@ -63,7 +63,7 @@ object MicroBenchmark extends ExperimentBase {
   }
 
   // Only gets histograms with something greater than 'name'
-  def getActionHistograms(name: String = "2012-01-05 15:55:42.176") = {
+  def getActionHistograms(name: String = "2012-06-26 09:59:16.992") = {
     val resultNS = resultCluster.getNamespace[MDCCMicroBenchmarkResult]("MicroBenchmarkResults")
     val histograms = resultNS.iterateOverRange(None, None)
     .filter(r => expName(r.startTime, r.loaderConfig.txProtocol, r.clientConfig.useLogical, r.clientConfig.note) > name)
@@ -218,18 +218,19 @@ case class MicroBenchmarkTask()
     clusterAddress = scadsCluster.root.canonicalAddress
 
     // Start loaders.
-    val loaderTasks = MDCCTpcwMicroLoaderTask(numClusters * numPartitions, 2, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol, namespace="items").getLoadingTasks(clusters.head.classSource, scadsCluster.root, addlProps)
+    // usually 10000, for 100 clients
+    val loaderTasks = MDCCTpcwMicroLoaderTask(numClusters * numPartitions, 2, numEBs=150, numItems=100000, numClusters=numClusters, txProtocol=protocol, namespace="items").getLoadingTasks(clusters.head.classSource, scadsCluster.root, addlProps)
     clusters.head.serviceScheduler.scheduleExperiment(loaderTasks)
 
     var expStartTime: String = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new java.util.Date)
 
     // Start clients.
     val tpcwTasks = MDCCTpcwMicroWorkflowTask(
-      numClients=15,
+      numClients=10,
       executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
-      numThreads=7,
+      numThreads=10,
       iterations=1,
-      runLengthMin=2,
+      runLengthMin=5,
       startTime=expStartTime,
       useLogical=useLogicalUpdates,
       note=notes).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))

@@ -29,8 +29,8 @@ object StressTest extends ExperimentBase {
   val logger = Logger()
 
   def run(protocol: NSTxProtocol = NSTxProtocolMDCC(),
-          useLogicalUpdates: Boolean = true,
-          useFast: Boolean = true,
+          useLogicalUpdates: Boolean = false,
+          useFast: Boolean = false,
           classicDemarcation: Boolean = true,
           localMasterPercentage: Int = 20): Unit = {
     println("starting stress test")

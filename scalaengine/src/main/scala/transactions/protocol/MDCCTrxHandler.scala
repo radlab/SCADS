@@ -15,18 +15,24 @@ import actors.TIMEOUT
 import java.util.concurrent.Semaphore
 import collection.mutable.HashSet
 
+import scala.actors.Future
+import scala.actors.Futures._
+
 case object TRX_EXIT
 case object TRX_TIMEOUT
 
 //import tools.nsc.matching.ParallelMatching.MatchMatrix.VariableRule
 object MDCCProtocol extends ProtocolBase {
+  protected val logger = Logger(classOf[MDCCProtocol])
+
   def RunProtocol(tx: Tx): TxStatus = {
-    val trxHandler = new MDCCTrxHandler(tx)
+    logger.info("START1 %s", Thread.currentThread.getName)
+    val trxHandler = new MDCCTrxHandler(tx, Thread.currentThread.getName)
     trxHandler.execute()
   }
 }
 
-class MDCCTrxHandler(tx: Tx) extends Actor {
+class MDCCTrxHandler(tx: Tx, threadName: String) extends Actor {
   @volatile var status: TxStatus = UNKNOWN
   var Xid = ScadsXid.createUniqueXid()
   var count = 0
@@ -45,6 +51,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
   @inline def info(msg : String, items : scala.Any*) = logger.info("" + remoteHandle.id +   ": Xid:" + Xid + " ->" + msg, items:_*)
 
   def execute(): TxStatus = {
+    logger.info("START2 %s", threadName)
     this.start()
     debug("Waiting for status")
     sema.acquire()
@@ -57,23 +64,44 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
     status
   }
 
-
+/*
   protected def startTrx(updateList: UpdateList, readList: ReadList) = {
     updateList.getUpdateList.foreach(update => {
       update match {
         case ValueUpdateInfo(ns, servers, key, value) => {
+          val startT = System.nanoTime / 1000000
+          var action = ""
           val (md, oldBytes) = readList.getRecord(key) match {
-            case None => (ns.getDefaultMeta(key), None)
-            case Some(r) => (r.metadata, Some(MDCCRecordUtil.toBytes(r)))
+            case None => {
+              action = "N"
+              (ns.getDefaultMeta(key), None)
+            }
+            case Some(r) => {
+              action = "S"
+              (r.metadata, Some(MDCCRecordUtil.toBytes(r)))
+            }
+          }
+          val endT2 = System.nanoTime / 1000000
+          if (!value.isDefined) {
+            debug(" None value: %s, valueSchema: %s", value, ns.valueSchema)
           }
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           //TODO: Do we really need the MDCCMetadata
+          val endT3 = System.nanoTime / 1000000
           val propose = SinglePropose(Xid, ValueUpdate(key, oldBytes, newBytes))  //TODO: We need a read-strategy
+
+          val endT4 = System.nanoTime / 1000000
           val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), md, servers, ns.getConflictResolver)
+
           participants += rHandler
+          val endT5 = System.nanoTime / 1000000
           debug("" + Xid + ": Sending physical update propose to MCCCRecordHandler", propose)
           debug("Record handler " + rHandler.hashCode )
           rHandler.remoteHandle ! propose
+          val endT6 = System.nanoTime / 1000000
+          if (endT6 - startT > 10) {
+            logger.error("slow %s [%s%s, %s, %s, %s, %s] startTrx: %s", Thread.currentThread.getName, (endT2 - startT), action, (endT3 - endT2), (endT4 - endT3), (endT5 - endT4), (endT6 - endT5), (endT6 - startT))
+          }
         }
         case LogicalUpdateInfo(ns, servers, key, value) => {
           val md = readList.getRecord(key) match {
@@ -90,6 +118,62 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
         }
       }
     })
+  }
+*/
+
+  protected def startTrx(updateList: UpdateList, readList: ReadList) = {
+    updateList.getUpdateList.map(update => future {
+      update match {
+        case ValueUpdateInfo(ns, servers, key, value) => {
+          val startT = System.nanoTime / 1000000
+          var action = ""
+          val (md, oldBytes) = readList.getRecord(key) match {
+            case None => {
+              action = "N"
+              (ns.getDefaultMeta(key), None)
+            }
+            case Some(r) => {
+              action = "S"
+              (r.metadata, Some(MDCCRecordUtil.toBytes(r)))
+            }
+          }
+          val endT2 = System.nanoTime / 1000000
+          if (!value.isDefined) {
+            debug(" None value: %s, valueSchema: %s", value, ns.valueSchema)
+          }
+          val newBytes = MDCCRecordUtil.toBytes(value, md)
+          //TODO: Do we really need the MDCCMetadata
+          val endT3 = System.nanoTime / 1000000
+          val propose = SinglePropose(Xid, ValueUpdate(key, oldBytes, newBytes))  //TODO: We need a read-strategy
+
+          val endT4 = System.nanoTime / 1000000
+          val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), md, servers, ns.getConflictResolver)
+
+          participants += rHandler
+          val endT5 = System.nanoTime / 1000000
+          debug("" + Xid + ": Sending physical update propose to MCCCRecordHandler", propose)
+          debug("Record handler " + rHandler.hashCode )
+          rHandler.remoteHandle ! propose
+          val endT6 = System.nanoTime / 1000000
+          if (endT6 - startT > 10) {
+//            logger.error("slow %s [%s%s, %s, %s, %s, %s] startTrx: %s", Thread.currentThread.getName, (endT2 - startT), action, (endT3 - endT2), (endT4 - endT3), (endT5 - endT4), (endT6 - endT5), (endT6 - startT))
+          }
+        }
+        case LogicalUpdateInfo(ns, servers, key, value) => {
+          val md = readList.getRecord(key) match {
+            case None => ns.getDefaultMeta(key)
+            case Some(r) => r.metadata
+          }
+          val newBytes = MDCCRecordUtil.toBytes(value, md)
+          val propose = SinglePropose(Xid, LogicalUpdate(key, newBytes))
+          val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), md, servers, ns.getConflictResolver)  //TODO: Gene is the CStruct correct?
+          participants += rHandler
+          debug("" + Xid + ": Sending logical update propose to MCCCRecordHandler", propose)
+          debug("Record handler " + rHandler.hashCode )
+          rHandler.remoteHandle ! propose
+        }
+      }
+    }).map(_())
   }
 
   def notifyAcceptors() = {
@@ -117,6 +201,13 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
 //          s.remoteHandle ! msg
         }
       })
+//      // Only send one commit to each machine.
+//      val uniqServers = servers.map(s => {
+//        (s.host, s)
+//      }).toMap.values
+//      debug("Notify servers: %s", uniqServers)
+//      uniqServers.foreach( _ ! msg)
+
       debug("Notify servers: %s", servers)
       servers.foreach( _ ! msg)
     }
@@ -128,9 +219,23 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
   def act() {
     debug("" + this.hashCode() + "Starting to wait for messages. Setting timeout:" + tx.timeout)
     Scheduler.schedule(() => {
-      this ! TRX_TIMEOUT}, tx.timeout)
+      this ! TRX_TIMEOUT}, 60000)
+//      this ! TRX_TIMEOUT}, tx.timeout)
     var timedOut = false
+
+    logger.info("START3 %s %s", threadName, Xid)
+
+    val startT = System.nanoTime / 1000000
     startTrx(tx.updateList, tx.readList)
+    val endT = System.nanoTime / 1000000
+
+    logger.info("END4 %s %s", threadName, Xid)
+
+    if (endT - startT > 5) {
+//      logger.error("slow %s updateList: %s startTime: %s", Thread.currentThread.getName, tx.updateList.size, (endT - startT))
+    } else {
+//      logger.error("fast %s updateList: %s startTime: %s", Thread.currentThread.getName, tx.updateList.size, (endT - startT))
+    }
     loop {
       react {
         case StorageEnvelope(src, msg@Learned(_, _, success)) => {

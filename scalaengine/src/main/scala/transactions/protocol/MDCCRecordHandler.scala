@@ -30,6 +30,26 @@ case object WAITING_FOR_COMMIT extends RecordStatus {val name = "WAITING_FOR_COM
 case object WAITING_FOR_NEW_FAST_ROUND extends RecordStatus {val name = "WAITING_FOR_NEW_ROUND"}
 case object SCAN_FOR_PROPOSE extends RecordStatus {val name = "SCAN_FOR_PROPOSE"}
 
+object AsyncSender {
+  val outstandingRequests = new ArrayBlockingQueue[Runnable](1024)
+  val executor = new ThreadPoolExecutor(2, 8, 30, TimeUnit.SECONDS, outstandingRequests)
+
+  class SendRequest(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType) extends Runnable {
+    def run(): Unit = {
+      try {
+      } catch {
+        case e: Throwable => {
+          /* Get the stack trace */
+          val stackTrace = e.getStackTrace().mkString("\n")
+          /* Log and report the error */
+          println("AsyncSender exception: " + stackTrace)
+        }
+      }
+    }
+  }
+
+}
+
 object ServerMessageHelper {
   class SMH(s: Seq[PartitionService]) {
     def !(msg : MDCCProtocol)(implicit sender: RemoteServiceProxy[StorageMessage]) = s.foreach(_ ! msg)
@@ -100,6 +120,8 @@ class MDCCRecordHandler (
     }
   }
 
+  // Stores Commit messages for the next propose.
+  private val previousCommits = scala.collection.mutable.HashSet[CommitStatus]()
 
   private var status: RecordStatus = READY
 
@@ -122,7 +144,7 @@ class MDCCRecordHandler (
 
   override def toString = "[id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + "]"
 
-  debug("Created RecordHandler. Hash %s, Mailbox: %s", this.hashCode, mailbox.hashCode())
+//  debug("Created RecordHandler. Hash %s, Mailbox: %s", this.hashCode, mailbox.hashCode())
 
   implicit def toRemoteService(src : ServiceType) : RemoteService[StorageMessage] = src.asInstanceOf[RemoteService[StorageMessage]]
 
@@ -169,21 +191,30 @@ class MDCCRecordHandler (
   def commit(msg : MDCCProtocol, xid: ScadsXid, trxStatus : Boolean) : Boolean = {
     debug("Received xid %s status %s ", xid, trxStatus)
     val cmd = value.commands.find(_.xid == xid)
-    if(cmd.isDefined){
+    if(cmd.isDefined) {
       cmd.get.pending = false
       cmd.get.commit = trxStatus
-      if(status == WAITING_FOR_COMMIT)
+      if(status == WAITING_FOR_COMMIT) {
+        debug("stop blocking with commit. commit: %s msg: %s", trxStatus, request)
         status = READY
+        request = null
+      }
       debug("Commit was found and deleted: %s", xid)
+      previousCommits.add(CommitStatus(xid, trxStatus))
       return false
-    }else{
+    } else {
       debug("Commit is kept in mailbox: %s", xid)
       return true
     }
   }
 
+
+  var startT0 = System.nanoTime / 1000000
+
   //TODO We should create a proper priority queue
   def processMailbox(mailbox : Mailbox[StorageMessage]) {
+      startT0 = System.nanoTime / 1000000
+
       debug("Mailbox %s %s", this.hashCode(), mailbox)
       if(mailbox.size() > 10) debug("################   PROBLEM #################################### %s", mailbox.size())
       mailbox{
@@ -361,6 +392,14 @@ class MDCCRecordHandler (
           request = null
           status = READY
         }
+/*
+        case env@StorageEnvelope(src, msg: WaitForCommit) if status == READY => {
+          // BEWARE: This could block forever at the moment!
+          status = WAITING_FOR_COMMIT
+          request = env
+          debug("blocking before next propose. msg: %s", msg)
+        }
+*/
         case msg@_ => {
           debug("Mailbox-Hash:%s, Ignoring message in mailbox: msg:%s status: %s current request:%s", mailbox.hashCode(), msg, status, request)
           if(status == WAITING_FOR_COMMIT){
@@ -418,15 +457,49 @@ class MDCCRecordHandler (
   }
 
 
-
+  var firstXid: Option[ScadsXid] = None
   def fastPropose(propose : Propose){
     //val rnd = Random
     status = FAST_PROPOSED
     debug("Sending fast propose from " + remoteHandle + " to [" + servers.mkString(", ") + "]")
+    // Add previous commits to the first SinglePropose.
+    var theXid = ScadsXid(1, 1)
+    val withCommits = propose match {
+      case SinglePropose(xid, update, _) => {
+        theXid = xid
+        SinglePropose(xid, update, previousCommits.toList)
+      }
+      case MultiPropose(seq) => {
+        val h = seq.head
+        theXid = h.xid
+        MultiPropose(List(SinglePropose(h.xid, h.update, previousCommits.toList)) ++ seq.tail)
+      }
+    }
+
+    val startT = System.nanoTime / 1000000
     servers.foreach(server => {
       //Thread.sleep(rnd.nextInt(1000))
-      server ! propose
+      server ! withCommits
     })
+    val endT = System.nanoTime / 1000000
+    val extra = if (firstXid.isDefined) {
+      if (firstXid.get == theXid) {
+        "S"
+      } else {
+        "D"
+      }
+    } else {
+      "F"
+    }
+    logger.info("SEND %s-%s %s", (endT - startT), extra, theXid)
+    if (endT - startT0 >= 5) {
+      logger.info("slow_process %s %s", (endT - startT0), theXid)
+    }
+
+
+    if (!firstXid.isDefined) firstXid = theXid
+
+    previousCommits.clear
     RoundStats.fast.incrementAndGet()
   }
 
@@ -736,7 +809,8 @@ class MDCCRecordHandler (
           RoundStats.classic.incrementAndGet()
         } else {
           //We are in the classic mode
-          debug("Testing for pending updates")
+          val hasPending = value.commands.exists(_.pending)
+          debug("Testing for pending updates: %s", hasPending)
           if(false && value.commands.exists(_.pending)) {
             //We have to add the optional waiting
             debug("We  have still pending update, so we postpone: Value: %s", value)
@@ -751,10 +825,13 @@ class MDCCRecordHandler (
             debug("No pending updates. We are ready to go")
             //The round is clear and committed, time to move on
             if(unsafeCommands.isEmpty) {
-
               val props = seq(propose)
               moveToNextRound()
-              val msg = Phase2a(key, nBallot, rebase, commitXids, abortXids, props.head :: Nil)
+              val forceNonPending = props.head.update.isInstanceOf[PhysicalUpdate] && hasPending
+              if (forceNonPending) {
+                debug("Send a nonpending update. propose: %s", props.head)
+              }
+              val msg = Phase2a(key, nBallot, rebase, commitXids, abortXids, props.head :: Nil, forceNonPending)
               debug("Classic rounds: No pending updates and no unsafe commands, so we propose the next. msg: %s tail: %s current value: %s, rebased value: %s", msg, props.tail, value, rebase)
               servers ! msg
               RoundStats.classic.incrementAndGet()
@@ -763,7 +840,11 @@ class MDCCRecordHandler (
               error("Classic rounds: No pending updates but unsafe commands -> we resolve the unsafe commands first")
               fullDebug("Unsafe commands")
               moveToNextRound()
-              servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, unsafeCommands.head :: Nil)
+              val forceNonPending = unsafeCommands.head.update.isInstanceOf[PhysicalUpdate] && hasPending
+              if (forceNonPending) {
+                debug("Send a nonpending update. propose: %s", unsafeCommands.head)
+              }
+              servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, unsafeCommands.head :: Nil, forceNonPending)
               RoundStats.classic.incrementAndGet()
               forwardRequest(src, propose, unsafeCommands.tail)
             }
@@ -888,6 +969,16 @@ class MDCCRecordHandler (
           val oldCommit = responses.toList.map(_._2.asInstanceOf[Phase2b].oldCommits).reduce((a, b) => a ++ b).find(_.xid == propose.xid)
           if(cmd.isDefined) {
             debug("We learned the value")
+/*
+            if (areWeMaster(currentBallot.server) && !currentBallot.fast && cmd.get.command.isInstanceOf[PhysicalUpdate]) {
+              // If this is the master of classic rounds and physical updates,
+              // just wait for the commit, since new proposes will not succeed.
+              // BEWARE: This should be processed right after the
+              //         ScanForPropose message, and not at some other
+              //         unexpected time.
+              mailbox.addFirst(Envelope(remoteHandle, WaitForCommit(propose.xid)))
+            }
+*/
             if(currentBallot.fast && !cmd.get.commit && cmd.get.command.isInstanceOf[LogicalUpdate]){
               debug("We learned an abort in a fast classic round with logical updates. This can only happend when we violate the limit. So we switch to classic. send BeMaster to %s", currentBallot.server)
               currentBallot.server ! createBeMasterRequest( currentBallot.round, currentBallot.round + 1000, false)

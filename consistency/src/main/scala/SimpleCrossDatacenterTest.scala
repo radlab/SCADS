@@ -135,7 +135,7 @@ object Experiment extends ExperimentBase {
 
   def run(c: Seq[deploylib.mesos.Cluster] = clusters,
           protocol: NSTxProtocol = NSTxProtocolNone()): Unit = {
-    stopCluster
+//    stopCluster
     if (c.size < 1) {
       logger.error("cluster list must not be empty")
     } else if (c.head.slaves.size < 2) {
@@ -185,21 +185,49 @@ case class Task()
     numPartitions = (clusters.tail.map(_.slaves.size) ++ List(firstSize)).min
     numClusters = clusters.size
 
+    var addlProps = new collection.mutable.ArrayBuffer[(String, String)]()
+
+    // Try not setting this for the metadata to be the same as before.
+//    addlProps.append("scads.mdcc.onEC2" -> "true")
+
+    // Using fast.
+    addlProps.append("scads.mdcc.fastDefault" -> "true")
+    addlProps.append("scads.mdcc.DefaultRounds" -> "1")
+
+    // Use quorum demarcation.
+    addlProps.append("scads.mdcc.classicDemarcation" -> "false")
+
+    // All masters are in ap-southeast.
+    addlProps.append("scads.mdcc.localMasterPercentage" -> "-1")
+
+    // For profiling??
+    // http://pedanttinen.blogspot.com/2012/02/remote-visualvm-session-through-ssh.html
+    addlProps.append("com.sun.management.jmxremote.port" -> "9999")
+    addlProps.append("com.sun.management.jmxremote.ssl" -> "false")
+    addlProps.append("com.sun.management.jmxremote.authenticate" -> "false")
+
+    // more actor threads?
+    addlProps.append("actors.corePoolSize" -> "50")
+    addlProps.append("actors.maxPoolSize" -> "100")
+
     // Start the storage servers.
-    val scadsCluster = newMDCCScadsCluster(numPartitions, clusters)
+    val scadsCluster = newMDCCScadsCluster(numPartitions, clusters, addlProps)
     clusterAddress = scadsCluster.root.canonicalAddress
 
     // Start loaders.
-    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, 15, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol).getLoadingTasks(clusters.head.classSource, scadsCluster.root)
+    // Usually 10000 items.
+    // Usually 10 loaders. trying 5.
+    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, 5, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol).getLoadingTasks(clusters.head.classSource, scadsCluster.root, addlProps)
     clusters.head.serviceScheduler.scheduleExperiment(loaderTasks)
 
     // Start clients.
+    // Usually 10x10.  trying 5x20.
     val tpcwTasks = MDCCTpcwWorkflowTask(
-      numClients=15,
+      numClients=10,
       executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
-      numThreads=7,
+      numThreads=10,
       iterations=1,
-      runLengthMin=5).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress)
+      runLengthMin=2).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))
     clusters.head.serviceScheduler.scheduleExperiment(tpcwTasks)
 
     // Start the task.

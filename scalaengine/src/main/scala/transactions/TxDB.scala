@@ -274,7 +274,8 @@ class BDBTxDB[K <: AnyRef, V <: AnyRef](val db: Database,
   }
   override def txStart() = {
     val tx = db.getEnvironment.beginTransaction(null, null)
-    tx.setLockTimeout(1, java.util.concurrent.TimeUnit.SECONDS)
+//    tx.setLockTimeout(1, java.util.concurrent.TimeUnit.SECONDS)
+    tx.setLockTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
     BDBTransactionData(tx)
   }
   override def txCommit(tx: TransactionData) { 
@@ -336,11 +337,11 @@ class MapTxDB[K <: AnyRef, V <: AnyRef](val map: ByteArrayHashMap[K, V], val nam
     // For transactional map access, just lock the entire structure.
     // TODO: If locking entire map is a bottle neck, implement better
     //       transactional system?
-    lock.acquire
+//    lock.acquire
     MapTransactionData(new ListBuffer[(Any, Any)])
   }
   override def txCommit(tx: TransactionData) {
-    lock.release
+//    lock.release
     val txn = getTransaction(tx, "Map.txComit()")
     if (txn != null) {
       txn.clear
@@ -357,7 +358,7 @@ class MapTxDB[K <: AnyRef, V <: AnyRef](val map: ByteArrayHashMap[K, V], val nam
       })
       txn.clear
     }
-    lock.release
+//    lock.release
   }
 
   override def getName = name

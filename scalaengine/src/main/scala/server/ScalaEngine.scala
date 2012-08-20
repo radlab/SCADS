@@ -55,7 +55,20 @@ case class ScalaEngineTask(var clusterAddress: String, var dbDir: Option[String]
     val config = new EnvironmentConfig()
     config.setAllowCreate(true)
     config.setTransactional(true)
-    config.setCachePercent(cachePercentage.getOrElse(60))
+//    config.setCachePercent(cachePercentage.getOrElse(60))
+    config.setCachePercent(cachePercentage.getOrElse(70))
+
+    config.setDurability(com.sleepycat.je.Durability.COMMIT_NO_SYNC)
+//    config.setDurability(com.sleepycat.je.Durability.COMMIT_WRITE_NO_SYNC)
+
+    // don't run checkpointer.
+    config.setConfigParam(EnvironmentConfig.CHECKPOINTER_BYTES_INTERVAL, java.lang.Integer.MAX_VALUE.toString)
+
+    // more lock tables.  should be prime.
+    config.setConfigParam(EnvironmentConfig.LOCK_N_LOCK_TABLES, "127")
+
+    // LOG_WRITE_QUEUE_SIZE. max is 32mb, default is 1mb.
+    config.setConfigParam(EnvironmentConfig.LOG_WRITE_QUEUE_SIZE, "32000000")
 
     val dir = dbDir.map(new File(_)).getOrElse(new File("db"))
     if(!dir.exists()) {

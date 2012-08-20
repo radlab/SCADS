@@ -211,7 +211,7 @@ sealed trait MDCCProtocol extends TrxMessage
 
 sealed trait Propose extends MDCCProtocol with AvroUnion
 
-case class SinglePropose(var xid: ScadsXid, var update: RecordUpdate) extends AvroRecord with Propose
+case class SinglePropose(var xid: ScadsXid, var update: RecordUpdate, var previousCommits: Seq[CommitStatus] = Nil) extends AvroRecord with Propose
 
 case class MultiPropose(var proposes : Seq[SinglePropose]) extends AvroRecord with Propose
 
@@ -234,7 +234,7 @@ case class Phase1a(var key: Array[Byte], var ballots: Seq[MDCCBallotRange]) exte
 case class Phase1b(var meta: MDCCMetadata, var value: CStruct) extends AvroRecord with MDCCProtocol
 
 //TODO we could make the updates part of te CStruct, if we would have the chance to execute accepts locally
-case class Phase2a(var key: Array[Byte], var ballot: MDCCBallot, var safeValue: CStruct, var committedXids : Seq[ScadsXid], var abortedXids : Seq[ScadsXid], var newUpdates : Seq[SinglePropose]) extends AvroRecord with MDCCProtocol
+case class Phase2a(var key: Array[Byte], var ballot: MDCCBallot, var safeValue: CStruct, var committedXids : Seq[ScadsXid], var abortedXids : Seq[ScadsXid], var newUpdates : Seq[SinglePropose], var forceNonPending: Boolean = false) extends AvroRecord with MDCCProtocol
 
 object Phase2a{
   def apply(key: Array[Byte], ballot: MDCCBallot, safeValue: CStruct) : Phase2a = new Phase2a(key, ballot, safeValue, Nil, Nil, Nil)
@@ -249,6 +249,7 @@ case class Phase2bMasterFailure(var ballots: Seq[MDCCBallotRange], var confirmed
 
 case class Learned(var xid: ScadsXid, var key: Array[Byte], var status : Boolean)  extends AvroRecord with MDCCProtocol
 
+case class CommitStatus(var xid: ScadsXid, var status: Boolean) extends AvroRecord with MDCCProtocol
 case class Commit(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
 case class Abort(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
 case class Exit() extends AvroRecord with MDCCProtocol
@@ -260,6 +261,9 @@ case class RecordAbort(var key: Array[Byte], var xid: ScadsXid) extends AvroReco
 // For notifying duplicate propose messages.
 case class ScanForPropose(var learned: Learned) extends AvroRecord with MDCCProtocol
 case class DoneScanForPropose(var learned: Learned) extends AvroRecord with MDCCProtocol
+
+// For waiting for a commit message.
+case class WaitForCommit(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
 
 /* Transaction KVStore Operations */
 sealed trait TxProtocol2pc extends TrxMessage

@@ -9,6 +9,8 @@ import comm.{Envelope, Mailbox}
 import util.Logger
 import util.LRUMap
 
+import java.util.concurrent.ConcurrentHashMap
+
 class MDCCClientServer(ns : TransactionI) extends  MDCCRecordCache {
    private implicit val remoteHandle = StorageService(StorageRegistry.registerFastMailboxFunc(processMailbox))
 
@@ -31,7 +33,7 @@ class MDCCClientServer(ns : TransactionI) extends  MDCCRecordCache {
       mailbox{
         case env@StorageEnvelope(src, BeMaster(key, _, _, _, _)) => forwardToRecordHandler(key, env)
         case env@StorageEnvelope(src, ResolveConflict(key, _, _, _)) =>  forwardToRecordHandler(key, env)
-        case env@StorageEnvelope(src, SinglePropose(_, update)) =>  forwardToRecordHandler(update.key, env)
+        case env@StorageEnvelope(src, SinglePropose(_, update, _)) =>  forwardToRecordHandler(update.key, env)
         case env@StorageEnvelope(src, MultiPropose(proposes))  =>  {
           assert(proposes.map(_.update.key).distinct.size == 1, "Currently Multi-Proposes have to contain 1 key")
           forwardToRecordHandler(proposes.head.update.key, env)
@@ -73,14 +75,11 @@ class MDCCRecordCache() {
       }
     }
 
+  val handlerMap = new ConcurrentHashMap[ByteArrayWrapper, MDCCRecordHandler](CACHE_SIZE, 0.75f, 100)
+
   def get(key : Array[Byte]) : Option[MDCCRecordHandler] = {
-    cache.synchronized{
-      cache.get(new ByteArrayWrapper(key))
-    }
+    Option(handlerMap.get(new ByteArrayWrapper(key)))
   }
-
-
-
 
   def getOrCreate(key : Array[Byte],
                   value : CStruct,
@@ -89,21 +88,76 @@ class MDCCRecordCache() {
                   conflictResolver : ConflictResolver,
                   master : SCADSService
                   ) : MDCCRecordHandler = {
+    val startT = System.nanoTime / 1000000
+    val keyWrapper =  new ByteArrayWrapper(key)
+    val endT2 = System.nanoTime / 1000000
+    handlerMap.get(keyWrapper) match {
+      case null => {
+        val endT3 = System.nanoTime / 1000000
+        var handler = new MDCCRecordHandler(key, value, mt.currentVersion, mt.ballots,  mt.confirmedBallot, servers, conflictResolver, master)
+        val endT4 = System.nanoTime / 1000000
+        val oldVal = handlerMap.putIfAbsent(keyWrapper, handler)
+        if (oldVal != null) handler = oldVal
+        logger.debug("No record handler exists, we create a new one: hash: %s remote: %s", handler.hashCode(), handler.remoteHandle.id)
+        val endT = System.nanoTime / 1000000
+        if (endT - startT > 10) {
+//          logger.error("slow %s [%s, %s, %s, %s] getOrCreate1: %s", Thread.currentThread.getName, (endT2 - startT), (endT3 - endT2), (endT4 - endT3), (endT - endT4), (endT - startT))
+        }
+        handler
+      }
+      case v => {
+        val endT = System.nanoTime / 1000000
+        if (endT - startT > 10) {
+//          logger.error("slow %s [%s, %s] getOrCreate2: %s", Thread.currentThread.getName, (endT2 - startT), (endT - endT2), (endT - startT))
+        }
+        logger.debug("We found a record handler and return it. hash: %s remote: %s", v.hashCode(), v.remoteHandle.id)
+        v
+      }
+    }
+  }
+
+/*
+  def get(key : Array[Byte]) : Option[MDCCRecordHandler] = {
+    cache.synchronized{
+      cache.get(new ByteArrayWrapper(key))
+    }
+  }
+
+  def getOrCreate(key : Array[Byte],
+                  value : CStruct,
+                  mt: MDCCMetadata,
+                  servers: Seq[PartitionService],
+                  conflictResolver : ConflictResolver,
+                  master : SCADSService
+                  ) : MDCCRecordHandler = {
+    val startT = System.nanoTime / 1000000
     val keyWrapper =  new ByteArrayWrapper(key)
     cache.synchronized{
+      val endT2 = System.nanoTime / 1000000
       cache.get(keyWrapper) match {
         case None => {
+          val endT3 = System.nanoTime / 1000000
           var handler = new MDCCRecordHandler(key, value, mt.currentVersion, mt.ballots,  mt.confirmedBallot, servers, conflictResolver, master)
+          val endT4 = System.nanoTime / 1000000
           cache.update(keyWrapper, handler)
           logger.debug("No record handler exists, we create a new one: hash: %s remote: %s", handler.hashCode(), handler.remoteHandle.id)
+          val endT = System.nanoTime / 1000000
+          if (endT - startT > 20) {
+            logger.error("slow %s [%s, %s, %s, %s] getOrCreate1: %s", Thread.currentThread.getName, (endT2 - startT), (endT3 - endT2), (endT4 - endT3), (endT - endT4), (endT - startT))
+          }
           handler
         }
         case Some(v) => {
+          val endT = System.nanoTime / 1000000
+          if (endT - startT > 20) {
+            logger.error("slow %s [%s, %s] getOrCreate2: %s", Thread.currentThread.getName, (endT2 - startT), (endT - endT2), (endT - startT))
+          }
           logger.debug("We found a record handler and return it. hash: %s remote: %s", v.hashCode(), v.remoteHandle.id)
           v
         }
       }
     }
   }
+*/
 
 }
