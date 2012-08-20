@@ -16,6 +16,13 @@ object RemoteServiceProxy {
   val logger = Logger()
 }
 
+object GlobalSenderQueue{
+  private var msgQueue = new ArrayBlockingQueue[Runnable](1024)
+  protected val sendExecutor = new ThreadPoolExecutor(10, 100, 30, TimeUnit.SECONDS, msgQueue)
+
+  def execute(runnable : Runnable) = sendExecutor.execute(runnable)
+}
+
 trait RemoteServiceProxy[MessageType <: IndexedRecord] {
   var remoteNode: RemoteNode
   var id: ServiceId
@@ -83,8 +90,7 @@ trait RemoteServiceProxy[MessageType <: IndexedRecord] {
     future
   }
 
-  private var msgQueue = new ArrayBlockingQueue[Runnable](1024)
-  protected val sendExecutor = new ThreadPoolExecutor(10, 100, 30, TimeUnit.SECONDS, msgQueue)
+
 
   class SendRequest(msg: MessageType, sender: RemoteServiceProxy[MessageType], dest: RemoteServiceProxy[MessageType]) extends Runnable {
     def run() {
@@ -93,9 +99,7 @@ trait RemoteServiceProxy[MessageType <: IndexedRecord] {
   }
 
   def !!!(msg: MessageType)(implicit sender: RemoteServiceProxy[MessageType]): Unit = {
-    msgQueue.synchronized {
-      sendExecutor.execute(new SendRequest(msg, sender, this))
-    }
+    GlobalSenderQueue.execute(new SendRequest(msg, sender, this))
   }
 
   /*
