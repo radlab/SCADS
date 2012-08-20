@@ -30,29 +30,11 @@ case object WAITING_FOR_COMMIT extends RecordStatus {val name = "WAITING_FOR_COM
 case object WAITING_FOR_NEW_FAST_ROUND extends RecordStatus {val name = "WAITING_FOR_NEW_ROUND"}
 case object SCAN_FOR_PROPOSE extends RecordStatus {val name = "SCAN_FOR_PROPOSE"}
 
-object AsyncSender {
-  val outstandingRequests = new ArrayBlockingQueue[Runnable](1024)
-  val executor = new ThreadPoolExecutor(2, 8, 30, TimeUnit.SECONDS, outstandingRequests)
 
-  class SendRequest(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType) extends Runnable {
-    def run(): Unit = {
-      try {
-      } catch {
-        case e: Throwable => {
-          /* Get the stack trace */
-          val stackTrace = e.getStackTrace().mkString("\n")
-          /* Log and report the error */
-          println("AsyncSender exception: " + stackTrace)
-        }
-      }
-    }
-  }
-
-}
 
 object ServerMessageHelper {
   class SMH(s: Seq[PartitionService]) {
-    def !(msg : MDCCProtocol)(implicit sender: RemoteServiceProxy[StorageMessage]) = s.foreach(_ ! msg)
+    def !(msg : MDCCProtocol)(implicit sender: RemoteServiceProxy[StorageMessage]) = s.foreach(_ !!! msg)
   }
   implicit def smh(i: Seq[PartitionService]) = new SMH(i)
 }
