@@ -18,6 +18,8 @@ import org.apache.avro.generic.IndexedRecord
 import edu.berkeley.cs.avro.runtime._
 import org.apache.avro.util.Utf8
 
+import scala.actors.Future
+import scala.actors.Futures._
 
 class TpcwLoader(val numEBs : Double,
                  val numItems : Int) {
@@ -106,8 +108,9 @@ class TpcwLoader(val numEBs : Double,
   def createNamespaces(client: TpcwClient, replicationFactor: Int) =
     namespaces(client).foreach(_.repartition(replicationFactor))
 
-  def createNamespacesForClusters(client: TpcwClient, numClusters: Int) =
-    namespaces(client).foreach(_.repartitionForClusters(numClusters))
+  def createNamespacesForClusters(client: TpcwClient, numClusters: Int) = {
+    namespaces(client).map(n => future {n.repartitionForClusters(numClusters)}).map(_())
+  }
 
   private def uuid() : String =
     UUID.randomUUID.toString
