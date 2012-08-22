@@ -1,3 +1,3 @@
 #!/bin/bash
 
-SCADS_CONFIG=config/test.conf java -XX:MaxGCPauseMillis=100 -XX:+UseConcMarkSweepGC -noverify -XX:ReservedCodeCacheSize=64M -noverify -Djava.library.path=/usr/local/mesos/lib/java -Xss2M -Xmx4G -XX:MaxPermSize=3G -jar `dirname $0`/sbt-launch-0.11.0-SNAPSHOT.jar "$@"
+SCADS_CONFIG=config/test.conf java -XX:MaxGCPauseMillis=100 -XX:+UseConcMarkSweepGC -noverify -XX:ReservedCodeCacheSize=64M -noverify -Djava.library.path=/usr/local/mesos/lib/java -Dactors.corePoolSize=20 -Dactors.maxPoolSize=50 -Xss2M -Xmx4G -XX:MaxPermSize=3G -jar `dirname $0`/sbt-launch-0.11.0-SNAPSHOT.jar "$@"
