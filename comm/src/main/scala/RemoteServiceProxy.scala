@@ -4,6 +4,7 @@ import net.lag.logging.Logger
 
 import org.apache.avro.generic.IndexedRecord
 import edu.berkeley.cs.avro.marker.{AvroUnion, AvroRecord}
+import java.util.concurrent.{ArrayBlockingQueue, TimeUnit, ThreadPoolExecutor}
 
 /* Generic Remote Actor Handle */
 case class RemoteService[MessageType <: IndexedRecord](var remoteNode: RemoteNode,
@@ -13,6 +14,13 @@ case class TimeoutException(msg: IndexedRecord) extends Exception
 
 object RemoteServiceProxy {
   val logger = Logger()
+}
+
+object GlobalSenderQueue{
+  private var msgQueue = new ArrayBlockingQueue[Runnable](1024)
+  protected val sendExecutor = new ThreadPoolExecutor(2, 4, 30, TimeUnit.SECONDS, msgQueue)
+
+  def execute(runnable : Runnable) = sendExecutor.execute(runnable)
 }
 
 trait RemoteServiceProxy[MessageType <: IndexedRecord] {
@@ -80,6 +88,18 @@ trait RemoteServiceProxy[MessageType <: IndexedRecord] {
     val future = new MessageFuture[MessageType](this, body)
     this.!(body)(future.remoteService)
     future
+  }
+
+
+
+  class SendRequest(msg: MessageType, sender: RemoteServiceProxy[MessageType], dest: RemoteServiceProxy[MessageType]) extends Runnable {
+    def run() {
+      dest.!(msg)(sender)
+    }
+  }
+
+  def !!!(msg: MessageType)(implicit sender: RemoteServiceProxy[MessageType]): Unit = {
+    GlobalSenderQueue.execute(new SendRequest(msg, sender, this))
   }
 
   /*
