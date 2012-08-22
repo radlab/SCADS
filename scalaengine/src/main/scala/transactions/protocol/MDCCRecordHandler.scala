@@ -193,6 +193,9 @@ class MDCCRecordHandler (
 
   var startT0 = System.nanoTime / 1000000
 
+  var startT1 = System.nanoTime / 1000000
+  var startT2 = System.nanoTime / 1000000
+
   //TODO We should create a proper priority queue
   def processMailbox(mailbox : Mailbox[StorageMessage]) {
       startT0 = System.nanoTime / 1000000
@@ -350,6 +353,7 @@ class MDCCRecordHandler (
           resolveConflict(src, msg)
         }
         case env@StorageEnvelope(src, msg: Propose) if status == READY => {
+          startT1 = System.nanoTime / 1000000
           debug("Processing Propose request", env)
           request = env
           processProposal(src, msg)
@@ -441,6 +445,8 @@ class MDCCRecordHandler (
 
   var firstXid: Option[ScadsXid] = None
   def fastPropose(propose : Propose){
+    startT2 = System.nanoTime / 1000000
+
     //val rnd = Random
     status = FAST_PROPOSED
     debug("Sending fast propose from " + remoteHandle + " to [" + servers.mkString(", ") + "]")
@@ -459,11 +465,20 @@ class MDCCRecordHandler (
     }
 
     val startT = System.nanoTime / 1000000
+/*
     servers.foreach(server => {
       //Thread.sleep(rnd.nextInt(1000))
-      server ! withCommits
+      server !!! withCommits
     })
+*/
+
+    val timings = servers.map(server => {
+      server !!! withCommits
+      System.nanoTime / 1000000
+    })
+
     val endT = System.nanoTime / 1000000
+
     val extra = if (firstXid.isDefined) {
       if (firstXid.get == theXid) {
         "S"
@@ -473,9 +488,14 @@ class MDCCRecordHandler (
     } else {
       "F"
     }
-    logger.info("SEND %s-%s %s", (endT - startT), extra, theXid)
-    if (endT - startT0 >= 5) {
-      logger.info("slow_process %s %s", (endT - startT0), theXid)
+
+    val allTimings = timings.zip((startT :: Nil) ++ timings).map(x => x._1 - x._2).mkString(",")
+
+    val processTime = (endT - startT0)
+
+    logger.info("SEND %s[%s](%s)-%s %s", (endT - startT), allTimings, processTime, extra, theXid)
+    if (processTime >= 5) {
+      logger.info("slow_process %s[%s,%s,%s,%s] %s", processTime, (startT1 - startT0), (startT2 - startT1), (startT - startT2), (endT - startT), theXid)
     }
 
 

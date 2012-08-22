@@ -18,7 +18,7 @@ object RemoteServiceProxy {
 
 object GlobalSenderQueue{
   private var msgQueue = new ArrayBlockingQueue[Runnable](1024)
-  protected val sendExecutor = new ThreadPoolExecutor(10, 100, 30, TimeUnit.SECONDS, msgQueue)
+  protected val sendExecutor = new ThreadPoolExecutor(2, 4, 30, TimeUnit.SECONDS, msgQueue)
 
   def execute(runnable : Runnable) = sendExecutor.execute(runnable)
 }

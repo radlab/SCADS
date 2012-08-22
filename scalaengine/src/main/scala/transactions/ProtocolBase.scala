@@ -61,7 +61,8 @@ object ProtocolNone extends ProtocolBase {
   }
 
   private def writeQuorum(numServers: Int): Int = {
-    4
+    3
+//    4
 //    scala.math.ceil(numServers * 0.501).toInt
   }
 }

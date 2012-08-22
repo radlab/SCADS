@@ -178,12 +178,15 @@ case class Task()
   var numPartitions: Int = _
   var numClusters: Int = _
 
-  def schedule(resultClusterAddress: String, clusters: Seq[deploylib.mesos.Cluster], protocol: NSTxProtocol): Unit = {
+  def schedule(resultClusterAddress: String, clusters: Seq[deploylib.mesos.Cluster], protocol: NSTxProtocol, partitions: Int = 4): Unit = {
     this.resultClusterAddress = resultClusterAddress
 
-    val firstSize = clusters.head.slaves.size - 1
-    numPartitions = (clusters.tail.map(_.slaves.size) ++ List(firstSize)).min
+//    val firstSize = clusters.head.slaves.size - 1
+//    numPartitions = (clusters.tail.map(_.slaves.size) ++ List(firstSize)).min
+    numPartitions = partitions
     numClusters = clusters.size
+    val clientsPerCluster = 1
+    val threadsPerClient = 5
 
     var addlProps = new collection.mutable.ArrayBuffer[(String, String)]()
 
@@ -220,19 +223,37 @@ case class Task()
     val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, 5, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol).getLoadingTasks(clusters.head.classSource, scadsCluster.root, addlProps)
     clusters.head.serviceScheduler.scheduleExperiment(loaderTasks)
 
-    // Start clients.
-    // Usually 10x10.  trying 5x20.
-    val tpcwTasks = MDCCTpcwWorkflowTask(
-      numClients=10,
-      executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
-      numThreads=10,
-      iterations=1,
-      runLengthMin=2).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))
-    clusters.head.serviceScheduler.scheduleExperiment(tpcwTasks)
+ 
+    val startTime: String = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new java.util.Date)
 
-    // Start the task.
-//    val task1 = this.toJvmTask(clusters.head.classSource)
-//    clusters.head.serviceScheduler.scheduleExperiment(task1 :: Nil)
+   // Start clients.
+    // Usually 10x10.  trying 5x20.
+/*
+    val tpcwTasks = MDCCTpcwWorkflowTask(
+      numClients=5,
+      executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
+      startTime=startTime,
+      numThreads=5,
+      runLengthMin=2,
+      clusterId=0,
+      numClusters=1).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))
+    clusters.head.serviceScheduler.scheduleExperiment(tpcwTasks)
+*/
+
+    clusters.zipWithIndex.foreach(x => {
+      val cluster = x._1
+      val index = x._2
+      val tpcwTasks = MDCCTpcwWorkflowTask(
+        numClients=clientsPerCluster,
+        executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
+        startTime=startTime,
+        numThreads=threadsPerClient,
+        runLengthMin=2,
+        clusterId=index,
+        numClusters=numClusters).getExperimentTasks(cluster.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))
+      cluster.serviceScheduler.scheduleExperiment(tpcwTasks)
+    })
+
   }
 
   def stopCluster() = {

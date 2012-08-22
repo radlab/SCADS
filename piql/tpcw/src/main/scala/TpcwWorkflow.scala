@@ -129,7 +129,6 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
             userData(0)(0).toSpecificRecord[Customer]
           }
       }
-/*
       case ActionType.NewProduct => {
         logger.debug("NewProduct")
         actionName = "newProduct-Read"
@@ -179,7 +178,6 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
             client.searchBySubjectWI(subject, perPage)
             actionCommit = true
         }
-*/
       case ActionType.ShoppingCart =>
         logger.debug("ShoppingCart")
         actionName = "shoppingCart-Write"
@@ -195,15 +193,12 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
 
         val items = (1 to random.nextInt(10) + 1).map(_ => (randomItem, random.nextInt(10) - 5))
         actionCommit = client.shoppingCartWI(currentUser.C_UNAME, items)
-/*
       case ActionType.BuyRequest =>
         logger.debug("BuyRequest")
         actionName = "buyRequestExistingCustomer-Read"
         // for now always assuming existing user
         client.buyRequestExistingCustomerWI(currentUser.C_UNAME)
         actionCommit = true
-*/
-/*
       case ActionType.BuyConfirm =>
         logger.debug("BuyConfirm")
         actionName = "buyConfirm-Write"
@@ -226,15 +221,12 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
           cc_name,
           cc_expiry,
           shipping)._2
-*/
-/*
       case ActionType.AdminRequest =>
         logger.debug("AdminRequest")
         actionName = "adminRequest-Read"
         val item = randomItem
         client.adminRequestWI(item)
         actionCommit = true
-*/
     }
 
   /**

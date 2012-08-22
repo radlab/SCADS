@@ -219,8 +219,7 @@ class MDCCTrxHandler(tx: Tx, threadName: String) extends Actor {
   def act() {
     debug("" + this.hashCode() + "Starting to wait for messages. Setting timeout:" + tx.timeout)
     Scheduler.schedule(() => {
-      this ! TRX_TIMEOUT}, 60000)
-//      this ! TRX_TIMEOUT}, tx.timeout)
+      this ! TRX_TIMEOUT}, tx.timeout)
     var timedOut = false
 
     logger.info("START3 %s %s", threadName, Xid)
