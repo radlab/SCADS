@@ -46,7 +46,7 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
         if (itemsHash.contains(i._1)) {
           // Already exists in cart.
           val newQty = i._2 + itemsHash.getOrElse(i._1, 0)
-          if (newQty == 0) {
+          if (newQty <= 0) {
             println("shoppingcartitem delete")
             shoppingCartItems.delete(scl)
           } else {
@@ -56,7 +56,7 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
           }
         } else {
           // New item.
-          println("shoppingcartitem put")
+//          println("shoppingcartitem put")
           scl.SCL_QTY = i._2
           shoppingCartItems.put(scl)
         }
@@ -141,11 +141,17 @@ class MDCCTpcwClient(override val cluster: ScadsCluster, override val executor: 
 
   // Read only transactions.
   override def homeWI(args: Any*) = {
-    var result: QueryResult = List()
-    new Tx(4000, ReadLocal()) ({
-      result = homeWIQuery(args:_*)
-    }).Execute()
-    result
+    if (ThreadLocalStorage.protocolMap.value.isDefined) {
+      // Already part of some transaction. Simply execute the query.
+      homeWIQuery(args:_*)
+    } else {
+      // Not part of a transaction. Run the query in a new transaction.
+      var result: QueryResult = List()
+      new Tx(4000, ReadLocal()) ({
+        result = homeWIQuery(args:_*)
+      }).Execute()
+      result
+    }
   }
 
   override def newProductWI(args: Any*) = {
