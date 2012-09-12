@@ -32,7 +32,7 @@ case object SCAN_FOR_PROPOSE extends RecordStatus {val name = "SCAN_FOR_PROPOSE"
 
 object ServerMessageHelper {
   class SMH(s: Seq[PartitionService]) {
-    def !(msg : MDCCProtocol)(implicit sender: RemoteServiceProxy[StorageMessage]) = s.foreach(_ ! msg)
+    def !(msg : MDCCProtocol)(implicit sender: RemoteServiceProxy[StorageMessage]) = s.foreach(_ !!! msg)
   }
   implicit def smh(i: Seq[PartitionService]) = new SMH(i)
 }
