@@ -286,12 +286,12 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       })
     } catch {
       case e: Exception => {
-        logger.debug("acceptOptionTxn Exception %s", e)
+        logger.debug("acceptOptionTxn Exception %s xid: %s %s", Thread.currentThread.getName, xid, e)
+        e.printStackTrace()
         success = false
       }
     }
     if (success) {
-      pendingCStructs.txCommit(pendingCommandsTxn)
       if (dbTxn == null) {
         db.txCommit(txn)
       }
@@ -599,10 +599,11 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     val newMDCCRec = storedMDCCRec match {
       // TODO: I don't know if it is possible to not have a db record but have
       //       a cstruct.
-      case None => throw new RuntimeException("When overwriting, db record should already exist.")
+      case None => throw new RuntimeException("When overwriting, db record should already exist. " + Thread.currentThread.getName + " key:" + (new mdcc.ByteArrayWrapper(key)).hashCode() + " safeValue: " + safeValue + " committedXids: " + committedXids + " abortedXids: " + abortedXids)
       case Some(r) => MDCCRecord(newDBrec, meta.getOrElse(r.metadata))
     }
 
+    logger.debug("Overwrite " + Thread.currentThread.getName + " key:" + (new mdcc.ByteArrayWrapper(key)).hashCode())
     // Write the record to the database.
     db.put(txn, key, MDCCRecordUtil.toBytes(newMDCCRec))
 
@@ -640,7 +641,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
             }
             case _ =>
           }
-          throw new RuntimeException("All of the overwriting commands should be compatible. key: " + (new mdcc.ByteArrayWrapper(key)).hashCode() + " safeValue: " + safeValue)
+          throw new RuntimeException("All of the overwriting commands should be compatible. key:" + (new mdcc.ByteArrayWrapper(key)).hashCode() + " safeValue: " + safeValue)
         }
       }
       commandsInfo.appendCommand(c)
@@ -742,7 +743,9 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
       case LogicalUpdate(key, delta) => {
         // TODO: what about deleted/non-existent records???
         if (!dbValue.isDefined) {
-          throw new RuntimeException("base record should exist for logical updates")
+          throw new RuntimeException("base record should exist for logical updates. xid: " + xid + " , key:" + (new mdcc.ByteArrayWrapper(key)).hashCode())
+        } else {
+//          logger.debug("base record exists. xid: " + xid + " , key:" + (new mdcc.ByteArrayWrapper(key)).hashCode())
         }
         val safeBase = safeBaseValue match {
           case None => dbValue.get.value
@@ -775,9 +778,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
         val newState = newStateBytes.toList
         val newXidList = oldStates.getOrElse(newState, List[List[ScadsXid]]()) ++ List(List(xid))
 
-        logger.debug(" " + Thread.currentThread.getName + " base: " + avroUtil.fromBytes(dbValue.get.value.get) + " delta: " + avroUtil.fromBytes(deltaRec.value.get) + " newState: " + avroUtil.fromBytes(newState.toArray))
-//        oldStates.toList.foreach(x =>
-//          logger.debug(" " + Thread.currentThread.getName + " oldStates: " + avroUtil.fromBytes(x._1.toArray)))
+//        logger.debug(" " + Thread.currentThread.getName + " base: " + avroUtil.fromBytes(dbValue.get.value.get) + " delta: " + avroUtil.fromBytes(deltaRec.value.get) + " newState: " + avroUtil.fromBytes(newState.toArray))
         var valid = newStates.put(newState, newXidList) match {
           case None => icChecker.check(avroUtil.fromBytes(newState.toArray), ics, safeBase, dbValue.get.value, numServers, isFast)
           case Some(_) => true
@@ -786,9 +787,7 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
         if (!valid) {
           newStates.remove(newState)
           commandsInfo.updateStates(newStates.toList.map(x => PendingStateInfo(x._1.toArray, x._2)))
-          logger.debug(" " + Thread.currentThread.getName + " isCompatible1: " + false + " newState: " + avroUtil.fromBytes(newState.toArray))
-//          newStates.toList.foreach(x =>
-//            logger.debug(" " + Thread.currentThread.getName + " newStates1: " + avroUtil.fromBytes(x._1.toArray)))
+//          logger.debug(" " + Thread.currentThread.getName + " isCompatible1: " + false + " newState: " + avroUtil.fromBytes(newState.toArray))
           false
         } else {
 
