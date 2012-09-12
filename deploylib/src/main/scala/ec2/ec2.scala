@@ -353,7 +353,7 @@ class EC2Region(val endpoint: String, val location: String, val defaultAMI: Stri
      * Creates a new AMI based on this image using ec2-bundle-vol and
      * ec2-upload-bundle.
      */
-    def bundleNewAMI(bucketName: String): String = {
+    def bundleNewAMI(bucketName: String, s3Location: String = location): String = {
       //TODO(andyk): Verify that the bucketname isn't already used or this will
       //             fail when we get to ec2-upload-bundle anyway.
       upload(ec2Cert, new File("/mnt"))
@@ -379,7 +379,7 @@ class EC2Region(val endpoint: String, val location: String, val defaultAMI: Stri
       this ! "%s/ec2-bundle-vol -d /mnt -c /mnt/%s -k /mnt/%s -u %s --arch %s -e /tmp,/mnt,/root/.ssh".format(header, ec2Cert.getName, ec2PrivateKey.getName, userID, "x86_64")
 
       logger.info("Running ec2-upload-bundle.")
-      this ! "%s/ec2-upload-bundle -b %s --location %s -m %s -a %s -s %s".format(header, bucketName, location, "/mnt/image.manifest.xml", accessKeyId, secretAccessKey)
+      this ! "%s/ec2-upload-bundle -b %s --location %s -m %s -a %s -s %s".format(header, bucketName, s3Location, "/mnt/image.manifest.xml", accessKeyId, secretAccessKey)
 
       logger.info("Registering the new image with Amazon to be assigned an AMI ID#.")
       val registerRequest = new RegisterImageRequest(bucketName + "/image.manifest.xml")
