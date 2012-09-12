@@ -29,16 +29,19 @@ object ZooKeeperHelper {
 
   def getTestZooKeeper() = testZooKeeper.root.createChild("testZooKeeper", mode=CreateMode.PERSISTENT_SEQUENTIAL)
 
+  protected def newTempDir: File = {
+    val tempDir = File.createTempFile("scads", "zookeeper")
+    tempDir.delete()
+    tempDir.mkdir()
+    tempDir
+  }
+  
   /**
    * Create a local zookeeper instance in JVM and return a ZooKeeperProxy for it.  
    * Intended for testing purposes only. Is thread safe. Each separate
    * invocation of getTestZooKeeper creates a NEW zookeeper instance
    */
-   protected def createTestZooKeeper(): ZooKeeperProxy = {
-    val workingDir = File.createTempFile("scads", "zookeeper")
-    workingDir.delete()
-    workingDir.mkdir()
-
+   def createTestZooKeeper(workingDir: File = newTempDir): ZooKeeperProxy = {
     val serverPort = new SyncVar[Int]
 
     val zooThread = new Thread("Local ZooKeeper") {
