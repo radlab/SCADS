@@ -100,6 +100,8 @@ class MDCCRecordHandler (
     }
   }
 
+  // Stores Commit messages for the next propose.
+  private val previousCommits = scala.collection.mutable.HashSet[CommitStatus]()
 
   private var status: RecordStatus = READY
 
@@ -169,14 +171,18 @@ class MDCCRecordHandler (
   def commit(msg : MDCCProtocol, xid: ScadsXid, trxStatus : Boolean) : Boolean = {
     debug("Received xid %s status %s ", xid, trxStatus)
     val cmd = value.commands.find(_.xid == xid)
-    if(cmd.isDefined){
+    if(cmd.isDefined) {
       cmd.get.pending = false
       cmd.get.commit = trxStatus
-      if(status == WAITING_FOR_COMMIT)
+      if(status == WAITING_FOR_COMMIT) {
+        debug("stop blocking with commit. commit: %s msg: %s", trxStatus, request)
         status = READY
+        request = null
+      }
       debug("Commit was found and deleted: %s", xid)
+      previousCommits.add(CommitStatus(xid, trxStatus))
       return false
-    }else{
+    } else {
       debug("Commit is kept in mailbox: %s", xid)
       return true
     }
@@ -423,10 +429,24 @@ class MDCCRecordHandler (
     //val rnd = Random
     status = FAST_PROPOSED
     debug("Sending fast propose from " + remoteHandle + " to [" + servers.mkString(", ") + "]")
+    // Add previous commits to the first SinglePropose.
+    var theXid = ScadsXid(1, 1)
+    val withCommits = propose match {
+      case SinglePropose(xid, update, _) => {
+        theXid = xid
+        SinglePropose(xid, update, previousCommits.toList)
+      }
+      case MultiPropose(seq) => {
+        val h = seq.head
+        theXid = h.xid
+        MultiPropose(List(SinglePropose(h.xid, h.update, previousCommits.toList)) ++ seq.tail)
+      }
+    }
     servers.foreach(server => {
       //Thread.sleep(rnd.nextInt(1000))
-      server ! propose
+      server !!! withCommits
     })
+    previousCommits.clear
     RoundStats.fast.incrementAndGet()
   }
 

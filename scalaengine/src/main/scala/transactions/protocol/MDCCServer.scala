@@ -72,10 +72,11 @@ class MDCCServer(val namespace : String,
       case MultiPropose(seq) => seq
     }
     val key = proposes.head.update.key
-    debug(key, "Processing Propose. src: %s, msg: %s", src, msg)
+    val previousCommits = proposes.head.previousCommits
+    debug(key, "Processing Propose. %s src: %s, msg: %s previousCommits: %s", Thread.currentThread.getName, src, msg, previousCommits)
     assert(!proposes.isEmpty, "The propose has to contain at least one update")
     assert(proposes.map(_.update.key).distinct.size == 1, "Currenty we only support multi proposes for the same key")
-    debug(key, "Process propose %s %s %s", src, msg, pendingUpdates)
+    previousCommits.foreach(pc => pendingUpdates.addEarlyCommit(pc.xid, pc.status))
     implicit val trx = startTrx()
     val meta = getMeta(proposes.head.update.key)
     val ballot = meta.ballots.head.ballot
@@ -86,14 +87,9 @@ class MDCCServer(val namespace : String,
     //               The main problem is that the code is making a decision
     //               based on the default metadata, which is really old, and
     //               potentially wrong.
-    if (getRecord(proposes.head.update.key).isEmpty) {
-      debug(key, "propose key does not exist.")
-    } else {
-      debug(key, "propose key exists.")
-    }
     if(ballot.fast) {
       //TODO can we optimize the accept?
-      debug(key, "Fast ballot: update local db.")
+      debug(key, "Fast ballot: update local db. %s", Thread.currentThread.getName)
       val results = proposes.map(prop => (prop, pendingUpdates.acceptOption(prop.xid, prop.update, true)))
       val cstruct = results.last._2._3
       debug(key, "Replying with 2b to fast ballot source:%s cstruct:%s", src, cstruct)

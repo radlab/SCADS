@@ -211,7 +211,7 @@ sealed trait MDCCProtocol extends TrxMessage
 
 sealed trait Propose extends MDCCProtocol with AvroUnion
 
-case class SinglePropose(var xid: ScadsXid, var update: RecordUpdate) extends AvroRecord with Propose
+case class SinglePropose(var xid: ScadsXid, var update: RecordUpdate, var previousCommits: Seq[CommitStatus] = Nil) extends AvroRecord with Propose
 
 case class MultiPropose(var proposes : Seq[SinglePropose]) extends AvroRecord with Propose
 
@@ -249,6 +249,7 @@ case class Phase2bMasterFailure(var ballots: Seq[MDCCBallotRange], var confirmed
 
 case class Learned(var xid: ScadsXid, var key: Array[Byte], var status : Boolean)  extends AvroRecord with MDCCProtocol
 
+case class CommitStatus(var xid: ScadsXid, var status: Boolean) extends AvroRecord with MDCCProtocol
 case class Commit(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
 case class Abort(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
 case class Exit() extends AvroRecord with MDCCProtocol
