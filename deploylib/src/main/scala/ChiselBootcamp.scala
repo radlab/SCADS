@@ -11,20 +11,17 @@ import scala.collection.JavaConversions._
 import java.io.File
 
 object Bootcamp {
-  val region = USWest2
-  val imageId = "ami-820f83b2"
+  val region = USEast1
+  val imageId = "ami-e073d389" //"ami-d00589e0" //"ami-820f83b2"
   val instanceTag = ("chisel", "bootcamp")
   val userTag = "chiselUser"
 
   val addressFile = new File("emails.txt")
   val addresses = io.Source.fromFile(addressFile).getLines.toSeq
 
-  //Start a few extra instances in case there are stragglers / failures.
-  val instanceCount = addresses.size + 10
-
   System.setProperty("mail.smtp.host", "localhost")
 
-  def startInstances: Unit = {
+  def startInstances(instanceCount: Int): Unit = {
     val startCount = instanceCount - unusedInstances.size
     if(startCount > 0) {
       val instances = region.runInstances(imageId, instanceCount, instanceCount, region.keyName, "m1.medium")
@@ -50,10 +47,13 @@ object Bootcamp {
     Transport.send(message)
   }
 
-  def run: Unit = {
-    startInstances
+  def run(spareCount: Int = 10): Unit = {
+    //Start a few extra instances in case there are stragglers / failures.
+    val instanceCount = addresses.size + spareCount
 
-    while(activeInstances.size < addresses.size) {
+    startInstances(instanceCount)
+
+    while(unusedInstances.size < addresses.size) {
       println("Waiting for instances to start. %d of %d ready.".format(activeInstances.size, addresses.size))
       Thread.sleep(5 * 1000)
     }
@@ -62,7 +62,12 @@ object Bootcamp {
     instances.take(addresses.size).zip(addresses).foreach {
       case (inst, addr) =>
         inst.tags += (userTag, addr)
-        sendEmail(inst,addr)
+        try sendEmail(inst,addr) catch {
+          case e => {
+            inst.tags -= userTag
+            sys.error("Failed to send email to user %s due to %s".format(addr, e))
+          }
+        }
     }
 
     println("Unused Instances:")
