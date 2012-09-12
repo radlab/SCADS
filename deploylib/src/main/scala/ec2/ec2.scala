@@ -195,9 +195,9 @@ class EC2Region(val endpoint: String, val location: String, val defaultAMI: Stri
 
       def +=(tag: (String, String)): Unit = +=(tag._1, tag._2)
 
-      def -=(key: String, value: String = ""): Unit =
+      def -=(key: String, value: Option[String] = None): Unit =
         client.deleteTags(
-          new DeleteTagsRequest(instanceId :: Nil).withTags(new Tag(key, value)))
+          new DeleteTagsRequest(instanceId :: Nil).withTags(value.map(new Tag(key, _)).getOrElse(new Tag(key))))
     }
 
     def fixHostname: Unit =
