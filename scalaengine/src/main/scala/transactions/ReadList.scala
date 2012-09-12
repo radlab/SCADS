@@ -9,14 +9,14 @@ import java.util.concurrent.ConcurrentHashMap
 
 // TODO: Worry about thread safety?
 class ReadList {
-  val readList = new ConcurrentHashMap[ByteArrayWrapper, MDCCRecord]
+  val readList = new ConcurrentHashMap[ByteArrayWrapper, (MDCCRecord, Array[Byte])]
 
   // TODO: does the namespace have to be considered?
-  def addRecord(key: Array[Byte], record: MDCCRecord) = {
-    readList.put(new ByteArrayWrapper(key), record)
+  def addRecord(key: Array[Byte], record: MDCCRecord, recordBytes: Array[Byte]) = {
+    readList.put(new ByteArrayWrapper(key), (record, recordBytes))
   }
 
-  def getRecord(key: Array[Byte]): Option[MDCCRecord] = {
+  def getRecord(key: Array[Byte]): Option[(MDCCRecord, Array[Byte])] = {
     readList.get(new ByteArrayWrapper(key))
   }
 

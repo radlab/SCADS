@@ -17,7 +17,7 @@ trait ProtocolBase {
         case ValueUpdateInfo(ns, servers, key, value) => {
           val (md, oldBytes) = readList.getRecord(key) match {
             case None => (ns.getDefaultMeta(key), None)
-            case Some(r) => (r.metadata, Some(MDCCRecordUtil.toBytes(r)))
+            case Some((r, b)) => (r.metadata, Some(b))
           }
           //TODO: Do we really need the MDCCMetadata
           val newBytes = MDCCRecordUtil.toBytes(value, md)
@@ -26,7 +26,7 @@ trait ProtocolBase {
         case LogicalUpdateInfo(ns, servers, key, value) => {
           val md = readList.getRecord(key) match {
             case None => ns.getDefaultMeta(key)
-            case Some(r) => r.metadata
+            case Some((r, _)) => r.metadata
           }
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           RecordUpdateInfo(servers, LogicalUpdate(key, newBytes))

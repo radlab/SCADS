@@ -67,7 +67,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
         case ValueUpdateInfo(ns, servers, key, value) => {
           val (md, oldBytes) = readList.getRecord(key) match {
             case None => (ns.getDefaultMeta(key), None)
-            case Some(r) => (r.metadata, Some(MDCCRecordUtil.toBytes(r)))
+            case Some((r, b)) => (r.metadata, Some(b))
           }
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           //TODO: Do we really need the MDCCMetadata
@@ -81,7 +81,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
         case LogicalUpdateInfo(ns, servers, key, value) => {
           val md = readList.getRecord(key) match {
             case None => ns.getDefaultMeta(key)
-            case Some(r) => r.metadata
+            case Some((r, _)) => r.metadata
           }
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           val propose = SinglePropose(Xid, LogicalUpdate(key, newBytes))

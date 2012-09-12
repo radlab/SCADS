@@ -292,7 +292,7 @@ with TransactionI {
         case Some(bytes) => {
           val mdccRec = MDCCRecordUtil.fromBytes(bytes)
           ThreadLocalStorage.txReadList.value.map(readList =>
-            readList.addRecord(key, mdccRec))
+            readList.addRecord(key, mdccRec, bytes))
           mdccRec.value
         }
       }
@@ -302,7 +302,7 @@ with TransactionI {
   override def processRangeRecord(key: Array[Byte], value: Array[Byte]) = {
     val mdccRec = MDCCRecordUtil.fromBytes(value)
     ThreadLocalStorage.txReadList.value.map(readList =>
-      readList.addRecord(key, mdccRec))
+      readList.addRecord(key, mdccRec, value))
     val realValue = mdccRec.value match {
       // Deleted records have zero length byte arrays
       case None => new Array[Byte](0)
