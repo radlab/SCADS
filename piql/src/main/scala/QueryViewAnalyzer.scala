@@ -52,7 +52,7 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None, max
     ScadsView(ns)
   }
   
-  lazy val rewrittenQuery = {
+  lazy val rewrittenQuery: LogicalPlan = {
     rewrite(plan)(getViewNamespace)
   }
 
