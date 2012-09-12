@@ -262,6 +262,9 @@ case class RecordAbort(var key: Array[Byte], var xid: ScadsXid) extends AvroReco
 case class ScanForPropose(var learned: Learned) extends AvroRecord with MDCCProtocol
 case class DoneScanForPropose(var learned: Learned) extends AvroRecord with MDCCProtocol
 
+// For waiting for a commit message.
+case class WaitForCommit(var xid: ScadsXid) extends AvroRecord with MDCCProtocol
+
 /* Transaction KVStore Operations */
 sealed trait TxProtocol2pc extends TrxMessage
 case class PrepareRequest(var xid: ScadsXid, var updates: Seq[RecordUpdate]) extends AvroRecord with TxProtocol2pc

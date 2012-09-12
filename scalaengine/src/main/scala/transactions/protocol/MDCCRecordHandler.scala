@@ -367,6 +367,14 @@ class MDCCRecordHandler (
           request = null
           status = READY
         }
+/*
+        case env@StorageEnvelope(src, msg: WaitForCommit) if status == READY => {
+          // BEWARE: This could block forever at the moment!
+          status = WAITING_FOR_COMMIT
+          request = env
+          debug("blocking before next propose. msg: %s", msg)
+        }
+*/
         case msg@_ => {
           debug("Mailbox-Hash:%s, Ignoring message in mailbox: msg:%s status: %s current request:%s", mailbox.hashCode(), msg, status, request)
           if(status == WAITING_FOR_COMMIT){
@@ -916,6 +924,16 @@ class MDCCRecordHandler (
           val oldCommit = responses.toList.map(_._2.asInstanceOf[Phase2b].oldCommits).reduce((a, b) => a ++ b).find(_.xid == propose.xid)
           if(cmd.isDefined) {
             debug("We learned the value")
+/*
+            if (areWeMaster(currentBallot.server) && !currentBallot.fast && cmd.get.command.isInstanceOf[PhysicalUpdate]) {
+              // If this is the master of classic rounds and physical updates,
+              // just wait for the commit, since new proposes will not succeed.
+              // BEWARE: This should be processed right after the
+              //         ScanForPropose message, and not at some other
+              //         unexpected time.
+              mailbox.addFirst(Envelope(remoteHandle, WaitForCommit(propose.xid)))
+            }
+*/
             if(currentBallot.fast && !cmd.get.commit && cmd.get.command.isInstanceOf[LogicalUpdate]){
               debug("We learned an abort in a fast classic round with logical updates. This can only happend when we violate the limit. So we switch to classic. send BeMaster to %s", currentBallot.server)
               currentBallot.server ! createBeMasterRequest( currentBallot.round, currentBallot.round + 1000, false)
