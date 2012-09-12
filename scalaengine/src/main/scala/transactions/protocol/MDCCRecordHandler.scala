@@ -107,6 +107,26 @@ class MDCCRecordHandler (
 
   type ServiceType =  RemoteServiceProxy[StorageMessage]
 
+  def init(key0: Array[Byte],
+           value0: CStruct,
+           version0: MDCCBallot,
+           ballots0: Seq[MDCCBallotRange],
+           confirmedBallot0: Boolean,
+           servers0: Seq[PartitionService],
+           resolver0: ConflictResolver,
+           thisService0: SCADSService
+) = {
+    key = key0
+    value = value0
+    version = version0
+    ballots = ballots0
+    confirmedBallot = confirmedBallot0
+    servers = servers0
+    resolver = resolver0
+    thisService = thisService0
+    mailbox.setName("" + this.hashCode)
+  }
+
   @inline def debug(msg : String, items : scala.Any*) = logger.debug("id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + " " + msg, items:_*)
   @inline def error(msg : String, items : scala.Any*) = logger.error("id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + " " + msg, items:_*)
   @inline def fullDebug(msg : String, items : scala.Any*) = debug(
