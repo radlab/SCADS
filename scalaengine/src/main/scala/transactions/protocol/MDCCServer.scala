@@ -91,6 +91,7 @@ class MDCCServer(val namespace : String,
       //TODO can we optimize the accept?
       debug(key, "Fast ballot: update local db. %s", Thread.currentThread.getName)
       val results = proposes.map(prop => (prop, pendingUpdates.acceptOption(prop.xid, prop.update, true)))
+      commitTrx(trx)
       val cstruct = results.last._2._3
       debug(key, "Replying with 2b to fast ballot source:%s cstruct:%s", src, cstruct)
       // Get possibly old decisions on the new updates.
@@ -99,7 +100,6 @@ class MDCCServer(val namespace : String,
       }).filter(!_._2.isEmpty).map(i => OldCommit(i._1, i._2.get))
 
       src ! Phase2b(ballot, cstruct, oldCommits)
-      commitTrx(trx)
       // Must be outside of db lock.
       results.foreach(r => {
         pendingUpdates.txStatusAccept(r._1.xid, List(r._1.update), r._2._1)
