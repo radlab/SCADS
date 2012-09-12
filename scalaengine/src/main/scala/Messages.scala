@@ -234,7 +234,7 @@ case class Phase1a(var key: Array[Byte], var ballots: Seq[MDCCBallotRange]) exte
 case class Phase1b(var meta: MDCCMetadata, var value: CStruct) extends AvroRecord with MDCCProtocol
 
 //TODO we could make the updates part of te CStruct, if we would have the chance to execute accepts locally
-case class Phase2a(var key: Array[Byte], var ballot: MDCCBallot, var safeValue: CStruct, var committedXids : Seq[ScadsXid], var abortedXids : Seq[ScadsXid], var newUpdates : Seq[SinglePropose]) extends AvroRecord with MDCCProtocol
+case class Phase2a(var key: Array[Byte], var ballot: MDCCBallot, var safeValue: CStruct, var committedXids : Seq[ScadsXid], var abortedXids : Seq[ScadsXid], var newUpdates : Seq[SinglePropose], var forceNonPending: Boolean = false) extends AvroRecord with MDCCProtocol
 
 object Phase2a{
   def apply(key: Array[Byte], ballot: MDCCBallot, safeValue: CStruct) : Phase2a = new Phase2a(key, ballot, safeValue, Nil, Nil, Nil)

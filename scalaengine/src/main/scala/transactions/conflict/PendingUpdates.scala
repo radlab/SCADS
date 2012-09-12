@@ -38,9 +38,9 @@ trait PendingUpdates extends DBRecords {
   // If dbTxn is non null, it is used for all db operations, and the commit is
   // NOT performed at the end.  Otherwise, a new transaction is started and
   // committed.
-  def acceptOptionTxn(xid: ScadsXid, updates: Seq[RecordUpdate], dbTxn: TransactionData = null, isFast: Boolean = false) : (Boolean, Seq[(Array[Byte], CStruct)])
+  def acceptOptionTxn(xid: ScadsXid, updates: Seq[RecordUpdate], dbTxn: TransactionData = null, isFast: Boolean = false, forceNonPending: Boolean = false) : (Boolean, Seq[(Array[Byte], CStruct)])
 
-  def acceptOption(xid: ScadsXid, update: RecordUpdate, isFast: Boolean = false)(implicit dbTxn: TransactionData): (Boolean, Array[Byte], CStruct)
+  def acceptOption(xid: ScadsXid, update: RecordUpdate, isFast: Boolean = false, forceNonPending: Boolean = false)(implicit dbTxn: TransactionData): (Boolean, Array[Byte], CStruct)
 
 
   /**
@@ -223,14 +223,14 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   }
 
   // If accept was successful, returns the cstruct.  Otherwise, returns None.
-  override def acceptOption(xid: ScadsXid, update: RecordUpdate, isFast: Boolean = false)(implicit dbTxn : TransactionData): (Boolean, Array[Byte], CStruct) = {
-    val result = acceptOptionTxn(xid, update :: Nil, dbTxn, isFast)
+  override def acceptOption(xid: ScadsXid, update: RecordUpdate, isFast: Boolean = false, forceNonPending: Boolean = false)(implicit dbTxn : TransactionData): (Boolean, Array[Byte], CStruct) = {
+    val result = acceptOptionTxn(xid, update :: Nil, dbTxn, isFast, forceNonPending)
     (result._1, result._2.head._1, result._2.head._2)
   }
 
   // Returns a tuple (success, list of (key, cstruct) pairs)
   // TODO: Handle duplicate accept messages?
-  override def acceptOptionTxn(xid: ScadsXid, updates: Seq[RecordUpdate], dbTxn: TransactionData = null, isFast: Boolean = false): (Boolean, Seq[(Array[Byte], CStruct)]) = {
+  override def acceptOptionTxn(xid: ScadsXid, updates: Seq[RecordUpdate], dbTxn: TransactionData = null, isFast: Boolean = false, forceNonPending: Boolean = false): (Boolean, Seq[(Array[Byte], CStruct)]) = {
     var success = true
     val txn = dbTxn match {
       case null => db.txStart()
@@ -274,7 +274,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
               commandsInfo.appendCommand(CStructCommand(xid, r, true, true))
               pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
             } else {
-              logger.debug("Update is not compatible %s %s %s %s", xid, commandsInfo, storedMDCCRec, r)
+              logger.debug("Update is not compatible %s %s key:%s xid: %s %s %s %s forceNonPending: %s", db.getName, Thread.currentThread.getName, (new mdcc.ByteArrayWrapper(r.key)).hashCode(), xid, commandsInfo, storedMDCCRec, r, forceNonPending)
               success = false
             }
           }
@@ -319,8 +319,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
           case Some(c) => c
         }
         if (!ignore) {
-          commandsInfo.replaceCommand(CStructCommand(xid, r, true, false))
-          pendingCStructs.put(pendingCommandsTxn, r.key, commandsInfo)
+//          commandsInfo.replaceCommand(CStructCommand(xid, r, true, false))
+          // If forceNonPending is set, the new command already not pending.
+          commandsInfo.replaceCommand(CStructCommand(xid, r, !forceNonPending, false))
         }
 
         (r.key, CStruct(commandsInfo.base, commandsInfo.commands))

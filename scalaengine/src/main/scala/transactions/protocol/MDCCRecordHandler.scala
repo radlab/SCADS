@@ -736,7 +736,8 @@ class MDCCRecordHandler (
           RoundStats.classic.incrementAndGet()
         } else {
           //We are in the classic mode
-          debug("Testing for pending updates")
+          val hasPending = value.commands.exists(_.pending)
+          debug("Testing for pending updates: %s", hasPending)
           if(false && value.commands.exists(_.pending)) {
             //We have to add the optional waiting
             debug("We  have still pending update, so we postpone: Value: %s", value)
@@ -751,10 +752,13 @@ class MDCCRecordHandler (
             debug("No pending updates. We are ready to go")
             //The round is clear and committed, time to move on
             if(unsafeCommands.isEmpty) {
-
               val props = seq(propose)
               moveToNextRound()
-              val msg = Phase2a(key, nBallot, rebase, commitXids, abortXids, props.head :: Nil)
+              val forceNonPending = props.head.update.isInstanceOf[PhysicalUpdate] && hasPending
+              if (forceNonPending) {
+                debug("Send a nonpending update. propose: %s", props.head)
+              }
+              val msg = Phase2a(key, nBallot, rebase, commitXids, abortXids, props.head :: Nil, forceNonPending)
               debug("Classic rounds: No pending updates and no unsafe commands, so we propose the next. msg: %s tail: %s current value: %s, rebased value: %s", msg, props.tail, value, rebase)
               servers ! msg
               RoundStats.classic.incrementAndGet()
@@ -763,7 +767,11 @@ class MDCCRecordHandler (
               error("Classic rounds: No pending updates but unsafe commands -> we resolve the unsafe commands first")
               fullDebug("Unsafe commands")
               moveToNextRound()
-              servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, unsafeCommands.head :: Nil)
+              val forceNonPending = unsafeCommands.head.update.isInstanceOf[PhysicalUpdate] && hasPending
+              if (forceNonPending) {
+                debug("Send a nonpending update. propose: %s", unsafeCommands.head)
+              }
+              servers ! Phase2a(key, nBallot, rebase, commitXids, abortXids, unsafeCommands.head :: Nil, forceNonPending)
               RoundStats.classic.incrementAndGet()
               forwardRequest(src, propose, unsafeCommands.tail)
             }

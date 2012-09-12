@@ -167,8 +167,8 @@ class MDCCServer(val namespace : String,
 
 
 
-  protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates : Seq[SinglePropose] ) = {
-    debug(key, "Process Phase2a src: %s, value: %s, reqBallot: %s newUpdates: %s", src, value, reqBallot, newUpdates)
+  protected def processPhase2a(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], reqBallot: MDCCBallot, value: CStruct, committedXids: Seq[ScadsXid], abortedXids: Seq[ScadsXid], newUpdates : Seq[SinglePropose], forceNonPending: Boolean) = {
+    debug(key, "Process Phase2a src: %s, value: %s, reqBallot: %s newUpdates: %s forceNonPending: %s", src, value, reqBallot, newUpdates, forceNonPending)
     // A seq of all pending commands in the cstruct.
     val safePendingOptions = value.commands.filter(_.pending).map(c => {
       (c.xid, c.command, c.commit)
@@ -206,7 +206,7 @@ class MDCCServer(val namespace : String,
         }
       }
       val pendingOptions = newUpdates.map(c => {
-        (c.xid, c.update, pendingUpdates.acceptOption(c.xid, c.update, myBallot.get.fast)._1)
+        (c.xid, c.update, pendingUpdates.acceptOption(c.xid, c.update, myBallot.get.fast, forceNonPending)._1)
       })
       commitTrx(trx)
 
@@ -249,9 +249,9 @@ class MDCCServer(val namespace : String,
     msg match {
       case msg : Propose =>  processPropose(src, msg)
       case Phase1a(key, ballot) => processPhase1a(src, key, ballot)
-      case Phase2a(key, ballot, safeValue, committedXids, abortedXids, proposes) => processPhase2a(src, key, ballot, safeValue, committedXids, abortedXids, proposes)
+      case Phase2a(key, ballot, safeValue, committedXids, abortedXids, proposes, forceNonPending) => processPhase2a(src, key, ballot, safeValue, committedXids, abortedXids, proposes, forceNonPending)
       case Commit(xid: ScadsXid) => processAccept(src, xid, true)
-      case Abort(xid: ScadsXid) =>  processAccept(src, xid, false)
+      case Abort(xid: ScadsXid) => processAccept(src, xid, false)
       case RecordCommit(key: Array[Byte], xid: ScadsXid) => processRecordAccept(src, key, msg)
       case RecordAbort(key: Array[Byte], xid: ScadsXid) => processRecordAccept(src, key, msg)
       case msg : BeMaster => processRecordHandlerMsg(src, msg.key, msg)
