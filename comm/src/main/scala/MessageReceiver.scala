@@ -136,7 +136,8 @@ abstract trait ServiceHandler[MessageType <: IndexedRecord] extends MessageRecei
 
   /* Threadpool for execution of incoming requests */
   protected val outstandingRequests = new ArrayBlockingQueue[Runnable](1024) // TODO: read from config
-  protected val executor = new ThreadPoolExecutor(50, 75, 30, TimeUnit.SECONDS, outstandingRequests)
+//  protected val executor = new ThreadPoolExecutor(50, 75, 30, TimeUnit.SECONDS, outstandingRequests)
+  protected val executor = new ThreadPoolExecutor(12, 12, 30, TimeUnit.SECONDS, outstandingRequests)
 
   /* Latch for waiting for startup to finish */
   private val startupGuard = new CountDownLatch(1)
