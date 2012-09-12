@@ -98,7 +98,7 @@ class PriorityBlockingMailbox[MessageType <: IndexedRecord](prioFn : MessageType
 }
 
 
-class PlainMailbox[MessageType <: IndexedRecord](val name : String)
+class PlainMailbox[MessageType <: IndexedRecord](var name : String)
   extends ArrayBuffer[Envelope[MessageType]](5) with Mailbox[MessageType]  {
 
   private val logger = Logger()
@@ -107,6 +107,8 @@ class PlainMailbox[MessageType <: IndexedRecord](val name : String)
   private var nextReset : Boolean = false
 
   override def getName = name
+
+  def setName(n: String) = { name = n }
 
   /**
    * No motification to the mailbox are allowed during the apply
