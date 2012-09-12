@@ -20,6 +20,8 @@ case object TRX_TIMEOUT
 
 //import tools.nsc.matching.ParallelMatching.MatchMatrix.VariableRule
 object MDCCProtocol extends ProtocolBase {
+  protected val logger = Logger(classOf[MDCCProtocol])
+
   def RunProtocol(tx: Tx): TxStatus = {
     val trxHandler = new MDCCTrxHandler(tx)
     trxHandler.execute()
@@ -45,6 +47,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
   @inline def info(msg : String, items : scala.Any*) = logger.info("" + remoteHandle.id +   ": Xid:" + Xid + " ->" + msg, items:_*)
 
   def execute(): TxStatus = {
+    startTrx(tx.updateList, tx.readList)
     this.start()
     debug("Waiting for status")
     sema.acquire()
@@ -130,7 +133,7 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
     Scheduler.schedule(() => {
       this ! TRX_TIMEOUT}, tx.timeout)
     var timedOut = false
-    startTrx(tx.updateList, tx.readList)
+
     loop {
       react {
         case StorageEnvelope(src, msg@Learned(_, _, success)) => {
