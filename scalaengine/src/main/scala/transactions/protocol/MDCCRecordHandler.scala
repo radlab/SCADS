@@ -73,7 +73,7 @@ class MDCCRecordHandler (
 
   private val logger = Logger(classOf[MDCCRecordHandler])
 
-  private var responses =  new HashMap[ServiceType, MDCCProtocol]()
+  private val responses = new HashMap[ServiceType, MDCCProtocol]()
 
   val mailbox = new PlainMailbox[StorageMessage]("" + this.hashCode)
 
