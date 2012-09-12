@@ -31,7 +31,7 @@ class MDCCClientServer(ns : TransactionI) extends  MDCCRecordCache {
       mailbox{
         case env@StorageEnvelope(src, BeMaster(key, _, _, _, _)) => forwardToRecordHandler(key, env)
         case env@StorageEnvelope(src, ResolveConflict(key, _, _, _)) =>  forwardToRecordHandler(key, env)
-        case env@StorageEnvelope(src, SinglePropose(_, update)) =>  forwardToRecordHandler(update.key, env)
+        case env@StorageEnvelope(src, SinglePropose(_, update, _)) =>  forwardToRecordHandler(update.key, env)
         case env@StorageEnvelope(src, MultiPropose(proposes))  =>  {
           assert(proposes.map(_.update.key).distinct.size == 1, "Currently Multi-Proposes have to contain 1 key")
           forwardToRecordHandler(proposes.head.update.key, env)
