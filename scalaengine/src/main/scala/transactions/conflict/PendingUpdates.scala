@@ -6,6 +6,7 @@ import actors.threadpool.ThreadPoolExecutor.AbortPolicy
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import java.util.Arrays
+import java.util.concurrent.ConcurrentHashMap
 
 import java.io._
 import org.apache.avro.Schema
@@ -72,6 +73,8 @@ trait PendingUpdates extends DBRecords {
 
   // DO NOT hold db locks while calling this.
   def getCStruct(key: Array[Byte]): CStruct
+
+  def addEarlyCommit(xid: ScadsXid, status: Boolean)
 
   def startup() = {}
 
@@ -199,8 +202,10 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       new ByteArrayKeySerializer[Array[Byte]],
       new AvroValueSerializer[PendingCommandsInfo])
 
+  private val committedXidMap = new ConcurrentHashMap[(ScadsXid, Int), Boolean](1000000, 0.75f, 1000)
+
   // Detects conflicts for new updates.
-  private var newUpdateResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs)
+  private var newUpdateResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs, committedXidMap)
 
   private val logicalRecordUpdater = new LogicalRecordUpdater(valueSchema)
 
@@ -210,11 +215,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
   private val avroUtil = new IndexedRecordUtil(valueSchema)
 
-  private val committedXidMap = new java.util.concurrent.ConcurrentHashMap[(ScadsXid, Int), Boolean](1000000, 0.75f, 50)
-
   def setICs(ics: FieldICList) = {
     valueICs = ics
-    newUpdateResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs)
+    newUpdateResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs, committedXidMap)
     conflictResolver = new ConflictResolver(valueSchema, valueICs)
     println("ics: " + valueICs)
   }
@@ -376,12 +379,26 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     txInfo
   }
 
+  def addEarlyCommit(xid: ScadsXid, status: Boolean) = {
+    val startT = System.nanoTime / 1000000
+    if (!committedXidMap.containsKey((xid, 0))) {
+      committedXidMap.put((xid, 0), status)
+      val endT = System.nanoTime / 1000000
+      logger.debug("added early committed map %s xid: %s %s earlyCommit: %s", Thread.currentThread.getName, xid, status, (endT - startT))
+    } else {
+      val endT = System.nanoTime / 1000000
+      logger.debug("skipped early committed map %s xid: %s %s earlyCommit: %s", Thread.currentThread.getName, xid, status, (endT - startT))
+    }
+  }
+
   // DO NOT hold db locks while calling this.
   override def commit(xid: ScadsXid) : Boolean = {
     // TODO: Handle out of order commits to same records.
 
-    committedXidMap.put((xid, 0), true)
-    logger.debug("added committed map xid: %s true", xid)
+    if (!committedXidMap.containsKey((xid, 0))) {
+      committedXidMap.put((xid, 0), true)
+      logger.debug("added committed map xid: %s true", xid)
+    }
 
     // Atomically set the tx status to Commit, and get the list of updates.
     val txInfo = updateAndGetTxStatus(xid, Status.Commit)
@@ -505,6 +522,12 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
   // DO NOT hold db locks while calling this.
   override def abort(xid: ScadsXid) : Boolean = {
+
+    if (!committedXidMap.containsKey((xid, 0))) {
+      committedXidMap.put((xid, 0), false)
+      logger.debug("added committed map xid: " + xid + " false")
+    }
+
     // Atomically set the tx status to Commit, and get the list of updates.
     val txInfo = updateAndGetTxStatus(xid, Status.Abort)
 
@@ -669,12 +692,41 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 }
 
 class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
-                        val ics: FieldICList) {
+                        val ics: FieldICList,
+                        val committedXidMap: ConcurrentHashMap[(ScadsXid, Int), Boolean]) {
   val avroUtil = new IndexedRecordUtil(valueSchema)
   val logicalRecordUpdater = new LogicalRecordUpdater(valueSchema)
   val icChecker = new ICChecker(valueSchema)
 
   protected val logger = Logger(classOf[NewUpdateResolver])
+
+  // Returns true if the value of the record encoded in v1, is equal to the
+  // value in v2.
+  private def compareRecords(v1: Option[Array[Byte]], v2: Option[MDCCRecord]): Boolean = {
+    (v1, v2) match {
+      case (Some(old), Some(dbRec)) => {
+
+        // Record found in db, compare with the old version
+        val oldRec = MDCCRecordUtil.fromBytes(old)
+
+        // Compare the value of the record.
+        (oldRec.value, dbRec.value) match {
+          case (Some(a), Some(b)) => Arrays.equals(a, b)
+          case (None, None) => true
+          case (_, _) => {
+            logger.debug("failed compare1 %s, (%s %s)", Thread.currentThread.getName, oldRec.value, dbRec.value)
+            false
+          }
+        }
+      }
+      case (None, None) => true
+      case (None, Some(MDCCRecord(None, _))) => true
+      case (_, _) => {
+        logger.debug("failed compare2 %s, (%s %s)", Thread.currentThread.getName, v1, v2)
+        false
+      }
+    }
+  }
 
   // dbValue is the committed value in the db.
   // safeBaseValue is the base value of the cstruct, which may not have all
@@ -695,6 +747,21 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
         val safeBase = safeBaseValue match {
           case None => dbValue.get.value
           case Some(b) => safeBaseValue
+        }
+
+        if (!safeBase.isDefined) {
+          val alreadyCommitted = commandsInfo.commands.map(x => {
+            if (!x.pending) {
+              // Not pending.
+              (x, false, x.commit)
+            } else if (committedXidMap.containsKey((x.xid, 0))) {
+              // (command, pending, commit status)
+              (x, false, committedXidMap.get((x.xid, 0)))
+            } else {
+              (x, true, false)
+            }
+          })
+          logger.error("base record should exist for logical updates. xid: %s key:%s committed: %s", xid, (new mdcc.ByteArrayWrapper(key)).hashCode(), alreadyCommitted)
         }
 
         val deltaRec = MDCCRecordUtil.fromBytes(delta)
@@ -747,30 +814,93 @@ class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
       }
       case ValueUpdate(key, oldValue, newValue) => {
         // Value updates conflict with all pending updates
-        if (commandsInfo.commands.indexWhere(x => x.pending) == -1) {
-          // No pending commands.
-          val newRec = MDCCRecordUtil.fromBytes(newValue)
-          (oldValue, dbValue) match {
-            case (Some(old), Some(dbRec)) => {
+        val pendingComms = commandsInfo.commands.filter(_.pending)
 
-              // Record found in db, compare with the old version
-              val oldRec = MDCCRecordUtil.fromBytes(old)
+        // TODO: purely for debugging.
+        val vv = MDCCRecordUtil.fromBytes(newValue).value
+        if (!vv.isDefined) {
+          logger.debug("None value %s xid: %s update: %s", Thread.currentThread.getName, xid, newUpdate)
+        }
 
-              // TODO: Don't compare versions, but compare the list of
-              //       masters?
-              (oldRec.value, dbRec.value) match {
-                case (Some(a), Some(b)) => Arrays.equals(a, b)
-                case (None, None) => true
-                case (_, _) => false
+        // Check to see if some of them have already committed.
+        val alreadyCommitted = commandsInfo.commands.map(x => {
+          if (!x.pending) {
+            // Not pending.
+            (x, false, x.commit)
+          } else if (committedXidMap.containsKey((x.xid, 0))) {
+            // (command, pending, commit status)
+            commandsInfo.replaceCommand(CStructCommand(x.xid, x.command, false, committedXidMap.get((x.xid, 0))))
+            (x, false, committedXidMap.get((x.xid, 0)))
+          } else {
+            (x, true, false)
+          }
+        })
+        // Pending after looking for early commits.
+        val newPending = alreadyCommitted.filter(_._2)
+
+        // The value to compare with "oldValue"
+        var dbCompare = dbValue
+
+        if (pendingComms.size > 0 && newPending.size == 0) {
+          // No pending commands after considering early commits.
+
+          // Find last committed ValueUpdate.
+          dbCompare = alreadyCommitted.filter(_._3).lastOption match {
+            case None => {
+              logger.debug("detected noop %s xid: %s commands: %s", Thread.currentThread.getName, xid, alreadyCommitted)
+              dbValue
+            }
+            case Some(x) => {
+              x._1.command match {
+                case ValueUpdate(k2, oldVal2, newVal2) => {
+                  val v = MDCCRecordUtil.fromBytes(newVal2)
+                  logger.debug("detected early value %s xid: %s newXid: %s newVal: %s", Thread.currentThread.getName, xid, x._1.xid, v.value)
+                  Some(v)
+                }
+                case _ => {
+                  logger.debug("detected early nonphysical %s xid: %s commands: %s", Thread.currentThread.getName, xid, alreadyCommitted)
+                  dbValue
+                }
               }
             }
-            case (None, None) => true
-            case (_, _) => false
           }
+          logger.debug("detected early commit %s xid: %s pendingComms: %s commands: %s pendingCommsSize: %d newAcceptance: %s", Thread.currentThread.getName, xid, pendingComms, alreadyCommitted, pendingComms.size, compareRecords(oldValue, dbCompare))
+        }
+
+        if (!dbValue.isDefined) {
+          // DB rec does not exist.
+          // Find last committed ValueUpdate.
+          logger.debug("empty dbval1. %s xid: %s alreadyCommitted: %s", Thread.currentThread.getName, xid, alreadyCommitted)
+          dbCompare = alreadyCommitted.filter(_._3).lastOption match {
+            case None => {
+              dbValue
+            }
+            case Some(x) => {
+              x._1.command match {
+                case ValueUpdate(k2, oldVal2, newVal2) => {
+                  logger.debug("empty dbval2. %s xid: %s new command: %s %s", Thread.currentThread.getName, xid, x._1.xid, x._1.command)
+                  Some(MDCCRecordUtil.fromBytes(newVal2))
+                }
+                case _ => {
+                  dbValue
+                }
+              }
+            }
+          }
+        }
+
+        if (newPending.size == 0) {
+          // No pending commands.
+          val ret = compareRecords(oldValue, dbCompare)
+          if (!ret) {
+            logger.debug("failed compatibility1 %s xid: %s pendingComms: %s commands: %s newPending: %s", Thread.currentThread.getName, xid, pendingComms, alreadyCommitted, newPending)
+          }
+          ret
         } else {
           // There exists a pending command.  Value update is not compatible.
           // TODO: in a fast round, multiple physical updates are sometimes
           //       compatible.
+          logger.debug("failed compatibility2 %s xid: %s pendingComms: %s commands: %s newPending: %s", Thread.currentThread.getName, xid, pendingComms, alreadyCommitted, newPending)
           false
         }
       }
