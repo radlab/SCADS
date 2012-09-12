@@ -118,6 +118,7 @@ class MDCCRecordHandler (
 ) = {
     key = key0
     value = value0
+    provedSafe = value
     version = version0
     ballots = ballots0
     confirmedBallot = confirmedBallot0
