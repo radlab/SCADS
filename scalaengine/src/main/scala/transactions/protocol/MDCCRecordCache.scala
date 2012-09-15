@@ -73,7 +73,7 @@ object RecordHandlerPool {
         val todo = POOL_SIZE - pool.size
         if (todo > 0) {
           val t1 = System.nanoTime / 1000000
-          (1 to todo).foreach(_ => pool.offer(new MDCCRecordHandler(fakeKey, null, null, null, true, Nil, null, null)))
+          (1 to todo).foreach(_ => pool.offer(new MDCCRecordHandler(fakeKey, null, null, null, true, Nil, null, null, None)))
           val t2 = System.nanoTime / 1000000
           logger.error("RecordHandlerPool: offered: %d, %d ms", todo, t2 - t1)
         }
@@ -127,7 +127,7 @@ class MDCCRecordCache() {
 
 //        var handler = new MDCCRecordHandler(key, value, mt.currentVersion, mt.ballots,  mt.confirmedBallot, servers, conflictResolver, master)
         var handler = RecordHandlerPool.take
-        handler.init(key, value, mt.currentVersion, mt.ballots,  mt.confirmedBallot, servers, conflictResolver, master)
+        handler.init(key, value, mt.currentVersion, mt.ballots,  mt.confirmedBallot, servers, conflictResolver, master, mt.statistics)
 
         val endT4 = System.nanoTime / 1000000
         val oldVal = handlerMap.putIfAbsent(keyWrapper, handler)

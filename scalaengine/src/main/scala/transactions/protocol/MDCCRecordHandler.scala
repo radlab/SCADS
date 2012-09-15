@@ -62,7 +62,8 @@ class MDCCRecordHandler (
        var confirmedBallot : Boolean, //Is the ballot confirmed by a majority?
        var servers: Seq[PartitionService],
        var resolver : ConflictResolver,
-       var thisService : SCADSService //If we are master, this is outer not garbage collected remote handler
+       var thisService : SCADSService, //If we are master, this is outer not garbage collected remote handler
+       var statistics : Option[Statistics]
   ) {
 
   import ServerMessageHelper._
@@ -114,7 +115,8 @@ class MDCCRecordHandler (
            confirmedBallot0: Boolean,
            servers0: Seq[PartitionService],
            resolver0: ConflictResolver,
-           thisService0: SCADSService
+           thisService0: SCADSService,
+           statistics0 : Option[Statistics]
 ) = {
     key = key0
     value = value0
@@ -125,6 +127,7 @@ class MDCCRecordHandler (
     servers = servers0
     resolver = resolver0
     thisService = thisService0
+    statistics = statistics0
     mailbox.setName("" + this.hashCode)
   }
 
