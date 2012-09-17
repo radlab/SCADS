@@ -81,6 +81,8 @@ class InMemStorageManager
     }
   }
 
+  def incrementField(key: Array[Byte], fieldName: String): Unit = sys.error("Not impemented")
+
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean = {
     synchronized { 
       val existing = map.get(bytes2eqarray(key))

@@ -53,6 +53,20 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
       }
     }
 
+
+    it("increments values") {
+      withPartitionService(None, None) { partition =>
+        partition !? PutRequest(IntRec(1).toBytes, IntRec(0).toBytes) should equal(PutResponse())
+
+        partition !? IncrementFieldRequest(IntRec(1).toBytes, "f1") should equal(IncrementFieldResponse())
+
+        partition !? GetRequest(IntRec(1).toBytes) match {
+          case GetResponse(Some(bytes)) => new IntRec().parse(bytes) should equal(IntRec(1))
+          case m => fail("Unexpected response for IncrementValueRequest: " + m)
+        }
+      }
+    }
+
     it("should bulk load values") {
       withPartitionService(None, None) { p =>
         val req = BulkPutRequest((1 to 1000).map(i => PutRequest(IntRec(i).toBytes, IntRec(i * 2).toBytes)).toSeq)

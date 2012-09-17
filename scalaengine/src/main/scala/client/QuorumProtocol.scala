@@ -135,6 +135,13 @@ trait QuorumProtocol
     responses.blockFor(quorum, 5000, TimeUnit.MILLISECONDS)
   }
 
+  override def incrementFieldBytes(key: Array[Byte], fieldName: String): Unit = {
+    val (servers, quorum) = writeQuorumForKey(key)
+    val incRequest = IncrementFieldRequest(key, fieldName)
+    val responses = servers.map(_ !! incRequest)
+    responses.blockFor(quorum, 5000, TimeUnit.MILLISECONDS)
+  }
+
   /* Buffers KV tuples until the average buffer size for all the servers is
    * greater than BufSize. Then sends the request to the servers, while
    * repeating the buffering process for the next set of KV tuples. When the

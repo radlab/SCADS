@@ -1,12 +1,14 @@
-package edu.berkeley.cs.scads.storage
+package edu.berkeley.cs
+package scads
+package storage
+
+import comm._
+import config._
+import util._
 
 import com.sleepycat.je.{Cursor,Database, DatabaseConfig, CursorConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
 import org.apache.avro.Schema
 import net.lag.logging.Logger
-
-import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.scads.config._
-import edu.berkeley.cs.scads.util._
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
@@ -17,35 +19,37 @@ import scala.util.control.Breaks
 import java.util.{ Arrays => JArrays }
 import java.util.concurrent.{ Future => JFuture, _ }
 import java.lang.reflect.Method
-import java.io.{BufferedReader,ObjectInputStream,InputStreamReader,ByteArrayInputStream}
+import java.io._
 import atomic._
 
 import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
-
-
+import org.apache.avro.io.{EncoderFactory, DecoderFactory}
 
 /**
  * Handles a partition from [startKey, endKey). Refuses to service any
  * requests which fall out of this range, by returning a ProcessingException
  */
-class BdbStorageManager(val db: Database, 
-                        val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, 
-                        val startKey: Option[Array[Byte]], 
-                        val endKey: Option[Array[Byte]], 
-                        val nsRoot: ZooKeeperProxy#ZooKeeperNode, 
-                        val keySchema: Schema, valueSchema: Schema) 
+class BdbStorageManager(val db: Database,
+                        val partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
+                        val startKey: Option[Array[Byte]],
+                        val endKey: Option[Array[Byte]],
+                        val nsRoot: ZooKeeperProxy#ZooKeeperNode,
+                        val keySchema: Schema,
+                        val valueSchema: Schema,
+                        val cluster: ScadsCluster)
                        extends StorageManager
-                       with    AvroComparator {
+                       with SimpleRecordMetadata
+                       with AvroComparator {
   protected val logger = Logger()
   protected val config = Config.config
 
-  protected lazy val copyIteratorCtor = 
+  protected lazy val copyIteratorCtor =
     config.getString("scads.storage.copy.iteratorType").flatMap(tpe => tpe.toLowerCase match {
       case "cursor" => Some((ps: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]]) =>
         new CursorBasedPartitionIterator(ps, minKey, maxKey, copyRecsPerMessage))
       case "actorfree" => Some((ps: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]]) =>
         new ActorlessPartitionIterator(ps, minKey, maxKey, copyRecsPerMessage))
-      case invalid => 
+      case invalid =>
         logger.info("copy iterator type %s is invalid", invalid)
         None
     }).getOrElse({
@@ -65,7 +69,7 @@ class BdbStorageManager(val db: Database,
     private var valid = true
     def updateActivity(): Unit =
       lastActivity = System.currentTimeMillis
-    def markInvalid(): Unit = 
+    def markInvalid(): Unit =
       valid = false
     def isTimedout: Boolean = (lastActivity + cursorTimeout) - System.currentTimeMillis < 0
     def isValid: Boolean = valid
@@ -89,7 +93,7 @@ class BdbStorageManager(val db: Database,
 
   protected object CursorTimeoutRunnable {
     val runnable = new Runnable {
-      def run(): Unit = 
+      def run(): Unit =
         try {
           while (true) {
             Thread.sleep(cursorTimeout) // runs every 3 min
@@ -122,7 +126,7 @@ class BdbStorageManager(val db: Database,
     // stop the cursor tasks
     cursorTimeoutThread.shutdownNow()
     partitionIdLock.delete()
-    openCursors.values.foreach { 
+    openCursors.values.foreach {
       case ctx @ CursorContext(id, cursor, txn) =>
         ctx.synchronized {
           if (ctx.isValid) {
@@ -139,7 +143,7 @@ class BdbStorageManager(val db: Database,
 
   private val iterateRangeBreakable = new Breaks
 
-  override def toString = 
+  override def toString =
     "<PartitionHandler namespace: %s, keyRange: [%s, %s)>".format(
       partitionIdLock.name, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull))
 
@@ -155,7 +159,7 @@ class BdbStorageManager(val db: Database,
   /**
    * True iff startKey <= key
    */
-  @inline private def isStartKeyLEQ(key: Option[Array[Byte]]) = 
+  @inline private def isStartKeyLEQ(key: Option[Array[Byte]]) =
     startKey.map(sk => /* If we have startKey that is not -INF */
         key.map(usrKey => /* If we have a user key that is not -INF */
           compare(sk, usrKey) <= 0) /* Both keys exist (not -INF), use compare to check range */
@@ -172,7 +176,7 @@ class BdbStorageManager(val db: Database,
         .getOrElse(false)) /* endKey not +INF, but user key is +INF, so false */
     .getOrElse(true) /* startKey is +INF, so any user key works */
 
-                        
+
 
     // key validation
     // val (keysInRange, keysInQuestion) = msg match {
@@ -196,8 +200,8 @@ class BdbStorageManager(val db: Database,
       // val errorMsg = keysInQuestion match {
       //   case Left(key) =>
       //     "Expected a key in range [%s, %s), but got %s".format(
-      //       JArrays.toString(startKey.orNull), 
-      //       JArrays.toString(endKey.orNull), 
+      //       JArrays.toString(startKey.orNull),
+      //       JArrays.toString(endKey.orNull),
       //       JArrays.toString(key))
       //   case Right((minKey, maxKey)) =>
       //     "Expected a range bounded (inclusively) by [%s, %s), but got [%s, %s)".format(
@@ -224,6 +228,32 @@ class BdbStorageManager(val db: Database,
       case Some(v) => db.put(null, new DatabaseEntry(key), new DatabaseEntry(v))
       case None => db.delete(null, new DatabaseEntry(key))
     }
+  }
+
+
+  def incrementField(key: Array[Byte], fieldName: String): Unit = {
+    val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry())
+    val txn = db.getEnvironment.beginTransaction(null, null)
+    db.get(txn, dbeKey, dbeValue, LockMode.RMW)
+    val valueBytes = extractRecordFromValue(dbeValue.getData)
+
+    val reader = new GenericDatumReader[IndexedRecord](valueSchema)
+    val value = new GenericData.Record(valueSchema)
+    val decoder = DecoderFactory.get().binaryDecoder(valueBytes, null)
+    reader.read(value, decoder)
+
+    val pos = valueSchema.getField(fieldName).pos
+    value.put(pos, value.get(pos).asInstanceOf[Int] + 1)
+
+    val outBuffer = new ByteArrayOutputStream
+    val encoder = EncoderFactory.get().binaryEncoder(outBuffer,null)
+    val writer = new GenericDatumWriter[IndexedRecord](valueSchema)
+    writer.write(value, encoder)
+    encoder.flush
+
+    dbeValue.setData(createMetadata(outBuffer.toByteArray))
+    db.put(txn, dbeKey, dbeValue)
+    txn.commit()
   }
 
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean = timed("testAndSet") {
@@ -317,14 +347,14 @@ class BdbStorageManager(val db: Database,
     val dbeValue = new DatabaseEntry
     logger.debug("Opening iterator for data copy")
 
-    val iter = copyIteratorCtor(src, startKey, endKey) 
+    val iter = copyIteratorCtor(src, startKey, endKey)
 
     logger.debug("Beginning copy")
     var numRec = 0
     iter.foreach(rec => {
       dbeKey.setData(rec.key)
       dbeValue.setData(rec.value.get)
-      
+
       if (overwrite) db.put(txn, dbeKey, dbeValue)
       else db.putNoOverwrite(txn, dbeKey, dbeValue)
       // NOTE: was previously the code below, but putNoOverwrite seems
@@ -339,12 +369,12 @@ class BdbStorageManager(val db: Database,
     })
 
     logger.info("Finished copying %d records".format(numRec))
-    
+
     logger.debug("Beginning commit")
     txn.commit()
     logger.debug("Ending commit")
   }
-                         
+
   def getResponsibility():(Option[Array[Byte]],Option[Array[Byte]]) = (startKey, endKey)
 
   def applyAggregate(groups:Seq[String],
@@ -363,18 +393,18 @@ class BdbStorageManager(val db: Database,
         val ois = new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(aggOp.obj))
         ois.readObject.asInstanceOf[RemoteAggregate[ScalaSpecificRecord,ScalaSpecificRecord,ScalaSpecificRecord]]
       })
-            
+
 
     val remKey = Class.forName(keyType).newInstance().asInstanceOf[ScalaSpecificRecord]
     val remVal = Class.forName(valType).newInstance().asInstanceOf[ScalaSpecificRecord]
-    
+
     val groupSchemas = groups.map(valueSchema.getField(_).schema)
     val groupInts = groups.map(valueSchema.getField(_).pos)
-    
+
     var groupMap:Map[CharSequence, scala.collection.mutable.ArraySeq[ScalaSpecificRecord]] = null
     var groupBytesMap:Map[CharSequence, Array[Byte]] = null
     var groupKey:CharSequence = null
-    
+
     var aggVals:Seq[ScalaSpecificRecord] = null
     if (groups.size() == 0) { // no groups, so let's init values now
       aggVals = aggregates.map(_.init())
@@ -383,7 +413,7 @@ class BdbStorageManager(val db: Database,
       groupMap = new scala.collection.immutable.HashMap[CharSequence,scala.collection.mutable.ArraySeq[ScalaSpecificRecord]]
       groupBytesMap = new scala.collection.immutable.HashMap[CharSequence, Array[Byte]]
     }
-    
+
     var curAggVal =
       if (groups.size() == 0)
         scala.collection.mutable.ArraySeq(aggVals:_*)
@@ -398,9 +428,9 @@ class BdbStorageManager(val db: Database,
       remVal.parse(new java.io.ByteArrayInputStream(valBytes,16,(valBytes.length-16)))
       val keyBytes = key.getData
       remKey.parse(keyBytes)
-      
+
       filterPassed = true
-      filterFunctions.foreach(ff => { 
+      filterFunctions.foreach(ff => {
         if (filterPassed) { // once one failed just ignore the rest
           filterPassed = ff.applyFilter(remVal)
         }
@@ -447,7 +477,7 @@ class BdbStorageManager(val db: Database,
     //logger.info("CursorScanRequest: %s", msg)
 
     val (cursorId, cursorCtx) = optCursorId.map(id => {
-      val ctx = Option(openCursors.get(id)).getOrElse({ 
+      val ctx = Option(openCursors.get(id)).getOrElse({
         throw new RequestRejectedException("Invalid cursor Id: %d".format(id))
       })
       (id, ctx)
@@ -461,12 +491,12 @@ class BdbStorageManager(val db: Database,
       logger.info("made new cursor with id %d, txn with id %d", id, txn.getId)
       (id, ctx)
     })
-    
+
     // lock the cursor context
     val (moreRecs, recs) = cursorCtx.synchronized {
       // check to see if the cursor is still valid
       if (!cursorCtx.isValid) {
-        openCursors.remove(cursorId) // just to be sure 
+        openCursors.remove(cursorId) // just to be sure
         throw new RequestRejectedException("Cursor ID: %d has already timedout".format(cursorId))
       }
       cursorCtx.updateActivity() // set a new timeout
@@ -483,7 +513,7 @@ class BdbStorageManager(val db: Database,
       (moreRecs, recs)
     }
     //logger.info("read %d recs, moreRecs = %s", recs.size, moreRecs)
-    
+
     (if (moreRecs) Some(cursorId) else None, recs)
   }
 
@@ -532,10 +562,10 @@ class BdbStorageManager(val db: Database,
    * [minKey, maxKey), with the order specified by ascending (and limits
    * respected)
    */
-  private def iterateOverRange(minKey: Option[Array[Byte]], 
-                               maxKey: Option[Array[Byte]], 
-                               limit: Option[Int] = None, 
-                               offset: Option[Int] = None, 
+  private def iterateOverRange(minKey: Option[Array[Byte]],
+                               maxKey: Option[Array[Byte]],
+                               limit: Option[Int] = None,
+                               offset: Option[Int] = None,
                                ascending: Boolean = true,
                                includeLast: Boolean = true,
                                txn: Option[Transaction] = None)
