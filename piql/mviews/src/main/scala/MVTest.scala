@@ -11,7 +11,6 @@ import exec._
 import perf._
 import deploylib._
 import deploylib.mesos._
-import storage.transactions._
 import scala.math.pow
 
 import scala.math._

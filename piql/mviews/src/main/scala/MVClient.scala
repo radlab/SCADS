@@ -11,7 +11,6 @@ import plans._
 import comm._
 import storage._
 import storage.client.index._
-import storage.transactions._
 import deploylib._
 import java.util.concurrent.TimeUnit
 

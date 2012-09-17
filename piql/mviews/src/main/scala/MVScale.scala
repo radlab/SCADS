@@ -14,7 +14,6 @@ import config._
 import storage._
 import exec._
 import storage.client.index._
-import storage.transactions._
 
 import net.lag.logging.Logger
 
