@@ -61,9 +61,8 @@ package object piql {
   implicit def toOption[A](a: A) = Option(a)
 
   /* Helper functions for running logical plans through optimizer pipeline */
-
   implicit def implicitToPiql(logicalPlan: LogicalPlan)(implicit executor: QueryExecutor) = new {
-    def toPiql(queryName: Option[String] = None) = {
+    def toPiql(queryName: Option[String] = None): OptimizedQuery = {
       logger.info("Begining Optimization of query %s: %s", queryName, logicalPlan)
       val qualifiedPlan = new Qualifier(logicalPlan).qualifiedPlan
       logger.debug("Plan after qualifing: %s", qualifiedPlan)
@@ -78,25 +77,16 @@ package object piql {
   /* Tries to find a view producing a bounded plan.
      The query view analyzer can invoke this recursively. */
   implicit def implicitToPiqlWithView(logicalPlan: LogicalPlan)(implicit executor: QueryExecutor) = new {
-    def toPiqlWithView(queryName: Option[String] = None, maxDepth: Int = 2) = {
-      if (maxDepth < 0) {
-        throw new RuntimeException("PIQL recursion depth exceeded")
-      }
-      var res: Option[OptimizedQuery] = None
+    def toPiqlWithView(queryName: Option[String] = None, maxDepth: Int = 2): OptimizedQuery = {
+      require(maxDepth > 0, "PIQL recursion depth exceeded")
+
       try {
-        res = Some(logicalPlan.toPiql(queryName))
+        logicalPlan.toPiql(queryName)
       } catch {
         /* TODO precise detection of unbounded query */
         case e: scala.MatchError =>
-          res = Some(
-            new QueryViewAnalyzer(
-              new Qualifier(logicalPlan).qualifiedPlan,
-              queryName, maxDepth)
-            .rewrittenQuery.toPiql(queryName))
-        case other => throw other
+            new QueryViewAnalyzer(new Qualifier(logicalPlan).qualifiedPlan,queryName, maxDepth).rewrittenQuery.toPiql(queryName)
       }
-      res.getOrElse(throw new AssertionError())
     }
   }
-
 }
