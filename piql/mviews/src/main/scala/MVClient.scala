@@ -30,13 +30,16 @@ abstract class TagClient(val cluster: ScadsCluster,
   /* begin random test stuff for querydeltas */
   val posts = cluster.getNamespace[Post]("posts")
   val subs = cluster.getNamespace[Subscription]("subscr")
-  val unopt2 =
+  val timelineUnopt =
     posts.as("p")
       .join(subs.as("s"))
       .where("p.topicId".a === "s.topicId".a)
       .where("s.userId".a === (0.?))
+      .sort(List("p.timestamp".a))
       .limit(limit)
       .select("p.text".a, "p.topicId".a)
+
+  val timelineQuery = timelineUnopt.toPiqlWithView("timelineQuery")
 
   val unopt =
     tags.as("t1")

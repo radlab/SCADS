@@ -11,7 +11,9 @@ import plans._
 
 import net.lag.logging.Logger
 
-class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None, maxDepth: Int = 3) {
+class QueryViewAnalyzer(val plan: LogicalPlan,
+                        val queryName: Option[String] = None,
+                        val maxDepth: Int = 3) {
   val logger = Logger()
 
   lazy val relations = plan.flatGather(_ match {
@@ -70,6 +72,7 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None, max
     relations
   }
  
+  // Rewrites the original query to use athe materialized view definition.
   protected def rewrite(plan: LogicalPlan)(implicit view: ScadsView): LogicalPlan = plan match {
     case Project(values, child, s) =>
       var inner = rewrite(child)
@@ -97,6 +100,7 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None, max
     case Join(left, Selection(p, child)) =>
       Selection(rewrite(p), rewrite(child))
     case Join(left, right) => view // not sure if this works in all cases
+    case Sort(attrs, ascending, child) => rewrite(child)
     case r: Relation => view
   }
 
@@ -165,30 +169,35 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None, max
     (attrs, unityMap)
   }
 
+  // Production of delta queries from the view definition.
   lazy val deltaQueries = {
     relations.map(r => {
       val predelta = calcDelta(plan, r)
       val fields = scala.collection.mutable.Map[Int,Int]()
       var i = -1
 
-      /* for hack */
+      // Tracks if a data stop operator has been inserted into the delta query.
+      // Only a single data stop is necessary.
       var limited = false
+      // Tracks visited attributes to enable their reuse in the plan.
       var visited = Set[Int]()
 
-      /* pass to replace delta relation with parameters */
+      // Recursive routine which generates the delta queries.
       def deltify(plan: LogicalPlan): LogicalPlan = plan match {
         case Project(values, child, s) =>
           Project(values.map(parameterize(_, false)), deltify(child), s)
+        case Sort(attrs, ascending, child) =>
+          deltify(child)
         case StopAfter(limit, child) =>
+          limited = true
           StopAfter(limit, deltify(child))
         case Selection(p, child) =>
-          /* TODO use combined cardinality constraints instead of lying
-             and picking an arbitrary number */
+          // TODO This currently inserts an arbitrary datastop into the delta.
           if (limited) {
             Selection(deltifyp(p), deltify(child))
           } else {
             limited = true
-            DataStopAfter(FixedLimit(123), Selection(deltifyp(p), deltify(child)))
+            DataStopAfter(FixedLimit(100), Selection(deltifyp(p), deltify(child)))
           }
         case Join(left, right) if (left == r) => deltify(right)
         case Join(left, right) if (right == r) => deltify(left)
@@ -201,6 +210,7 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None, max
           EqualityPredicate(parameterize(v1, true), parameterize(v2, true))
       }
 
+      // Translates attributes in the view definition into indexes.
       def parameterize(w: Value, inEquality: Boolean): Value = w match {
         case v: QualifiedAttributeValue => v
           if (v.relation == r) {
@@ -271,15 +281,16 @@ class QueryViewAnalyzer(plan: LogicalPlan, queryName: Option[String] = None, max
       }
     case Sort(attrs, asc, child)
       if(attrs.collect {case q: QualifiedAttributeValue => q}.map(_.relation) contains relation) =>
-        calcDelta(child, relation).copy(ordering = attrs, ordered=false)
+        calcDelta(child, relation).copy(ordering=attrs, ordered=false)
     case Sort(attrs, asc, child) =>
       val deltaChild = calcDelta(child, relation)
       deltaChild.copy(plan=Sort(attrs, asc, deltaChild.plan), ordering=attrs, ordered=true)
     case StopAfter(count, child) =>
       val deltaChild = calcDelta(child, relation)
-      if(deltaChild.ordered)
-        deltaChild.copy(plan= StopAfter(count, deltaChild.plan))
-      else deltaChild
+      if (deltaChild.ordered)
+        deltaChild.copy(plan=StopAfter(count, deltaChild.plan))
+      else
+        deltaChild
     case DataStopAfter(count, child) =>
       calcDelta(child, relation)
     case Project(values, child, s) =>
