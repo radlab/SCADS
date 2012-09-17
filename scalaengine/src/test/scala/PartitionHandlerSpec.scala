@@ -8,6 +8,7 @@ import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.storage._
+import org.apache.avro.Schema
 
 @RunWith(classOf[JUnitRunner])
 class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterAll {
@@ -56,12 +57,18 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
 
     it("increments values") {
       withPartitionService(None, None) { partition =>
-        partition !? PutRequest(IntRec(1).toBytes, IntRec(0).toBytes) should equal(PutResponse())
+        val clusterAlias = cluster //HACK
+        val mdataManager = new SimpleRecordMetadata {
+          val cluster: ScadsCluster = clusterAlias
+          val keySchema: Schema = IntRec.schema
+        }
+
+        partition !? PutRequest(IntRec(1).toBytes, mdataManager.createMetadata(IntRec(0).toBytes)) should equal(PutResponse())
 
         partition !? IncrementFieldRequest(IntRec(1).toBytes, "f1") should equal(IncrementFieldResponse())
 
         partition !? GetRequest(IntRec(1).toBytes) match {
-          case GetResponse(Some(bytes)) => new IntRec().parse(bytes) should equal(IntRec(1))
+          case GetResponse(Some(bytes)) => new IntRec().parse(mdataManager.extractRecordFromValue(bytes)) should equal(IntRec(1))
           case m => fail("Unexpected response for IncrementValueRequest: " + m)
         }
       }
