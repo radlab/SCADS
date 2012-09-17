@@ -27,10 +27,6 @@ trait ExperimentBase {
   var resultClusterAddress = resultClusterBase + "home/" + System.getenv("USER") + "/deploylib/"
   val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
 
-  def relativeAddress(suffix: String): String = {
-    resultClusterBase + "home/" + System.getenv("USER") + "/" + suffix
-  }
-
   implicit def productSeqToExcel(lines: Seq[Product]) = new {
     import java.io._
     def toExcel: Unit = {

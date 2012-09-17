@@ -63,7 +63,7 @@ abstract class TagClient(val cluster: ScadsCluster,
         .limit(limit)
         .select("t1.item".a)
 
-  val threeTags = threeTagsUnopt.toPiqlWithView("threeTags")
+//  val threeTags = threeTagsUnopt.toPiqlWithView("threeTags")
 
   // select all tags combinations for this item
   val dq =

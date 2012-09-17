@@ -145,6 +145,7 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
       tries += 1
     }
     if (tries >= 7) {
+      logger.warning("could not find item without max tags")
       assert (!hasTag(item, tag))
     }
     client.addTag(item, tag)
@@ -159,7 +160,10 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
       assoc = client.selectItem(item)
       tries += 1
     }
-    assert (assoc.length > 0)
+    if (assoc.length == 0) {
+      logger.warning("ran out of possible tags to delete")
+      assert (false)
+    }
     val a = assoc(rnd.nextInt(assoc.length))
     client.removeTag(item, a)
   }
@@ -205,8 +209,7 @@ class MVPessimalTest(val cluster: ScadsCluster, val client: TagClient) {
 
 /* convenient test configurations */
 object MVTest extends ExperimentBase {
-  lazy val rc = new ScadsCluster(ZooKeeperNode(relativeAddress(Results.suffix)))
-  lazy val scaled = rc.getNamespace[ParResult3]("ParResult3")
+  lazy val scaled = resultCluster.getNamespace[ParResult3]("ParResult3")
   implicit val exec = new ParallelExecutor
 
   def newNaive(): MVPessimalTest = {
@@ -254,10 +257,10 @@ object MVTest extends ExperimentBase {
   }
 
   def goPessimal(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
-    new Task().schedule(relativeAddress(Results.suffix))
+    new Task().schedule(resultClusterAddress)
   }
 
   def go(replicas: Int = 1, partitions: Int = 8, nClients: Int = 8, itemsPerMachine: Int = 100000, threadCount: Int = 32, comment: String = "")(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
-    new ScaleTask(replicas=replicas, partitions=partitions, nClients=nClients, itemsPerMachine=itemsPerMachine, threadCount=threadCount, comment=comment, local=false).schedule(relativeAddress(Results.suffix))
+    new ScaleTask(replicas=replicas, partitions=partitions, nClients=nClients, itemsPerMachine=itemsPerMachine, threadCount=threadCount, comment=comment, local=false).schedule(resultClusterAddress)
   }
 }
