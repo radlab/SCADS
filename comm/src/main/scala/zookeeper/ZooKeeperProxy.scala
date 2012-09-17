@@ -105,6 +105,11 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
     def apply(rpath: String): ZooKeeperNode = 
       get(rpath).getOrElse(throw new RuntimeException("Zookeeper node doesn't exist: " + fullPath(rpath)))
 
+    lazy val parent = {
+      val parPath = path.split("/").dropRight(1).mkString("/")
+      getOrElseUpdateNode(parPath, new ZooKeeperNode(parPath))
+    }
+
     protected def retry[A](retries: Int)(f: => A): A = {
       @inline def tryAgain(e: Exception) =
 	if(retries == 0)
