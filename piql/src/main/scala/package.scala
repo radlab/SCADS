@@ -77,7 +77,7 @@ package object piql {
   /* Tries to find a view producing a bounded plan.
      The query view analyzer can invoke this recursively. */
   implicit def implicitToPiqlWithView(logicalPlan: LogicalPlan)(implicit executor: QueryExecutor) = new {
-    def toPiqlWithView(queryName: Option[String] = None, maxDepth: Int = 2): OptimizedQuery = {
+    def toPiqlWithView(queryName: Option[String] = None, maxDepth: Int = 2, detectStripedIndex: Boolean = false): OptimizedQuery = {
       require(maxDepth > 0, "PIQL recursion depth exceeded")
 
       try {
@@ -85,7 +85,7 @@ package object piql {
       } catch {
         /* TODO precise detection of unbounded query */
         case e: scala.MatchError =>
-            new QueryViewAnalyzer(new Qualifier(logicalPlan).qualifiedPlan,queryName, maxDepth).rewrittenQuery.toPiql(queryName)
+            new QueryViewAnalyzer(new Qualifier(logicalPlan).qualifiedPlan, queryName, maxDepth, detectStripedIndex).rewrittenQuery.toPiql(queryName)
       }
     }
   }

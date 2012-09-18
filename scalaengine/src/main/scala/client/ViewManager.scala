@@ -18,7 +18,7 @@ import net.lag.logging.Logger
 trait ViewManager[BulkType <: AvroPair] extends RangeKeyValueStoreLike[IndexedRecord, IndexedRecord, BulkType] {
   private val logging = Logger("edu.berkeley.cs.scads.storage.client.index.ViewManager")
 
-  type ViewDelta = (IndexedRecord) => Seq[IndexedRecord]
+  type ViewDelta = (IndexedRecord, Int) => Seq[IndexedRecord]
 
   /* order matters for delta queries created recursively */
   @volatile var updateRules = LinkedHashMap[(String, String), (IndexNamespace, ViewDelta)]()

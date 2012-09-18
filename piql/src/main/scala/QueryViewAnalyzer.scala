@@ -11,9 +11,14 @@ import plans._
 
 import net.lag.logging.Logger
 
+// detectStripedIndex: detect whether underlying index is striped
+// (clustered but non-contiguous - sharded by "_stripe" field)
+// and generate delta queries supporting this
+// The plan generated then assumes _stripe is the prefixing field of the index.
 class QueryViewAnalyzer(val plan: LogicalPlan,
                         val queryName: Option[String] = None,
-                        val maxDepth: Int = 3) {
+                        val maxDepth: Int = 3,
+                        var detectStripedIndex: Boolean = false) {
   val logger = Logger()
 
   lazy val relations = plan.flatGather(_ match {
@@ -176,7 +181,9 @@ class QueryViewAnalyzer(val plan: LogicalPlan,
     relations.map(r => {
       val predelta = calcDelta(plan, r)
       val fields = scala.collection.mutable.Map[Int,Int]()
-      var i = -1
+
+      // Parameter 0 is reserved for the stripe id in all cases.
+      var i = 0
 
       // Tracks if a data stop operator has been inserted into the delta query.
       // Only a single data stop is necessary.
@@ -206,7 +213,16 @@ class QueryViewAnalyzer(val plan: LogicalPlan,
         case Join(left, right) if (left == r) => deltify(right)
         case Join(left, right) if (right == r) => deltify(left)
         case Join(left, right) => Join(deltify(left), deltify(right))
-        case r: Relation => r
+        case r: Relation =>
+          if (detectStripedIndex && r.schema.getField("_stripe") != null) {
+            Selection(
+                EqualityPredicate(
+                    QualifiedAttributeValue(r, r.schema.getField("_stripe")),
+                    ParameterValue(0)),
+                r)
+          } else {
+            r
+          }
       }
 
       def deltifyp(predicate: Predicate): Predicate = predicate match {
@@ -260,8 +276,8 @@ class QueryViewAnalyzer(val plan: LogicalPlan,
       logger.debug("remapped fields to parameters: " + fields)
       val params = fields.toList.sortBy(_._2).map(_._1)
 
-      def delta(key: IndexedRecord): Seq[IndexedRecord] = {
-        opt(params.map(key.get(_)) : _*).map(_(0))
+      def delta(key: IndexedRecord, stripe: Int): Seq[IndexedRecord] = {
+        opt(stripe :: params.map(key.get(_)) : _*).map(_(0))
       }
 
       (r, delta _ )
