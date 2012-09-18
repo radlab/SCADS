@@ -17,6 +17,12 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
 
   val cluster = TestScalaEngine.newScadsCluster(0)
 
+  val clusterAlias = cluster //HACK
+  val mdataManager = new SimpleRecordMetadata {
+    val cluster: ScadsCluster = clusterAlias
+    val keySchema: Schema = IntRec.schema
+  }
+
   override def afterAll(): Unit = {
     cluster.shutdownCluster()
   }
@@ -57,11 +63,6 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
 
     it("increments values") {
       withPartitionService(None, None) { partition =>
-        val clusterAlias = cluster //HACK
-        val mdataManager = new SimpleRecordMetadata {
-          val cluster: ScadsCluster = clusterAlias
-          val keySchema: Schema = IntRec.schema
-        }
 
         partition !? PutRequest(IntRec(1).toBytes, mdataManager.createMetadata(IntRec(0).toBytes)) should equal(PutResponse())
 
@@ -70,6 +71,18 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
         partition !? GetRequest(IntRec(1).toBytes) match {
           case GetResponse(Some(bytes)) => new IntRec().parse(mdataManager.extractRecordFromValue(bytes)) should equal(IntRec(1))
           case m => fail("Unexpected response for IncrementValueRequest: " + m)
+        }
+      }
+    }
+
+    //TODO: this is not a very good test...
+    it("returns topKs") {
+      withPartitionService(None, None) { partition =>
+        (1 to 10).foreach(i => partition !? PutRequest(IntRec(i).toBytes, mdataManager.createMetadata(IntRec(i).toBytes)))
+
+        val recs = partition !? TopKRequest(None, None, Seq("f1"), 10) match {
+          case TopKResponse(recs) => recs.size should equal(10)
+          case m => sys.error("unexp msg: " + m)
         }
       }
     }

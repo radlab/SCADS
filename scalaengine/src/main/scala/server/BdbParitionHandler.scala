@@ -256,6 +256,16 @@ class BdbStorageManager(val db: Database,
     txn.commit()
   }
 
+  //TODO: implement efficiently
+  def topK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int): Seq[Record] = {
+    val buffer = new ArrayBuffer[Record]()
+    iterateOverRange(minKey, maxKey, None, None, true)((key, value, _) => {
+      buffer += new Record(key.getData, value.getData)
+    })
+
+    buffer
+  }
+
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean = timed("testAndSet") {
     val txn = db.getEnvironment.beginTransaction(null, null)
     val dbeKey = new DatabaseEntry(key)

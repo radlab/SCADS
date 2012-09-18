@@ -39,6 +39,11 @@ trait RangeKeyValueStoreLike[KeyType <: IndexedRecord,
                     limit: Option[Int] = None, 
                     offset: Option[Int] = None, 
                     ascending: Boolean = true): ScadsFuture[Seq[RangeType]]
+
+  def topK(start: Option[KeyType],
+           end: Option[KeyType],
+           orderingFields: Seq[String],
+           k: Int)
 }
 
 trait Serializer[KeyType <: IndexedRecord, ValueType <: IndexedRecord, BulkType] {
@@ -78,6 +83,8 @@ trait RangeProtocol extends Protocol {
               limit: Option[Int], 
               offset: Option[Int], 
               ascending: Boolean): Seq[(Array[Byte], Array[Byte])]
+
+  def topKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int): Seq[Record]
 
   def asyncGetKeys(start: Option[Array[Byte]], 
                    end: Option[Array[Byte]], 

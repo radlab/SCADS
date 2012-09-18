@@ -98,9 +98,20 @@ trait BaseRangeKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
                         limit: Option[Int],
                         offset: Option[Int],
                         ascending: Boolean) =
-    getKeys(start.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal)).map(keyToBytes), end.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal)).map(keyToBytes), limit, offset, ascending).map { 
-      case (k,v) => bytesToBulk(k, v) 
-    }
+    getKeys(start.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal)).map(keyToBytes),
+            end.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal)).map(keyToBytes),
+            limit,
+            offset,
+            ascending).map { case (k,v) => bytesToBulk(k, v) }
+
+  override def topK(start: Option[K],
+                    end: Option[K],
+                    orderingFields: Seq[String],
+                    k: Int) =
+    topKBytes(start.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal)).map(keyToBytes),
+              end.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal)).map(keyToBytes),
+              orderingFields,
+              k)
 
   override def asyncGetRange(start: Option[K],
                              end: Option[K],
