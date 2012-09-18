@@ -30,9 +30,29 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   val orders = cluster.getNamespace[Order]("orders")
   val shoppingCartItems = cluster.getNamespace[ShoppingCartItem]("shoppingCartItems")
 
+  /* Views */
+  val orderCountStaging = cluster.getNamespace[OrderCountStaging]("orderCountStaging")
+  val orderCount = cluster.getNamespace[OrderCount]("orderCount")
+
+  /* View Maintenance Code */
+  orderLines.addTriggers ::= { orderLines =>
+    orderLines.foreach {line =>
+      val ts = orders.getRecord(Order(line.OL_O_ID)).get.O_DATE_Time //Would be nice if this was cached...
+      calculateEpochs(ts).foreach { ep =>
+        orderCountStaging.incrementField(OrderCountStaging(ep, line.OL_I_ID ).key, "OC_COUNT")
+      }
+    }
+  }
+
   val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems)
   //def allNamespaces = namespaces.flatMap(ns => ns +: ns.listIndexes.map(_._2).toSeq)
 
+  val windowSize = 60 * 60 * 1000 //1 Hour
+  val stepSize = 5 * 60 * 60
+  def calculateEpochs(timestamp: Long): Seq[Long] = {
+    val firstEpoch = timestamp % stepSize
+    (firstEpoch to (firstEpoch + windowSize) by stepSize).toSeq
+  }
 
   //TODO: Move to scadr cluster
   def workloadDistribution = {
