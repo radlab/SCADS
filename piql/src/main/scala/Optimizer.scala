@@ -230,6 +230,7 @@ object Optimizer {
   protected object IndexRange {
     def unapply(logicalPlan: LogicalPlan): Option[(Seq[AttributeEquality], Option[TupleLimit], Option[Ordering], LogicalPlan)] = {
       val (limit, planWithoutStop) = logicalPlan match {
+        case Paginate(count, child) => (Some(TupleLimit(count, false)), child)
         case StopAfter(count, child) => (Some(TupleLimit(count, false)), child)
         case DataStopAfter(count, child) => (Some(TupleLimit(count, true)), child)
         case otherOp => (None, otherOp)

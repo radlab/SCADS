@@ -36,7 +36,7 @@ abstract class TagClient(val cluster: ScadsCluster,
       .where("p.topicId".a === "s.topicId".a)
       .where("s.userId".a === (0.?))
       .sort(List("p.timestamp".a))
-      .limit(limit)
+      .paginate(limit)
       .select("p.text".a, "p.topicId".a)
 
   val timelineQuery = timelineUnopt.toPiqlWithView("timelineQuery")

@@ -87,6 +87,8 @@ class QueryViewAnalyzer(val plan: LogicalPlan,
       Project(values.map(rewrite), inner, s)
     case StopAfter(limit, child) =>
       StopAfter(limit, rewrite(child))
+    case Paginate(limit, child) =>
+      Paginate(limit, rewrite(child))
     case DataStopAfter(limit, child) =>
       DataStopAfter(limit, rewrite(child))
     case Selection(EqualityPredicate(v1: ParameterValue, v2: QualifiedAttributeValue), child) =>
@@ -187,6 +189,8 @@ class QueryViewAnalyzer(val plan: LogicalPlan,
         case Project(values, child, s) =>
           Project(values.map(parameterize(_, false)), deltify(child), s)
         case Sort(attrs, ascending, child) =>
+          deltify(child)
+        case Paginate(limit, child) =>
           deltify(child)
         case StopAfter(limit, child) =>
           limited = true
