@@ -167,6 +167,17 @@ class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = 
   def stopAllInstances() = (masters ++ slaves ++ zooKeepers).pforeach(_.halt)
 
   /**
+   * Kills a particular instance by its public DNS name.
+   */
+  def killByName(publicDns: String) = {
+    for (m <- (masters ++ slaves ++ zooKeepers)) {
+      if (m.publicDnsName == publicDns) {
+        m.halt
+      }
+    }
+  }
+
+  /**
    * Start and configure the mesos master, at least numSlaves mesos slaves, and zookeeper in parallel.
    */
   def setup(numSlaves: Int = 1) = Seq(
