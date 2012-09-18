@@ -27,20 +27,6 @@ abstract class TagClient(val cluster: ScadsCluster,
 
   val tags = cluster.getNamespace[Tag]("tags")
 
-  /* begin random test stuff for querydeltas */
-  val posts = cluster.getNamespace[Post]("posts")
-  val subs = cluster.getNamespace[Subscription]("subscr")
-  val timelineUnopt =
-    posts.as("p")
-      .join(subs.as("s"))
-      .where("p.topicId".a === "s.topicId".a)
-      .where("s.userId".a === (0.?))
-      .sort(List("p.timestamp".a))
-      .paginate(limit)
-      .select("p.text".a, "p.topicId".a)
-
-  val timelineQuery = timelineUnopt.toPiqlWithView("timelineQuery")
-
   val unopt =
     tags.as("t1")
         .where("t1.word".a === (0.?))
@@ -86,7 +72,6 @@ abstract class TagClient(val cluster: ScadsCluster,
         .where("t3.item".a === (0.?))
         .limit(limit)
         .select("t3.word".a, "t1.word".a, "t1.item".a)
-  /* end random test stuff */
 
 
   // materialized pairs of tags, including the duplicate pair

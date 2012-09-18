@@ -9,8 +9,8 @@ import perf._
 
 import org.apache.avro.util._
 
-case class Subscription(var userId: Int, var topicId: Int) extends AvroPair {}
-case class Post(var topicId: Int, var timestamp: Int) extends AvroPair {
+case class Subscription(var userId: String, var topicId: String) extends AvroPair {}
+case class Post(var topicId: String, var timestamp: Long) extends AvroPair {
   var text: String = _
 }
 
@@ -56,6 +56,10 @@ case class MVResult(
       val s = x.toString
       return s.replaceAll(",","\t").substring(1, s.length-1)
   }
+}
+
+case class TimelineResult(var timestamp: Long) extends AvroPair {
+  var threadCount: Int = _
 }
 
 case class ParResult3(

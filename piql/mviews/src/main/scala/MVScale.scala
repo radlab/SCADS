@@ -61,7 +61,7 @@ case class ScaleTask(var replicas: Int = 1,
       if (paru.length == 0) {
         paru ::= (None, servers)
       } else {
-        paru ::= (client.serializedPointInKeyspace(paru.length, partitions), servers)
+        paru ::= (client.serializedPoint(paru.length, partitions), servers)
       }
     }
     paru = paru.reverse
@@ -78,7 +78,7 @@ case class ScaleTask(var replicas: Int = 1,
         parzz ::= (None, servers)
       } else {
         val (i,j) = zz.fineSample(parzz.length.doubleValue / partitions)
-        parzz ::= (client.serializedTupleInKeyspace(i, j, uniqueTags, uniqueTags), servers)
+        parzz ::= (client.serializedTuple(i, j, uniqueTags, uniqueTags), servers)
       }
     }
     parzz = parzz.reverse
@@ -90,7 +90,7 @@ case class ScaleTask(var replicas: Int = 1,
         parzu ::= (None, servers)
       } else {
         val (i,j) = zu.fineSample(parzu.length.doubleValue / partitions)
-        parzu ::= (client.serializedTupleInKeyspace(i, j, uniqueTags, u.length), servers)
+        parzu ::= (client.serializedTuple(i, j, uniqueTags, u.length), servers)
       }
     }
     parzu = parzu.reverse

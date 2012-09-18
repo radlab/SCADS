@@ -18,20 +18,15 @@ import scala.util.Random
 import scala.collection.mutable.HashSet
 import scala.collection.mutable.HashMap
 
-/* for testing client at scale */
-class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
-                  val totalItems: Int, val tagsToGenerate: Int,
-                  val maxTagsPerItem: Int, val uniqueTags: Int,
-                  val zipf: Double) {
-  protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.MVScaleTest")
-
+object ExperimentKeyspace {
+  protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.ExperimentKeyspace")
   /* lower bound of keyspace, inclusive */
   val ksMin = 0
   /* upper bound of keyspace, exclusive */
   val ksMax = 1L<<42 
 
   /* returns string form of point in keyspace at k/max */
-  private def ksSeek(i: Long, max: Long): String = {
+  def lookup(i: Long, max: Long): String = {
     assert (i < max)
     val res = "%013d".format(ksMax / max * i)
     if (res.length != 13) {
@@ -43,16 +38,29 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     res
   }
 
+  /* whether item at index i is in segment */
+  def inSegment(i: Int, segment: Int, ns: Int): Boolean = {
+    i % ns == segment
+  }
+}
+
+/* for testing client at scale */
+class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
+                  val totalItems: Int, val tagsToGenerate: Int,
+                  val maxTagsPerItem: Int, val uniqueTags: Int,
+                  val zipf: Double) {
+  protected val logger = Logger("edu.berkeley.cs.scads.piql.mviews.MVScaleTest")
+
   /* returns serialized key in keyspace at k/max */
-  def serializedPointInKeyspace(k: Int, max: Int): Option[Array[Byte]] = {
+  def serializedPoint(k: Int, max: Int): Option[Array[Byte]] = {
     assert (k > 0 && k < max)
-    Some(client.tagToBytes(ksSeek(k, max)))
+    Some(client.tagToBytes(ExperimentKeyspace.lookup(k, max)))
   }
 
-  def serializedTupleInKeyspace(k: Int, l: Int, kmax: Int, lmax: Int): Option[Array[Byte]] = {
+  def serializedTuple(k: Int, l: Int, kmax: Int, lmax: Int): Option[Array[Byte]] = {
     assert (k >= 0 && k < kmax)
     assert (l >= 0 && l < lmax)
-    Some(client.tupleToBytes(ksSeek(k, kmax), ksSeek(l, lmax)))
+    Some(client.tupleToBytes(ExperimentKeyspace.lookup(k, kmax), ExperimentKeyspace.lookup(l, lmax)))
   }
 
   /* distributed data load task by segment
@@ -69,8 +77,8 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     var bulk = List[Tuple2[String,String]]()
 
     for (i <- Range(0, totalItems)) {
-      if (inSegment(i, segment, numSegments)) {
-        val item = ksSeek(i, totalItems)
+      if (ExperimentKeyspace.inSegment(i, segment, numSegments)) {
+        val item = ExperimentKeyspace.lookup(i, totalItems)
         tagsof(item) = new HashSet[String]()
       }
     }
@@ -93,17 +101,12 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     client.initBulk(bulk)
   }
 
-  /* whether item at index i is in segment */
-  private def inSegment(i: Int, segment: Int, ns: Int): Boolean = {
-    i % ns == segment
-  }
-
   /* assumes user partitions under zipf assumption */
   private def chooseRandomTag(implicit rnd: Random) = {
     if (zipf > 0) {
-      ksSeek(ZipfDistribution.sample(uniqueTags, zipf), uniqueTags)
+      ExperimentKeyspace.lookup(ZipfDistribution.sample(uniqueTags, zipf), uniqueTags)
     } else {
-      ksSeek(rnd.nextInt(uniqueTags), uniqueTags)
+      ExperimentKeyspace.lookup(rnd.nextInt(uniqueTags), uniqueTags)
     }
   }
 
@@ -112,15 +115,15 @@ class MVScaleTest(val cluster: ScadsCluster, val client: TagClient,
     var a = adjust(rnd.nextInt(totalItems))
 
     /* re-randomize in rare edge cases*/
-    while (!inSegment(a, segment, ns)) {
+    while (!ExperimentKeyspace.inSegment(a, segment, ns)) {
       a = adjust(rnd.nextInt(totalItems))
     }
 
-    ksSeek(a, totalItems)
+    ExperimentKeyspace.lookup(a, totalItems)
   }
 
   private def randomItem(implicit rnd: Random) = {
-    ksSeek(rnd.nextInt(totalItems), totalItems)
+    ExperimentKeyspace.lookup(rnd.nextInt(totalItems), totalItems)
   }
 
   def randomGet(implicit rnd: Random) = {
