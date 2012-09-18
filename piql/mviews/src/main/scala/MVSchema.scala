@@ -9,7 +9,17 @@ import perf._
 
 import org.apache.avro.util._
 
-case class Subscription(var userId: String, var topicId: String) extends AvroPair {}
+case class Subscription(var userId: String,
+                        var topicId: String) extends AvroPair {
+    // To enable parallelism, subscriptions are striped across partitions.
+    var _stripe: Int = _
+}
+
+// HACK this is only here to produce a partition key
+case class SubscrIndexType(var _stripe: Int,
+                           var topicId: String,
+                           var userId: String) extends AvroPair {}
+
 case class Post(var topicId: String, var timestamp: Long) extends AvroPair {
   var text: String = _
 }

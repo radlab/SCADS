@@ -38,6 +38,10 @@ object ExperimentKeyspace {
     res
   }
 
+  def invert(s: String): Double = {
+    s.toLong.doubleValue / ksMax
+  }
+
   /* whether item at index i is in segment */
   def inSegment(i: Int, segment: Int, ns: Int): Boolean = {
     i % ns == segment

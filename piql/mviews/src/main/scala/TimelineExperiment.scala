@@ -24,7 +24,11 @@ import net.lag.logging.Logger
 object TimelineExperiment extends ExperimentBase {
   def newClient(): TimelineClient = {
     val cluster = TestScalaEngine.newScadsCluster(3)
-    new TimelineClient(cluster, new ParallelExecutor)
+    new TimelineClient(cluster, new ParallelExecutor, numStripes = 10)
+  }
+
+  def stripeByUser(user: String, numStripes: Int): Int = {
+    (ExperimentKeyspace.invert(user) * numStripes + .00001).intValuet
   }
 
   def go(replicas: Int = 1,
@@ -32,16 +36,20 @@ object TimelineExperiment extends ExperimentBase {
          nClients: Int = 1,
          iterationMinutes: Double = 1.0,
          usersPerMachine: Int = 50000,
+         numStripes: Int = 10,
          comment: String = "",
          local: Boolean = false,
+         threadCount: Int = 4,
          samplingFraction: Double = 1.0,
          keepStorageRunning: Boolean = false) (implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
-    val experiment = new TimelineExperiment(
+    val experiment = new TimelineExperimentTask(
         replicas=replicas,
         partitions=partitions,
         samplingFraction=samplingFraction,
+        numStripes=numStripes,
         nClients=nClients,
         usersPerMachine=usersPerMachine,
+        threadCount=threadCount,
         comment=comment,
         iterationMinutes=iterationMinutes,
         local=local,
@@ -54,8 +62,12 @@ object TimelineExperiment extends ExperimentBase {
   }
 }
 
+/**
+ * Client that supports the striping of Subscriptions across partitions.
+ */
 class TimelineClient(val cluster: ScadsCluster,
                      implicit val executor: QueryExecutor,
+                     val numStripes: Int,
                      val limit: Int = 20) {
   val posts = cluster.getNamespace[Post]("posts")
   val subscr = cluster.getNamespace[Subscription]("subscr")
@@ -68,12 +80,18 @@ class TimelineClient(val cluster: ScadsCluster,
       .paginate(limit)
       .select("p.text".a, "p.topicId".a)
 
-  val timelineQuery = timelineUnopt.toPiqlWithView("timelineQuery")
+  val timelineQuery = timelineUnopt.toPiqlWithView("timelineQuery", detectStripedIndex = true)
 
-  val selectSubscribers =
-    subscr.where("topicId".a === (0.?))
+  val selectSubscribersForStripe =
+    subscr.where("_stripe".a === (0.?))
+          .where("topicId".a === (1.?))
           .dataLimit(1024)
-          .toPiql("selectSubscribers")
+          .toPiql("selectSubscribersForStripe")
+
+  val selectUsers =
+    subscr.where("userId".a === (0.?))
+          .dataLimit(1024)
+          .toPiql("selectUsers")
 
   def postToTopic(topic: String, text: String): Unit = {
     val p = Post(topic, System.currentTimeMillis)
@@ -81,28 +99,35 @@ class TimelineClient(val cluster: ScadsCluster,
     posts.put(p)
   }
 
+  def addSubscription(user: String, topic: String): Unit = {
+    val s = Subscription(user, topic)
+    s._stripe = TimelineExperiment.stripeByUser(user, numStripes)
+    s
+  }
+
   def countSubscribers(topic: String): Int = {
-    selectSubscribers(topic).length
+    (0 until numStripes).pmap(selectSubscribersForStripe(_, topic).length).sum
   }
 }
 
 // Task to run timeline queries on EC2.
-case class TimelineExperiment(var replicas: Int = 1,
-                              var partitions: Int = 1,
-                              var nClients: Int = 1,
-                              var iterations: Int = 2,
-                              var iterationMinutes: Double = 1.0,
-                              var usersPerMachine: Int = 10000,
-                              var samplingFraction: Double = 0.1,
-                              var maxSubscriptionsPerUser: Int = 50,
-                              var meanSubscriptionsPerUser: Int = 10,
-                              var readFrac: Double = 0.5,
-                              var threadCount: Int = 4,
-                              var comment: String = "",
-                              var zipfExponent: Double = 0.7,
-                              var uniqueTopics: Int = 2000,
-                              var local: Boolean = true,
-                              var keepStorageRunning: Boolean = false)
+case class TimelineExperimentTask(var replicas: Int = 1,
+                                  var partitions: Int = 1,
+                                  var nClients: Int = 1,
+                                  var iterations: Int = 2,
+                                  var iterationMinutes: Double = 1.0,
+                                  var usersPerMachine: Int = 10000,
+                                  var numStripes: Int = 10,
+                                  var samplingFraction: Double = 0.1,
+                                  var maxSubscriptionsPerUser: Int = 50,
+                                  var meanSubscriptionsPerUser: Int = 10,
+                                  var readFrac: Double = 0.5,
+                                  var threadCount: Int = 4,
+                                  var comment: String = "",
+                                  var zipfExponent: Double = 0.7,
+                                  var uniqueTopics: Int = 2000,
+                                  var local: Boolean = true,
+                                  var keepStorageRunning: Boolean = false)
     extends AvroTask with AvroRecord with TaskBase {
   
   var resultClusterAddress: String = _
@@ -122,49 +147,65 @@ case class TimelineExperiment(var replicas: Int = 1,
     }
   }
 
-  def setupPartitions(cluster: ScadsCluster) = {
+  def setupPartitions(cluster: ScadsCluster, logger: Logger) = {
     implicit val rnd = new Random()
     val numServers: Int = replicas * partitions
     val available = cluster.getAvailableServers
     assert (available.size >= numServers)
 
+    // Partitioning Scheme for Posts
+
     val posts = cluster.getNamespace[Post]("posts")
-    val subscr = cluster.getNamespace[Subscription]("subscr")
-
     val groups = available.take(numServers).grouped(replicas).toSeq
-    var uniformRanges: List[(Option[Array[Byte]], Seq[StorageService])] = List()
+    var partitionRanges: List[(Option[Array[Byte]], Seq[StorageService])] = List()
     for (servers <- groups) {
-      if (uniformRanges.length == 0) {
-        uniformRanges ::= (None, servers)
+      if (partitionRanges.length == 0) {
+        partitionRanges ::= (None, servers)
       } else {
-        val keyBytes = posts.keyToBytes(Post(ExperimentKeyspace.lookup(uniformRanges.length, partitions), 0))
-        uniformRanges ::= (keyBytes, servers)
+        val keyBytes = posts.keyToBytes(Post(ExperimentKeyspace.lookup(partitionRanges.length, partitions), 0))
+        partitionRanges ::= (keyBytes, servers)
       }
     }
-    uniformRanges = uniformRanges.reverse
-    logger.info("Uniform partition scheme: " + uniformRanges)
+    partitionRanges = partitionRanges.reverse
+    logger.info("Uniform partition scheme for posts: " + partitionRanges)
 
-    var zipfOfTopics: List[(Option[Array[Byte]], Seq[StorageService])] = List()
-    for (servers <- groups) {
-      if (zipfOfTopics.length == 0) {
-        zipfOfTopics ::= (None, servers)
-      } else {
-        val n = ZipfDistribution.sample(uniqueTopics, zipfExponent)
-        val keyBytes = subscr.keyToBytes(Subscription(ExperimentKeyspace.lookup(n, uniqueTopics), ""))
-        zipfOfTopics ::= (keyBytes, servers)
-      }
-    }
-    zipfOfTopics = zipfOfTopics.reverse
-    logger.info("Zipf-Uniform partition scheme: " + zipfOfTopics)
-
-    posts.setPartitionScheme(uniformRanges)
+    posts.setPartitionScheme(partitionRanges)
     posts.setReadWriteQuorum(.001, 1.00)
 
-    subscr.setPartitionScheme(zipfOfTopics)
+    // Partitioning Scheme for Subscriptions
+
+    val subscr = cluster.getNamespace[Subscription]("subscr")
+    partitionRanges = List()
+    for (servers <- groups) {
+      if (partitionRanges.length == 0) {
+        partitionRanges ::= (None, servers)
+      } else {
+        val keyBytes = subscr.keyToBytes(Subscription(ExperimentKeyspace.lookup(partitionRanges.length, partitions), ""))
+        partitionRanges ::= (keyBytes, servers)
+      }
+    }
+    partitionRanges = partitionRanges.reverse
+    logger.info("Partitioning scheme for subscriptions: " + partitionRanges)
+
+    subscr.setPartitionScheme(partitionRanges)
     subscr.setReadWriteQuorum(.001, 1.00)
 
-    val subscribersByTopic = subscr.getOrCreateIndex(AttributeIndex("topicId") :: Nil)
-    subscribersByTopic.setPartitionScheme(zipfOfTopics)
+    // Partitioning Scheme for Striped Subscription Index
+
+    val subscribersByTopic = subscr.getOrCreateIndex(AttributeIndex("_stripe") :: AttributeIndex("topicId") :: Nil)
+    partitionRanges = List()
+    for (servers <- groups) {
+      if (partitionRanges.length == 0) {
+        partitionRanges ::= (None, servers)
+      } else {
+        val keyBytes = subscribersByTopic.keyToBytes(SubscrIndexType(partitionRanges.length / partitions * numStripes, "", ""))
+        partitionRanges ::= (keyBytes, servers)
+      }
+    }
+    partitionRanges = partitionRanges.reverse
+    logger.info("Partitioning scheme for striped index: " + partitionRanges)
+
+    subscribersByTopic.setPartitionScheme(partitionRanges)
     subscribersByTopic.setReadWriteQuorum(.001, 1.00)
   }
 
@@ -189,7 +230,8 @@ case class TimelineExperiment(var replicas: Int = 1,
   }
 
   def populateSubscriptionsForSegment(totalUsers: Int, segment: Int,
-                                      numSegments: Int, cluster: ScadsCluster) = {
+                                      numSegments: Int, cluster: ScadsCluster,
+                                      logger: Logger) = {
     val subscriptionsToGenerate = totalUsers * meanSubscriptionsPerUser
 
     assert (segment >= 0 && segment < numSegments)
@@ -240,7 +282,11 @@ case class TimelineExperiment(var replicas: Int = 1,
     topicsOf.clear
     val subscr = cluster.getNamespace[Subscription]("subscr")
     logger.info("Bulk loading subscriptions", bulk.length)
-    subscr ++= bulk.map(t => new Subscription(t._1, t._2))
+    subscr ++= bulk.map(t => {
+      val s = Subscription(t._1, t._2)
+      s._stripe = TimelineExperiment.stripeByUser(t._1, numStripes)
+      s
+    })
 
     var preloaded = List[Post]()
     for (i <- Range(0, uniqueTopics)) {
@@ -261,15 +307,17 @@ case class TimelineExperiment(var replicas: Int = 1,
     val logger = Logger()
     logger.info("Starting.")
 
-    val resultCluster = createResultsCluster
-    val results = resultCluster.getNamespace[TimelineResult]("TimelineResult")
+    assert (numStripes >= partitions)
 
-    logger.info("Created results cluster.")
-
-    val canary = new TimelineResult(1234567890)
-    results.put(canary, None)
-
-    logger.info("Results cluster is up.")
+//    val resultCluster = createResultsCluster
+//    val results = resultCluster.getNamespace[TimelineResult]("TimelineResult")
+//
+//    logger.info("Created results cluster.")
+//
+//    val canary = new TimelineResult(1234567890)
+//    results.put(canary, None)
+//
+//    logger.info("Results cluster is up.")
 
     val cluster = createStorageCluster(replicas * partitions)
     val hostname = java.net.InetAddress.getLocalHost.getHostName
@@ -281,7 +329,7 @@ case class TimelineExperiment(var replicas: Int = 1,
 
     logger.info("Clients are up.")
 
-    val client = new TimelineClient(cluster, new ParallelExecutor)
+    val client = new TimelineClient(cluster, new ParallelExecutor, numStripes)
 
     logger.info("Created PIQL client.")
 
@@ -290,14 +338,16 @@ case class TimelineExperiment(var replicas: Int = 1,
 
     if (clientNumber == 0) {
       logger.info("Client %d preparing partitions...", clientNumber)
-      setupPartitions(cluster)
+      setupPartitions(cluster, logger)
     }
     coordination.registerAndAwait("partitionsReady", nClients)
 
     /* distributed data load */
     val loadStartMs = System.currentTimeMillis
     val totalUsers = usersPerMachine * partitions
-    populateSubscriptionsForSegment(totalUsers, clientNumber, nClients, cluster)
+    populateSubscriptionsForSegment(
+        totalUsers, clientNumber,
+        nClients, cluster, logger)
     coordination.registerAndAwait("dataReady", nClients)
     val loadTimeMs = System.currentTimeMillis - loadStartMs
     logger.info("Data load wait: %d ms", loadTimeMs)
