@@ -208,7 +208,7 @@ class QueryViewAnalyzer(val plan: LogicalPlan,
             Selection(deltifyp(p), deltify(child))
           } else {
             limited = true
-            DataStopAfter(FixedLimit(100), Selection(deltifyp(p), deltify(child)))
+            DataStopAfter(FixedLimit(4096), Selection(deltifyp(p), deltify(child)))
           }
         case Join(left, right) if (left == r) => deltify(right)
         case Join(left, right) if (right == r) => deltify(left)

@@ -28,7 +28,7 @@ object TimelineExperiment extends ExperimentBase {
   }
 
   def stripeByUser(user: String, numStripes: Int): Int = {
-    (ExperimentKeyspace.invert(user) * numStripes + .00001).intValuet
+    (ExperimentKeyspace.invert(user) * numStripes + .00001).intValue
   }
 
   def go(replicas: Int = 1,
