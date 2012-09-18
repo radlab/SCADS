@@ -25,6 +25,9 @@ class RequestRejectedException(e:String) extends Exception(e)
 abstract trait StorageManager {
   def get(key:Array[Byte]):Option[Array[Byte]]
   def put(key:Array[Byte],value:Option[Array[Byte]]):Unit
+  def incrementField(key: Array[Byte], fieldName: String): Unit
+  def topK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int): Seq[Record]
+
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean
   // bit odd to have PutRequest in here, but would probable be a performance hit to do it another way
   def bulkUrlPut(parser:RecParser, locations:Seq[String])
@@ -96,6 +99,13 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
           manager.put(key,value)
           if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(1)
           reply(PutResponse())
+        }
+        case IncrementFieldRequest(key, fieldName) => {
+          manager.incrementField(key, fieldName)
+          reply(IncrementFieldResponse())
+        }
+        case TopKRequest(startKey, endKey, orderingFields, k) => {
+          reply(TopKResponse(manager.topK(startKey, endKey, orderingFields, k)))
         }
         case BulkUrlPutReqest(parserBytes, locations) => {
           val ois = new ObjectInputStream(new ByteArrayInputStream(parserBytes))

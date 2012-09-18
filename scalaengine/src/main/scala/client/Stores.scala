@@ -32,6 +32,9 @@ trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
   override def put(key: K, value: Option[V]): Unit =
     putBytes(keyToBytes(key), value.map(v => valueToBytes(v)))
 
+  override def incrementField(key: K, fieldName: String): Unit =
+    incrementFieldBytes(keyToBytes(key), fieldName)
+
   override def asyncPut(key: K, value: Option[V]): ScadsFuture[Unit] =
     asyncPutBytes(keyToBytes(key), value.map(valueToBytes))
 
@@ -95,9 +98,20 @@ trait BaseRangeKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
                         limit: Option[Int],
                         offset: Option[Int],
                         ascending: Boolean) =
-    getKeys(start.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal)).map(keyToBytes), end.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal)).map(keyToBytes), limit, offset, ascending).map { 
-      case (k,v) => bytesToBulk(k, v) 
-    }
+    getKeys(start.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal)).map(keyToBytes),
+            end.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal)).map(keyToBytes),
+            limit,
+            offset,
+            ascending).map { case (k,v) => bytesToBulk(k, v) }
+
+  override def topK(start: Option[K],
+                    end: Option[K],
+                    orderingFields: Seq[String],
+                    k: Int) =
+    topKBytes(start.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal)).map(keyToBytes),
+              end.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal)).map(keyToBytes),
+              orderingFields,
+              k)
 
   override def asyncGetRange(start: Option[K],
                              end: Option[K],

@@ -81,6 +81,15 @@ class InMemStorageManager
     }
   }
 
+  def incrementField(key: Array[Byte], fieldName: String): Unit = {
+    val (mData, value) = map.get(bytes2eqarray(key))
+    val pos = valueSchema.getField(fieldName).pos
+    value.put(pos, value.get(pos).asInstanceOf[Int] + 1)
+    map.put(key, (mData, value))
+  }
+
+  def topK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int): Seq[Record] = sys.error("Not Implemented")
+
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean = {
     synchronized { 
       val existing = map.get(bytes2eqarray(key))

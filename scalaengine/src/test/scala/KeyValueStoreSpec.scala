@@ -109,6 +109,22 @@ class RangeKeyValueStoreSpec extends AbstractKeyValueStoreSpec {
 
     it("should correctly return a count of records") {pending}
 
+    it("should increment fields") {
+      val ns = createNamespace[IntRec, IntRec]("incFieldTest")
+      ns.put(IntRec(0), IntRec(0))
+      ns.incrementField(IntRec(0), "f1")
+      ns.get(IntRec(0)) should equal(Some(IntRec(1)))
+    }
+
+    it("should return topK") {
+      val ns = createNamespace[IntRec, IntRec2]("topKTest")
+      val recs = (1 to 100).map(i => (IntRec(i), IntRec2(i, i % 2)))
+
+      ns ++= recs
+
+      ns.topK(None, None, "f2" :: Nil, 50) should equal(recs.filter(_._2.f2 % 2 == 0))
+    }
+
     it("should suport prefixKeys") {
       val ns = createNamespace[IntRec3, IntRec]("prefixrange")
       val data = for (i <- 1 to 10; j <- 1 to 10; k <- 1 to 10)

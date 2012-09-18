@@ -42,10 +42,10 @@ trait SimpleRecordMetadataExtractor {
 }
 
 trait SimpleRecordMetadata extends RecordMetadata
-  with SimpleRecordMetadataExtractor
-  with GlobalMetadata {
+  with SimpleRecordMetadataExtractor {
 
   val cluster: ScadsCluster
+  val keySchema: Schema
 
   override def compareKey(x: Array[Byte], y: Array[Byte]): Int = 
     BinaryData.compare(x, 0, y, 0, keySchema)

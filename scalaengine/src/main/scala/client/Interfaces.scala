@@ -18,6 +18,7 @@ trait KeyValueStoreLike[KeyType <: IndexedRecord,
   extends PersistentStore[BulkPutType] {
   def get(key: KeyType): Option[ValueType]
   def put(key: KeyType, value: Option[ValueType]): Unit
+  def incrementField(key: KeyType, fieldName: String): Unit
   def asyncPut(key: KeyType, value: Option[ValueType]): ScadsFuture[Unit]
 
   def asyncGet(key: KeyType): ScadsFuture[Option[ValueType]]
@@ -38,6 +39,11 @@ trait RangeKeyValueStoreLike[KeyType <: IndexedRecord,
                     limit: Option[Int] = None, 
                     offset: Option[Int] = None, 
                     ascending: Boolean = true): ScadsFuture[Seq[RangeType]]
+
+  def topK(start: Option[KeyType],
+           end: Option[KeyType],
+           orderingFields: Seq[String],
+           k: Int)
 }
 
 trait Serializer[KeyType <: IndexedRecord, ValueType <: IndexedRecord, BulkType] {
@@ -63,17 +69,22 @@ trait Protocol {
   def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit
   def asyncPutBytes(key: Array[Byte], value: Option[Array[Byte]]): ScadsFuture[Unit]
 
+  def incrementFieldBytes(key: Array[Byte], fieldName: String): Unit
+
   def flushBulkBytes(): Unit
   def putBulkBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit
 
   def asyncGetBytes(key: Array[Byte]): ScadsFuture[Option[Array[Byte]]]
 }
+
 trait RangeProtocol extends Protocol {
   def getKeys(start: Option[Array[Byte]], 
               end: Option[Array[Byte]], 
               limit: Option[Int], 
               offset: Option[Int], 
               ascending: Boolean): Seq[(Array[Byte], Array[Byte])]
+
+  def topKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int): Seq[Record]
 
   def asyncGetKeys(start: Option[Array[Byte]], 
                    end: Option[Array[Byte]], 

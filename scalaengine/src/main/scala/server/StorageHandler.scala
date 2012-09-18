@@ -142,7 +142,13 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
       database: Database, namespace: String, partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
       startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) = {
     val schemasvc = schemasAndValueClassFor(namespace)
-    new PartitionHandler(new BdbStorageManager(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), schemasvc._1, schemasvc._2))
+
+    //HACK: we should probably get this from someone instead of backing assumptions about zk layout here.
+    //Note: we need the cluster root so we can get a clientId to create valid metadata when doing local updates (incField)
+    val clusterRoot = partitionIdLock.parent.parent.parent.parent
+    val cluster = new ScadsCluster(clusterRoot)
+
+    new PartitionHandler(new BdbStorageManager(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), schemasvc._1, schemasvc._2, cluster))
   }
 
   private def makeInMemPartitionHandler

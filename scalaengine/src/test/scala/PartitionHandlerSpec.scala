@@ -8,6 +8,7 @@ import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.storage._
+import org.apache.avro.Schema
 
 @RunWith(classOf[JUnitRunner])
 class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterAll {
@@ -15,6 +16,12 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
   val cluster = TestScalaEngine.newScadsCluster(0)
+
+  val clusterAlias = cluster //HACK
+  val mdataManager = new SimpleRecordMetadata {
+    val cluster: ScadsCluster = clusterAlias
+    val keySchema: Schema = IntRec.schema
+  }
 
   override def afterAll(): Unit = {
     cluster.shutdownCluster()
@@ -50,6 +57,33 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
             case m => fail("Expected GetResponse but got: " + m)
           }
         })
+      }
+    }
+
+
+    it("increments values") {
+      withPartitionService(None, None) { partition =>
+
+        partition !? PutRequest(IntRec(1).toBytes, mdataManager.createMetadata(IntRec(0).toBytes)) should equal(PutResponse())
+
+        partition !? IncrementFieldRequest(IntRec(1).toBytes, "f1") should equal(IncrementFieldResponse())
+
+        partition !? GetRequest(IntRec(1).toBytes) match {
+          case GetResponse(Some(bytes)) => new IntRec().parse(mdataManager.extractRecordFromValue(bytes)) should equal(IntRec(1))
+          case m => fail("Unexpected response for IncrementValueRequest: " + m)
+        }
+      }
+    }
+
+    //TODO: this is not a very good test...
+    it("returns topKs") {
+      withPartitionService(None, None) { partition =>
+        (1 to 10).foreach(i => partition !? PutRequest(IntRec(i).toBytes, mdataManager.createMetadata(IntRec(i).toBytes)))
+
+        val recs = partition !? TopKRequest(None, None, Seq("f1"), 10) match {
+          case TopKResponse(recs) => recs.size should equal(10)
+          case m => sys.error("unexp msg: " + m)
+        }
       }
     }
 
