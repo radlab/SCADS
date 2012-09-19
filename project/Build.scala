@@ -122,7 +122,13 @@ object ScadsBuild extends Build {
   lazy val tpcw = Project(
     "tpcw",
     file("piql/tpcw"),
-    settings = deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
+    settings = deploySettings ++
+      Seq(libraryDependencies ++= useAvroPlugin,
+        initialCommands in console += (
+          "import edu.berkeley.cs.scads.piql._\n" +
+          "import edu.berkeley.cs.scads.piql.viz._\n" +
+          "import edu.berkeley.cs.scads.piql.tpcw._\n" +
+          "import edu.berkeley.cs.scads.piql.tpcw.test._\n"))
   ) dependsOn (piql, perf)
 
   lazy val mviews = Project(
