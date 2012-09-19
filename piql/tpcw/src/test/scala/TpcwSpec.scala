@@ -90,7 +90,9 @@ class TpcwSpec extends Spec with ShouldMatchers with QueryResultMatchers {
 
   describe("TPCW") {
     it("Should maintain mat view for best sellers WI") {
-      client.orderCountStaging.iterateOverRange(None,None).foreach(println)
+      client.orderCountStaging.iterateOverRange(None,None).foreach(oc => println(oc.key.toString + oc.value.toString))
+      client.updateOrderCount()
+      client.orderCount.iterateOverRange(None,None).foreach(oc => println(oc.key.toString + oc.value.toString))
     }
   }
 }
