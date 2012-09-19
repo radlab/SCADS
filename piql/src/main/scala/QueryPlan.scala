@@ -194,7 +194,7 @@ abstract class QueryPlan
 abstract class RemotePlan extends QueryPlan { val namespace: TupleProvider }
 abstract trait InnerPlan extends QueryPlan { val child: QueryPlan}
 
-case class IndexLookup(namespace: TupleProvider, key: KeyGenerator) extends QueryPlan
+case class IndexLookup(namespace: TupleProvider, key: KeyGenerator) extends RemotePlan
 
 case class IndexScan(namespace: TupleProvider, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean) extends RemotePlan
 case class IndexLookupJoin(namespace: TupleProvider, key: KeyGenerator, child: QueryPlan) extends RemotePlan with InnerPlan
