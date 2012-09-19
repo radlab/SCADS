@@ -1,4 +1,9 @@
-package edu.berkeley.cs.scads.test
+/*package edu.berkeley.cs.scads
+package piql
+package tpcw
+package test
+
+import piql.test._
 
 import scala.collection.JavaConversions._
 
@@ -10,16 +15,17 @@ import org.scalatest.matchers.{Matcher, MatchResult, ShouldMatchers}
 import org.apache.avro.generic.{GenericData, IndexedRecord}
 
 import edu.berkeley.cs.scads.storage.TestScalaEngine
-import edu.berkeley.cs.scads.piql._
 
 import scala.collection.mutable.{ ArrayBuffer, HashMap }
 
 abstract class AbstractTpcwSpec extends Spec with ShouldMatchers with QueryResultMatchers {
 
   val client: TpcwClient
-  val loader = new TpcwLoader(client, 1, 0.1, 10)
+  val loader = new TpcwLoader(100, 1000)
   val data = loader.getData(0, false)
   data.load()
+
+  loader.
 
   describe("The TPC-W Client") {
     it("homeWI") {
@@ -44,4 +50,4 @@ abstract class AbstractTpcwSpec extends Spec with ShouldMatchers with QueryResul
 
   }
 
-}
+}             */
