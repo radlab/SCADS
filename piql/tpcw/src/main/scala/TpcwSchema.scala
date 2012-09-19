@@ -118,11 +118,11 @@ case class ShoppingCartItem(var SCL_C_UNAME: String, var SCL_I_ID: String) exten
 /**
  * Materialized view for the best sellers web interaction.
  */
-case class OrderCountStaging(var epoch: Long, var I_ID: String) extends AvroPair {
+case class OrderCountStaging(var epoch: Long, var I_SUBJECT: String, var I_ID: String) extends AvroPair {
   var OC_COUNT: Int = _
 }
 
-case class OrderCount(var epoch: Long, var I_SUBJECT: String, var count: Int, var I_ID: String) extends AvroPair {
+case class OrderCount(var epoch: Long, var I_SUBJECT: String, var OC_COUNT: Int, var I_ID: String) extends AvroPair {
   var A_FNAME: String = _
   var A_LNAME: String = _
   var I_TITLE: String = _
