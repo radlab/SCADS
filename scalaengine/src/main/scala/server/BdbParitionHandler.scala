@@ -234,23 +234,35 @@ class BdbStorageManager(val db: Database,
   def incrementField(key: Array[Byte], fieldName: String): Unit = {
     val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry())
     val txn = db.getEnvironment.beginTransaction(null, null)
-    db.get(txn, dbeKey, dbeValue, LockMode.RMW)
-    val valueBytes = extractRecordFromValue(dbeValue.getData)
 
-    val reader = new GenericDatumReader[IndexedRecord](valueSchema)
-    val value = new GenericData.Record(valueSchema)
-    val decoder = DecoderFactory.get().binaryDecoder(valueBytes, null)
-    reader.read(value, decoder)
+    /* Look up the old value or create a blank one if it doesn't exist */
+    val value = db.get(txn, dbeKey, dbeValue, LockMode.RMW) match {
+      case OperationStatus.SUCCESS => {
+        val valueBytes = extractRecordFromValue(dbeValue.getData)
 
+        val reader = new GenericDatumReader[IndexedRecord](valueSchema)
+        val oldValue = new GenericData.Record(valueSchema)
+        val decoder = DecoderFactory.get().binaryDecoder(valueBytes, null)
+        reader.read(oldValue, decoder)
+        oldValue
+      }
+      case OperationStatus.NOTFOUND => {
+        new GenericData.Record(valueSchema)
+      }
+    }
+
+    /* Increment the value */
     val pos = valueSchema.getField(fieldName).pos
     value.put(pos, value.get(pos).asInstanceOf[Int] + 1)
 
+    /* Serialize the value */
     val outBuffer = new ByteArrayOutputStream
     val encoder = EncoderFactory.get().binaryEncoder(outBuffer,null)
     val writer = new GenericDatumWriter[IndexedRecord](valueSchema)
     writer.write(value, encoder)
     encoder.flush
 
+    /* Commit new value */
     dbeValue.setData(createMetadata(outBuffer.toByteArray))
     db.put(txn, dbeKey, dbeValue)
     txn.commit()
