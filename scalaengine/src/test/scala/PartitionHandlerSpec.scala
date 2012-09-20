@@ -80,7 +80,7 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
       withPartitionService(None, None) { partition =>
         (1 to 10).foreach(i => partition !? PutRequest(IntRec(i).toBytes, mdataManager.createMetadata(IntRec(i).toBytes)))
 
-        val recs = partition !? TopKRequest(None, None, Seq("f1"), 10) match {
+        val recs = partition !? TopKRequest(None, None, Seq("f1"), 10, false) match {
           case TopKResponse(recs) => recs.size should equal(10)
           case m => sys.error("unexp msg: " + m)
         }

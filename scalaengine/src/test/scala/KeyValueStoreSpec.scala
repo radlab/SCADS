@@ -116,13 +116,30 @@ class RangeKeyValueStoreSpec extends AbstractKeyValueStoreSpec {
       ns.get(IntRec(0)) should equal(Some(IntRec(1)))
     }
 
-    it("should return topK") {
-      val ns = createNamespace[IntRec, IntRec2]("topKTest")
-      val recs = (1 to 100).map(i => (IntRec(i), IntRec2(i, i % 2)))
+    it("should return topK in sorted order") {
+      var ns = createNamespace[IntRec, IntRec2]("topKTest")
+      ns ++= (1 to 10).map(i => (IntRec(i), IntRec2(i,-i)))
 
-      ns ++= recs
+      ns.topK(None, None, "f2" :: Nil, 1) should equal(List((IntRec(1),IntRec2(1,-1))))
+      ns.topK(None, None, "f1" :: Nil, 1) should equal(List((IntRec(10),IntRec2(10,-10))))
 
-      ns.topK(None, None, "f2" :: Nil, 50) should equal(recs.filter(_._2.f2 % 2 == 0))
+      ns = createNamespace[IntRec, IntRec2]("topKTest2")
+      ns ++= (1 to 10).map(i => (IntRec(i), IntRec2(i, i % 2)))
+
+      ns.topK(None, None, "f2" :: "f1" :: Nil, 3, false) should equal(
+          List((IntRec(9),IntRec2(9,1)),
+               (IntRec(7),IntRec2(7,1)),
+               (IntRec(5),IntRec2(5,1))))
+
+      ns.topK(None, None, "f1" :: "f2" :: Nil, 3, false) should equal(
+          List((IntRec(10),IntRec2(10,0)),
+               (IntRec(9),IntRec2(9,1)),
+               (IntRec(8),IntRec2(8,0))))
+
+      ns.topK(None, None, "f1" :: "f2" :: Nil, 3, true) should equal(
+          List((IntRec(1),IntRec2(1,1)),
+               (IntRec(2),IntRec2(2,0)),
+               (IntRec(3),IntRec2(3,1))))
     }
 
     it("should suport prefixKeys") {
