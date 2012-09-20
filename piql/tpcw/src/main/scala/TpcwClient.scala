@@ -30,9 +30,55 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   val orders = cluster.getNamespace[Order]("orders")
   val shoppingCartItems = cluster.getNamespace[ShoppingCartItem]("shoppingCartItems")
 
+  /* Views */
+  val orderCountStaging = cluster.getNamespace[OrderCountStaging]("orderCountStaging")
+  val orderCount = cluster.getNamespace[OrderCount]("orderCount")
+
+  /* View Maintenance Code */
+
+  //Trigger to update the staging relation
+  //TODO: this should be parallelized it is obviously a join...
+  orderLines.addTriggers ::= { orderLines =>
+    orderLines.foreach {line =>
+      val ts = orders.getRecord(Order(line.OL_O_ID)).get.O_DATE_Time //Would be nice if this was cached...
+      val subject = items.getRecord(Item(line.OL_I_ID)).get.I_SUBJECT
+      calculateEpochs(ts).foreach { ep =>
+        orderCountStaging.incrementField(OrderCountStaging(ep, subject, line.OL_I_ID ).key, "OC_COUNT")
+      }
+    }
+  }
+
+  /**
+   * Function to calculate the topK from the staging relation for the current epoch
+   * to be called periodically (stepSize)
+   * TODO: also make this a query plan for parallelization
+   */
+  def updateOrderCount(epoch: Long = getEpoch(), subjects: Seq[String] = Seq("subject0"), k: Int = 50): Unit = {
+    subjects.foreach(subject => {
+      val prefix = OrderCountStaging(epoch, subject, null).key
+      orderCount ++= orderCountStaging.topK(prefix, prefix, Seq("O_COUNT"), k).map(ocs => {
+        val oc = OrderCount(ocs.epoch, ocs.I_SUBJECT, ocs.OC_COUNT, ocs.I_ID)
+        oc.A_FNAME = ""
+        oc.A_LNAME = ""
+        oc.I_TITLE = ""
+        println(oc)
+        oc
+      })
+    })
+  }
+
   val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems)
   //def allNamespaces = namespaces.flatMap(ns => ns +: ns.listIndexes.map(_._2).toSeq)
 
+  val windowSize = 60 * 60 * 1000 //1 Hour
+  val stepSize = 5 * 60 * 60
+
+  def getEpoch(timestamp: Long = System.currentTimeMillis()) = timestamp - timestamp % stepSize
+
+  def calculateEpochs(timestamp: Long): Seq[Long] = {
+    val firstEpoch = getEpoch(timestamp)
+    (firstEpoch to (firstEpoch + windowSize) by stepSize).toSeq
+  }
 
   //TODO: Move to scadr cluster
   def workloadDistribution = {
@@ -229,14 +275,14 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       .where("O_C_UNAME".a === (0.?))
       .sort("O_DATE_Time".a :: Nil, false)
       .limit(1)
-      .join(addresses)
-      .where("ADDR_ID".a === "O_BILL_ADDR_ID".a)
-      .join(countries)
-      .where("ADDR_CO_ID".a === "CO_ID".a)
-      .join(addresses)
-      .where("ADDR_ID".a === "O_SHIP_ADDR_ID".a)
-      .join(countries)
-      .where("ADDR_CO_ID".a === "CO_ID".a)
+      .join(addresses as "a1")
+      .where("a1.ADDR_ID".a === "O_BILL_ADDR_ID".a)
+      .join(countries as "c1")
+      .where("a1.ADDR_CO_ID".a === "c1.CO_ID".a)
+      .join(addresses as "a2")
+      .where("a2.ADDR_ID".a === "O_SHIP_ADDR_ID".a)
+      .join(countries as "c2")
+      .where("a2.ADDR_CO_ID".a === "c2.CO_ID".a)
       .toPiql("orderDisplayGetLastOrder")
 
   val orderDisplayGetOrderLines =

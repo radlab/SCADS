@@ -43,7 +43,7 @@ trait RangeKeyValueStoreLike[KeyType <: IndexedRecord,
   def topK(start: Option[KeyType],
            end: Option[KeyType],
            orderingFields: Seq[String],
-           k: Int)
+           k: Int): Seq[RangeType]
 }
 
 trait Serializer[KeyType <: IndexedRecord, ValueType <: IndexedRecord, BulkType] {

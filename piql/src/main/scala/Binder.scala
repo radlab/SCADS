@@ -135,7 +135,7 @@ class Binder(plan: QueryPlan) {
   protected def bindValue(v: Value): Value = v match {
     case QualifiedAttributeValue(r, f) => {
       val recPos = tupleSchema.indexOf(r)
-      assert(recPos >= 0, "invalid relation in value " + r)
+      assert(recPos >= 0, "can't find relation " + r + " in " + tupleSchema + " for plan:\n" + plan)
       assert(f.pos >= 0, "invalid field in value " + r)
       AttributeValue(recPos, f.pos)
     }
