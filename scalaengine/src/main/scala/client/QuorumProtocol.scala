@@ -372,18 +372,23 @@ trait QuorumRangeProtocol
   with QuorumProtocol
   with KeyRangeRoutable {
 
-  //TODO: better parallelism?, cancelation.
-  //TODO: actually merge sort for topK
+  //TODO: cancellation?
   override def topKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int): Seq[Record] = {
+    assert(false)
     val partitions = serversForKeyRange(startKey, startKey)
     val futures = partitions.map{ s =>
       s.servers.head !! TopKRequest(s.startKey, s.endKey, orderingFields, k)
     }
 
-    futures.map(_()).flatMap {
-      case TopKResponse(recs) => recs
-      case m => sys.error("Unexpected message: "+ m)
-    }
+    val pq = new TruncatingQueue[Record](k, new FieldComparator(orderingFields, valueSchema))
+    futures.pmap(f =>
+      f() match {
+        case TopKResponse(recs) =>
+          recs.toStream.takeWhile(pq.offer(_)).force
+        case m => sys.error("Unexpected message: "+ m)
+      })
+
+    pq.toList.map(v => Record(v.key, Some(extractRecordFromValue(v.value.get))))
   }
 
   /** assumes start/end key prepopulated w/ sentinel min/max values */

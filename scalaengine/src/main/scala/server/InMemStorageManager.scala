@@ -4,6 +4,7 @@ import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
 import java.nio.ByteBuffer
 import java.io.{ObjectOutputStream,ObjectInputStream,Serializable,ByteArrayOutputStream,ByteArrayInputStream}
 import java.util.{Comparator, TreeMap, Arrays => JArrays}
+import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks
 import edu.berkeley.cs.scads.comm._
@@ -88,7 +89,11 @@ class InMemStorageManager
     map.put(key, (mData, value))
   }
 
-  def topK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int): Seq[Record] = sys.error("Not Implemented")
+  def topK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int): Seq[Record] = {
+    val pq = new TruncatingQueue[Record](k, new FieldComparator(orderingFields, valueSchema))
+    getRange(minKey, maxKey, None, None, true).foreach(pq.offer(_))
+    pq.toList
+  }
 
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean = {
     synchronized { 
