@@ -375,7 +375,7 @@ trait QuorumRangeProtocol
   with KeyRangeRoutable {
 
   override def topKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): Seq[Record] = {
-    val partitions = serversForKeyRange(startKey, startKey)
+    val partitions = serversForKeyRange(startKey, endKey)
     val futures = partitions.map{ s =>
       s.servers.head !! TopKRequest(s.startKey, s.endKey, orderingFields, k, ascending)
     }
