@@ -275,7 +275,7 @@ class BdbStorageManager(val db: Database,
       pq.offer(new Record(key.getData, value.getData))
     })
 
-    pq.toList
+    pq.toSeq
   }
 
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean = timed("testAndSet") {
