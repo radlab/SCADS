@@ -21,14 +21,18 @@ class TruncatingQueue[A](k: Int, cmp: Comparator[A])
     }
     if (cmp.compare(item, peek) > 0) {
       super.offer(item)
-      synchronized {
-        if (size > k) {
-          poll
-        }
-      }
+      poll
       return true
     }
     return false
+  }
+
+  def toList: List[A] = {
+    var out: List[A] = Nil
+    while (!isEmpty) {
+      out ::= poll
+    }
+    out
   }
 }
 
@@ -36,7 +40,7 @@ class TruncatingQueue[A](k: Int, cmp: Comparator[A])
 // TODO there's probably a binary comparator somewhere
 class FieldComparator(val fields: Seq[String],
                       val valueSchema: Schema,
-                      val ascending: Boolean = true)
+                      val ascending: Boolean = false)
   extends Comparator[Record]
   with SimpleRecordMetadataExtractor {
 
@@ -48,7 +52,7 @@ class FieldComparator(val fields: Seq[String],
   })
   val reader = new GenericDatumReader[IndexedRecord](valueSchema)
   val decoder = DecoderFactory.get
-  val order = if (ascending) 1 else -1
+  val order = if (ascending) -1 else 1
 
   def compare(left: Record, right: Record): Int = {
     val leftDecoded = new GenericData.Record(valueSchema)

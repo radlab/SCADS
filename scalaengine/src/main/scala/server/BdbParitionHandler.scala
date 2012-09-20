@@ -268,9 +268,9 @@ class BdbStorageManager(val db: Database,
     txn.commit()
   }
 
-  def topK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int): Seq[Record] = {
+  def topK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): Seq[Record] = {
     val buffer = new ArrayBuffer[Record]()
-    val pq = new TruncatingQueue[Record](k, new FieldComparator(orderingFields, valueSchema))
+    val pq = new TruncatingQueue[Record](k, new FieldComparator(orderingFields, valueSchema, ascending))
 
     iterateOverRange(minKey, maxKey, None, None, true)((key, value, _) => {
       pq.offer(new Record(key.getData, value.getData))

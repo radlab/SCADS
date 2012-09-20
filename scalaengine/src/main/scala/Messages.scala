@@ -80,7 +80,7 @@ case class AggReply(var results:Seq[GroupedAgg]) extends AvroRecord with KeyValu
 case class IncrementFieldRequest(var key: Array[Byte], var fieldName: String) extends AvroRecord with KeyValueStoreOperation
 case class IncrementFieldResponse() extends AvroRecord with KeyValueStoreOperation
 
-case class TopKRequest(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]], var orderingFields: Seq[String], var k: Int) extends AvroRecord with KeyValueStoreOperation
+case class TopKRequest(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]], var orderingFields: Seq[String], var k: Int, var ascending: Boolean) extends AvroRecord with KeyValueStoreOperation
 case class TopKResponse(var records: Seq[Record]) extends AvroRecord with KeyValueStoreOperation
 
 /* Storage Handler Operations */

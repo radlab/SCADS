@@ -9,7 +9,9 @@ import org.apache.avro.generic._
 import actors.Actor
 import collection.mutable.{ Seq => MutSeq, _ }
 import concurrent.ManagedBlocker
+import deploylib._
 
+import scala.collection.JavaConversions._
 import java.util.concurrent._
 
 private[storage] object QuorumProtocol {
@@ -372,15 +374,13 @@ trait QuorumRangeProtocol
   with QuorumProtocol
   with KeyRangeRoutable {
 
-  //TODO: cancellation?
-  override def topKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int): Seq[Record] = {
-    assert(false)
+  override def topKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): Seq[Record] = {
     val partitions = serversForKeyRange(startKey, startKey)
     val futures = partitions.map{ s =>
-      s.servers.head !! TopKRequest(s.startKey, s.endKey, orderingFields, k)
+      s.servers.head !! TopKRequest(s.startKey, s.endKey, orderingFields, k, ascending)
     }
 
-    val pq = new TruncatingQueue[Record](k, new FieldComparator(orderingFields, valueSchema))
+    val pq = new TruncatingQueue[Record](k, new FieldComparator(orderingFields, valueSchema, ascending))
     futures.pmap(f =>
       f() match {
         case TopKResponse(recs) =>
