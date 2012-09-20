@@ -56,7 +56,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   def updateOrderCount(epoch: Long = getEpoch(), subjects: Seq[String] = Seq("subject0"), k: Int = 50): Unit = {
     subjects.foreach(subject => {
       val prefix = OrderCountStaging(epoch, subject, null).key
-      orderCount ++= orderCountStaging.topK(prefix, prefix, Seq("O_COUNT"), k).map(ocs => {
+      orderCount ++= orderCountStaging.topK(prefix, prefix, Seq("OC_COUNT"), k).map(ocs => {
         val oc = OrderCount(ocs.epoch, ocs.I_SUBJECT, ocs.OC_COUNT, ocs.I_ID)
         oc.A_FNAME = ""
         oc.A_LNAME = ""
