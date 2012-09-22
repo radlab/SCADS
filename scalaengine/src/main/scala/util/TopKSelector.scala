@@ -27,7 +27,7 @@ class TruncatingQueue[A](k: Int, cmp: Comparator[A])
     return false
   }
 
-  def toList: List[A] = {
+  def drainToList: List[A] = {
     var out: List[A] = Nil
     while (!isEmpty) {
       out ::= poll

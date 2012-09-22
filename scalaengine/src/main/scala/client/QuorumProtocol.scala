@@ -388,7 +388,7 @@ trait QuorumRangeProtocol
         case m => sys.error("Unexpected message: "+ m)
       })
 
-    pq.toList.map(v => Record(v.key, Some(extractRecordFromValue(v.value.get))))
+    pq.drainToList.map(v => Record(v.key, Some(extractRecordFromValue(v.value.get))))
   }
 
   /** assumes start/end key prepopulated w/ sentinel min/max values */

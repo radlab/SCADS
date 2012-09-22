@@ -75,13 +75,23 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
       }
     }
 
-    //TODO: this is not a very good test...
-    it("returns topKs") {
+    it("returns up to topK in sorted order") {
       withPartitionService(None, None) { partition =>
-        (1 to 10).foreach(i => partition !? PutRequest(IntRec(i).toBytes, mdataManager.createMetadata(IntRec(i).toBytes)))
+        List(7,5,6,8,4,1,2,3,10,9).foreach(i => partition !? PutRequest(IntRec(i).toBytes, mdataManager.createMetadata(IntRec(i).toBytes)))
 
-        val recs = partition !? TopKRequest(None, None, Seq("f1"), 10, false) match {
-          case TopKResponse(recs) => recs.size should equal(10)
+        partition !? TopKRequest(None, None, Seq("f1"), 999, false) match {
+          case TopKResponse(recs) => {
+            val sorted = recs.map(r => new IntRec().parse(mdataManager.extractRecordFromValue(r.value.get)))
+            sorted should equal (List(10,9,8,7,6,5,4,3,2,1).map(IntRec(_)))
+          }
+          case m => sys.error("unexp msg: " + m)
+        }
+
+        partition !? TopKRequest(None, None, Seq("f1"), 5, true) match {
+          case TopKResponse(recs) => {
+            val sorted = recs.map(r => new IntRec().parse(mdataManager.extractRecordFromValue(r.value.get)))
+            sorted should equal ((1 to 5).map(IntRec(_)))
+          }
           case m => sys.error("unexp msg: " + m)
         }
       }
