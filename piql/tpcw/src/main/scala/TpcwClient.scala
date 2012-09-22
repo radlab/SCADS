@@ -40,6 +40,13 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   //TODO: this should be parallelized it is obviously a join...
   orderLines.addTriggers ::= { orderLines =>
     orderLines.foreach {line =>
+//      val opt = orders.as("order")
+//        .join(items.as("item"))
+//        .where("order.O_ID".a === (0.?))
+//        .where("item.I_ID".a === (1.?))
+//        .select("order.O_DATE_Time".a :: "item.I_SUBJECT".a :: Nil)
+//        .toPiql("fetch_orderline_keys")
+//      val (ts, subject) = opt(line.OL_O_ID, line.OL_I_ID)
       val ts = orders.getRecord(Order(line.OL_O_ID)).get.O_DATE_Time //Would be nice if this was cached...
       val subject = items.getRecord(Item(line.OL_I_ID)).get.I_SUBJECT
       calculateEpochs(ts).foreach { ep =>
@@ -68,10 +75,9 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   }
 
   val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems)
-  //def allNamespaces = namespaces.flatMap(ns => ns +: ns.listIndexes.map(_._2).toSeq)
 
-  val windowSize = 60 * 60 * 1000 //1 Hour
-  val stepSize = 5 * 60 * 60
+  val windowSize = 60 * 60 * 1000  // 1 hour in milliseconds
+  val stepSize = 5 * 60 * 1000     // 5 minutes in milliseconds
 
   def getEpoch(timestamp: Long = System.currentTimeMillis()) = timestamp - timestamp % stepSize
 
