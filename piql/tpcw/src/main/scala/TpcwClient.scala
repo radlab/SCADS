@@ -83,7 +83,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
   def calculateEpochs(timestamp: Long): Seq[Long] = {
     val firstEpoch = getEpoch(timestamp)
-    (firstEpoch to (firstEpoch + windowSize) by stepSize).toSeq
+    (firstEpoch until (firstEpoch + windowSize) by stepSize).toSeq
   }
 
   //TODO: Move to scadr cluster
