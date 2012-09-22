@@ -382,7 +382,7 @@ trait QuorumRangeProtocol
 
     val pq = new TruncatingQueue[Record](k, new FieldComparator(orderingFields, valueSchema, ascending))
     futures.pmap(f =>
-      f() match {
+      f.get(5000).getOrElse(sys.error("timeout waiting for topk")) match {
         case TopKResponse(recs) =>
           recs.toStream.takeWhile(pq.offer(_)).force
         case m => sys.error("Unexpected message: "+ m)
