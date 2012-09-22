@@ -25,7 +25,7 @@ class RequestRejectedException(e:String) extends Exception(e)
 abstract trait StorageManager {
   def get(key:Array[Byte]):Option[Array[Byte]]
   def put(key:Array[Byte],value:Option[Array[Byte]]):Unit
-  def incrementField(key: Array[Byte], fieldName: String): Unit
+  def incrementField(key: Array[Byte], fieldName: String, amount: Int): Unit
   def topK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): Seq[Record]
 
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean
@@ -100,8 +100,8 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
           if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(1)
           reply(PutResponse())
         }
-        case IncrementFieldRequest(key, fieldName) => {
-          manager.incrementField(key, fieldName)
+        case IncrementFieldRequest(key, fieldName, amount) => {
+          manager.incrementField(key, fieldName, amount)
           reply(IncrementFieldResponse())
         }
         case TopKRequest(startKey, endKey, orderingFields, k, ascending) => {

@@ -50,7 +50,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       val ts = orders.getRecord(Order(line.OL_O_ID)).get.O_DATE_Time //Would be nice if this was cached...
       val subject = items.getRecord(Item(line.OL_I_ID)).get.I_SUBJECT
       calculateEpochs(ts).foreach { ep =>
-        orderCountStaging.incrementField(OrderCountStaging(ep, subject, line.OL_I_ID ).key, "OC_COUNT")
+        orderCountStaging.incrementField(OrderCountStaging(ep, subject, line.OL_I_ID ).key, "OC_COUNT", line.OL_QTY)
       }
     }
   }

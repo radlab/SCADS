@@ -82,10 +82,10 @@ class InMemStorageManager
     }
   }
 
-  def incrementField(key: Array[Byte], fieldName: String): Unit = {
+  def incrementField(key: Array[Byte], fieldName: String, amount: Int): Unit = {
     val (mData, value) = map.get(bytes2eqarray(key))
     val pos = valueSchema.getField(fieldName).pos
-    value.put(pos, value.get(pos).asInstanceOf[Int] + 1)
+    value.put(pos, value.get(pos).asInstanceOf[Int] + amount)
     map.put(key, (mData, value))
   }
 

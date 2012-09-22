@@ -18,7 +18,7 @@ trait KeyValueStoreLike[KeyType <: IndexedRecord,
   extends PersistentStore[BulkPutType] {
   def get(key: KeyType): Option[ValueType]
   def put(key: KeyType, value: Option[ValueType]): Unit
-  def incrementField(key: KeyType, fieldName: String): Unit
+  def incrementField(key: KeyType, fieldName: String, amount: Int): Unit
   def asyncPut(key: KeyType, value: Option[ValueType]): ScadsFuture[Unit]
 
   def asyncGet(key: KeyType): ScadsFuture[Option[ValueType]]
@@ -69,7 +69,7 @@ trait Protocol {
   def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit
   def asyncPutBytes(key: Array[Byte], value: Option[Array[Byte]]): ScadsFuture[Unit]
 
-  def incrementFieldBytes(key: Array[Byte], fieldName: String): Unit
+  def incrementFieldBytes(key: Array[Byte], fieldName: String, amount: Int): Unit
 
   def flushBulkBytes(): Unit
   def putBulkBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit

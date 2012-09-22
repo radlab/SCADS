@@ -66,11 +66,11 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
 
         partition !? PutRequest(IntRec(1).toBytes, mdataManager.createMetadata(IntRec(0).toBytes)) should equal(PutResponse())
 
-        partition !? IncrementFieldRequest(IntRec(1).toBytes, "f1") should equal(IncrementFieldResponse())
+        partition !? IncrementFieldRequest(IntRec(1).toBytes, "f1", 2) should equal(IncrementFieldResponse())
 
         partition !? GetRequest(IntRec(1).toBytes) match {
-          case GetResponse(Some(bytes)) => new IntRec().parse(mdataManager.extractRecordFromValue(bytes)) should equal(IntRec(1))
-          case m => fail("Unexpected response for IncrementValueRequest: " + m)
+          case GetResponse(Some(bytes)) => new IntRec().parse(mdataManager.extractRecordFromValue(bytes)) should equal(IntRec(2))
+          case m => fail("Unexpected response for GetRequest: " + m)
         }
       }
     }

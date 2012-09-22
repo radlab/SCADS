@@ -231,7 +231,7 @@ class BdbStorageManager(val db: Database,
   }
 
 
-  def incrementField(key: Array[Byte], fieldName: String): Unit = {
+  def incrementField(key: Array[Byte], fieldName: String, amount: Int): Unit = {
     val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry())
     val txn = db.getEnvironment.beginTransaction(null, null)
 
@@ -253,7 +253,7 @@ class BdbStorageManager(val db: Database,
 
     /* Increment the value */
     val pos = valueSchema.getField(fieldName).pos
-    value.put(pos, value.get(pos).asInstanceOf[Int] + 1)
+    value.put(pos, value.get(pos).asInstanceOf[Int] + amount)
 
     /* Serialize the value */
     val outBuffer = new ByteArrayOutputStream

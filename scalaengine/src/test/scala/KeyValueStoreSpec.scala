@@ -112,8 +112,8 @@ class RangeKeyValueStoreSpec extends AbstractKeyValueStoreSpec {
     it("should increment fields") {
       val ns = createNamespace[IntRec, IntRec]("incFieldTest")
       ns.put(IntRec(0), IntRec(0))
-      ns.incrementField(IntRec(0), "f1")
-      ns.get(IntRec(0)) should equal(Some(IntRec(1)))
+      ns.incrementField(IntRec(0), "f1", 100)
+      ns.get(IntRec(0)) should equal(Some(IntRec(100)))
     }
 
     it("should return topK in sorted order") {

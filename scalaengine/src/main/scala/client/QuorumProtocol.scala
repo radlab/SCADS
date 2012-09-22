@@ -137,9 +137,9 @@ trait QuorumProtocol
     responses.blockFor(quorum, 5000, TimeUnit.MILLISECONDS)
   }
 
-  override def incrementFieldBytes(key: Array[Byte], fieldName: String): Unit = {
+  override def incrementFieldBytes(key: Array[Byte], fieldName: String, amount: Int): Unit = {
     val (servers, quorum) = writeQuorumForKey(key)
-    val incRequest = IncrementFieldRequest(key, fieldName)
+    val incRequest = IncrementFieldRequest(key, fieldName, amount)
     val responses = servers.map(_ !! incRequest)
     responses.blockFor(quorum, 5000, TimeUnit.MILLISECONDS)
   }
