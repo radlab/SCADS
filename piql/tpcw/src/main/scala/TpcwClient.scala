@@ -57,12 +57,28 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     }
   }
 
+  val kTopOrdersToList = 50
+
+  val listTopOrdersQuery = orderCount.as("count")
+      .where("count.epoch".a === (0.?))
+      .where("count.I_SUBJECT".a === (1.?))
+      .dataLimit(kTopOrdersToList)
+      .select("count.I_ID".a, "count.OC_COUNT".a)
+      .toPiql("listTopOrdersQuery")
+
+
+  // Returns kTopOrdersToList orders in the (approximate) hour interval before ts.
+  def topOrdersInPreviousHour(ts: Long, subject: String) = {
+    listTopOrdersQuery(getEpoch(ts), subject).map(t =>
+      (t.head.get(0).toString, t.head.get(1).asInstanceOf[Int]))
+  }
+
   /**
    * Function to calculate the topK from the staging relation for the current epoch
    * to be called periodically (stepSize)
    * TODO: also make this a query plan for parallelization
    */
-  def updateOrderCount(epoch: Long = getEpoch(), subjects: Seq[String] = Seq("subject0"), k: Int = 50): Unit = {
+  def updateOrderCount(epoch: Long = getEpoch(), subjects: Seq[String] = Seq("subject0"), k: Int = kTopOrdersToList): Unit = {
     subjects.foreach(subject => {
       val prefix = OrderCountStaging(epoch, subject, null).key
       orderCount ++= orderCountStaging.topK(prefix, prefix, Seq("OC_COUNT"), k).map(ocs => {
@@ -70,7 +86,6 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         oc.A_FNAME = ""
         oc.A_LNAME = ""
         oc.I_TITLE = ""
-        println(oc)
         oc
       })
     })
