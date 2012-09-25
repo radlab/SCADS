@@ -70,6 +70,13 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       (t.head.get(0).toString, t.head.get(1).asInstanceOf[Int]))
   }
 
+  val fetchItemDetails = LocalTuples(0, "ocs", OrderCountStaging.keySchema, OrderCountStaging.schema)
+    .join(items)
+    .where("ocs.I_ID".a === "items.I_ID".a)
+    .join(authors)
+    .where("items.I_A_ID".a === "authors.A_ID".a)
+    .toPiql("fetchItemDetails")
+
   /**
    * Function to calculate the topK from the staging relation for the current epoch
    * to be called periodically (stepSize)
@@ -78,11 +85,15 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   def updateOrderCount(epoch: Long = getEpoch(), subjects: Seq[String] = Seq("subject0"), k: Int = kTopOrdersToList): Unit = {
     subjects.foreach(subject => {
       val prefix = OrderCountStaging(epoch, subject, null).key
-      orderCount ++= orderCountStaging.topK(prefix, prefix, Seq("OC_COUNT"), k, false).map(ocs => {
+      orderCount ++= fetchItemDetails(orderCountStaging.topK(prefix, prefix, Seq("OC_COUNT"), k, false).map(Vector(_))).map(joinedOcs => {
+        val ocs = joinedOcs(0).asInstanceOf[OrderCountStaging]
+        val item = joinedOcs(1).asInstanceOf[Item]
+        val author = joinedOcs(2).asInstanceOf[Author]
+
         val oc = OrderCount(ocs.epoch, ocs.I_SUBJECT, ocs.OC_COUNT, ocs.I_ID)
-        oc.A_FNAME = ""
-        oc.A_LNAME = ""
-        oc.I_TITLE = ""
+        oc.A_FNAME = author.A_FNAME
+        oc.A_LNAME = author.A_LNAME
+        oc.I_TITLE = item.I_TITLE
         oc
       })
     })
