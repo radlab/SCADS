@@ -184,6 +184,8 @@ object Optimizer {
 
         LocalProjection(values, apply(child), schema)
       }
+      case lt @ LocalTuples(ord, _, _, _) =>
+        LocalIterator(ord, lt, false)
     }
   }
 

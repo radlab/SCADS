@@ -210,4 +210,4 @@ case class LocalProjection(fields: KeyGenerator, child: QueryPlan, schema: Schem
 case class LocalStopAfter(count: Limit, child: QueryPlan) extends QueryPlan with InnerPlan
 
 /* Testing iterator that simply emits tuples from an iterator that is passed to the query as a parameter */
-case class LocalIterator(parameterOrdinal: Int, wrap: Boolean = false) extends QueryPlan
+case class LocalIterator(parameterOrdinal: Int, namespace: TupleProvider, wrap: Boolean = false) extends RemotePlan

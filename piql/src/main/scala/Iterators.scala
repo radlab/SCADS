@@ -389,7 +389,7 @@ class SimpleExecutor extends QueryExecutor {
         }
       }
     }
-    case LocalIterator(ordinal, wrap) => {
+    case LocalIterator(ordinal, ns, wrap) => {
       new QueryIterator {
         val name = "LocalIterator"
         private var delegate: Iterator[Tuple] = null

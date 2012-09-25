@@ -14,9 +14,9 @@ class Qualifier(plan: LogicalPlan) {
 
   lazy val relations = getRelations(plan)
 
-  protected def getRelations(plan: LogicalPlan): Seq[Relation] = plan match {
+  protected def getRelations(plan: LogicalPlan): Seq[TupleProvider] = plan match {
     case in: InnerNode => in.children.map(getRelations).reduceLeft(_ ++ _)
-    case r: Relation => r :: Nil
+    case r: TupleProvider => r :: Nil
   }
 
   trait NamedAttribute
@@ -36,7 +36,7 @@ class Qualifier(plan: LogicalPlan) {
 
   trait NamedRelation
 
-  case class UniqueRelation(r: Relation) extends NamedRelation
+  case class UniqueRelation(r: TupleProvider) extends NamedRelation
 
   object AmbiguousRelation extends NamedRelation
 
@@ -128,8 +128,8 @@ class Binder(plan: QueryPlan) {
       LocalStopAfter(cnt, bindPlan(c))
     case LocalProjection(attrs, c, schema) =>
       LocalProjection(attrs.map(bindValue(_)), bindPlan(c), schema)
-    case LocalIterator(param, wrap) =>
-      LocalIterator(param, wrap)
+    case LocalIterator(param, ns, wrap) =>
+      LocalIterator(param, ns, wrap)
   }
 
   protected def bindValue(v: Value): Value = v match {
