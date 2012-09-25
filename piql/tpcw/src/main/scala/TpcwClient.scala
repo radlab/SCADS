@@ -35,24 +35,21 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   val orderCount = cluster.getNamespace[OrderCount]("orderCount")
 
   /* View Maintenance Code */
-  val fetchLineKeys = orderLines.as("line")
-    .where("line.OL_O_ID".a === (0.?))
-    .where("line.OL_ID".a === (1.?))
+  val fetchLineKeys = LocalTuples(0, "line", OrderLine.keySchema, OrderLine.schema)
     .join(items.as("item"))
     .where("item.I_ID".a === "line.OL_I_ID".a)
     .join(orders.as("order"))
     .where("order.O_ID".a === "line.OL_O_ID".a)
-    .select("order.O_DATE_Time".a, "item.I_SUBJECT".a)
     .toPiql("fetchLineKeys")
 
   //Trigger to update the staging relation
   orderLines.addTriggers ::= { orderLines =>
-    orderLines.foreach {line =>
-      val record = fetchLineKeys(line.OL_O_ID, line.OL_ID).head.head
-      val (ts, subject) = (record.get(0).asInstanceOf[Long],
-                           record.get(1).toString)
-      calculateEpochs(ts).foreach { ep =>
-        orderCountStaging.incrementField(OrderCountStaging(ep, subject, line.OL_I_ID ).key, "OC_COUNT", line.OL_QTY)
+    fetchLineKeys(orderLines.map(Vector(_))).foreach {joinedLine =>
+      val line = joinedLine(0).asInstanceOf[OrderLine]
+      val item = joinedLine(1).asInstanceOf[Item]
+      val order = joinedLine(2).asInstanceOf[Order]
+      calculateEpochs(order.O_DATE_Time).foreach { ep =>
+        orderCountStaging.incrementField(OrderCountStaging(ep, item.I_SUBJECT, line.OL_I_ID ).key, "OC_COUNT", line.OL_QTY)
       }
     }
   }
