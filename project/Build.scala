@@ -143,7 +143,7 @@ object ScadsBuild extends Build {
         "import edu.berkeley.cs.scads.piql.plans._\n" +
         "import edu.berkeley.cs.scads.piql.opt._"
         ))
-  ) dependsOn (piql, perf)
+  ) dependsOn (piql, perf, tpcw)
 
   lazy val axer = Project(
     "axer",
