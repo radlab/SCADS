@@ -204,6 +204,10 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
         logger.debug("AdminRequest")
         val item = randomItem
         client.adminRequestWI(item)
+      case ActionType.BestSeller =>
+        logger.debug("BestSellerRequest")
+        val subject = randomSubject
+        client.bestSellerWI(subject)
     }
 
   /**

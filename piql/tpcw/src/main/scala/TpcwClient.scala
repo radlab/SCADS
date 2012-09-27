@@ -56,6 +56,16 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
   val kTopOrdersToList = 50
 
+  object CurrentEpoch extends CalculatedValue {
+    def getValue = getEpoch()
+  }
+
+  val bestSellerWI = orderCount.as("count")
+        .where("count.epoch".a === CurrentEpoch)
+        .where("count.I_SUBJECT".a === (0.?))
+        .dataLimit(kTopOrdersToList)
+        .toPiql("listTopOrdersQuery")
+
   val listTopOrdersQuery = orderCount.as("count")
       .where("count.epoch".a === (0.?))
       .where("count.I_SUBJECT".a === (1.?))
@@ -80,7 +90,6 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   /**
    * Function to calculate the topK from the staging relation for the current epoch
    * to be called periodically (stepSize)
-   * TODO: also make this a query plan for parallelization
    */
   def updateOrderCount(epoch: Long = getEpoch(), subjects: Seq[String] = Seq("subject0"), k: Int = kTopOrdersToList): Unit = {
     subjects.foreach(subject => {
