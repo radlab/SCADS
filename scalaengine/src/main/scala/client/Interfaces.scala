@@ -6,6 +6,10 @@ import edu.berkeley.cs.scads.util._
 
 import org.apache.avro.Schema
 import org.apache.avro.generic._
+import org.apache.avro.Schema.Type
+import org.apache.avro.util.Utf8
+
+import scala.collection.JavaConversions._
 
 trait PersistentStore[BulkPutType] {
   def ++=(that: TraversableOnce[BulkPutType]): Unit
@@ -46,13 +50,59 @@ trait RangeKeyValueStoreLike[KeyType <: IndexedRecord,
            k: Int, ascending: Boolean = false): Seq[RangeType]
 }
 
+
+private[storage] object Serializer {
+  final val MinString = ""
+  final val MaxString = new String(Array.fill[Byte](20)(127.asInstanceOf[Byte]))
+}
+
 trait Serializer[KeyType <: IndexedRecord, ValueType <: IndexedRecord, BulkType] {
+  import Serializer._
+
   def bytesToKey(bytes: Array[Byte]): KeyType
   def bytesToValue(bytes: Array[Byte]): ValueType
   def bytesToBulk(k: Array[Byte], v: Array[Byte]): BulkType
   def keyToBytes(key: KeyType): Array[Byte]
   def valueToBytes(value: ValueType): Array[Byte]
   def bulkToBytes(b: BulkType): (Array[Byte], Array[Byte])
+
+  protected def minVal(fieldType: Type, fieldSchema: Schema): Any = fieldType match {
+    case Type.BOOLEAN => false
+    case Type.DOUBLE => java.lang.Double.MIN_VALUE
+    case Type.FLOAT => java.lang.Float.MIN_VALUE
+    case Type.INT => java.lang.Integer.MIN_VALUE
+    case Type.LONG => java.lang.Long.MIN_VALUE
+    case Type.STRING => new Utf8(MinString)
+    case Type.RECORD =>
+      fillOutKey(newRecord(fieldSchema), () => newRecord(fieldSchema))(minVal _)
+    case unsupportedType =>
+      throw new RuntimeException("Invalid key type in partial key getRange. " + unsupportedType + " not supported for inquality queries.")
+  }
+
+  protected def maxVal(fieldType: Type, fieldSchema: Schema): Any = fieldType match {
+    case Type.BOOLEAN => true
+    case Type.DOUBLE => java.lang.Double.MAX_VALUE
+    case Type.FLOAT => java.lang.Float.MAX_VALUE
+    case Type.INT => java.lang.Integer.MAX_VALUE
+    case Type.LONG => java.lang.Long.MAX_VALUE
+    case Type.STRING => new Utf8(MaxString)
+    case Type.RECORD =>
+      fillOutKey(newRecord(fieldSchema), () => newRecord(fieldSchema))(maxVal _)
+    case unsupportedType =>
+      throw new RuntimeException("Invalid key type in partial key getRange. " + unsupportedType + " not supported for inquality queries.")
+  }
+
+  protected def fillOutKey[R <: IndexedRecord](keyPrefix: R, keyFactory: () => R)(fillFunc: (Type, Schema) => Any): R = {
+    val filledRec = keyFactory()
+
+    keyPrefix.getSchema.getFields.foreach(field => {
+      if(keyPrefix.get(field.pos) == null)
+       filledRec.put(field.pos, fillFunc(field.schema.getType, field.schema))
+      else
+       filledRec.put(field.pos, keyPrefix.get(field.pos))
+    })
+    filledRec
+  }
 
   def newRecord(schema: Schema): IndexedRecord
   def newKeyInstance: KeyType

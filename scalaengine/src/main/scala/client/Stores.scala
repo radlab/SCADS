@@ -42,56 +42,11 @@ trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
     asyncGetBytes(keyToBytes(key)).map(_.map(bytesToValue))
 }
 
-private[storage] object BaseRangeKeyValueStoreImpl {
-  final val MinString = "" 
-  final val MaxString = new String(Array.fill[Byte](20)(127.asInstanceOf[Byte]))
-}
 
 trait BaseRangeKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
   extends RangeKeyValueStoreLike[K, V, B]
   with BaseKeyValueStoreImpl[K, V, B]
   with RangeProtocol {
-
-  import BaseRangeKeyValueStoreImpl._
-  import Schema._
-
-  protected def minVal(fieldType: Type, fieldSchema: Schema): Any = fieldType match {
-    case Type.BOOLEAN => false
-    case Type.DOUBLE => java.lang.Double.MIN_VALUE
-    case Type.FLOAT => java.lang.Float.MIN_VALUE
-    case Type.INT => java.lang.Integer.MIN_VALUE
-    case Type.LONG => java.lang.Long.MIN_VALUE
-    case Type.STRING => new Utf8(MinString)
-    case Type.RECORD =>
-      fillOutKey(newRecord(fieldSchema), () => newRecord(fieldSchema))(minVal _)
-    case unsupportedType =>
-      throw new RuntimeException("Invalid key type in partial key getRange. " + unsupportedType + " not supported for inquality queries.")
-  }
-
-  protected def maxVal(fieldType: Type, fieldSchema: Schema): Any = fieldType match {
-    case Type.BOOLEAN => true
-    case Type.DOUBLE => java.lang.Double.MAX_VALUE
-    case Type.FLOAT => java.lang.Float.MAX_VALUE
-    case Type.INT => java.lang.Integer.MAX_VALUE
-    case Type.LONG => java.lang.Long.MAX_VALUE
-    case Type.STRING => new Utf8(MaxString) 
-    case Type.RECORD => 
-      fillOutKey(newRecord(fieldSchema), () => newRecord(fieldSchema))(maxVal _)
-    case unsupportedType =>
-      throw new RuntimeException("Invalid key type in partial key getRange. " + unsupportedType + " not supported for inquality queries.")
-  }
-
-  protected def fillOutKey[R <: IndexedRecord](keyPrefix: R, keyFactory: () => R)(fillFunc: (Type, Schema) => Any): R = {
-    val filledRec = keyFactory()
-
-    keyPrefix.getSchema.getFields.foreach(field => {
-      if(keyPrefix.get(field.pos) == null)
-       filledRec.put(field.pos, fillFunc(field.schema.getType, field.schema))
-      else
-       filledRec.put(field.pos, keyPrefix.get(field.pos))
-    })
-    filledRec
-  }
 
   override def getRange(start: Option[K],
                         end: Option[K],
