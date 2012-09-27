@@ -17,6 +17,9 @@ abstract class Value {
 abstract class FixedValue extends Value
 case class ConstantValue(v: Any) extends FixedValue
 case class ParameterValue(ordinal: Int) extends FixedValue
+abstract class CalculatedValue extends Value {
+  def getValue: Any
+}
 
 /* Attribute Values */
 case class AttributeValue(recordPosition: Int, fieldPosition: Int) extends Value
