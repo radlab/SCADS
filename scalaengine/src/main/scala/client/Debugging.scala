@@ -40,7 +40,7 @@ trait DebuggingClient {
       }
     )
 
-    logger.info("Max Skew: %d, %f", counts.max - counts.min, (counts.max - counts.min).toFloat / counts.max)
+    logger.warning("Max Skew %s: %d, %f", name, counts.max - counts.min, (counts.max - counts.min).toFloat / counts.max)
   }
 
   def dumpWorkload: Unit = {
@@ -73,7 +73,7 @@ trait DebuggingClient {
         }
       }
 
-    logger.info("getDiff: %d, putDiff: %d\n", values.map(_._1).max - values.map(_._1).min, values.map(_._2).max - values.map(_._2).min)
+    logger.warning("getDiff: %d, putDiff: %d\n", values.map(_._1).max - values.map(_._1).min, values.map(_._2).max - values.map(_._2).min)
   }
 
   //HACK
