@@ -56,7 +56,7 @@ class TpcwLoader(val numEBs : Double,
     def load(clientId: Int = 0, numLoaders: Int = 1): Unit =
       ns ++=  dataSlice(clientId, numLoaders)
 
-        /** assuming [1, upperBound], returns the slice of data for this clientId */
+    /** assuming [1, upperBound], returns the slice of data for this clientId */
     protected def getSlice(clientId: Int, numClients: Int, upperBound: Int) = {
       require(upperBound >= 1)
       val numPerClient = upperBound / numClients
@@ -96,8 +96,8 @@ class TpcwLoader(val numEBs : Double,
       RandomData(client.countries, createCountry(_), numCountries),
       RandomData(client.customers, createCustomer(_), numCustomers),
       RandomData(client.items, createItem(_), numItems),
-      FlattenedRandomData(client.orderLines, createOrderline(_), numOrders),
       RandomData(client.orders, createOrder(_), numOrders),
+      FlattenedRandomData(client.orderLines, createOrderline(_), numOrders),
       new RandomData(client.shoppingCartItems, i => ShoppingCartItem(toCustomer(i), ""), numCustomers) with NoLoad)
 
   def createNamespaces(client: TpcwClient, replicationFactor: Int) =
