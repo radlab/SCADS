@@ -108,7 +108,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     })
   }
 
-  val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems)
+  val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems, orderCountStaging, orderCount)
 
   val windowSize = 60 * 60 * 1000  // 1 hour in milliseconds
   val stepSize = 5 * 60 * 1000     // 5 minutes in milliseconds
