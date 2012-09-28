@@ -345,7 +345,7 @@ class TpcwLoader(val numEBs : Double,
     //customerOrderIndexInserts += Tuple2(CustomerOrderIndex("cust" + to.getO_c_id, to.getO_date, idStr), NullRecord(true))
     var order = Order(toOrder(id))
     order.O_C_UNAME = toCustomer(to.getO_c_id)
-    order.O_DATE_Time = to.getO_date
+    order.O_DATE_Time = System.currentTimeMillis()
     order.O_SUB_TOTAL = to.getO_sub_total
     order.O_TAX = to.getO_tax
     order.O_TOTAL = to.getO_total
