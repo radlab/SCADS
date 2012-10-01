@@ -40,7 +40,7 @@ trait DebuggingClient {
       }
     )
 
-    logger.warning("Max Skew %s: %d, %f", name, counts.max - counts.min, (counts.max - counts.min).toFloat / counts.max)
+    logger.warning("Distribution for %s: %d partitions, Max Skew: %d, %f", name, futures.size, counts.max - counts.min, (counts.max - counts.min).toFloat / counts.max)
   }
 
   def dumpWorkload: Unit = {
