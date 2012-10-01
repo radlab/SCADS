@@ -28,7 +28,7 @@ trait DebuggingClient {
 
     futures.foreach(f =>
       f() match {
-        case CountRangeResponse(num) => logger.info("%s: %d", f.source, num)
+        case CountRangeResponse(num) => logger.warning("%s: %d", f.source, num)
         case _ => logger.warning("Invalid response from %s", f.source)
       }
     )
