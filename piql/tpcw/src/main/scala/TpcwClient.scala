@@ -60,11 +60,24 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     def getValue = getEpoch()
   }
 
+  /**
+   * Best Sellers web interaction
+   * declare @last_o numeric(10)
+   * select top 3333  O_ID into #temp from ORDERS
+   * order by O_DATE desc
+   * select @last_o = min(O_ID) from #temp
+   * select top 50 I_ID,I_TITLE,A_FNAME,A_LNAME
+   * from ITEM, AUTHOR ,ORDER_LINE
+   * where OL_O_ID > @last_o AND
+   * I_ID = OL_I_ID AND I_A_ID = A_ID AND I_SUBJECT = @CategoryID
+   * group by I_ID,I_TITLE,A_FNAME,A_LNAME
+   * order by SUM(OL_QTY) desc
+   */
   val bestSellerWI = orderCount.as("count")
         .where("count.epoch".a === CurrentEpoch)
         .where("count.I_SUBJECT".a === (0.?))
         .dataLimit(kTopOrdersToList)
-        .toPiql("listTopOrdersQuery")
+        .toPiql("bestSellerWI")
 
   val listTopOrdersQuery = orderCount.as("count")
       .where("count.epoch".a === (0.?))
@@ -72,7 +85,6 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       .dataLimit(kTopOrdersToList)
       .select("count.I_ID".a, "count.OC_COUNT".a)
       .toPiql("listTopOrdersQuery")
-
 
   // Returns kTopOrdersToList orders in the (approximate) hour interval before ts.
   def topOrdersInPreviousHour(ts: Long, subject: String) = {
@@ -175,25 +187,6 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
               false)))),
       executor
     )
-
-  /**
-   * Best Sellers web interactio
-   *
-   *  declare @last_o numeric(10)
-   * select top 3333  O_ID into #temp  from ORDERS
-   * order by O_DATE desc
-   * select @last_o = min(O_ID) from #temp
-   * select top 50 I_ID,I_TITLE,A_FNAME,A_LNAME
-   * from ITEM, AUTHOR ,ORDER_LINE
-   * where OL_O_ID > @last_o AND
-   * I_ID = OL_I_ID AND I_A_ID = A_ID AND I_SUBJECT = @CategoryID
-   * group by I_ID,I_TITLE,A_FNAME,A_LNAME
-   * order by SUM(OL_QTY)  desc
-   */
-
-  //NOT IMPLEMENTED
-
-
 
   /**
    * Product Detail web interaction
