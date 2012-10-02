@@ -23,12 +23,17 @@ trait DebuggingClient {
   // For debugging only
   def dumpDistribution: Unit = {
     logger.info("\nKey Distribution for %s", namespace)
-    val futures = serversForKeyRange(None, None).flatMap(r =>
+    val routingTable = serversForKeyRange(None, None)
+    val futures = routingTable.flatMap(r =>
       r.servers.map(p => p !! CountRangeRequest(r.startKey, r.endKey)))
+
+    val lookupTable = routingTable.flatMap {
+      case RangeDesc(start, _, servers) => servers.map(s => (s.asInstanceOf[RemoteServiceProxy[StorageMessage]], start.map(bytesToKey)))
+    }.toMap
 
     futures.foreach(f =>
       f() match {
-        case CountRangeResponse(num) => logger.warning("%s: %d", f.source, num)
+        case CountRangeResponse(num) => logger.warning("%s %s: %d", lookupTable(f.dest), f.source, num)
         case _ => logger.warning("Invalid response from %s", f.source)
       }
     )
