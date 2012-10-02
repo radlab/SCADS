@@ -33,6 +33,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   /* Views */
   val orderCountStaging = cluster.getNamespace[OrderCountStaging]("orderCountStaging")
   val orderCount = cluster.getNamespace[OrderCount]("orderCount")
+  val relatedItemCountStaging = cluster.getNamespace[RelatedItemCountStaging]("relatedItemCountStaging")
+  val relatedItemCount = cluster.getNamespace[RelatedItemCount]("relatedItemCount")
 
   /* View Maintenance Code */
   val fetchLineKeys = LocalTuples(0, "line", OrderLine.keySchema, OrderLine.schema)
@@ -42,7 +44,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     .where("order.O_ID".a === "line.OL_O_ID".a)
     .toPiql("fetchLineKeys")
 
-  //Trigger to update the staging relation
+  // Trigger that updates the best sellers staging relation.
   orderLines.addTriggers ::= { orderLines =>
     fetchLineKeys(orderLines.map(Vector(_))).foreach {joinedLine =>
       val line = joinedLine(0).asInstanceOf[OrderLine]
@@ -53,12 +55,31 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       }
     }
   }
+  // Trigger that updates the admin confirm staging relation.
+  orderLines.addTriggers ::= { orderLines =>
+    fetchLineKeys(orderLines.map(Vector(_))).foreach {joinedLine =>
+      val line = joinedLine(0).asInstanceOf[OrderLine]
+      val item = joinedLine(1).asInstanceOf[Item]
+      val order = joinedLine(2).asInstanceOf[Order]
+      calculateEpochs(order.O_DATE_Time).foreach { ep =>
+        relatedItemCountStaging.incrementField(RelatedItemCountStaging(ep, item.I_ID, order.O_C_UNAME).key, "RELATED_COUNT", line.OL_QTY)
+      }
+    }
+  }
 
   val kTopOrdersToList = 50
+  val kRelatedItemsToFind = 5
 
   object CurrentEpoch extends CalculatedValue {
     def getValue = getEpoch()
   }
+
+  val adminConfirmWI = relatedItemCount.as("count")
+    .where("count.epoch".a === CurrentEpoch)
+    .where("count.item".a === (0.?))
+    .dataLimit(kRelatedItemsToFind)
+    .toPiql("adminConfirmWI")
+
 
   /**
    * Best Sellers web interaction
@@ -119,6 +140,21 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       })
     })
   }
+
+//  /**
+//   * TODO(ekl) Batch update job for the Admin Confirm WI -
+//   * to be called at same interval as updateOrderCount
+//   */
+//  def updateRelatedCounts(epoch: Long = getEpoch(), k: Int = kRelatedItemsToFind): Unit = {
+//    val items = selectDistinctItems(epoch)
+//    items.foreach(item => {
+//      val customers = selectCustomersForItem(epoch)
+//      val prefix = RelatedItemCountStaging(epoch, item, null).key
+//      relatedItemCounts ++= fetchItemDetails(relatedItemCountStaging.topK(prefix, prefix, Seq("OC_COUNT"), k, false, groupBySuffix=Seq("customer"), filterByPredicate=Seq("customer IN (" + customers + ")")).map(Vector(_))).map(joined => {
+//        RelatedItemCount(joined(0).I_ID, joined(1).TOTAL_COUNT)
+//      })
+//    })
+//  }
 
   val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems, orderCountStaging, orderCount)
 
