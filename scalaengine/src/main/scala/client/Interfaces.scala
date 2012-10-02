@@ -95,7 +95,7 @@ trait Serializer[KeyType <: IndexedRecord, ValueType <: IndexedRecord, BulkType]
   protected def fillOutKey[R <: IndexedRecord](keyPrefix: R, keyFactory: () => R)(fillFunc: (Type, Schema) => Any): R = {
     val filledRec = keyFactory()
 
-    keyPrefix.getSchema.getFields.foreach(field => {
+    filledRec.getSchema.getFields.foreach(field => {
       if(keyPrefix.get(field.pos) == null)
        filledRec.put(field.pos, fillFunc(field.schema.getType, field.schema))
       else
