@@ -44,7 +44,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     .where("order.O_ID".a === "line.OL_O_ID".a)
     .toPiql("fetchLineKeys")
 
-  // Trigger that updates the best sellers staging relation.
+  // Trigger that updates the best sellers staging relation
+  // and the admin confirm staging relation.
   orderLines.addTriggers ::= { orderLines =>
     fetchLineKeys(orderLines.map(Vector(_))).foreach {joinedLine =>
       val line = joinedLine(0).asInstanceOf[OrderLine]
@@ -52,16 +53,6 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       val order = joinedLine(2).asInstanceOf[Order]
       calculateEpochs(order.O_DATE_Time).foreach { ep =>
         orderCountStaging.incrementField(OrderCountStaging(ep, item.I_SUBJECT, line.OL_I_ID ).key, "OC_COUNT", line.OL_QTY)
-      }
-    }
-  }
-  // Trigger that updates the admin confirm staging relation.
-  orderLines.addTriggers ::= { orderLines =>
-    fetchLineKeys(orderLines.map(Vector(_))).foreach {joinedLine =>
-      val line = joinedLine(0).asInstanceOf[OrderLine]
-      val item = joinedLine(1).asInstanceOf[Item]
-      val order = joinedLine(2).asInstanceOf[Order]
-      calculateEpochs(order.O_DATE_Time).foreach { ep =>
         relatedItemCountStaging.incrementField(RelatedItemCountStaging(ep, item.I_ID, order.O_C_UNAME).key, "RELATED_COUNT", line.OL_QTY)
       }
     }
@@ -141,20 +132,50 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     })
   }
 
-//  /**
-//   * TODO(ekl) Batch update job for the Admin Confirm WI -
-//   * to be called at same interval as updateOrderCount
-//   */
-//  def updateRelatedCounts(epoch: Long = getEpoch(), k: Int = kRelatedItemsToFind): Unit = {
-//    val items = selectDistinctItems(epoch)
-//    items.foreach(item => {
-//      val customers = selectCustomersForItem(epoch)
-//      val prefix = RelatedItemCountStaging(epoch, item, null).key
-//      relatedItemCounts ++= fetchItemDetails(relatedItemCountStaging.topK(prefix, prefix, Seq("OC_COUNT"), k, false, groupBySuffix=Seq("customer"), filterByPredicate=Seq("customer IN (" + customers + ")")).map(Vector(_))).map(joined => {
-//        RelatedItemCount(joined(0).I_ID, joined(1).TOTAL_COUNT)
-//      })
-//    })
-//  }
+  val materializeRelatedItems = relatedItemCountStaging.as("target")
+    .join(relatedItemCountStaging.as("related"))
+    .where("target.epoch".a === (0.?))
+    .where("target.epoch".a === (0.?))
+    .where("target.C_UNAME".a === "related.C_UNAME".a)
+    .dataLimit(4096)
+    .toPiql("materializeRelatedItems")
+
+  /**
+   * Batch update job for the Admin Confirm WI -
+   * to be called at same interval as updateOrderCount
+   * TODO(ekl) make sure it scales - may need to push groupby / topk into executor
+   */
+  def updateRelatedCounts(epoch: Long = getEpoch(), k: Int = kRelatedItemsToFind): Unit = {
+    var currentItem: String = null
+    var pending = new collection.mutable.HashMap[String,Int]
+
+    // Selects the top-k related items and writes them into the view.
+    def materializePendingRelated() = {
+      if (!pending.isEmpty) {
+        relatedItemCount ++= pending.toBuffer.sortWith((x,y) => x._2 > y._2).take(k).map(entry => {
+          RelatedItemCount(epoch, currentItem, entry._2, entry._1)
+        })
+      }
+    }
+
+    // Locally implements groupBy on (I_ID, RELATED_I_ID) followed by topK for (I_ID).
+    materializeRelatedItems(epoch).foreach(tuple => {
+      val target = tuple(0).asInstanceOf[RelatedItemCountStaging]
+      val related = tuple(1).asInstanceOf[RelatedItemCountStaging]
+
+      // Materializes an item and those related to it by customer purchases.
+      if (target.I_ID != currentItem) {
+        materializePendingRelated
+        pending.clear
+        currentItem = target.I_ID
+      }
+
+      if (target.I_ID != related.I_ID) {
+        pending(related.I_ID) = pending.getOrElse(related.I_ID, 0) + related.RELATED_COUNT
+      }
+    })
+    materializePendingRelated
+  }
 
   val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems, orderCountStaging, orderCount)
 
