@@ -40,13 +40,13 @@ trait TriggerManager[PairType <: AvroPair] extends RangeKeyValueStoreLike[Indexe
   }
 
   override abstract def ++=(that: TraversableOnce[PairType]): Unit = {
-    val traversable = that.toList
+    val traversable = that.toBuffer
     super.++=(traversable)
     addTriggers.foreach(_(traversable))
   }
 
   override abstract def --=(that: TraversableOnce[PairType]): Unit = {
-    val traversable = that.toList
+    val traversable = that.toBuffer
     deleteTriggers.foreach(_(traversable.map(_.key)))
     super.--=(traversable)
   }

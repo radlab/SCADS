@@ -45,13 +45,13 @@ trait ViewManager[BulkType <: AvroPair] extends RangeKeyValueStoreLike[IndexedRe
   }
 
   override abstract def ++=(that: TraversableOnce[BulkType]): Unit = {
-    val traversable = that.toList
+    val traversable = that.toBuffer
     super.++=(traversable)
     updateViews(traversable, dummyValueBytes)
   }
 
   override abstract def --=(that: TraversableOnce[BulkType]): Unit = {
-    val traversable = that.toList
+    val traversable = that.toBuffer
     updateViews(traversable, None)
     super.--=(traversable)
   }
