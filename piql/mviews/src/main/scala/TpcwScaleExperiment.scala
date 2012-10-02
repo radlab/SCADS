@@ -18,6 +18,8 @@ object TpcwScaleExperiment {
   implicit def classSource = cluster.classSource
   implicit def serviceScheduler = cluster.serviceScheduler
 
+  implicit def toOption[A](a: A) = Option(a)
+
   lazy val testTpcwClient =
     new piql.tpcw.TpcwClient(new piql.tpcw.TpcwLoaderTask(10,5,10,10000,2).newTestCluster, new ParallelExecutor with DebugExecutor)
 }
