@@ -176,7 +176,7 @@ trait KeyPartitionable {
   /** sets the partition scheme to be exactly that which is represented by the input.
    * any previously existing partitions are thrown away. it is required that
    * length of (scheme) >= 1 and that the 1st split key is None */
-  def setPartitionScheme(scheme: Seq[(Option[Array[Byte]], Seq[StorageService])]): Unit
+  def setPartitionSchemeBytes(scheme: Seq[(Option[Array[Byte]], Seq[StorageService])]): Unit
 
   def routingTable: RangeTable[Array[Byte], PartitionService]
 }

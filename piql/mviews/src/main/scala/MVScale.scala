@@ -98,17 +98,17 @@ case class ScaleTask(var replicas: Int = 1,
 
     /* partition by zipf(1), uniform */
     val tags = cluster.getNamespace[Tag]("tags")
-    tags.setPartitionScheme(parzu)
+    tags.setPartitionSchemeBytes(parzu)
     tags.setReadWriteQuorum(.001, 1.00)
 
     /* partition by zipf(1), zipf(1) */
     val mtp = cluster.getNamespace[MTagPair]("mTagPairs")
-    mtp.setPartitionScheme(parzz)
+    mtp.setPartitionSchemeBytes(parzz)
     mtp.setReadWriteQuorum(.001, 1.00)
 
     /* partition by uniform */
     val iidx = tags.getOrCreateIndex(AttributeIndex("item") :: Nil)
-    iidx.setPartitionScheme(paru)
+    iidx.setPartitionSchemeBytes(paru)
     iidx.setReadWriteQuorum(.001, 1.00)
   }
 

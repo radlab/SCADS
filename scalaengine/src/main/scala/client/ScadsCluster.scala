@@ -102,12 +102,7 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) { self =>
 
     val namespace = new GenericNamespace(ns, self, namespaces, keySchema, valueSchema, valueClass)
     namespace.create()
-    namespace.setPartitionScheme(servers.map {
-      // TODO: provide methods in the namespaces which understand the typed version 
-      // so we don't have to use toBytes. for now, it is not that important b/c createNamespace 
-      // is not called repeatedly
-      case (optRec, seq) => (optRec.map(_.toBytes), seq)
-    })
+    namespace.setPartitionScheme(servers)
     namespace
   }
 
@@ -134,7 +129,7 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) { self =>
   def createNamespace[KeyType <: SpecificRecord : Manifest, ValueType <: SpecificRecord : Manifest](ns: String, servers: Seq[(Option[KeyType], Seq[StorageService])]): SpecificNamespace[KeyType, ValueType] = {
     val namespace = new SpecificNamespace[KeyType, ValueType](ns, self, namespaces)
     namespace.create()
-    namespace.setPartitionScheme(servers.map { case (optRec, seq) => (optRec.map(_.toBytes), seq) })
+    namespace.setPartitionScheme(servers)
     namespace
   }
 
@@ -147,7 +142,7 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) { self =>
   def createNamespace[PairType <: AvroPair : Manifest](ns: String, servers: Seq[(Option[IndexedRecord], Seq[StorageService])]): PairNamespace[PairType] = {
     val namespace = new PairNamespace[PairType](ns, self, namespaces)
     namespace.create()
-    namespace.setPartitionScheme(servers.map { case (optRec, seq) => (optRec.map(namespace.keyToBytes), seq) })
+    namespace.setPartitionScheme(servers)
     namespace
   }
 

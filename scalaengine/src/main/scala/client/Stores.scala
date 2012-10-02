@@ -14,7 +14,8 @@ import collection.JavaConversions._
 trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
   extends KeyValueStoreLike[K, V, B]
   with Serializer[K, V, B]
-  with Protocol {
+  with Protocol
+  with KeyPartitionable {
 
   override def ++=(that: TraversableOnce[B]) = {
     that.toIterable.map(bulkToBytes).foreach(b => putBulkBytes(b._1, b._2))
@@ -40,6 +41,13 @@ trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
 
   override def asyncGet(key: K): ScadsFuture[Option[V]] =
     asyncGetBytes(keyToBytes(key)).map(_.map(bytesToValue))
+
+  def setPartitionScheme(scheme: Seq[(Option[K], Seq[StorageService])]): Unit =
+    setPartitionSchemeBytes(
+      scheme.map {
+        case (start, servers) => (start.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal)).map(keyToBytes), servers)
+      }
+    )
 }
 
 
@@ -164,8 +172,7 @@ trait RecordStore[RecType <: IndexedRecord] extends Namespace
     val splits = None +: (splitSize until splitSize * numPartitions by splitSize).map(samples).map(Some(_))
 
     logger.info("Sampled Key Splits for %s: %s", namespace, splits)
-    val byteSplits = splits.map(_.map(keyToBytes))
-    val partitions = byteSplits zip servers.grouped(replicationFactor).toList
+    val partitions = splits zip servers.grouped(replicationFactor).toList
     logger.info("Sampled Partition Scheme for %s: %s", namespace , partitions)
 
     setPartitionScheme(partitions)

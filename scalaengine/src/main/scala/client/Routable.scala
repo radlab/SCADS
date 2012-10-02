@@ -235,7 +235,7 @@ trait DefaultKeyRoutableLike
     result.map(_._1)
   }
 
-  override def setPartitionScheme(scheme: Seq[(Option[Array[Byte]], Seq[StorageService])]): Unit = {
+  override def setPartitionSchemeBytes(scheme: Seq[(Option[Array[Byte]], Seq[StorageService])]): Unit = {
     require(scheme.size >= 1, "Scheme must have at least 1 entry") 
     require(scheme(0)._1 == None, "first entry in scheme must be None")
 

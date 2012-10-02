@@ -169,7 +169,7 @@ case class TimelineExperimentTask(var replicas: Int = 1,
     partitionRanges = partitionRanges.reverse
     logger.info("Uniform partition scheme for posts: " + partitionRanges)
 
-    posts.setPartitionScheme(partitionRanges)
+    posts.setPartitionSchemeBytes(partitionRanges)
     posts.setReadWriteQuorum(.001, 1.00)
 
     // Partitioning Scheme for Subscriptions
@@ -187,7 +187,7 @@ case class TimelineExperimentTask(var replicas: Int = 1,
     partitionRanges = partitionRanges.reverse
     logger.info("Partitioning scheme for subscriptions: " + partitionRanges)
 
-    subscr.setPartitionScheme(partitionRanges)
+    subscr.setPartitionSchemeBytes(partitionRanges)
     subscr.setReadWriteQuorum(.001, 1.00)
 
     // Partitioning Scheme for Striped Subscription Index
@@ -205,7 +205,7 @@ case class TimelineExperimentTask(var replicas: Int = 1,
     partitionRanges = partitionRanges.reverse
     logger.info("Partitioning scheme for striped index: " + partitionRanges)
 
-    subscribersByTopic.setPartitionScheme(partitionRanges)
+    subscribersByTopic.setPartitionSchemeBytes(partitionRanges)
     subscribersByTopic.setReadWriteQuorum(.001, 1.00)
   }
 
