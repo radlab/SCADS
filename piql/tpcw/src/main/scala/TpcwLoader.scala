@@ -50,8 +50,10 @@ class TpcwLoader(val numEBs : Double,
     protected def sampleData: Seq[Pair]
     protected def dataSlice(clientId: Int, numClients: Int): Seq[Pair]
 
-    def repartition(replicationFactor: Int): Unit =
+    def repartition(replicationFactor: Int): Unit = {
+      logger.warning("Begining partitioning of %s", ns.name)
       ns.repartition(sampleData, replicationFactor)
+    }
 
     def load(clientId: Int = 0, numLoaders: Int = 1): Unit =
       ns ++=  dataSlice(clientId, numLoaders)
@@ -96,12 +98,35 @@ class TpcwLoader(val numEBs : Double,
       RandomData(client.countries, createCountry(_), numCountries),
       RandomData(client.customers, createCustomer(_), numCustomers),
       RandomData(client.items, createItem(_), numItems),
+      RandomData(client.orderCountStaging, createOrderCountStaging(_), numItems),
       RandomData(client.orders, createOrder(_), numOrders),
       FlattenedRandomData(client.orderLines, createOrderline(_), numOrders),
       new RandomData(client.shoppingCartItems, i => ShoppingCartItem(toCustomer(i), ""), numCustomers) with NoLoad)
 
-  def createNamespaces(client: TpcwClient, replicationFactor: Int) =
+  def createNamespaces(client: TpcwClient, replicationFactor: Int) = {
     namespaces(client).foreach(_.repartition(replicationFactor))
+
+    //HACK: adjust the partitions to stripe each epoch across all servers.
+    val epochs = client.calculateEpochs(windowSize = 2 * 60 * 60 * 1000) //Only partition for the next two hours
+    val oldPartitions = client.orderCountStaging.serversForKeyRange(None, None).map {
+        case RangeDesc(start, _, servers) => (start.map(client.orderCountStaging.bytesToKey(_)), servers.map(_.storageService))
+      }
+
+    val newPartitions =
+      oldPartitions.map {
+        case (start, servers) =>
+          (start.map(s => OrderCountStaging(epochs.head, s.get(1).toString, s.get(2).toString).key), servers)
+      } ++
+      epochs.drop(1).flatMap(e => {
+        oldPartitions.map {
+          case (start, servers) =>
+            (Some(OrderCountStaging(e, start.map(_.get(1).toString).orNull, start.map(_.get(2).toString).orNull).key), servers)
+        }
+      })
+
+
+    client.orderCountStaging.setPartitionScheme(newPartitions)
+  }
 
   private def uuid() : String =
     UUID.randomUUID.toString
@@ -220,6 +245,11 @@ class TpcwLoader(val numEBs : Double,
 
   def toOrder(id: Int) =
     nameUuid("order%d".format(id))
+
+  def createOrderCountStaging(id: Int): OrderCountStaging = {
+    val i = createItem(id)
+    OrderCountStaging(0, i.I_SUBJECT, i.I_ID)
+  }
 
   def createItem(itemId : Int) : Item = {
     val to = Generator.generateItem(itemId, numItems).asInstanceOf[ItemTO]
