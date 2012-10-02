@@ -16,7 +16,6 @@ import storage.PairNamespace
 trait TriggerManager[PairType <: AvroPair] extends RangeKeyValueStoreLike[IndexedRecord, IndexedRecord, PairType] {
   this: PairNamespace[PairType] =>
 
-  /* Sequence of updated records, isDelete flag */
   type AddTriggerFunction = (Traversable[PairType]) => Unit
   type DeleteTriggerFunction = (Traversable[IndexedRecord]) => Unit
 
