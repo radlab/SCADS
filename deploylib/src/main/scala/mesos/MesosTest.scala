@@ -24,7 +24,7 @@ object MesosTest {
     //cluster.stopAllInstances
   }
 
-  def runTask(cluster: Cluster = cluster): Unit = {
+  def runTask(implicit cluster: Cluster = cluster): Unit = {
     val syncNode = cluster.zooKeeperRoot.createChild("syncNode", mode=CreateMode.PERSISTENT_SEQUENTIAL)
     cluster.serviceScheduler.scheduleExperiment(TestTask(syncNode.canonicalAddress).toJvmTask :: Nil)
     syncNode.awaitChild("done")

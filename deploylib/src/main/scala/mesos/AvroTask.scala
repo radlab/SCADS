@@ -20,13 +20,13 @@ abstract trait AvroTask extends IndexedRecord with Runnable {
   def *(count: Int) = Vector.fill(count)(this).toSeq
 
   //TODO: Handle class sources other than s3 cached jar
-  def toJvmTask(implicit classSource: Seq[ClassSource]): JvmMainTask = {
-    val classSourceProperty = classSource.flatMap {
+  def toJvmTask(implicit cluster: Cluster): JvmMainTask = {
+    val classSourceProperty = cluster.classSource.flatMap {
       case s: ServerSideJar => { logger.warning("UNSUPPORTED: %s", s); Nil }
       case S3CachedJar(url) => List(url)
     }.mkString("|")
 
-    JvmMainTask(classSource,
+    JvmMainTask(cluster.classSource,
       "deploylib.mesos.AvroTaskMain",
       this.getClass.getName :: this.toJson :: Nil,
       Map("deploylib.classSource" -> classSourceProperty),
