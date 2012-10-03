@@ -45,7 +45,7 @@ class ScadrLoader(val replicationFactor: Int,
   //TODO: Unify this with the (much cleaner) tpcw code
   protected def createNamespace(namespace: PairNamespace[AvroPair], keySplits: Seq[Option[GenericRecord]]): Unit = {
     val services = namespace.cluster.getAvailableServers.grouped(replicationFactor).toSeq
-    val partitionScheme = keySplits.map(_.map(namespace.keyToBytes)).zip(services)
+    val partitionScheme = keySplits.zip(services)
     namespace.setPartitionScheme(partitionScheme)
   }
 
@@ -62,7 +62,7 @@ class ScadrLoader(val replicationFactor: Int,
     //HACK
     val subIdx = subscriptions.getOrCreateIndex(AttributeIndex("target") :: Nil)
     val services = subIdx.cluster.getAvailableServers.grouped(replicationFactor).toSeq
-    val partitionScheme = splits.subscriptionsKeySplits.map(_.map(subIdx.keyToBytes)).zip(services)
+    val partitionScheme = splits.subscriptionsKeySplits.zip(services)
     subIdx.setPartitionScheme(partitionScheme)
   }
 
