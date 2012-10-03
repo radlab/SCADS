@@ -67,7 +67,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
   val adminConfirmWI = relatedItemCount.as("count")
     .where("count.epoch".a === CurrentEpoch)
-    .where("count.item".a === (0.?))
+    .where("count.I_ID".a === (0.?))
     .dataLimit(kRelatedItemsToFind)
     .toPiql("adminConfirmWI")
 
@@ -132,13 +132,14 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     })
   }
 
+  /* This is broken
   val materializeRelatedItems = relatedItemCountStaging.as("target")
     .join(relatedItemCountStaging.as("related"))
     .where("target.epoch".a === (0.?))
     .where("target.epoch".a === (0.?))
     .where("target.C_UNAME".a === "related.C_UNAME".a)
     .dataLimit(4096)
-    .toPiql("materializeRelatedItems")
+    .toPiql("materializeRelatedItems")*/
 
   /**
    * Batch update job for the Admin Confirm WI -
@@ -159,7 +160,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     }
 
     // Locally implements groupBy on (I_ID, RELATED_I_ID) followed by topK for (I_ID).
-    materializeRelatedItems(epoch).foreach(tuple => {
+/*broken    materializeRelatedItems(epoch).foreach(tuple => {
       val target = tuple(0).asInstanceOf[RelatedItemCountStaging]
       val related = tuple(1).asInstanceOf[RelatedItemCountStaging]
 
@@ -173,7 +174,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       if (target.I_ID != related.I_ID) {
         pending(related.I_ID) = pending.getOrElse(related.I_ID, 0) + related.RELATED_COUNT
       }
-    })
+    })                             */
     materializePendingRelated
   }
 
