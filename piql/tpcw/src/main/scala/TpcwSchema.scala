@@ -78,6 +78,7 @@ case class Order(var O_ID: String) extends AvroPair {
   var O_STATUS: String = _
 }
 
+object OrderLine extends AvroPairObject
 case class OrderLine(var OL_O_ID: String, var OL_ID: Int) extends AvroPair {
   var OL_I_ID: String = _
   var OL_QTY: Int = _
@@ -118,6 +119,7 @@ case class ShoppingCartItem(var SCL_C_UNAME: String, var SCL_I_ID: String) exten
 /**
  * Materialized view for the best sellers web interaction.
  */
+object OrderCountStaging extends AvroPairObject
 case class OrderCountStaging(var epoch: Long, var I_SUBJECT: String, var I_ID: String) extends AvroPair {
   var OC_COUNT: Int = _
 }
