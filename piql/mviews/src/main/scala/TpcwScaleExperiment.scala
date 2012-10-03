@@ -5,21 +5,30 @@ package mviews
 
 import deploylib.mesos._
 import tpcw._
+import tpcw.scale._
 import comm._
 import storage._
 import piql.debug.DebugExecutor
 
 object TpcwScaleExperiment {
   var resultClusterAddress = ZooKeeperNode("zk://zoo1.millennium.berkeley.edu,zoo2.millennium.berkeley.edu,zoo3.millennium.berkeley.edu/home/marmbrus/sigmod2013")
-  val cluster = new Cluster()
-  implicit def zooKeeperRoot = cluster.zooKeeperRoot
   val resultsCluster = new ScadsCluster(resultClusterAddress)
-
-  implicit def classSource = cluster.classSource
-  implicit def serviceScheduler = cluster.serviceScheduler
 
   implicit def toOption[A](a: A) = Option(a)
 
   lazy val testTpcwClient =
     new piql.tpcw.TpcwClient(new piql.tpcw.TpcwLoaderTask(10,5,10,10000,2).newTestCluster, new ParallelExecutor with DebugExecutor)
+
+  def runScaleTest(numServers: Int, executor: String = "edu.berkeley.cs.scads.piql.exec.ParallelExecutor")(implicit cluster: Cluster) = {
+    val (scadsTasks, scadsCluster) = TpcwLoaderTask(numServers, numServers/2, replicationFactor=2, numEBs = 150 * numServers/2, numItems = 10000).delayedCluster
+
+    val tpcwTasks = TpcwWorkflowTask(
+      numServers/2,
+      executor,
+      iterations = 4,
+      runLengthMin = 5
+    ).delayedSchedule(scadsCluster, resultsCluster)
+
+    cluster.serviceScheduler.scheduleExperiment(scadsTasks ++ tpcwTasks)
+  }
 }
