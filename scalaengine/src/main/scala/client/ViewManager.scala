@@ -79,7 +79,7 @@ trait ViewManager[BulkType <: AvroPair] extends RangeKeyValueStoreLike[IndexedRe
         val tmp = delta(t, -1) // TODO insert the right stripe number
         deltaTime += System.currentTimeMillis - deltaStart
         for (u <- tmp) {
-          view.putBulkBytes(view.keyToBytes(u), valueBytes)
+          view.bulkPutBytes(view.keyToBytes(u), valueBytes)
         }
       }
       view.flushBulkBytes

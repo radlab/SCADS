@@ -19,7 +19,7 @@ private[storage] object QuorumProtocol {
 
   val BulkPutBufSize = 1024
   val BulkPutMaxOutstanding = 64
-  val BulkPutTimeout = 60 * 1000
+  val BulkUpdateTimeout = 60 * 1000
 
   //TODO: there is probably a better way to do this...
   val awaitingReadRepair = new ArrayBlockingQueue[RequestHandler](1024)
@@ -144,6 +144,15 @@ trait QuorumProtocol
     responses.blockFor(quorum, 5000, TimeUnit.MILLISECONDS)
   }
 
+  /**
+   * Performs a put using bulkUpdate
+   */
+  override def bulkPutBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit =
+    bulkUpdate(PutRequest(key, value.map(createMetadata)))
+
+  def bulkIncrementFieldBytes(key: Array[Byte], fieldName: String, amount: Int): Unit =
+    bulkUpdate(IncrementFieldRequest(key, fieldName, amount))
+
   /* Buffers KV tuples until the average buffer size for all the servers is
    * greater than BufSize. Then sends the request to the servers, while
    * repeating the buffering process for the next set of KV tuples. When the
@@ -153,20 +162,19 @@ trait QuorumProtocol
    *
    * Note: the current implementation is Write All not quorum based.
    */
-  override def putBulkBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit = {
-    val (servers, quorum) = writeQuorumForKey(key)
-    val putRequest = PutRequest(key, value.map(createMetadata))
+  def bulkUpdate(req: BulkRequest): Unit = {
+    val (servers, quorum) = writeQuorumForKey(req.key)
 
     for (server <- servers) {
-      val buf = serverBuffers.getOrElseUpdate(server, new ArrayBuffer[PutRequest](BulkPutBufSize))
-      buf += putRequest
+      val buf = serverBuffers.getOrElseUpdate(server, new ArrayBuffer[BulkRequest](BulkPutBufSize))
+      buf += req
 
       /* send the buffer when its full */
       if (buf.size >= BulkPutBufSize)
         sendBuffer(server, buf)
     }
 
-    if (outstandingPuts.size >= BulkPutMaxOutstanding)
+    if (outstandingUpdates.size >= BulkPutMaxOutstanding)
       processNextOutstandingRequest
   }
 
@@ -177,53 +185,53 @@ trait QuorumProtocol
     }
 
     /* block until we receive responses for all sent requests */
-    while (outstandingPuts.size > 0)
+    while (outstandingUpdates.size > 0)
       processNextOutstandingRequest
   }
 
-  protected case class OutstandingPut(timestamp: Long, server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], future: MessageFuture[StorageMessage], tries: Int = 0)
+  protected case class OutstandingUpdate(timestamp: Long, server: PartitionService, sendBuffer: ArrayBuffer[BulkRequest], future: MessageFuture[StorageMessage], tries: Int = 0)
 
   /* bulk put buffers are thread-local */
   implicit def accessLocal[A](a: ThreadLocal[A]): A = a.get
 
-  protected val serverBuffers = new ThreadLocal[HashMap[PartitionService, ArrayBuffer[PutRequest]]] {
-    override def initialValue() = new HashMap[PartitionService, ArrayBuffer[PutRequest]]()
+  protected val serverBuffers = new ThreadLocal[HashMap[PartitionService, ArrayBuffer[BulkRequest]]] {
+    override def initialValue() = new HashMap[PartitionService, ArrayBuffer[BulkRequest]]()
   }
 
-  protected val outstandingPuts = new ThreadLocal[collection.mutable.Queue[OutstandingPut]] {
-    override def initialValue() = new collection.mutable.Queue[OutstandingPut]()
+  protected val outstandingUpdates = new ThreadLocal[collection.mutable.Queue[OutstandingUpdate]] {
+    override def initialValue() = new collection.mutable.Queue[OutstandingUpdate]()
   }
 
   /* send the request and append it to the list of outstanding requests */
-  @inline private def sendBuffer(server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], tries: Int = 0): Unit = {
+  @inline private def sendBuffer(server: PartitionService, sendBuffer: ArrayBuffer[BulkRequest], tries: Int = 0): Unit = {
     if (tries > 5)
       throw new RuntimeException("Retries exceeded for server %s".format(server))
 
     assert(sendBuffer.length > 0)
 
-    outstandingPuts enqueue OutstandingPut(
+    outstandingUpdates enqueue OutstandingUpdate(
       System.currentTimeMillis,
       server,
       sendBuffer,
-      server !! BulkPutRequest(sendBuffer),
+      server !! BulkUpdateRequest(sendBuffer),
       tries)
     serverBuffers -= server
   }
 
   /* wait up to timeout for the oldest request to return if it doesn't resend it*/
   @inline private def processNextOutstandingRequest: Unit = {
-    val oldestRequest = outstandingPuts.dequeue
-    val remainingTime = BulkPutTimeout - (System.currentTimeMillis - oldestRequest.timestamp)
+    val oldestRequest = outstandingUpdates.dequeue
+    val remainingTime = BulkUpdateTimeout - (System.currentTimeMillis - oldestRequest.timestamp)
     val timeout =
       if (remainingTime < 0)
         1
-      else if (remainingTime > BulkPutTimeout) /* handle ec2 timeskips */
-        BulkPutTimeout
+      else if (remainingTime > BulkUpdateTimeout) /* handle ec2 timeskips */
+        BulkUpdateTimeout
       else
         remainingTime
 
     oldestRequest.future.get(timeout) match {
-      case Some(BulkPutResponse()) => null
+      case Some(BulkUpdateResponse()) => null
       case Some(otherMsg) => {
         logger.warning("Received unexpected message for bulk put to %s: %s. Resending", oldestRequest.server, otherMsg)
         sendBuffer(oldestRequest.server, oldestRequest.sendBuffer, oldestRequest.tries + 1)

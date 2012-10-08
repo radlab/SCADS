@@ -18,12 +18,12 @@ trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
   with KeyPartitionable {
 
   override def ++=(that: TraversableOnce[B]) = {
-    that.toIterable.map(bulkToBytes).foreach(b => putBulkBytes(b._1, b._2))
+    that.toIterable.map(bulkToBytes).foreach(b => bulkPutBytes(b._1, b._2))
     flushBulkBytes
   }
 
   override def --=(that: TraversableOnce[B]) = {
-    that.toIterable.map(bulkToBytes).foreach(b => putBulkBytes(b._1, None))
+    that.toIterable.map(bulkToBytes).foreach(b => bulkPutBytes(b._1, None))
     flushBulkBytes
   }
 
@@ -35,6 +35,9 @@ trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
 
   override def incrementField(key: K, fieldName: String, amount: Int): Unit =
     incrementFieldBytes(keyToBytes(key), fieldName, amount)
+
+  override def bulkIncrementField(key: K, fieldName: String, amount: Int): Unit =
+    bulkIncrementFieldBytes(keyToBytes(key), fieldName, amount)
 
   override def asyncPut(key: K, value: Option[V]): ScadsFuture[Unit] =
     asyncPutBytes(keyToBytes(key), value.map(valueToBytes))

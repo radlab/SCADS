@@ -133,16 +133,17 @@ class InMemStorageManager
     })
   }
 
-  def bulkPut(records:Seq[PutRequest]) = {
-    records.foreach(rec => { 
-      val recval = rec.value.get
-      if (recval != null) {
-        val nrec = valueClass.newInstance.asInstanceOf[ScalaSpecificRecord]
-        nrec.parse(getRecordInputStreamFromValue(recval))
-        map.put(rec.key,(extractMetadataFromValue(recval),nrec))
-      } else
-        map.remove(rec.key)
-    })
+  def bulkUpdate(records: Seq[BulkRequest]) = {
+    records.foreach {
+      case rec: PutRequest =>
+        val recval = rec.value.get
+        if (recval != null) {
+          val nrec = valueClass.newInstance.asInstanceOf[ScalaSpecificRecord]
+          nrec.parse(getRecordInputStreamFromValue(recval))
+          map.put(rec.key, (extractMetadataFromValue(recval), nrec))
+        } else
+          map.remove(rec.key)
+    }
   }
 
   def getRange(minKey:Option[Array[Byte]], maxKey:Option[Array[Byte]], limit:Option[Int], offset:Option[Int], ascending:Boolean):Seq[Record] = {

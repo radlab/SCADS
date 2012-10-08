@@ -159,12 +159,12 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
   override def ++=(that: TraversableOnce[BulkType]): Unit = {
     logger.debug("Putting index entries")
     that.foreach { pair => {
-      putBulkBytes(keyToBytes(pair.key), valueToBytes(pair.value))
+      bulkPutBytes(keyToBytes(pair.key), valueToBytes(pair.value))
 
       indexCache.values.foreach { case (ns, mapping) =>
 	      makeIndexFor(pair.key, pair.value, ns.keySchema, mapping)
           .map(ns.keyToBytes)
-          .foreach(ns.putBulkBytes(_, dummyIndexValueBytes))
+          .foreach(ns.bulkPutBytes(_, dummyIndexValueBytes))
       }
     }}
 
@@ -175,12 +175,12 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
   override def --=(that: TraversableOnce[BulkType]): Unit = {
     logger.debug("Deleting index entries")
     that.foreach { pair => {
-      putBulkBytes(keyToBytes(pair.key), None)
+      bulkPutBytes(keyToBytes(pair.key), None)
 
       indexCache.values.foreach { case (ns, mapping) =>
 	      makeIndexFor(pair.key, pair.value, ns.keySchema, mapping)
           .map(ns.keyToBytes)
-          .foreach(ns.putBulkBytes(_, None))
+          .foreach(ns.bulkPutBytes(_, None))
       }
     }}
 

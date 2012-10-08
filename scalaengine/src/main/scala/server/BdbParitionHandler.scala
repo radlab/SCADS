@@ -230,10 +230,14 @@ class BdbStorageManager(val db: Database,
     }
   }
 
-
   def incrementField(key: Array[Byte], fieldName: String, amount: Int): Unit = {
-    val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry())
     val txn = db.getEnvironment.beginTransaction(null, null)
+    doIncrementField(txn, key, fieldName, amount)
+    txn.commit()
+  }
+
+  protected def doIncrementField(txn: Transaction, key: Array[Byte], fieldName: String, amount: Int): Unit = {
+    val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry())
 
     /* Look up the old value or create a blank one if it doesn't exist */
     val value = db.get(txn, dbeKey, dbeValue, LockMode.RMW) match {
@@ -265,7 +269,6 @@ class BdbStorageManager(val db: Database,
     /* Commit new value */
     dbeValue.setData(createMetadata(outBuffer.toByteArray))
     db.put(txn, dbeKey, dbeValue)
-    txn.commit()
   }
 
   def topK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): Seq[Record] = {
@@ -311,15 +314,23 @@ class BdbStorageManager(val db: Database,
     txn.commit() // exception here will get caught above
   }
 
-  def bulkPut(records:Seq[PutRequest]):Unit = timed("bulkPut") {
-    val txn = db.getEnvironment.beginTransaction(null, null)
-    records.foreach(rec => {
-      rec.value match {
-        case Some(v) => db.put(txn, new DatabaseEntry(rec.key),
-                                    new DatabaseEntry(v))
-        case None => db.delete(txn, new DatabaseEntry(rec.key))
+  def bulkUpdate(records:Seq[BulkRequest]):Unit = timed("bulkUpdate") {
+    var txn = db.getEnvironment.beginTransaction(null, null)
+    records.foreach {
+      case rec: PutRequest =>
+        rec.value match {
+          case Some(v) => db.put(txn, new DatabaseEntry(rec.key),
+                                      new DatabaseEntry(v))
+          case None => db.delete(txn, new DatabaseEntry(rec.key))
+        }
+      case IncrementFieldRequest(key, fieldName, amount) => {
+        doIncrementField(txn, key, fieldName, amount)
+
+        //HACK: because locks are timing out with large puts
+        txn.commit()
+        txn = db.getEnvironment.beginTransaction(null, null)
       }
-    })
+    }
     txn.commit()  // exception here will get caught above
   }
 
