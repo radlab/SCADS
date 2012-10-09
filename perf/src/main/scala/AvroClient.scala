@@ -49,7 +49,7 @@ abstract trait DataLoadingTask extends ExperimentTask {
   def delayedCluster(implicit cluster: Cluster): (Seq[JvmTask], ScadsCluster) = {
     val clusterRoot = cluster.zooKeeperRoot.getOrCreate("scads").createChild("experimentCluster", mode = CreateMode.PERSISTENT_SEQUENTIAL)
     clusterAddress = clusterRoot.canonicalAddress
-    val serverProcs = List.fill(numServers)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress).toJvmTask)
+    val serverProcs = List.fill(numServers)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress, noSync=true).toJvmTask)
     val loaderProcs = List.fill(numLoaders)(this.toJvmTask)
 
     (serverProcs ++ loaderProcs, new ScadsCluster(clusterRoot))
