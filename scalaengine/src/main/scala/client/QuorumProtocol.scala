@@ -153,7 +153,7 @@ trait QuorumProtocol
   def bulkIncrementFieldBytes(key: Array[Byte], fieldName: String, amount: Int): Unit =
     bulkUpdate(IncrementFieldRequest(key, fieldName, amount))
 
-  /* Buffers KV tuples until the average buffer size for all the servers is
+  /* Buffers updates until the average buffer size for all the servers is
    * greater than BufSize. Then sends the request to the servers, while
    * repeating the buffering process for the next set of KV tuples. When the
    * tuple stream runs out, or when the outstanding future collection grows
