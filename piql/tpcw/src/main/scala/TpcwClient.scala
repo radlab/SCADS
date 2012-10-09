@@ -52,10 +52,12 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       val item = joinedLine(1).asInstanceOf[Item]
       val order = joinedLine(2).asInstanceOf[Order]
       calculateEpochs(order.O_DATE_Time).foreach { ep =>
-        orderCountStaging.incrementField(OrderCountStaging(ep, item.I_SUBJECT, line.OL_I_ID ).key, "OC_COUNT", line.OL_QTY)
-        relatedItemCountStaging.incrementField(RelatedItemCountStaging(ep, item.I_ID, order.O_C_UNAME).key, "RELATED_COUNT", line.OL_QTY)
+        orderCountStaging.bulkIncrementField(OrderCountStaging(ep, item.I_SUBJECT, line.OL_I_ID ).key, "OC_COUNT", line.OL_QTY)
+        //relatedItemCountStaging.bulkIncrementField(RelatedItemCountStaging(ep, item.I_ID, order.O_C_UNAME).key, "RELATED_COUNT", line.OL_QTY)
       }
     }
+    orderCountStaging.flushBulkBytes()
+    relatedItemCountStaging.flushBulkBytes()
   }
 
   val kTopOrdersToList = 50
