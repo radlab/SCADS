@@ -51,6 +51,10 @@ case class TpcwWorkflowTask(var numClients: Int,
     val executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
     val tpcwClient = new TpcwClient(cluster, executor)
 
+    /* Turn on caching for relations commonly used in view delta queries */
+    tpcwClient.orders.cacheActive = true
+    tpcwClient.items.cacheActive = true
+
     val loader = new TpcwLoader(
       numEBs = loaderConfig.numEBs,
       numItems = loaderConfig.numItems)
