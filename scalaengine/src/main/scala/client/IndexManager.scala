@@ -87,9 +87,6 @@ class IndexNamespace(
 
   override lazy val valueSchema = indexValueSchema
 
-  def asyncGetRecord(key: IndexedRecord) = asyncGet(key)
-  def getRecord(key: IndexedRecord) = get(key)
-
   def newRecord(schema: Schema) = keyReaderWriter.newRecord(schema)
 }
 
