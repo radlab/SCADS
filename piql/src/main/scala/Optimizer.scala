@@ -42,11 +42,12 @@ object Optimizer {
     logger.info("Optimizing subplan: %s", logicalPlan)
 
     logicalPlan match {
-      case IndexRange(equalityPreds, None, None, None, r: Relation) if ((equalityPreds.size == r.keySchema.getFields.size) &&
-        isPrefix(equalityPreds.map(_.attribute), r)) => {
-          IndexLookup(r, makeKeyGenerator(r, equalityPreds))
+      case IndexRange(equalityPreds, None, None, None, r: Relation) if ((equalityPreds.size == r.keySchema.getFields.size) && isPrefix(equalityPreds.map(_.attribute), r)) => {
+        logger.debug("Case 0")
+        IndexLookup(r, makeKeyGenerator(r, equalityPreds))
       }
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, None, r: Relation) => {
+        logger.debug("Case 1")
         if (isPrefix(equalityPreds.map(_.attribute), r)) {
           logger.info("Using primary index for predicates: %s", equalityPreds)
           val idxScanPlan = IndexScan(r, makeKeyGenerator(r, equalityPreds), count, true)
@@ -70,15 +71,22 @@ object Optimizer {
         }
       }
       case IndexRange(equalityPreds, bound, Some(Ordering(attrs, asc)), rangeConstraint, r: Relation) => {
+        logger.debug("Case 2")
         val limitHint = bound.map(_.count).getOrElse {
           logger.warning("UnboundedPlan %s: %s", r, logicalPlan)
           FixedLimit(defaultFetchSize)
         }
         val isDataStop = bound.map(_.isDataStop).getOrElse(true)
         val prefixAttrs = equalityPreds.map(_.attribute) ++ attrs
+        logger.debug("Prefix attrs are %s", prefixAttrs)
         val idxScanPlan =
-          if (isPrefix(prefixAttrs, r)) {
+          // Checks that equality preds come before attrs for rangeConstraints.
+          if ((!rangeConstraint.isDefined || isPrefix(equalityPreds.map(_.attribute), r)) && isPrefix(prefixAttrs, r)) {
             IndexScan(r, makeKeyGenerator(r, equalityPreds), limitHint, asc, rangeConstraint)
+          }
+          else if (isPrefix(prefixAttrs, r)) {
+            val idx = r.index(prefixAttrs)
+            IndexScan(idx, makeKeyGenerator(idx, equalityPreds), limitHint, asc, rangeConstraint)
           }
           else {
             logger.debug("Creating index for attributes: %s", prefixAttrs)
@@ -101,6 +109,7 @@ object Optimizer {
       case IndexRange(equalityPreds, limit, None, None, Join(child, r: Relation))
         if (equalityPreds.size == r.keySchema.getFields.size) &&
           isPrefix(equalityPreds.map(_.attribute), r) => {
+        logger.debug("Case 3")
         val optChild = apply(child)
         val plan = IndexLookupJoin(r, makeKeyGenerator(r, equalityPreds), optChild)
         limit match {
@@ -109,6 +118,7 @@ object Optimizer {
         }
       }
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, None, Join(child, r: Relation)) => {
+        logger.debug("Case 4")
         val prefixAttrs = equalityPreds.map(_.attribute)
         val optChild = apply(child)
 
@@ -139,7 +149,7 @@ object Optimizer {
         fullPlan
       }
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), rangeConstraint, Join(child, r: Relation)) => {
-        /* TODO(ekl) impl rangeConstraint option */
+        logger.debug("Case 5")
         val prefixAttrs = equalityPreds.map(_.attribute) ++ attrs
         val optChild = apply(child)
 
@@ -245,8 +255,8 @@ object Optimizer {
       val (ordering, rangeConstraint: Option[RangeConstraint], planWithoutSort) = planWithoutStop match {
         case Sort(attrs, asc, child) if (attrs.map(_.isInstanceOf[QualifiedAttributeValue]).reduceLeft(_ && _)) =>
           (Some(Ordering(attrs.asInstanceOf[Seq[QualifiedAttributeValue]], asc)), None, child)
-        case Range(attr, constraint, child) =>
-          (Some(Ordering(attr.asInstanceOf[QualifiedAttributeValue] :: Nil, true)), constraint, child)
+        case SortedRange(attr, constraint, child) =>
+          (Some(Ordering(attr.asInstanceOf[QualifiedAttributeValue] :: Nil, true)), Some(constraint), child)
         case otherOp => (None, None, otherOp)
       }
 

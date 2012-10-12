@@ -109,7 +109,7 @@ case class Selection(predicate: Predicate, child: LogicalPlan) extends LogicalPl
 /**
  * Implements inequality operator with ranges.
  */
-case class Range(attr: Value, constraint: RangeConstraint, child: LogicalPlan) extends LogicalPlan with SingleChildNode
+case class SortedRange(attr: Value, constraint: RangeConstraint, child: LogicalPlan) extends LogicalPlan with SingleChildNode
 
 case class RangeConstraint(lower: Option[Value], upper: Option[Value])
 

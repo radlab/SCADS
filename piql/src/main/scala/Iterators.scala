@@ -62,19 +62,34 @@ trait QueryExecutor {
     boundKey
   }
 
-   /* TODO(ekl) allow range constraint with more than one attribute */
-  final protected def constrainPrefix(boundKey: Key, cons: Option[RangeConstraint])(implicit ctx: Context): Tuple2[Key,Key] = {
+  final protected def bindKeyRange(ns: TupleProvider, key: KeyGenerator, cons: Option[RangeConstraint])(implicit ctx: Context): Tuple2[Key,Key] = {
+    val boundKey = bindKey(ns, key)
+    bindRangeAttribute(boundKey, cons, key.length)
+  }
+
+  final private def bindRangeAttribute(boundKey: Key, cons: Option[RangeConstraint], consAttrIndex: Int)(implicit ctx: Context): Tuple2[Key,Key] = {
+    def withPrefix(v: Value): Key = {
+      val key = new GenericData.Record(boundKey.asInstanceOf[GenericData.Record], true)
+      logger.debug("Bound range attribute %s at index %d.", v, consAttrIndex)
+      val boundValue = bindValue(v, null)
+      if (boundValue != None) {
+        key.put(consAttrIndex, boundValue)
+      } else {
+        // Reinterprets None values given in parameters as null.
+        key.put(consAttrIndex, null)
+      }
+      key
+    }
+    logger.debug("Range constraint is %s.", cons)
     cons match {
-      case Some(cons: RangeConstraint) =>
-        val lower = new GenericData.Record(boundKey.asInstanceOf[GenericData.Record], true)
-        if (cons.lower.isDefined) {
-          lower.put(0, cons.lower.get)
-        }
-        val upper = new GenericData.Record(boundKey.asInstanceOf[GenericData.Record], true)
-        if (cons.upper.isDefined) {
-          upper.put(0, cons.upper.get)
-        }
-        (lower, upper)
+      case Some(RangeConstraint(None, None)) =>
+        (boundKey, boundKey)
+      case Some(RangeConstraint(Some(lower), None)) =>
+        (withPrefix(lower), boundKey)
+      case Some(RangeConstraint(None, Some(upper))) =>
+        (boundKey, withPrefix(upper))
+      case Some(RangeConstraint(Some(lower), Some(upper))) =>
+        (withPrefix(lower), withPrefix(upper))
       case None =>
         (boundKey, boundKey)
     }
@@ -157,7 +172,7 @@ class SimpleExecutor extends QueryExecutor {
       new QueryIterator {
         val name = "SimpleIndexScan"
         private val boundKeyPrefix = bindKey(namespace, keyPrefix)
-        private val (lowerPrefix, upperPrefix) = constrainPrefix(boundKeyPrefix, rangeConstraint)
+        private val (lowerPrefix, upperPrefix) = bindKeyRange(namespace, keyPrefix, rangeConstraint)
         private var result: Seq[Record] = Nil
         private var pos = 0
         private var offset = 0
@@ -166,6 +181,8 @@ class SimpleExecutor extends QueryExecutor {
 
         @inline private def doFetch() {
           logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
+          logger.debug("BoundLowerKeyPrefix: %s", lowerPrefix)
+          logger.debug("BoundUpperKeyPrefix: %s", upperPrefix)
           logger.debug("Fetch from namespace: " + namespace)
           logger.debug("Namespace provider: " + namespace.provider)
           result = namespace.provider.getRange(lowerPrefix, upperPrefix, offset = offset, limit = boundLimit, ascending = ascending)
@@ -257,7 +274,7 @@ class SimpleExecutor extends QueryExecutor {
 
           val tupleDatum = childIterator.map(childValue => {
             val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
-            val (lowerPrefix, upperPrefix) = constrainPrefix(boundKeyPrefix, rangeConstraint)
+            val (lowerPrefix, upperPrefix) = bindKeyRange(namespace, keyPrefix, rangeConstraint)
             val records = namespace.provider.getRange(lowerPrefix, upperPrefix, limit = boundLimit, ascending = ascending)
             logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", boundKeyPrefix, records)
 
@@ -466,7 +483,7 @@ class ParallelExecutor extends SimpleExecutor {
       new QueryIterator {
         val name = "ParallelIndexScan"
         private val boundKeyPrefix = bindKey(namespace, keyPrefix)
-        private val (lowerPrefix, upperPrefix) = constrainPrefix(boundKeyPrefix, rangeConstraint)
+        private val (lowerPrefix, upperPrefix) = bindKeyRange(namespace, keyPrefix, rangeConstraint)
 
         private var result: Seq[Record] = Nil
         private var ftch: ScadsFuture[Seq[Record]] = _
@@ -479,6 +496,8 @@ class ParallelExecutor extends SimpleExecutor {
 
         @inline private def doFetch() {
           logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
+          logger.debug("BoundLowerKeyPrefix: %s", lowerPrefix)
+          logger.debug("BoundUpperKeyPrefix: %s", upperPrefix)
           ftch = namespace.provider.asyncGetRange(lowerPrefix, upperPrefix, offset = offset, limit = boundLimit, ascending = ascending)
           ftchInvoked = false
         }
@@ -593,7 +612,7 @@ class ParallelExecutor extends SimpleExecutor {
 
           tupleData = childIterator.map(childValue => {
             val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
-            val (lowerPrefix, upperPrefix) = constrainPrefix(boundKeyPrefix, rangeConstraint)
+            val (lowerPrefix, upperPrefix) = bindKeyRange(namespace, keyPrefix, rangeConstraint)
             val ftch = namespace.provider.asyncGetRange(lowerPrefix, upperPrefix, limit = boundLimit, ascending = ascending)
             (boundKeyPrefix, childValue, 0, false, ftch)
           }).toArray
@@ -733,7 +752,7 @@ class LazyExecutor extends SimpleExecutor {
         val name = "LazyIndexScan"
 
         private val boundKeyPrefix = bindKey(namespace, keyPrefix)
-        private val (lowerPrefix, upperPrefix) = constrainPrefix(boundKeyPrefix, rangeConstraint)
+        private val (lowerPrefix, upperPrefix) = bindKeyRange(namespace, keyPrefix, rangeConstraint)
 
         private var result: Record = null
 
@@ -846,7 +865,7 @@ class LazyExecutor extends SimpleExecutor {
 
           val tupleDatum = childIterator.map(childValue => {
             val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
-            val (lowerPrefix, upperPrefix) = constrainPrefix(boundKeyPrefix, rangeConstraint)
+            val (lowerPrefix, upperPrefix) = bindKeyRange(namespace, keyPrefix, rangeConstraint)
             val records = namespace.provider.getRange(lowerPrefix, upperPrefix, limit = 1, ascending = ascending)
             logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", boundKeyPrefix, records)
 
