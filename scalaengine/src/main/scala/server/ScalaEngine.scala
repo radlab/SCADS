@@ -16,6 +16,7 @@ import comm._
 import storage._
 import avro.marker._
 import deploylib.mesos._
+import java.util.concurrent.TimeUnit
 
 /**
  * Application for starting up a standalone scads storage engine
@@ -87,6 +88,7 @@ case class ScalaEngineTask(var clusterAddress: String, var dbDir: Option[String]
     val config = new EnvironmentConfig()
     config.setAllowCreate(true)
     config.setTransactional(true)
+    config.setLockTimeout(3, TimeUnit.SECONDS)
     config.setCachePercent(cachePercentage.getOrElse(60))
     if (noSync) {
       config.setDurability(Durability.COMMIT_NO_SYNC)
