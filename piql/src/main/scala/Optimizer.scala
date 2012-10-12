@@ -42,11 +42,11 @@ object Optimizer {
     logger.info("Optimizing subplan: %s", logicalPlan)
 
     logicalPlan match {
-      case IndexRange(equalityPreds, None, None, r: Relation) if ((equalityPreds.size == r.keySchema.getFields.size) &&
+      case IndexRange(equalityPreds, None, None, None, r: Relation) if ((equalityPreds.size == r.keySchema.getFields.size) &&
         isPrefix(equalityPreds.map(_.attribute), r)) => {
           IndexLookup(r, makeKeyGenerator(r, equalityPreds))
       }
-      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, r: Relation) => {
+      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, None, r: Relation) => {
         if (isPrefix(equalityPreds.map(_.attribute), r)) {
           logger.info("Using primary index for predicates: %s", equalityPreds)
           val idxScanPlan = IndexScan(r, makeKeyGenerator(r, equalityPreds), count, true)
@@ -69,7 +69,7 @@ object Optimizer {
           fullPlan
         }
       }
-      case IndexRange(equalityPreds, bound, Some(Ordering(attrs, asc)), r: Relation) => {
+      case IndexRange(equalityPreds, bound, Some(Ordering(attrs, asc)), rangeConstraint, r: Relation) => {
         val limitHint = bound.map(_.count).getOrElse {
           logger.warning("UnboundedPlan %s: %s", r, logicalPlan)
           FixedLimit(defaultFetchSize)
@@ -78,7 +78,7 @@ object Optimizer {
         val prefixAttrs = equalityPreds.map(_.attribute) ++ attrs
         val idxScanPlan =
           if (isPrefix(prefixAttrs, r)) {
-            IndexScan(r, makeKeyGenerator(r, equalityPreds), limitHint, asc)
+            IndexScan(r, makeKeyGenerator(r, equalityPreds), limitHint, asc, rangeConstraint)
           }
           else {
             logger.debug("Creating index for attributes: %s", prefixAttrs)
@@ -88,7 +88,8 @@ object Optimizer {
               IndexScan(idx,
                 makeKeyGenerator(idx, equalityPreds),
                 limitHint,
-                asc))
+                asc,
+                rangeConstraint))
           }
 
         val fullPlan = isDataStop match {
@@ -97,7 +98,7 @@ object Optimizer {
         }
         fullPlan
       }
-      case IndexRange(equalityPreds, limit, None, Join(child, r: Relation))
+      case IndexRange(equalityPreds, limit, None, None, Join(child, r: Relation))
         if (equalityPreds.size == r.keySchema.getFields.size) &&
           isPrefix(equalityPreds.map(_.attribute), r) => {
         val optChild = apply(child)
@@ -107,7 +108,7 @@ object Optimizer {
           case _ => plan
         }
       }
-      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, Join(child, r: Relation)) => {
+      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, None, Join(child, r: Relation)) => {
         val prefixAttrs = equalityPreds.map(_.attribute)
         val optChild = apply(child)
 
@@ -137,7 +138,8 @@ object Optimizer {
 
         fullPlan
       }
-      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), Join(child, r: Relation)) => {
+      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), rangeConstraint, Join(child, r: Relation)) => {
+        /* TODO(ekl) impl rangeConstraint option */
         val prefixAttrs = equalityPreds.map(_.attribute) ++ attrs
         val optChild = apply(child)
 
@@ -149,14 +151,16 @@ object Optimizer {
               attrs,
               count,
               asc,
-              optChild)
+              optChild,
+              rangeConstraint)
           } else {
             val idx = r.index(prefixAttrs)
             val idxJoinPlan = IndexScanJoin(idx,
               makeKeyGenerator(idx, equalityPreds),
               count,
               asc,
-              optChild)
+              optChild,
+              rangeConstraint)
             derefPlan(r, idxJoinPlan)
           }
 
@@ -230,7 +234,7 @@ object Optimizer {
    * single get operations against the key value store
    */
   protected object IndexRange {
-    def unapply(logicalPlan: LogicalPlan): Option[(Seq[AttributeEquality], Option[TupleLimit], Option[Ordering], LogicalPlan)] = {
+    def unapply(logicalPlan: LogicalPlan): Option[(Seq[AttributeEquality], Option[TupleLimit], Option[Ordering], Option[RangeConstraint], LogicalPlan)] = {
       val (limit, planWithoutStop) = logicalPlan match {
         case Paginate(count, child) => (Some(TupleLimit(count, false)), child)
         case StopAfter(count, child) => (Some(TupleLimit(count, false)), child)
@@ -238,12 +242,12 @@ object Optimizer {
         case otherOp => (None, otherOp)
       }
 
-      //TODO: check to make sure these are fields in the base relation
-      val (ordering, planWithoutSort) = planWithoutStop match {
-        case Sort(attrs, asc, child) if (attrs.map(_.isInstanceOf[QualifiedAttributeValue]).reduceLeft(_ && _)) => {
-          (Some(Ordering(attrs.asInstanceOf[Seq[QualifiedAttributeValue]], asc)), child)
-        }
-        case otherOp => (None, otherOp)
+      val (ordering, rangeConstraint: Option[RangeConstraint], planWithoutSort) = planWithoutStop match {
+        case Sort(attrs, asc, child) if (attrs.map(_.isInstanceOf[QualifiedAttributeValue]).reduceLeft(_ && _)) =>
+          (Some(Ordering(attrs.asInstanceOf[Seq[QualifiedAttributeValue]], asc)), None, child)
+        case Range(attr, constraint, child) =>
+          (Some(Ordering(attr.asInstanceOf[QualifiedAttributeValue] :: Nil, true)), constraint, child)
+        case otherOp => (None, None, otherOp)
       }
 
       val (predicates, planWithoutPredicates) = planWithoutSort.gatherUntil {
@@ -275,7 +279,7 @@ object Optimizer {
         }
       }
 
-      val getOp = (idxEqPreds, limit, ordering, basePlan)
+      val getOp = (idxEqPreds, limit, ordering, rangeConstraint, basePlan)
       logger.info("Matched IndexRange%s", getOp)
       Some(getOp)
     }

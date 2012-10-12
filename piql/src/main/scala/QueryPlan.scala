@@ -107,6 +107,13 @@ case class Project(values: Seq[Value], child: LogicalPlan, schema: Option[Schema
 case class Selection(predicate: Predicate, child: LogicalPlan) extends LogicalPlan with SingleChildNode
 
 /**
+ * Implements inequality operator with ranges.
+ */
+case class Range(attr: Value, constraint: RangeConstraint, child: LogicalPlan) extends LogicalPlan with SingleChildNode
+
+case class RangeConstraint(lower: Option[Value], upper: Option[Value])
+
+/**
  * Sorts child by the values specified in attributes.
  */
 case class Sort(attributes: Seq[Value], ascending: Boolean, child: LogicalPlan) extends LogicalPlan with SingleChildNode
@@ -203,10 +210,10 @@ abstract trait InnerPlan extends QueryPlan { val child: QueryPlan}
 
 case class IndexLookup(namespace: TupleProvider, key: KeyGenerator) extends RemotePlan
 
-case class IndexScan(namespace: TupleProvider, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean) extends RemotePlan
+case class IndexScan(namespace: TupleProvider, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean, rangeConstraint: Option[RangeConstraint] = None) extends RemotePlan
 case class IndexLookupJoin(namespace: TupleProvider, key: KeyGenerator, child: QueryPlan) extends RemotePlan with InnerPlan
-case class IndexScanJoin(namespace: TupleProvider, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean, child: QueryPlan) extends RemotePlan with InnerPlan
-case class IndexMergeJoin(namespace: TupleProvider, keyPrefix: KeyGenerator, sortFields: Seq[Value], limit: Limit, ascending: Boolean, child: QueryPlan) extends RemotePlan with InnerPlan
+case class IndexScanJoin(namespace: TupleProvider, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean, child: QueryPlan, rangeConstraint: Option[RangeConstraint] = None) extends RemotePlan with InnerPlan
+case class IndexMergeJoin(namespace: TupleProvider, keyPrefix: KeyGenerator, sortFields: Seq[Value], limit: Limit, ascending: Boolean, child: QueryPlan, rangeConstraint: Option[RangeConstraint] = None) extends RemotePlan with InnerPlan
 
 case class LocalSelection(predicate: Predicate, child: QueryPlan) extends QueryPlan with InnerPlan
 case class LocalProjection(fields: KeyGenerator, child: QueryPlan, schema: Schema) extends QueryPlan with InnerPlan

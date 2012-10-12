@@ -23,5 +23,7 @@ trait Queryable {
 
   def sort(attributes: Seq[Value], ascending: Boolean = true) = Sort(attributes, ascending, this)
 
+  def range(attr: Value, lower: Option[Value], upper: Option[Value]) = Range(attr, RangeConstraint(lower, upper), this)
+
   def paginate(count: Int) = Paginate(FixedLimit(count), this)
 }

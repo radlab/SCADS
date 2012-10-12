@@ -114,14 +114,14 @@ class Binder(plan: QueryPlan) {
   protected def bindPlan(plan: QueryPlan): QueryPlan = plan match {
     case IndexLookup(ns, kp) =>
       IndexLookup(ns, kp.map(bindValue))
-    case IndexScan(ns, kp, l, asc) =>
-      IndexScan(ns, kp.map(bindValue), l, asc)
+    case IndexScan(ns, kp, l, asc, rc) =>
+      IndexScan(ns, kp.map(bindValue), l, asc, rc)
     case IndexLookupJoin(ns, kp, c) =>
       IndexLookupJoin(ns, kp.map(bindValue), bindPlan(c))
-    case IndexScanJoin(ns, kp, l, asc, c) =>
-      IndexScanJoin(ns, kp.map(bindValue), l, asc, c)
-    case IndexMergeJoin(ns, kp, sf, l, asc, c) =>
-      IndexMergeJoin(ns, kp.map(bindValue), sf.map(bindValue), l, asc, bindPlan(c))
+    case IndexScanJoin(ns, kp, l, asc, c, rc) =>
+      IndexScanJoin(ns, kp.map(bindValue), l, asc, c, rc)
+    case IndexMergeJoin(ns, kp, sf, l, asc, c, rc) =>
+      IndexMergeJoin(ns, kp.map(bindValue), sf.map(bindValue), l, asc, bindPlan(c), rc)
     case LocalSelection(p, c) =>
       LocalSelection(bindPredicate(p), bindPlan(c))
     case LocalStopAfter(cnt, c) =>
