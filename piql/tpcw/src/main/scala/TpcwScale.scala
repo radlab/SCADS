@@ -24,7 +24,7 @@ case class Result(var clientConfig: TpcwWorkflowTask,
                   var iteration: Int,
                   var threadId: Int) extends AvroPair {
   var totalElaspedTime: Long = _ /* in ms */
-  var times: Histogram = null
+  var times: Seq[Histogram] = null
   var skips: Int = _
   var failures: Int = _
 }
@@ -63,7 +63,8 @@ case class TpcwWorkflowTask(var numClients: Int,
       logger.info("Begining iteration %d", iteration)
       results ++= (1 to numThreads).pmap(threadId => {
         def getTime = System.nanoTime / 1000000
-        val histogram = Histogram(1, 5000)
+        val histograms = new scala.collection.mutable.HashMap[ActionType.ActionType, Histogram] { override def default(key: ActionType.ActionType): Histogram = Histogram(1, 5000) }
+
         val runTime = runLengthMin * 60 * 1000L
         val iterationStartTime = getTime
         var endTime = iterationStartTime
@@ -75,13 +76,14 @@ case class TpcwWorkflowTask(var numClients: Int,
         while(endTime - iterationStartTime < runTime) {
           val startTime = getTime
           try {
-            val wasExecuted = workflow.executeMix()
+            val actionExecuted = workflow.executeMix()
             endTime = getTime
             val elapsedTime = endTime - startTime
-            if (wasExecuted) { // we actually ran the query
-              histogram += elapsedTime
-            } else // we punted the query
-              skips += 1
+            actionExecuted match {
+              case Some(action) => histograms(action) += elapsedTime
+              case None => skips += 1
+
+            }
           } catch {
             case e => {
               logger.warning(e, "Execepting generating page")
@@ -90,11 +92,19 @@ case class TpcwWorkflowTask(var numClients: Int,
           }
         }
 
-        logger.info("Thread %d stats 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms",
+        histograms.foreach {
+          case (action, histogram) =>
+            logger.info("Thread %d stats 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms",
             threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99), histogram.average, histogram.stddev)
+        }
         val res = Result(this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId)
         res.totalElaspedTime =  endTime - iterationStartTime
-        res.times = histogram
+
+        res.times = histograms.map {
+          case (action, histogram) =>
+            histogram.name = action.toString
+            histogram
+        }.toSeq
         res.failures = failures
         res.skips = skips
 
