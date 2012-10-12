@@ -60,7 +60,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     .select((0.?), "lines.OL_I_ID".a, "lines.OL_QTY".a)
     .toPiql("deltaGrantingRank")
 
-  // if exists results from this, then don't run deltaCountingRank
+  // if exists >1 result from this, then don't run deltaCountingRank
   val findOrderedInEpoch = orders.as("orders")
     .where("orders.O_C_UNAME".a === (1.?))
     .range("orders.O_DATE_Time".a, (2.?), (3.?))
@@ -68,7 +68,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     .join(orderLines.as("lines"))
     .where("orders.O_ID".a === "lines.OL_O_ID".a)
     .where("lines.OL_I_ID".a === (0.?))
-    .limit(1)
+    .limit(2)
     .toPiql("findOrderedInEpoch")
 
   // Returns list of List(Record[I_ID, I_RELATED_ID, COUNT])
@@ -103,8 +103,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
           }
         }
         deltaGrantingRank(args:_*).map(_(0)).foreach(bulkIncr(_))
-        // TODO(ekl) - this seems to require order to be updated after the view... which is not currently the case,
-        if (findOrderedInEpoch(args:_*).isEmpty) {
+        if (findOrderedInEpoch(args:_*).length > 1) {
           deltaCountingRank(args:_*).map(_(0)).foreach(bulkIncr(_))
         }
       }
