@@ -190,8 +190,10 @@ object Optimizer {
           tmp.setFields(values.map(_ match {
             case QualifiedAttributeValue(relation, field) =>
               new Schema.Field(field.name, field.schema, field.doc, null)
+            case ParameterValue(i) =>
+              new Schema.Field("param_" + i, Schema.create(Schema.Type.STRING), "", null)
             case other =>
-              throw new RuntimeException("Must specify schema to project non-attributes.")
+              throw new ImplementationLimitation("cannot yet project this type of field")
           }))
           tmp
         })

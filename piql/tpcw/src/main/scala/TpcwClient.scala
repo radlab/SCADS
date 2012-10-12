@@ -44,6 +44,39 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     .where("order.O_ID".a === "line.OL_O_ID".a)
     .toPiql("fetchLineKeys")
 
+  val deltaQuery1 = orders.as("orders")
+    .where("orders.O_C_UNAME".a === (1.?))
+    .range("orders.O_DATE_Time".a, (2.?), (3.?))
+    .dataLimit(kMaxCustomerOrdersPerEpoch)
+    .join(orderLines.as("lines"))
+    .where("orders.O_ID".a === "lines.OL_O_ID".a)
+    .dataLimit(kMaxCustomerOrdersPerEpoch)
+//    .where("orders.OL_I_ID".a !== (0.?))
+    .select((0.?), "lines.OL_I_ID".a, "lines.OL_QTY".a)
+    .toPiql("deltaQuery1")
+
+  // if exists results from this, then don't run q2
+  val testIfShouldRunDeltaQuery2 = orders.as("orders")
+    .where("orders.O_C_UNAME".a === (1.?))
+    .range("orders.O_DATE_Time".a, (2.?), (3.?))
+    .dataLimit(kMaxCustomerOrdersPerEpoch)
+    .join(orderLines.as("lines"))
+    .where("orders.O_ID".a === "lines.OL_O_ID".a)
+    .where("lines.OL_I_ID".a === (0.?))
+    .dataLimit(kMaxCustomerOrdersPerEpoch)
+    .toPiql("testIfRun2")
+
+  val deltaQuery2 = orders.as("orders")
+    .where("orders.O_C_UNAME".a === (1.?))
+    .range("orders.O_DATE_Time".a, (2.?), (3.?))
+    .dataLimit(kMaxCustomerOrdersPerEpoch)
+    .join(orderLines.as("lines"))
+    .where("orders.O_ID".a === "lines.OL_O_ID".a)
+    .dataLimit(kMaxCustomerOrdersPerEpoch)
+//    .where("lines.OL_I_ID".a !== (0.?))
+    .select("lines.OL_I_ID".a, (0.?), "lines.OL_QTY".a)
+    .toPiql("deltaQuery2")
+
   // Trigger that updates the best sellers staging relation
   // and the admin confirm staging relation.
   orderLines.addTriggers ::= { orderLines =>
@@ -62,6 +95,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
   val kTopOrdersToList = 50
   val kRelatedItemsToFind = 5
+  val kMaxCustomerOrdersPerEpoch = 99
 
   object CurrentEpoch extends CalculatedValue {
     def getValue = getEpoch()
@@ -70,9 +104,9 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   val adminConfirmWI = relatedItemCount.as("count")
     .where("count.epoch".a === CurrentEpoch)
     .where("count.I_ID".a === (0.?))
+    .sort("count.RELATED_COUNT".a :: Nil, false)
     .dataLimit(kRelatedItemsToFind)
     .toPiql("adminConfirmWI")
-
 
   /**
    * Best Sellers web interaction

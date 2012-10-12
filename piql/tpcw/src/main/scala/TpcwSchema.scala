@@ -130,7 +130,7 @@ case class OrderCount(var epoch: Long, var I_SUBJECT: String, var OC_COUNT: Int,
   var I_TITLE: String = _
 }
 
-case class RelatedItemCountStaging(var epoch: Long, var I_ID: String, var C_UNAME: String) extends AvroPair {
+case class RelatedItemCountStaging(var epoch: Long, var I_ID: String, var I_RELATED_ID: String) extends AvroPair {
   var RELATED_COUNT: Int = _
 }
 

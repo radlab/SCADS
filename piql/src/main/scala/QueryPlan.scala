@@ -10,6 +10,7 @@ import org.apache.avro.generic.{GenericData, IndexedRecord}
 
 abstract class Value {
   def ===(value: Value) = EqualityPredicate(this, value)
+  def !==(value: Value) = NotEqualPredicate(this, value)
   def like(value: Value) = LikePredicate(this, value)
 }
 
@@ -52,6 +53,7 @@ case class ParameterLimit(ordinal: Int, max: Int) extends Limit
 
 trait Predicate
 case class EqualityPredicate(v1: Value, v2: Value) extends Predicate
+case class NotEqualPredicate(v1: Value, v2: Value) extends Predicate
 case class LikePredicate(v1: Value, v2: Value) extends Predicate
 case class InPredicate(v1: Value, v2: Value) extends Predicate
 
