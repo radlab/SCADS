@@ -20,6 +20,10 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   protected val logger = Logger("edu.berkeley.cs.scads.piql.TpcwWorkflow")
   protected implicit val exec = executor
 
+  val kTopOrdersToList = 50
+  val kRelatedItemsToFind = 5
+  val kMaxCustomerOrdersPerEpoch = 99
+
   /* Relations */
   val addresses = cluster.getNamespace[Address]("addresses")
   val authors = cluster.getNamespace[Author]("authors")
@@ -108,10 +112,6 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     orderCountStaging.flushBulkBytes()
     relatedItemCountStaging.flushBulkBytes()
   }
-
-  val kTopOrdersToList = 50
-  val kRelatedItemsToFind = 5
-  val kMaxCustomerOrdersPerEpoch = 99
 
   object CurrentEpoch extends CalculatedValue {
     def getValue = getEpoch()
