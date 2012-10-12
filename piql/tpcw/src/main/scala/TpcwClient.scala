@@ -99,6 +99,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
           }
         }
         deltaGrantingRank(args:_*).map(_(0)).foreach(bulkIncr(_))
+        // TODO(ekl) - this seems to require order to be updated after the view... which is not currently the case,
         if (findOrderedInEpoch(args:_*).isEmpty) {
           deltaCountingRank(args:_*).map(_(0)).foreach(bulkIncr(_))
         }
