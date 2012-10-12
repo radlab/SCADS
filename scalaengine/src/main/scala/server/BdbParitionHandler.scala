@@ -230,17 +230,22 @@ class BdbStorageManager(val db: Database,
     }
   }
 
-
   def incrementField(key: Array[Byte], fieldName: String, amount: Int): Unit = {
-    val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry())
     val txn = db.getEnvironment.beginTransaction(null, null)
+    doIncrementField(txn, key, fieldName, amount, null)
+    txn.commit()
+  }
+
+  val reader = new GenericDatumReader[IndexedRecord](valueSchema)
+  val writer = new GenericDatumWriter[IndexedRecord](valueSchema)
+  protected def doIncrementField(txn: Transaction, key: Array[Byte], fieldName: String, amount: Int, oldValue: GenericData.Record): GenericData.Record = {
+    val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry())
 
     /* Look up the old value or create a blank one if it doesn't exist */
     val value = db.get(txn, dbeKey, dbeValue, LockMode.RMW) match {
       case OperationStatus.SUCCESS => {
         val valueBytes = extractRecordFromValue(dbeValue.getData)
 
-        val reader = new GenericDatumReader[IndexedRecord](valueSchema)
         val oldValue = new GenericData.Record(valueSchema)
         val decoder = DecoderFactory.get().binaryDecoder(valueBytes, null)
         reader.read(oldValue, decoder)
@@ -258,14 +263,13 @@ class BdbStorageManager(val db: Database,
     /* Serialize the value */
     val outBuffer = new ByteArrayOutputStream
     val encoder = EncoderFactory.get().binaryEncoder(outBuffer,null)
-    val writer = new GenericDatumWriter[IndexedRecord](valueSchema)
     writer.write(value, encoder)
     encoder.flush
 
     /* Commit new value */
     dbeValue.setData(createMetadata(outBuffer.toByteArray))
     db.put(txn, dbeKey, dbeValue)
-    txn.commit()
+    oldValue
   }
 
   def topK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): Seq[Record] = {
@@ -311,15 +315,29 @@ class BdbStorageManager(val db: Database,
     txn.commit() // exception here will get caught above
   }
 
-  def bulkPut(records:Seq[PutRequest]):Unit = timed("bulkPut") {
-    val txn = db.getEnvironment.beginTransaction(null, null)
-    records.foreach(rec => {
-      rec.value match {
-        case Some(v) => db.put(txn, new DatabaseEntry(rec.key),
-                                    new DatabaseEntry(v))
-        case None => db.delete(txn, new DatabaseEntry(rec.key))
+  def bulkUpdate(records:Seq[BulkRequest]):Unit = timed("bulkUpdate") {
+    var txn = db.getEnvironment.beginTransaction(null, null)
+    var oldValue: GenericData.Record = null
+    var incCount = 0
+    records.foreach {
+      case rec: PutRequest =>
+        rec.value match {
+          case Some(v) => db.put(txn, new DatabaseEntry(rec.key),
+                                      new DatabaseEntry(v))
+          case None => db.delete(txn, new DatabaseEntry(rec.key))
+        }
+      case IncrementFieldRequest(key, fieldName, amount) => {
+        oldValue = doIncrementField(txn, key, fieldName, amount, oldValue)
+
+        //HACK: because locks are timing out with large puts
+        incCount += 1
+        if(incCount > 0) {
+          incCount = 0
+          txn.commit()
+          txn = db.getEnvironment.beginTransaction(null, null)
+        }
       }
-    })
+    }
     txn.commit()  // exception here will get caught above
   }
 

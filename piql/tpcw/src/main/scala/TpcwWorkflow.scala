@@ -12,6 +12,14 @@ import ch.ethz.systems.tpcw.populate.data.Utils
 
 import edu.berkeley.cs.avro.runtime._
 
+object ActionType extends Enumeration {
+  type ActionType = Value
+
+  val Home, NewProduct, BestSeller, ProductDetail, SearchRequest, SearchResult, ShoppingCart,
+  CustomerReg, BuyRequest, BuyConfirm, OrderInquiry, OrderDisplay, AdminRequest, AdminConfirm = Value
+
+}
+
 /**
  * Warning: Workflow is not threadsafe for now
  */
@@ -34,13 +42,6 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
 
   case class Action(val action: ActionType.Value, var nextActions : List[(Int, Action)])
 
-  object ActionType extends Enumeration {
-    type ActionType = Value
-
-    val Home, NewProduct, BestSeller, ProductDetail, SearchRequest, SearchResult, ShoppingCart,
-    CustomerReg, BuyRequest, BuyConfirm, OrderInquiry, OrderDisplay, AdminRequest, AdminConfirm = Value
-
-  }
 
   object SearchResultType extends Enumeration {
     val ByAuthor, ByTitle, BySubject = Value
@@ -218,20 +219,21 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
    * Advances the TPC-W markov chain model one state transition.
    * returns true if the action was run and false if it was skipped due to PIQL Limitations
    */
-  def executeMix(): Boolean = {
+  def executeMix(): Option[ActionType.ActionType] = {
     val executed =
       if(executeAction.isDefinedAt(nextAction)) {
         logger.debug("Executing Action: %s", nextAction)
         executeAction(nextAction)
-        true
+        Some(nextAction)
       }
       else {
         logger.debug("Skipping undefined action: %s", nextAction)
-        false
+        None
       }
 
     val rnd = random.nextInt(9999)
     val lastAction = nextAction
+    //TODO: How does this work?
     nextAction = actions(lastAction).nextActions.find(rnd < _._1).get._2.action
 
     executed

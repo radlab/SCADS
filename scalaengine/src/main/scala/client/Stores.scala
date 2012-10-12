@@ -18,12 +18,12 @@ trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
   with KeyPartitionable {
 
   override def ++=(that: TraversableOnce[B]) = {
-    that.toIterable.map(bulkToBytes).foreach(b => putBulkBytes(b._1, b._2))
+    that.toIterable.map(bulkToBytes).foreach(b => bulkPutBytes(b._1, b._2))
     flushBulkBytes
   }
 
   override def --=(that: TraversableOnce[B]) = {
-    that.toIterable.map(bulkToBytes).foreach(b => putBulkBytes(b._1, None))
+    that.toIterable.map(bulkToBytes).foreach(b => bulkPutBytes(b._1, None))
     flushBulkBytes
   }
 
@@ -35,6 +35,9 @@ trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
 
   override def incrementField(key: K, fieldName: String, amount: Int): Unit =
     incrementFieldBytes(keyToBytes(key), fieldName, amount)
+
+  override def bulkIncrementField(key: K, fieldName: String, amount: Int): Unit =
+    bulkIncrementFieldBytes(keyToBytes(key), fieldName, amount)
 
   override def asyncPut(key: K, value: Option[V]): ScadsFuture[Unit] =
     asyncPutBytes(keyToBytes(key), value.map(valueToBytes))
@@ -140,9 +143,6 @@ trait RecordStore[RecType <: IndexedRecord] extends Namespace
 
   def schema: Schema
 
-  def asyncGetRecord(key: IndexedRecord): ScadsFuture[Option[RecType]]
-  def getRecord(key: IndexedRecord): Option[RecType]
-
   def lookupRecord(fields: Any*): Option[RecType] = {
     val rec = new GenericData.Record(keySchema)
     fields.map {
@@ -153,6 +153,17 @@ trait RecordStore[RecType <: IndexedRecord] extends Namespace
     }
 
     getRecord(rec)
+  }
+
+  def asyncGetRecord(key: IndexedRecord): ScadsFuture[Option[RecType]] = {
+    val keyBytes = keyToBytes(key)
+    asyncGetBytes(keyBytes) map (_.map(bytesToBulk(keyBytes, _)))
+  }
+
+  def getRecord(key: IndexedRecord): Option[RecType] = {
+    val keyBytes = keyToBytes(key)
+
+    getBytes(keyBytes).map(bytesToBulk(keyBytes, _))
   }
 
   /**

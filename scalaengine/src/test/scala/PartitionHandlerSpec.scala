@@ -99,9 +99,9 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
 
     it("should bulk load values") {
       withPartitionService(None, None) { p =>
-        val req = BulkPutRequest((1 to 1000).map(i => PutRequest(IntRec(i).toBytes, IntRec(i * 2).toBytes)).toSeq)
+        val req = BulkUpdateRequest((1 to 1000).map(i => PutRequest(IntRec(i).toBytes, IntRec(i * 2).toBytes)).toSeq)
         p !? req match {
-          case BulkPutResponse() => // success
+          case BulkUpdateResponse() => // success
           case m => fail("Expected BulkPutResponse but got: " + m)
         }
 
@@ -116,9 +116,9 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
 
     it("should get ranges of data") {
       withPartitionService(None, None) { p =>
-        val req = BulkPutRequest((1 to 100).map(i => PutRequest(IntRec(i).toBytes, IntRec(i * 2).toBytes)).toSeq)
+        val req = BulkUpdateRequest((1 to 100).map(i => PutRequest(IntRec(i).toBytes, IntRec(i * 2).toBytes)).toSeq)
         p !? req match {
-          case BulkPutResponse() => // success
+          case BulkUpdateResponse() => // success
           case m => fail("Expected BulkPutResponse but got: " + m)
         }
 
@@ -140,7 +140,7 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
       logger.info("begin copy data overwriting existing data")
       withPartitionService(None, None) { p1 =>
         withPartitionService(None, None) { p2 =>
-          p1 !? BulkPutRequest((1 to 10000).map(i => PutRequest(IntRec(i).toBytes, IntRec(i).toBytes)).toSeq)
+          p1 !? BulkUpdateRequest((1 to 10000).map(i => PutRequest(IntRec(i).toBytes, IntRec(i).toBytes)).toSeq)
           (1 to 5).foreach(i => p2 !? PutRequest(IntRec(i).toBytes, IntRec(i*2).toBytes))
 
           p2 !? CopyDataRequest(p1, true)
@@ -230,7 +230,7 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
 
     it("should respect limits and offsets for ranges") {
       withPartitionService(None, None) { p1 =>
-        p1 !? BulkPutRequest((1 to 100).map(i => PutRequest(IntRec(i).toBytes, IntRec(i).toBytes)).toSeq)
+        p1 !? BulkUpdateRequest((1 to 100).map(i => PutRequest(IntRec(i).toBytes, IntRec(i).toBytes)).toSeq)
         p1 !? GetRangeRequest(Some(IntRec(91).toBytes), None, offset=Some(10)) match {
           case GetRangeResponse(Nil) => // success
           case m => fail("Expected empty GetRangeResponse but got: " + m)

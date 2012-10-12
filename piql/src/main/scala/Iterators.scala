@@ -46,6 +46,7 @@ trait QueryExecutor {
       case ConstantValue(v) => v
       case ParameterValue(o) => ctx.parameters(o)
       case AttributeValue(recPos, fieldPos) => currentTuple(recPos).get(fieldPos)
+      case cv: CalculatedValue => cv.getValue
     }
   }
 

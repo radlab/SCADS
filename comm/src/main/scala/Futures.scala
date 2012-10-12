@@ -174,6 +174,36 @@ class FutureCollection[MessageType <: IndexedRecord](val futures: Seq[MessageFut
 class FutureTimeoutException extends RuntimeException
 class FutureException(ex: Throwable) extends RuntimeException(ex)
 
+
+object FutureWrapper {
+  def apply[A](a: A) = new FutureWrapper[A](a)
+}
+
+/**
+ * Wraps an already completed value in a trivial Future
+ */
+class FutureWrapper[T](v: T) extends ScadsFuture[T] {
+  /**
+   * Cancels the current future
+   */
+  def cancel() = null
+
+  /**
+   * Block on the future until T is ready
+   */
+  def get() = v
+
+  /**
+   * Block for up to timeout.
+   */
+  def get(timeout: Long, unit: TimeUnit) = Some(v)
+
+  /**
+   * True iff the future has already been set
+   */
+  def isSet = true
+}
+
 /**
  * Default synchronized-based implementation of ScadsFuture
  */

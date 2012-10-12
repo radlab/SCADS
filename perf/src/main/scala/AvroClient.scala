@@ -40,16 +40,16 @@ abstract trait DataLoadingTask extends ExperimentTask {
     cluster
   }
 
-  def newCluster(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): ScadsCluster = {
-    val (tasks, cluster) = delayedCluster
-    scheduler.scheduleExperiment(tasks)
-    cluster
+  def newCluster(implicit cluster: Cluster): ScadsCluster = {
+    val (tasks, scadsCluster) = delayedCluster
+    cluster.serviceScheduler.scheduleExperiment(tasks)
+    scadsCluster
   }
 
-  def delayedCluster(implicit classpath: Seq[ClassSource], zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): (Seq[JvmTask], ScadsCluster) = {
-    val clusterRoot = zookeeperRoot.getOrCreate("scads").createChild("experimentCluster", mode = CreateMode.PERSISTENT_SEQUENTIAL)
+  def delayedCluster(implicit cluster: Cluster): (Seq[JvmTask], ScadsCluster) = {
+    val clusterRoot = cluster.zooKeeperRoot.getOrCreate("scads").createChild("experimentCluster", mode = CreateMode.PERSISTENT_SEQUENTIAL)
     clusterAddress = clusterRoot.canonicalAddress
-    val serverProcs = List.fill(numServers)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress).toJvmTask)
+    val serverProcs = List.fill(numServers)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress, noSync=true).toJvmTask)
     val loaderProcs = List.fill(numLoaders)(this.toJvmTask)
 
     (serverProcs ++ loaderProcs, new ScadsCluster(clusterRoot))
@@ -78,18 +78,18 @@ abstract trait ReplicatedExperimentTask extends ExperimentTask {
     threads
   }
 
-  def delayedSchedule(cluster: ScadsCluster, resultCluster: ScadsCluster)(implicit classpath: Seq[ClassSource], zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): Seq[JvmTask] = {
-    val experimentRoot = zookeeperRoot.getOrCreate("experiments").createChild("experiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
+  def delayedSchedule(scadsCluster: ScadsCluster, resultCluster: ScadsCluster)(implicit cluster: Cluster): Seq[JvmTask] = {
+    val experimentRoot = cluster.zooKeeperRoot.getOrCreate("experiments").createChild("experiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
     experimentAddress = experimentRoot.canonicalAddress
-    clusterAddress = cluster.root.canonicalAddress
+    clusterAddress = scadsCluster.root.canonicalAddress
     resultClusterAddress = resultCluster.root.canonicalAddress
 
     val task = this.toJvmTask
     Array.fill(numClients)(task)
   }
 
-  def schedule(cluster: ScadsCluster, resultCluster: ScadsCluster)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): this.type = {
-    scheduler.scheduleExperiment(delayedSchedule(cluster, resultCluster))
+  def schedule(scadsCluster: ScadsCluster, resultCluster: ScadsCluster)(implicit cluster: Cluster): this.type = {
+    cluster.serviceScheduler.scheduleExperiment(delayedSchedule(scadsCluster, resultCluster))
     this
   }
 }

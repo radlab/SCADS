@@ -11,7 +11,7 @@ object Histogram {
     new Histogram(bucketSize, ArrayBuffer.fill(bucketCount)(0L))
 }
 
-case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long], var negative: Int = 0) extends AvroRecord {
+case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long], var negative: Int = 0, var name: String = "") extends AvroRecord {
   def +(left: Histogram): Histogram = {
     require(bucketSize == left.bucketSize)
     require(buckets.size == left.buckets.size)

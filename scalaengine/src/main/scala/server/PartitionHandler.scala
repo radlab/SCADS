@@ -31,7 +31,7 @@ abstract trait StorageManager {
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean
   // bit odd to have PutRequest in here, but would probable be a performance hit to do it another way
   def bulkUrlPut(parser:RecParser, locations:Seq[String])
-  def bulkPut(records:Seq[PutRequest]) 
+  def bulkUpdate(updates:Seq[BulkRequest])
   // cursorscanrequest?
   def getRange(minKey:Option[Array[Byte]], maxKey:Option[Array[Byte]], limit:Option[Int], offset:Option[Int], ascending:Boolean):Seq[Record]
   def getBatch(ranges:Seq[StorageMessage]):ArrayBuffer[GetRangeResponse]
@@ -111,12 +111,12 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
           val ois = new ObjectInputStream(new ByteArrayInputStream(parserBytes))
           val parser = ois.readObject.asInstanceOf[RecParser]
           manager.bulkUrlPut(parser,locations)
-          reply(BulkPutResponse())
+          reply(BulkUpdateResponse())
         }
-        case BulkPutRequest(records) => {
-          manager.bulkPut(records)
+        case BulkUpdateRequest(updates) => {
+          manager.bulkUpdate(updates)
           /*if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(reccount)*/
-          reply(BulkPutResponse())
+          reply(BulkUpdateResponse())
         }
         case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
           if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(1/*reccount*/)

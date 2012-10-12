@@ -155,26 +155,16 @@ class PairNamespace[Pair <: AvroPair : Manifest](
   with QuorumRangeProtocol
   with AvroPairSerializer[Pair]
   with RecordStore[Pair]
+  with CacheManager[Pair]
   with index.IndexManager[Pair]
   with index.ViewManager[Pair]
   with index.TriggerManager[Pair]
-  with DebuggingClient 
+  with DebuggingClient
   with NamespaceIterator[Pair] {
   
   override protected val pairManifest = manifest[Pair]
 
   def schema: Schema = pairSchema
-
-  def asyncGetRecord(key: IndexedRecord): ScadsFuture[Option[Pair]] = {
-    val keyBytes = keyToBytes(key)
-    asyncGetBytes(keyBytes) map (_.map(bytesToBulk(keyBytes, _)))
-  }
-
-  def getRecord(key: IndexedRecord): Option[Pair] = {
-    val keyBytes = keyToBytes(key)
-
-    getBytes(keyBytes).map(bytesToBulk(keyBytes, _))
-  }
 
   def put(pairRec: Pair): Unit = {
     put(pairRec.key, Some(pairRec.value))

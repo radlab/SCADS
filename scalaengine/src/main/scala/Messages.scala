@@ -46,12 +46,19 @@ sealed trait KeyValueStoreOperation extends PartitionServiceOperation
 case class GetRequest(var key: Array[Byte]) extends AvroRecord with KeyValueStoreOperation
 case class GetResponse(var value: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation
 
-case class PutRequest(var key: Array[Byte], var value: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation
+sealed trait BulkRequest extends AvroUnion {
+  def key: Array[Byte]
+}
+
+case class PutRequest(var key: Array[Byte], var value: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation with BulkRequest
 case class PutResponse() extends AvroRecord with KeyValueStoreOperation
 
+case class IncrementFieldRequest(var key: Array[Byte], var fieldName: String, var amount: Int) extends AvroRecord with KeyValueStoreOperation with BulkRequest
+case class IncrementFieldResponse() extends AvroRecord with KeyValueStoreOperation
+
 case class BulkUrlPutReqest(var parser:Array[Byte], var locations:Seq[String]) extends AvroRecord with KeyValueStoreOperation
-case class BulkPutRequest(var records: Seq[PutRequest]) extends AvroRecord with KeyValueStoreOperation
-case class BulkPutResponse() extends AvroRecord with KeyValueStoreOperation
+case class BulkUpdateRequest(var records: Seq[BulkRequest]) extends AvroRecord with KeyValueStoreOperation
+case class BulkUpdateResponse() extends AvroRecord with KeyValueStoreOperation
 
 case class GetRangeRequest(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]], var limit: Option[Int] = None, var offset: Option[Int] = None, var ascending: Boolean = true) extends AvroRecord with KeyValueStoreOperation
 case class GetRangeResponse(var records: Seq[Record]) extends AvroRecord with KeyValueStoreOperation
@@ -76,9 +83,6 @@ case class AggOp(var codename:String, var code:Array[Byte], var obj:Array[Byte],
 case class AggRequest(var groups: Seq[String], var keyType:String, var valueType:String, var filters:Seq[AggFilter], var aggs:Seq[AggOp]) extends AvroRecord with KeyValueStoreOperation
 case class GroupedAgg(var group:Option[Array[Byte]], var groupVals:Seq[Array[Byte]]) extends AvroRecord
 case class AggReply(var results:Seq[GroupedAgg]) extends AvroRecord with KeyValueStoreOperation
-
-case class IncrementFieldRequest(var key: Array[Byte], var fieldName: String, var amount: Int) extends AvroRecord with KeyValueStoreOperation
-case class IncrementFieldResponse() extends AvroRecord with KeyValueStoreOperation
 
 case class TopKRequest(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]], var orderingFields: Seq[String], var k: Int, var ascending: Boolean) extends AvroRecord with KeyValueStoreOperation
 case class TopKResponse(var records: Seq[Record]) extends AvroRecord with KeyValueStoreOperation

@@ -55,8 +55,10 @@ class TpcwLoader(val numEBs : Double,
       ns.repartition(sampleData, replicationFactor)
     }
 
-    def load(clientId: Int = 0, numLoaders: Int = 1): Unit =
+    def load(clientId: Int = 0, numLoaders: Int = 1): Unit = {
+      logger.info("bulk loading %s", ns.name)
       ns ++=  dataSlice(clientId, numLoaders)
+    }
 
     /** assuming [1, upperBound], returns the slice of data for this clientId */
     protected def getSlice(clientId: Int, numClients: Int, upperBound: Int) = {
