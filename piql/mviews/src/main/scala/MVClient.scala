@@ -67,6 +67,7 @@ abstract class TagClient(val cluster: ScadsCluster,
     tags.as("t2")
       .where("t2.word".a === (2.?))
       .dataLimit(1000)
+      .select((0.?), "t2.item".a)
       .toPiql("testRange")
 
   val testRange2 =
