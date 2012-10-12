@@ -30,6 +30,7 @@ case class TpcwViewRefreshTask(var experimentAddress: String,
 object TpcwScaleExperiment {
   var resultClusterAddress = ZooKeeperNode("zk://zoo1.millennium.berkeley.edu,zoo2.millennium.berkeley.edu,zoo3.millennium.berkeley.edu/home/marmbrus/sigmod2013")
   val resultsCluster = new ScadsCluster(resultClusterAddress)
+  val scaleResults =  resultsCluster.getNamespace[Result]("tpcwScaleResults")
 
   implicit def toOption[A](a: A) = Option(a)
 
