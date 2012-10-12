@@ -14,6 +14,8 @@ import language._
 
 import storage.client.index._
 
+import scala.collection.mutable.ArrayBuffer
+
 class OptimizerSpec extends Spec with ShouldMatchers {
 
   import Relations._
@@ -118,6 +120,45 @@ class OptimizerSpec extends Spec with ShouldMatchers {
       LocalStopAfter(FixedLimit(10),
         IndexLookupJoin(r2, AttributeValue(0, 1) :: AttributeValue(0, 0) :: Nil,
           IndexScan(idx, ConstantValue(0) :: Nil, FixedLimit(10), true)))
+
+    optQuery should equal(plan)
+  }
+
+  it("handles plain range queries") {
+    val query = (
+      r2.where("r2.f1".a === (2.?))
+        .range("r2.f2".a, (0.?), (1.?))
+        .dataLimit(10)
+      )
+    val optQuery = query.opt
+
+    val plan =
+      IndexScan(
+        r2,
+        ArrayBuffer(ParameterValue(2)),
+        FixedLimit(10),
+        true,
+        Some(RangeConstraint(Some(ParameterValue(0)),Some(ParameterValue(1)))))
+
+    optQuery should equal(plan)
+  }
+
+  it("handles ranges queries with indexes") {
+    val query = (
+      r2.where("r2.f2".a === (2.?))
+        .range("r2.f1".a, (0.?), (1.?))
+        .dataLimit(10)
+      )
+    val optQuery = query.opt
+    val idx = r2.index(r2.attribute("f2") :: r2.attribute("f1") :: Nil)
+
+    val plan =
+      IndexScan(
+        idx,
+        ArrayBuffer(ParameterValue(2)),
+        FixedLimit(10),
+        true,
+        Some(RangeConstraint(Some(ParameterValue(0)),Some(ParameterValue(1)))))
 
     optQuery should equal(plan)
   }

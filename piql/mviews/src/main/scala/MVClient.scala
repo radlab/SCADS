@@ -63,6 +63,19 @@ abstract class TagClient(val cluster: ScadsCluster,
         .limit(limit)
         .select("t3.word".a, "t2.word".a, "t3.item".a)
 
+  val testRange =
+    tags.as("t2")
+      .where("t2.word".a === (2.?))
+      .dataLimit(1000)
+      .toPiql("testRange")
+
+  val testRange2 =
+    tags.as("t2")
+      .where("t2.word".a === (2.?))
+      .range("t2.item".a, (0.?), (1.?))
+      .dataLimit(1000)
+      .toPiql("testRange2")
+
   // select all tag combinations for this rewritten variant
   // TODO fix bug in algorithm (in paper?)
   val dq2 =
