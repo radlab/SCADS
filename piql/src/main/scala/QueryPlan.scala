@@ -174,8 +174,7 @@ case class ScadsRelation(ns: IndexedNamespace, alias: Option[String] = None) ext
   def index(attrs: Seq[QualifiedAttributeValue]): TupleProvider = {
     val remainingKeyFields = keyAttributes.filterNot(attrs contains _)
     val a = attrs ++ remainingKeyFields
-    // Attributes are sorted by field name so the special _stripe field occurs first.
-    val idx = ns.getOrCreateIndex(attrs.sortBy(_.field.name).map(a => AttributeIndex(a.fieldName)))
+    val idx = ns.getOrCreateIndex(attrs.map(a => AttributeIndex(a.fieldName)))
     ScadsIndex(idx)
   }
 }
