@@ -165,7 +165,7 @@ class TpcwTestDataSpec extends Spec with ShouldMatchers with QueryResultMatchers
   implicit val executor = new ParallelExecutor with DebugExecutor
   val client =
     new piql.tpcw.TpcwClient(
-      new piql.tpcw.TpcwLoaderTask(10, 5, 10, 10000, 2).newTestCluster,
+      new piql.tpcw.TpcwLoaderTask(2, 1, 2, 10, 2).newTestCluster,
       executor)
 
   import client._
