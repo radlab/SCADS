@@ -8,6 +8,7 @@ import avro.marker._
 import storage._
 import storage.client._
 import org.apache.avro.util.Utf8
+import org.apache.avro.Schema
 
 
 package object piql {
@@ -53,7 +54,8 @@ package object piql {
   }
 
   implicit def toParameter(o: Double) = new {
-    def ? = ParameterValue(o.toInt)
+    def ? = ParameterValue(o.toInt, None)
+    def ?=(avroType: Schema.Type) = ParameterValue(o.toInt, Some(avroType))
   }
 
   implicit def toConstantValue(a: Any) = ConstantValue(a)

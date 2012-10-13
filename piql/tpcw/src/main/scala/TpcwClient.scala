@@ -13,6 +13,7 @@ import storage.client.index._
 
 import ch.ethz.systems.tpcw.populate.data.Utils
 import org.apache.avro.generic.IndexedRecord
+import org.apache.avro.Schema.Type._
 
 import java.util.UUID
 
@@ -57,7 +58,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     .join(orderLines.as("lines"))
     .where("orders.O_ID".a === "lines.OL_O_ID".a)
     .dataLimit(kMaxCustomerOrdersPerEpoch)
-    .select((0.?), "lines.OL_I_ID".a, "lines.OL_QTY".a)
+    .select("lines.OL_I_ID".a, 0 ?= STRING, 4 ?= INT)
     .toPiql("deltaGrantingRank")
 
   // if exists >1 result from this, then don't run deltaCountingRank
@@ -67,11 +68,12 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     .dataLimit(kMaxCustomerOrdersPerEpoch)
     .join(orderLines.as("lines"))
     .where("orders.O_ID".a === "lines.OL_O_ID".a)
-    .where("lines.OL_I_ID".a === (0.?))
+    .where("lines.OL_I_ID".a === (0 ?= STRING))
     .limit(2)
     .toPiql("findOrderedInEpoch")
 
   // Returns list of List(Record[I_ID, I_RELATED_ID, COUNT])
+  // Given item A, increments all (A, ?) pairs by qty(?)
   val deltaCountingRank = orders.as("orders")
     .where("orders.O_C_UNAME".a === (1.?))
     .range("orders.O_DATE_Time".a, (2.?), (3.?))
@@ -79,7 +81,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     .join(orderLines.as("lines"))
     .where("orders.O_ID".a === "lines.OL_O_ID".a)
     .dataLimit(kMaxCustomerOrdersPerEpoch)
-    .select("lines.OL_I_ID".a, (0.?), "lines.OL_QTY".a)
+    .select(0 ?= STRING, "lines.OL_I_ID".a, "lines.OL_QTY".a)
     .toPiql("deltaCountingRank")
 
   orderLines.addTriggers ::= { orderLines =>

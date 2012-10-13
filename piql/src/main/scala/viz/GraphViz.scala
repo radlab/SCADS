@@ -150,7 +150,7 @@ protected class GraphLogicalPlan extends GraphViz {
     case UnboundAttributeValue(name) => name
     case QualifiedAttributeValue(r,f) => r.name + "." + f.name
     case ConstantValue(c) => c.toString
-    case ParameterValue(n) => "[" + n.toString + "]"
+    case ParameterValue(n, typ) => "[" + n.toString + "]"
   }
 
   protected def prettyPrint(v: Limit): String = v match {

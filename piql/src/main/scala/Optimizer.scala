@@ -190,10 +190,10 @@ object Optimizer {
           tmp.setFields(values.map(_ match {
             case QualifiedAttributeValue(relation, field) =>
               new Schema.Field(field.name, field.schema, field.doc, null)
-            case ParameterValue(i) =>
-              new Schema.Field("param_" + i, Schema.create(Schema.Type.STRING), "", null)
+            case ParameterValue(i, typ) =>
+              new Schema.Field("param_" + i, Schema.create(typ.getOrElse(throw new ImplementationLimitation("must specify type to project parameters"))), "", null)
             case other =>
-              throw new ImplementationLimitation("cannot yet project this type of field")
+              throw new ImplementationLimitation("cannot project this type of field")
           }))
           tmp
         })
