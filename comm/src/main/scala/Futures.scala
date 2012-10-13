@@ -106,6 +106,7 @@ object MessageFuture {
 case class MessageFuture[MessageType <: IndexedRecord](val dest: RemoteServiceProxy[MessageType], val request: MessageType)(implicit val registry: ServiceRegistry[MessageType]) extends Future[MessageType] {
   protected[comm] val sender = new SyncVar[Option[RemoteServiceProxy[MessageType]]]
   protected val message = new SyncVar[MessageType]
+  protected val done = new SyncVar[Int]
   protected var forwardList: List[Queue[MessageFuture[MessageType]]] = List()
 
   val remoteService = (new FutureReference(this)).remoteService
@@ -126,10 +127,18 @@ case class MessageFuture[MessageType <: IndexedRecord](val dest: RemoteServicePr
 
   protected var respondFunctions: List[MessageType => Unit] = Nil
   def respond(r: MessageType => Unit): Unit = synchronized {
-    if(message.isSet)
+    if(message.isSet) {
       r(message.get)
-    else
+    } else {
       respondFunctions ::= r
+    }
+  }
+
+  def finishByOrDie(deadline: Long): Unit = {
+    val res = done.get(deadline - System.currentTimeMillis)
+    if (!res.isDefined) {
+      sys.error("Exceeded deadline waiting for message response.")
+    }
   }
 
   def get(): MessageType = message.get
@@ -157,6 +166,7 @@ case class MessageFuture[MessageType <: IndexedRecord](val dest: RemoteServicePr
     sender.set(src)
     forwardList.foreach(_.offer(this))
     respondFunctions.foreach(_(msg))
+    done.set(0)
   }
 }
 
