@@ -78,8 +78,8 @@ abstract trait PrettyPrintable {
       else
         sb.append(",\n")
       field.get(this) match {
-        case in: InnerNode =>
-          in.prettyPrint(sb, depth + 1)
+        case pp: PrettyPrintable =>
+          pp.prettyPrint(sb, depth + 1)
         case other =>
           sb.append(S + "  " + other)
       }
