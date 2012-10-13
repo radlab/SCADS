@@ -62,8 +62,8 @@ trait QueryExecutor {
     boundKey
   }
 
-  final protected def bindKeyRange(ns: TupleProvider, key: KeyGenerator, cons: Option[RangeConstraint])(implicit ctx: Context): Tuple2[Key,Key] = {
-    val boundKey = bindKey(ns, key)
+  final protected def bindKeyRange(ns: TupleProvider, key: KeyGenerator, cons: Option[RangeConstraint], currentTuple: Tuple = null)(implicit ctx: Context): Tuple2[Key,Key] = {
+    val boundKey = bindKey(ns, key, currentTuple)
     bindRangeAttribute(boundKey, cons, key.length)
   }
 
@@ -171,7 +171,6 @@ class SimpleExecutor extends QueryExecutor {
     case IndexScan(namespace, keyPrefix, limit, ascending, rangeConstraint) => {
       new QueryIterator {
         val name = "SimpleIndexScan"
-        private val boundKeyPrefix = bindKey(namespace, keyPrefix)
         private val (lowerPrefix, upperPrefix) = bindKeyRange(namespace, keyPrefix, rangeConstraint)
         private var result: Seq[Record] = Nil
         private var pos = 0
@@ -180,7 +179,6 @@ class SimpleExecutor extends QueryExecutor {
         private val boundLimit = bindLimit(limit)
 
         @inline private def doFetch() {
-          logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
           logger.debug("BoundLowerKeyPrefix: %s", lowerPrefix)
           logger.debug("BoundUpperKeyPrefix: %s", upperPrefix)
           logger.debug("Fetch from namespace: " + namespace)
@@ -274,7 +272,7 @@ class SimpleExecutor extends QueryExecutor {
 
           val tupleDatum = childIterator.map(childValue => {
             val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
-            val (lowerPrefix, upperPrefix) = bindKeyRange(namespace, keyPrefix, rangeConstraint)
+            val (lowerPrefix, upperPrefix) = bindKeyRange(namespace, keyPrefix, rangeConstraint, childValue)
             val records = namespace.provider.getRange(lowerPrefix, upperPrefix, limit = boundLimit, ascending = ascending)
             logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", boundKeyPrefix, records)
 
@@ -612,7 +610,7 @@ class ParallelExecutor extends SimpleExecutor {
 
           tupleData = childIterator.map(childValue => {
             val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
-            val (lowerPrefix, upperPrefix) = bindKeyRange(namespace, keyPrefix, rangeConstraint)
+            val (lowerPrefix, upperPrefix) = bindKeyRange(namespace, keyPrefix, rangeConstraint, childValue)
             val ftch = namespace.provider.asyncGetRange(lowerPrefix, upperPrefix, limit = boundLimit, ascending = ascending)
             (boundKeyPrefix, childValue, 0, false, ftch)
           }).toArray
@@ -865,7 +863,7 @@ class LazyExecutor extends SimpleExecutor {
 
           val tupleDatum = childIterator.map(childValue => {
             val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
-            val (lowerPrefix, upperPrefix) = bindKeyRange(namespace, keyPrefix, rangeConstraint)
+            val (lowerPrefix, upperPrefix) = bindKeyRange(namespace, keyPrefix, rangeConstraint, childValue)
             val records = namespace.provider.getRange(lowerPrefix, upperPrefix, limit = 1, ascending = ascending)
             logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", boundKeyPrefix, records)
 
