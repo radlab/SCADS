@@ -51,6 +51,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     .toPiql("fetchLineKeys")
 
   // Returns list of List(Record[I_ID, I_RELATED_ID, COUNT])
+  // Given item A, increments all (?, A) pairs by qty(A)
   val deltaGrantingRank = orders.as("orders")
     .where("orders.O_C_UNAME".a === (1.?))
     .range("orders.O_DATE_Time".a, (2.?), (3.?))
@@ -94,18 +95,31 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         orderCountStaging.bulkIncrementField(OrderCountStaging(ep, item.I_SUBJECT, item.I_ID).key, "OC_COUNT", line.OL_QTY)
 
         /* Maintains admin confirm view */
-        val args = List(line.OL_I_ID, order.O_C_UNAME, ep, ep - windowSize)
+        val args = List(line.OL_I_ID, order.O_C_UNAME, ep - windowSize, ep, line.OL_QTY)
         def bulkIncr(tuple: IndexedRecord) = {
           // Manually evaluates the not-equal clause unimplemented in PIQL.
           if (tuple.get(0) != tuple.get(1)) {
             relatedItemCountStaging.bulkIncrementField(
-              RelatedItemCountStaging(ep, tuple.get(0).asInstanceOf[String], tuple.get(1).asInstanceOf[String]).key,
+              RelatedItemCountStaging(ep, tuple.get(0).toString, tuple.get(1).toString).key,
               "RELATED_COUNT",
               tuple.get(2).asInstanceOf[Int])
           }
         }
-        deltaGrantingRank(args:_*).map(_(0)).foreach(bulkIncr(_))
-        if (findOrderedInEpoch(args:_*).length > 1) {
+        val seen = new scala.collection.mutable.HashSet[String]
+        var duplicates = 0
+        var total = 0
+        // Manually evalutes distinct(item) clause unimplemented in PIQL.
+        for (tuple <- deltaGrantingRank(args:_*).map(_(0))) {
+          total += 1
+          if (!seen.contains(tuple.get(0).toString)) {
+            seen.add(tuple.get(0).toString)
+            bulkIncr(tuple)
+          } else {
+            duplicates += 1
+          }
+        }
+        logger.debug("Skipped %d of %d keys in delta query (a very high proportion will hurt performance)", duplicates, total)
+        if (findOrderedInEpoch(args:_*).isEmpty) {
           deltaCountingRank(args:_*).map(_(0)).foreach(bulkIncr(_))
         }
       }

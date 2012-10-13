@@ -22,11 +22,157 @@ import edu.berkeley.cs.scads.storage.TestScalaEngine
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 
 @RunWith(classOf[JUnitRunner])
+class TpcwAdminSpec extends Spec with ShouldMatchers with QueryResultMatchers {
+  lazy val client = new TpcwClient(TestScalaEngine.newScadsCluster(), new SimpleExecutor with DebugExecutor)
+  val timeB = 800000000000L
+
+  client.items ++= List("One", "Two").flatMap(round =>
+    (1 to 4).map {
+      i =>
+        val o = Item("book" + i)
+        o.I_TITLE = "This is Book #" + i
+        o.I_A_ID = "author" + i
+        o.I_PUB_DATE = 0
+        o.I_PUBLISHER = "publisher"
+        o.I_SUBJECT = "subjectX"
+        o.I_DESC = "IM A BOOK"
+        o.I_RELATED1 = 0
+        o.I_RELATED2 = 0
+        o.I_RELATED3 = 0
+        o.I_RELATED4 = 0
+        o.I_RELATED5 = 0
+        o.I_THUMBNAIL = "http://test.com/book.jpg"
+        o.I_IMAGE = "http://test.com/book.jpg"
+        o.I_SRP = 0.0
+        o.I_COST = 0.0
+        o.I_AVAIL = 0
+        o.I_STOCK = 1
+        o.ISBN = "30941823-0491823-40"
+        o.I_PAGE = 100
+        o.I_BACKING = "HARDCOVER"
+        o.I_DIMENSION = "10x10x10"
+        o
+    })
+
+  client.orders ++= (1 to 4).map {
+    i =>
+      val o = Order("order" + i)
+      o.O_C_UNAME = if (i == 4) "user2" else "user1"
+      o.O_DATE_Time = timeB
+      o.O_SUB_TOTAL = 0.0
+      o.O_TAX = 0.0
+      o.O_TOTAL = 0.0
+      o.O_SHIP_TYPE = "Ground"
+      o.O_SHIP_DATE = 0
+      o.O_BILL_ADDR_ID = ""
+      o.O_SHIP_ADDR_ID = ""
+      o.O_STATUS = "pending"
+      o
+  }
+
+  client.orderLines ++= (1 to 3).flatMap {
+    i =>
+      (1 to i).map {
+        j =>
+          val ol = OrderLine("order" + i, j)
+          ol.OL_I_ID = "book" + j
+          ol.OL_QTY = 3
+          ol.OL_DISCOUNT = 0.0
+          ol.OL_COMMENT = "Order it!"
+          ol
+      }
+  }
+
+  it("Should maintain mat view for admin confirm WI") {
+    def fetch(bookA: Int, bookB: Int) = {
+      val key = RelatedItemCountStaging(800002800000L,"book" + bookA, "book" + bookB)
+      val option = client.relatedItemCountStaging.get(key)
+      if (option.isDefined) {
+        option.get.get(0)
+      } else {
+        0
+      }
+    }
+
+    // Order Stream of Books:
+    // 1, 1, 2, 1, 2, 3
+    fetch(2,1) should equal(9)
+    fetch(2,2) should equal(0)
+    fetch(2,3) should equal(3)
+    fetch(2,4) should equal(0)
+
+    fetch(3,1) should equal(9)
+    fetch(3,2) should equal(6)
+    fetch(3,3) should equal(0)
+    fetch(3,4) should equal(0)
+
+    client.orderLines.put({
+      val ol = OrderLine("order1", 1001)
+      ol.OL_I_ID = "book4"
+      ol.OL_QTY = 200
+      ol.OL_DISCOUNT = 0.0
+      ol.OL_COMMENT = "This inserts book 4 using the same customer as before."
+      ol
+    })
+
+    // After purchase of Book #4
+    fetch(2,1) should equal(9)
+    fetch(2,4) should equal(200)
+    fetch(4,2) should equal(6)
+    fetch(4,3) should equal(3)
+
+    client.orderLines.put({
+      val ol = OrderLine("order4", 1004)
+      ol.OL_I_ID = "book4"
+      ol.OL_QTY = 100
+      ol.OL_DISCOUNT = 0.0
+      ol.OL_COMMENT = "This inserts book 4 using a DIFFERENT customer (user2)."
+      ol
+    })
+
+    // Single purchase by different customer does not affect counts immediately.
+    fetch(2,1) should equal(9)
+    fetch(2,4) should equal(200)
+    fetch(3,4) should equal(200)
+    fetch(4,2) should equal(6)
+    fetch(4,3) should equal(3)
+
+    client.orderLines.put({
+      val ol = OrderLine("order4", 1008)
+      ol.OL_I_ID = "book3"
+      ol.OL_QTY = 1
+      ol.OL_DISCOUNT = 0.0
+      ol.OL_COMMENT = "This inserts book 3 using a DIFFERENT customer (user2)."
+      ol
+    })
+    fetch(3,4) should equal(300)  // 200 from user1, 100 from user2
+    fetch(4,3) should equal(4)    // 3 from user1, 1 from user2
+    fetch(3,2) should equal(6)    // just from user1
+
+    client.orderLines.put({
+      val ol = OrderLine("order4", 1009)
+      ol.OL_I_ID = "book3"
+      ol.OL_QTY = 1
+      ol.OL_DISCOUNT = 0.0
+      ol.OL_COMMENT = "This buys book 3 (again) as user2."
+      ol
+    })
+    fetch(3,4) should equal(300)  // unaffected
+    fetch(4,3) should equal(5)    // 3 from user1, 2 from user2
+    fetch(3,2) should equal(6)    // unaffected
+
+//    var key = RelatedItemCountStaging(800002800000L,null,null)
+//    for (s <- client.relatedItemCountStaging.iterateOverRange(key, key)) {
+//      println("Entry: " + s + ", " + s.RELATED_COUNT)
+//    }
+  }
+}
+
+@RunWith(classOf[JUnitRunner])
 class TpcwSpec extends Spec with ShouldMatchers with QueryResultMatchers {
   lazy val client = new TpcwClient(TestScalaEngine.newScadsCluster(), new SimpleExecutor with DebugExecutor)
 
   val dataSize = 10
-
   val timeA = 12345000000000L
 
   client.authors ++= (1 to dataSize).map {
