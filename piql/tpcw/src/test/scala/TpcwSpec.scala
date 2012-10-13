@@ -161,10 +161,18 @@ class TpcwAdminSpec extends Spec with ShouldMatchers with QueryResultMatchers {
     fetch(4,3) should equal(5)    // 3 from user1, 2 from user2
     fetch(3,2) should equal(6)    // unaffected
 
-//    var key = RelatedItemCountStaging(800002800000L,null,null)
-//    for (s <- client.relatedItemCountStaging.iterateOverRange(key, key)) {
-//      println("Entry: " + s + ", " + s.RELATED_COUNT)
-//    }
+    client.updateRelatedCounts(800002800000L, 1 to 4 map("book" + _), k=2) should equal(0)
+
+    client.relatedItemCount.iterateOverRange(None,None).toList should equal(List(
+      RelatedItemCount(800002800000L, "book1", 6, "book2"),
+      RelatedItemCount(800002800000L, "book1", 200, "book4"),
+      RelatedItemCount(800002800000L, "book2", 9, "book1"),
+      RelatedItemCount(800002800000L, "book2", 200, "book4"),
+      RelatedItemCount(800002800000L, "book3", 9, "book1"),
+      RelatedItemCount(800002800000L, "book3", 300, "book4"),
+      RelatedItemCount(800002800000L, "book4", 6, "book2"),
+      RelatedItemCount(800002800000L, "book4", 9, "book1")
+    ))
   }
 }
 

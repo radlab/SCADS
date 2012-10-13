@@ -15,7 +15,11 @@ import ch.ethz.systems.tpcw.populate.data.Utils
 import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.Schema.Type._
 
+import collection.parallel.ForkJoinTasks.defaultForkJoinPool
+
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.TimeUnit
 
 class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   protected val logger = Logger("edu.berkeley.cs.scads.piql.TpcwWorkflow")
@@ -92,15 +96,19 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       val order = joinedLine(2).asInstanceOf[Order]
       calculateEpochs(order.O_DATE_Time).foreach { ep =>
         /* Maintains best sellers view */
-        orderCountStaging.bulkIncrementField(OrderCountStaging(ep, item.I_SUBJECT, item.I_ID).key, "OC_COUNT", line.OL_QTY)
+        orderCountStaging.bulkIncrementField(
+          OrderCountStaging(ep, item.I_SUBJECT, item.I_ID).key,
+          "OC_COUNT", line.OL_QTY)
 
         /* Maintains admin confirm view */
-        val args = List(line.OL_I_ID, order.O_C_UNAME, ep - windowSize, ep, line.OL_QTY)
+        val args = List(
+          line.OL_I_ID, order.O_C_UNAME, ep - windowSize, ep, line.OL_QTY)
         def bulkIncr(tuple: IndexedRecord) = {
           // Manually evaluates the not-equal clause unimplemented in PIQL.
           if (tuple.get(0) != tuple.get(1)) {
             relatedItemCountStaging.bulkIncrementField(
-              RelatedItemCountStaging(ep, tuple.get(0).toString, tuple.get(1).toString).key,
+              RelatedItemCountStaging(
+                ep, tuple.get(0).toString, tuple.get(1).toString).key,
               "RELATED_COUNT",
               tuple.get(2).asInstanceOf[Int])
           }
@@ -118,7 +126,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
             duplicates += 1
           }
         }
-        logger.debug("Skipped %d of %d keys in delta query (a very high proportion will hurt performance)", duplicates, total)
+        logger.debug("Scanned %d rows (%d skipped) in delta query (total should be < kMaxCustomerOrdersPerEpoch).", total, duplicates)
         if (findOrderedInEpoch(args:_*).isEmpty) {
           deltaCountingRank(args:_*).map(_(0)).foreach(bulkIncr(_))
         }
@@ -202,9 +210,30 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   /**
    * Batch update job for the Admin Confirm WI -
    * to be called at same interval as updateOrderCount.
+   * Returns number of failed operations, or zero.
    */
-  def updateRelatedCounts(epoch: Long = getEpoch(), k: Int = kRelatedItemsToFind): Unit = {
-    /* TODO(ekl) scan over RelatedItemsRanksStaging and compute the topK for each item. */
+  def updateRelatedCounts(epoch: Long = getEpoch(), itemIds: Traversable[String], k: Int = kRelatedItemsToFind, maxInFlightOps: Int = 30): Int = {
+    val failures = new AtomicInteger
+    val oldLim = defaultForkJoinPool.getParallelism
+    try {
+      // This is a bit of a hack to control the number of in-flight ops.
+      defaultForkJoinPool.setParallelism(maxInFlightOps)
+      itemIds.par.foreach(I_ID => {
+        val prefix = RelatedItemCountStaging(epoch, I_ID, null).key
+        try {
+          relatedItemCount ++= relatedItemCountStaging
+            .asyncTopK(prefix, prefix, Seq("RELATED_COUNT"), k, false)
+            .get(5, TimeUnit.SECONDS)
+            .get
+            .map(t => RelatedItemCount(t.epoch, t.I_ID, t.RELATED_COUNT, t.I_RELATED_ID))
+        } catch {
+          case e: Throwable => failures.incrementAndGet
+        }
+      })
+    } finally {
+      defaultForkJoinPool.setParallelism(oldLim)
+    }
+    failures.get
   }
 
   val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems, orderCountStaging, orderCount)
