@@ -9,7 +9,6 @@ import org.apache.avro.generic._
 import actors.Actor
 import collection.mutable.{ Seq => MutSeq, _ }
 import concurrent.ManagedBlocker
-import deploylib._
 
 import scala.collection.JavaConversions._
 import java.util.concurrent._
@@ -389,13 +388,14 @@ trait QuorumRangeProtocol
     }
 
     val pq = new TruncatingQueue[Record](k, new FieldComparator(orderingFields, valueSchema, ascending))
-    futures.pmap(f =>
-      f.get(5000).getOrElse(sys.error("timeout waiting for topk")) match {
+    futures.foreach(_.respond(_ match {
         case TopKResponse(recs) =>
           recs.toStream.takeWhile(pq.offer(_)).force
         case m => sys.error("Unexpected message: "+ m)
-      })
+    }))
 
+    val deadline = System.currentTimeMillis + 5000
+    futures.foreach(_.finishByOrDie(deadline))
     pq.drainToList.map(v => Record(v.key, Some(extractRecordFromValue(v.value.get))))
   }
 
