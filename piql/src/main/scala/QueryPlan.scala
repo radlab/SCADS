@@ -60,9 +60,11 @@ case class InPredicate(v1: Value, v2: Value) extends Predicate
 /**
  * An non-leaf operator in a query plan, guaranteed to have children.
  */
-abstract trait InnerNode {
+abstract trait InnerNode extends PrettyPrintable {
   def children: Seq[LogicalPlan]
+}
 
+abstract trait PrettyPrintable {
   override def toString = prettyPrint(new StringBuilder).toString
 
   protected def prettyPrint(sb: StringBuilder, depth: Int = 0): StringBuilder = {
@@ -205,7 +207,7 @@ case class LocalTuples(ordinal: Int, alias: String, keySchema: Schema, schema: S
 }
 
 /* Physical Query Plan Nodes */
-abstract class QueryPlan
+abstract class QueryPlan extends PrettyPrintable
 abstract class RemotePlan extends QueryPlan { val namespace: TupleProvider }
 abstract trait InnerPlan extends QueryPlan { val child: QueryPlan}
 
