@@ -48,7 +48,13 @@ trait RangeKeyValueStoreLike[KeyType <: IndexedRecord,
   def topK(start: Option[KeyType],
            end: Option[KeyType],
            orderingFields: Seq[String],
-           k: Int, ascending: Boolean = false): Seq[RangeType]
+           k: Int, ascending: Boolean = false): Seq[RangeType] =
+    asyncTopK(start, end, orderingFields, k, ascending).get
+
+  def asyncTopK(start: Option[KeyType],
+                end: Option[KeyType],
+                orderingFields: Seq[String],
+                k: Int, ascending: Boolean = false): ScadsFuture[Seq[RangeType]]
 }
 
 
@@ -136,7 +142,7 @@ trait RangeProtocol extends Protocol {
               offset: Option[Int], 
               ascending: Boolean): Seq[(Array[Byte], Array[Byte])]
 
-  def topKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): Seq[Record]
+  def asyncTopKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): ScadsFuture[Seq[Record]]
 
   def asyncGetKeys(start: Option[Array[Byte]], 
                    end: Option[Array[Byte]], 

@@ -272,14 +272,15 @@ class BdbStorageManager(val db: Database,
     oldValue
   }
 
-  def topK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): Seq[Record] = {
+  def asyncTopK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): ScadsFuture[Seq[Record]] = {
     val pq = new TruncatingQueue[Record](k, new FieldComparator(orderingFields, valueSchema, ascending))
 
     iterateOverRange(minKey, maxKey, None, None, true)((key, value, _) => {
       pq.offer(new Record(key.getData, value.getData))
     })
 
-    pq.drainToList
+    // TODO(ekl) implement real future, which is not really necessary at partition level
+    FutureWrapper(pq.drainToList)
   }
 
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean = timed("testAndSet") {

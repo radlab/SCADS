@@ -381,7 +381,7 @@ trait QuorumRangeProtocol
   with QuorumProtocol
   with KeyRangeRoutable {
 
-  override def topKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): Seq[Record] = {
+  override def asyncTopKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): ScadsFuture[Seq[Record]] = {
     val partitions = serversForKeyRange(startKey, endKey)
     val futures = partitions.map{ s =>
       s.servers.head !! TopKRequest(s.startKey, s.endKey, orderingFields, k, ascending)
@@ -394,9 +394,14 @@ trait QuorumRangeProtocol
         case m => sys.error("Unexpected message: "+ m)
     }))
 
-    val deadline = System.currentTimeMillis + 5000
-    futures.foreach(_.finishByOrDie(deadline))
-    pq.drainToList.map(v => Record(v.key, Some(extractRecordFromValue(v.value.get))))
+    new ComputationFuture[Seq[Record]] {
+      def compute(timeoutHint: Long, unit: TimeUnit) = {
+        val deadline = System.currentTimeMillis + unit.toMillis(timeoutHint)
+        futures.foreach(_.finishByOrDie(deadline))
+        pq.drainToList.map(v => Record(v.key, Some(extractRecordFromValue(v.value.get))))
+      }
+      def cancelComputation = sys.error("NOT IMPLEMENTED")
+    }
   }
 
   /** assumes start/end key prepopulated w/ sentinel min/max values */

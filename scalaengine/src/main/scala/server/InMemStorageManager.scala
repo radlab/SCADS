@@ -34,8 +34,6 @@ private case class EQCmp(keySchema:Schema) extends Comparator[EQArray] with Seri
   private def readObjectNoData() = {}
 }
 
-
-
 class InMemStorageManager
   (val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, 
    val startKey:Option[Array[Byte]],
@@ -89,10 +87,11 @@ class InMemStorageManager
     map.put(key, (mData, value))
   }
 
-  def topK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): Seq[Record] = {
+  def asyncTopK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): ScadsFuture[Seq[Record]] = {
     val pq = new TruncatingQueue[Record](k, new FieldComparator(orderingFields, valueSchema, ascending))
     getRange(minKey, maxKey, None, None, true).foreach(pq.offer(_))
-    pq.drainToList
+    // TODO(ekl) implement real future, which is not really necessary for mem storage
+    FutureWrapper(pq.drainToList)
   }
 
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean = {
