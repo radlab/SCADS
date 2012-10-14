@@ -74,7 +74,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     .join(orderLines.as("lines"))
     .where("orders.O_ID".a === "lines.OL_O_ID".a)
     .where("lines.OL_I_ID".a === (0 ?= STRING))
-    .limit(2)
+    .limit(1)
     .toPiql("findOrderedInEpoch")
 
   // Returns list of List(Record[I_ID, I_RELATED_ID, COUNT])
@@ -116,18 +116,22 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         val seen = new scala.collection.mutable.HashSet[String]
         var duplicates = 0
         var total = 0
+        var isFirstOfType = true
         // Manually evalutes distinct(item) clause unimplemented in PIQL.
         for (tuple <- deltaGrantingRank(args:_*).map(_(0))) {
           total += 1
           if (!seen.contains(tuple.get(0).toString)) {
             seen.add(tuple.get(0).toString)
+            if (tuple.get(0) == tuple.get(1)) {
+              isFirstOfType = false
+            }
             bulkIncr(tuple)
           } else {
             duplicates += 1
           }
         }
         logger.debug("Scanned %d rows (%d skipped) in delta query (total should be < kMaxCustomerOrdersPerEpoch).", total, duplicates)
-        if (findOrderedInEpoch(args:_*).isEmpty) {
+        if (isFirstOfType /* === findOrderedInEpoch(args:_*).isEmpty */) {
           deltaCountingRank(args:_*).map(_(0)).foreach(bulkIncr(_))
         }
       }
@@ -218,6 +222,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     try {
       // This is a bit of a hack to control the number of in-flight ops.
       defaultForkJoinPool.setParallelism(maxInFlightOps)
+      // Par splits the items such that load should be distributed across the cluster.
       itemIds.par.foreach(I_ID => {
         val prefix = RelatedItemCountStaging(epoch, I_ID, null).key
         try {
