@@ -5,6 +5,7 @@ package tpcw
 
 import net.lag.logging.Logger
 
+import avro.marker._
 import opt._
 import plans._
 import comm._
@@ -43,8 +44,12 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   /* Views */
   val orderCountStaging = cluster.getNamespace[OrderCountStaging]("orderCountStaging")
   val orderCount = cluster.getNamespace[OrderCount]("orderCount")
+  val orderCountEpoch = orderCount.root.getOrCreate("currentEpoch")
+
   val relatedItemCountStaging = cluster.getNamespace[RelatedItemCountStaging]("relatedItemCountStaging")
   val relatedItemCount = cluster.getNamespace[RelatedItemCount]("relatedItemCount")
+  val relatedItemCountEpoch = relatedItemCount.root.getOrCreate("currentEpoch")
+
 
   /* View Maintenance Code */
   val fetchLineKeys = LocalTuples(0, "line", OrderLine.keySchema, OrderLine.schema)
@@ -140,12 +145,22 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     relatedItemCountStaging.flushBulkBytes()
   }
 
-  object CurrentEpoch extends CalculatedValue {
-    def getValue = getEpoch()
+  class CurrentEpoch(zkNode: ZooKeeperProxy#ZooKeeperNode) extends CalculatedValue {
+    var currentEpoch: Epoch = null
+
+    def updateValue {
+      currentEpoch = Epoch(0).parse(zkNode.onDataChange(updateValue))
+    }
+
+    def getValue: Any = {
+      if(currentEpoch == null)
+        updateValue
+      currentEpoch.startTime
+    }
   }
 
   val adminConfirmWI = relatedItemCount.as("count")
-    .where("count.epoch".a === CurrentEpoch)
+    .where("count.epoch".a === new CurrentEpoch(relatedItemCountEpoch))
     .where("count.I_ID".a === (0.?))
     .sort("count.RELATED_COUNT".a :: Nil, false)
     .dataLimit(kRelatedItemsToFind)
@@ -165,7 +180,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * order by SUM(OL_QTY) desc
    */
   val bestSellerWI = orderCount.as("count")
-        .where("count.epoch".a === CurrentEpoch)
+        .where("count.epoch".a === new CurrentEpoch(orderCountEpoch))
         .where("count.I_SUBJECT".a === (0.?))
         .dataLimit(kTopOrdersToList)
         .toPiql("bestSellerWI")
@@ -190,11 +205,13 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     .where("items.I_A_ID".a === "authors.A_ID".a)
     .toPiql("fetchItemDetails")
 
+
+  case class Epoch(var startTime: Long) extends AvroRecord
   /**
    * Function to calculate the topK from the staging relation for the current epoch
    * to be called periodically (stepSize)
    */
-  def updateOrderCount(epoch: Long = getEpoch(), subjects: Seq[String] = Seq("subject0"), k: Int = kTopOrdersToList): Unit = {
+  def updateOrderCount(epoch: Long = getEpoch(), subjects: Seq[String] = Utils.getSubjects, k: Int = kTopOrdersToList): Unit = {
     subjects.foreach(subject => {
       val prefix = OrderCountStaging(epoch, subject, null).key
       orderCount ++= fetchItemDetails(orderCountStaging.topK(prefix, prefix, Seq("OC_COUNT"), k, false).map(Vector(_))).map(joinedOcs => {
@@ -209,6 +226,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         oc
       })
     })
+
+    orderCountEpoch.data = Epoch(epoch).toBytes
   }
 
   /**
