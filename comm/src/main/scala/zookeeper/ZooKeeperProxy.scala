@@ -228,7 +228,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
       apply(fullName)
     }
 
-    def onDataChange(func:() => Unit):Array[Byte] = {
+    def onDataChange(func: => Unit):Array[Byte] = {
       val watcher = new Watcher {
 	def process(evt: WatchedEvent) {
 	  evt.getType match {
