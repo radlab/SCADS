@@ -22,8 +22,17 @@ case class TpcwViewRefreshTask(var experimentAddress: String,
     clusterRoot.awaitChild("clusterReady")
     logger.info("Cluster ready... entering refresh loop")
 
+    val cluster = new ScadsCluster(clusterRoot)
+    val client = new TpcwClient(cluster, new ParallelExecutor)
 
-
+    //TODO: Need to be able to kill this remotely (zookeeper?)
+    while(true) {
+      //TODO: Record view update latency?
+      logger.info("Updating OrderCounts")
+      client.updateOrderCount()
+      logger.info("Updating RelatedCounts")
+      client.updateRelatedCounts()
+    }
   }
 }
 
