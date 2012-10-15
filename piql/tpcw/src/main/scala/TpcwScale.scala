@@ -63,7 +63,7 @@ case class TpcwWorkflowTask(var numClients: Int,
       logger.info("Begining iteration %d", iteration)
       results ++= (1 to numThreads).pmap(threadId => {
         def getTime = System.nanoTime / 1000000
-        val histograms = new scala.collection.mutable.HashMap[ActionType.ActionType, Histogram] { override def default(key: ActionType.ActionType): Histogram = Histogram(1, 5000) }
+        val histograms = new scala.collection.mutable.HashMap[ActionType.ActionType, Histogram]
 
         val runTime = runLengthMin * 60 * 1000L
         val iterationStartTime = getTime
@@ -80,7 +80,8 @@ case class TpcwWorkflowTask(var numClients: Int,
             endTime = getTime
             val elapsedTime = endTime - startTime
             actionExecuted match {
-              case Some(action) => histograms(action) += elapsedTime
+              case Some(action) =>
+                histograms.getOrElseUpdate(action, Histogram(1, 5000)) += elapsedTime
               case None => skips += 1
 
             }
@@ -94,8 +95,8 @@ case class TpcwWorkflowTask(var numClients: Int,
 
         histograms.foreach {
           case (action, histogram) =>
-            logger.info("Thread %d stats 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms",
-            threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99), histogram.average, histogram.stddev)
+            logger.info("%s Thread %d 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms",
+            action, threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99), histogram.average, histogram.stddev)
         }
         val res = Result(this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId)
         res.totalElaspedTime =  endTime - iterationStartTime
