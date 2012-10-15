@@ -230,12 +230,12 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
 
     def onDataChange(func: => Unit):Array[Byte] = {
       val watcher = new Watcher {
-	def process(evt: WatchedEvent) {
-	  evt.getType match {
-            case EventType.NodeDataChanged => func()
+	    def process(evt: WatchedEvent) {
+	      evt.getType match {
+            case EventType.NodeDataChanged => func
             case e => logger.error("Watch onDataChange is unregistered): %s",e)
           }
-	}
+	      }
       }
       conn.getData(path, watcher, new Stat)
     }
