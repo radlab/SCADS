@@ -40,6 +40,12 @@ object TpcwScaleExperiment {
   lazy val tinyTpcwClient =
     new piql.tpcw.TpcwClient(new piql.tpcw.TpcwLoaderTask(1,1,1,1000,1).newTestCluster, new ParallelExecutor with DebugExecutor)
 
+  def resultsByAction = scaleResults
+    .iterateOverRange(None,None)
+    .filter(_.iteration != 1)
+    .flatMap(_.times).toSeq
+    .groupBy(_.name)
+    .map { case (name, hists) => (name, hists.reduceLeft(_ + _).quantile(0.99)) }
 
   def runScaleTest(numServers: Int, executor: String = "edu.berkeley.cs.scads.piql.exec.ParallelExecutor")(implicit cluster: Cluster) = {
     val (scadsTasks, scadsCluster) = TpcwLoaderTask(numServers, numServers/2, replicationFactor=2, numEBs = 150 * numServers/2, numItems = 10000).delayedCluster
