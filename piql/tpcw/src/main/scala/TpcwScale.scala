@@ -16,6 +16,7 @@ import deploylib.ec2._
 
 import scala.util.Random
 import scala.collection.{ mutable => mu }
+import org.apache.zookeeper.CreateMode
 
 case class Result(var expId: String,
                   var clientConfig: TpcwWorkflowTask,
@@ -61,6 +62,14 @@ case class TpcwWorkflowTask(var numClients: Int,
       numEBs = loaderConfig.numEBs,
       numItems = loaderConfig.numItems)
 
+    /* Coordinate starting/stopping of view refresh system */
+    if (clientId == 0) {
+      coordination.createChild("expRunning", mode = CreateMode.EPHEMERAL)
+      coordination.createChild("runViewRefresh")
+    }
+
+    coordination.awaitChild("viewsReady")
+
     for(iteration <- (1 to iterations)) {
       logger.info("Begining iteration %d", iteration)
       results ++= (1 to numThreads).pmap(threadId => {
@@ -100,7 +109,7 @@ case class TpcwWorkflowTask(var numClients: Int,
             logger.info("%s Thread %d 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms",
             action, threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99), histogram.average, histogram.stddev)
         }
-        val res = Result(this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId)
+        val res = Result(expId, this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId)
         res.totalElaspedTime =  endTime - iterationStartTime
 
         res.times = histograms.map {
