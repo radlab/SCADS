@@ -66,6 +66,7 @@ case class RandomLoadClient(
   var readPercentage: Double = 0.8) extends ReplicatedExperimentTask with AvroRecord {
   var resultClusterAddress: String = _
   var experimentAddress: String = _
+  var expId: String = _
 
   def run(): Unit = {
     require(0.0 <= readPercentage && readPercentage <= 1.0, "Read percentage needs to be between [0.0, 1.0]")

@@ -61,6 +61,7 @@ abstract trait ReplicatedExperimentTask extends ExperimentTask {
   var resultClusterAddress: String
   var clusterAddress: String
   var experimentAddress: String
+  var expId: String
 
   protected lazy val clusterRoot = ZooKeeperNode(clusterAddress)
   protected lazy val coordination = clusterRoot.getOrCreate("coordination/clients")
@@ -72,6 +73,7 @@ abstract trait ReplicatedExperimentTask extends ExperimentTask {
     experimentAddress = experimentRoot.canonicalAddress
     clusterAddress = cluster.root.canonicalAddress
     resultClusterAddress = cluster.root.canonicalAddress
+    expId = resultCluster.root.getOrCreate("experiments").createChild("exp", mode = CreateMode.PERSISTENT_SEQUENTIAL).name
 
     val threads = (1 to numClients).map(_ => new Thread(this))
     threads.foreach(_.start)
@@ -83,6 +85,7 @@ abstract trait ReplicatedExperimentTask extends ExperimentTask {
     experimentAddress = experimentRoot.canonicalAddress
     clusterAddress = scadsCluster.root.canonicalAddress
     resultClusterAddress = resultCluster.root.canonicalAddress
+    expId = resultCluster.root.getOrCreate("experiments").createChild("exp", mode = CreateMode.PERSISTENT_SEQUENTIAL).name
 
     val task = this.toJvmTask
     Array.fill(numClients)(task)

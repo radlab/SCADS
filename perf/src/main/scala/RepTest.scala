@@ -66,6 +66,7 @@ case class RepClient(var numIterations: Int, var clusterAddress: String) extends
   var numClients = 1
   var experimentAddress: String = _
   var resultClusterAddress: String = _
+  var expId: String = _
 
   protected lazy val test = 1
 

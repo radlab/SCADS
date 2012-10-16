@@ -17,7 +17,8 @@ import deploylib.ec2._
 import scala.util.Random
 import scala.collection.{ mutable => mu }
 
-case class Result(var clientConfig: TpcwWorkflowTask,
+case class Result(var expId: String,
+                  var clientConfig: TpcwWorkflowTask,
                   var loaderConfig: TpcwLoaderTask,
                   var clusterAddress: String,
                   var clientId: Int,
@@ -38,6 +39,7 @@ case class TpcwWorkflowTask(var numClients: Int,
   var experimentAddress: String = _
   var clusterAddress: String = _
   var resultClusterAddress: String = _
+  var expId: String = _
 
   def run(): Unit = {
 
