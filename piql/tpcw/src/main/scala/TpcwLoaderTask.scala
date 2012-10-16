@@ -48,6 +48,14 @@ case class TpcwLoaderTask(var numServers: Int,
     coordination.registerAndAwait("namespacesReady", numLoaders)
 
     val tpcwClient = new TpcwClient(cluster, new ParallelExecutor)
+
+    /* Turn on the cache for commonly used ns by delta queries */
+    tpcwClient.orders.cacheActive = true
+    tpcwClient.items.cacheActive = true
+
+    /* HACK: Loading is taking forever!  Don't do it? */
+    tpcwClient.orderLines.triggersActive = false
+
     coordination.registerAndAwait("startBulkLoad", numLoaders)
     logger.info("Begining bulk loading of data")
     loader.namespaces(tpcwClient).foreach(_.load(clientId, numLoaders))
