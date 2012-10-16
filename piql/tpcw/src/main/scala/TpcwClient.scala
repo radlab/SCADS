@@ -633,6 +633,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     order.O_BILL_ADDR_ID = customer.C_ADDR_ID
     order.O_SHIP_ADDR_ID = customer.C_ADDR_ID
     order.O_STATUS = "PENDING"
+    //This can only be async because it'll get cached so there'll be a hit when we look it up for trigger processing shortly...
     val orderPut = orders.asyncPut(order.key, order.value)
 
     // make order lines
@@ -643,8 +644,11 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         ol.OL_QTY = scl.SCL_QTY
         ol.OL_DISCOUNT = customer.C_DISCOUNT
         ol.OL_COMMENT = Utils.getRandomAString(20, 100)
-        orderLines.asyncPut(ol.key, ol.value)
+        ol
     }
+
+    //Do the seperately to allow pipelining of delta query calculation
+    orderLines ++= orderLinePuts
 
     // make item stocks updates
     val stockUpdatePuts = cart.map {
@@ -679,7 +683,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     }
 
     /* Block until puts complete */
-    (orderLinePuts ++ stockUpdatePuts ++ clearCartPuts :+ orderPut).foreach(_())
+    (stockUpdatePuts ++ clearCartPuts :+ orderPut).foreach(_())
 
     logger.debug("finished buy confirmation of %d items", cart.size)
 
