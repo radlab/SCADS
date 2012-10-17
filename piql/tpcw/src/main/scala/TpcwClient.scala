@@ -21,7 +21,8 @@ import collection.parallel.ForkJoinTasks.defaultForkJoinPool
 
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.TimeUnit
+import java.util.concurrent._
+import scala.collection.JavaConversions._
 
 class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   protected val logger = Logger("edu.berkeley.cs.scads.piql.TpcwWorkflow")
@@ -256,29 +257,33 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * to be called at same interval as updateOrderCount.
    * Returns number of failed operations, or zero.
    */
-  def updateRelatedCounts(epoch: Long = getEpoch(), itemIds: Traversable[String], k: Int = kRelatedItemsToFind, maxInFlightOps: Int = 30): Int = {
-    val failures = new AtomicInteger
-    val oldLim = defaultForkJoinPool.getParallelism
-    try {
-      // This is a bit of a hack to control the number of in-flight ops.
-      defaultForkJoinPool.setParallelism(maxInFlightOps)
-      // Par splits the items such that load should be distributed across the cluster.
-      itemIds.par.foreach(I_ID => {
-        val prefix = RelatedItemCountStaging(epoch, I_ID, null).key
-        try {
-          relatedItemCount ++= relatedItemCountStaging
-            .asyncTopK(prefix, prefix, Seq("RELATED_COUNT"), k, false)
-            .get(5, TimeUnit.SECONDS)
-            .get
-            .map(t => RelatedItemCount(t.epoch, t.I_ID, t.RELATED_COUNT, t.I_RELATED_ID))
-        } catch {
-          case e: Throwable => failures.incrementAndGet
-        }
+  def updateRelatedCounts(itemIds: Traversable[String],
+                          epoch: Long = getEpoch(),
+                          k: Int = kRelatedItemsToFind,
+                          maxInFlightOps: Int = 1000,
+                          timeoutSeconds: Int = 60): Int = {
+    var failures = 0
+    var generated = new ConcurrentLinkedQueue[RelatedItemCount]
+    var inflight = new Semaphore(maxInFlightOps)
+    assert (maxInFlightOps > 0)
+    itemIds.foreach(I_ID => {
+      while (!inflight.tryAcquire(1, timeoutSeconds, TimeUnit.SECONDS)) {
+        // Gives up on all outstanding operations.
+        failures += maxInFlightOps
+        inflight = new Semaphore(maxInFlightOps)
+      }
+      val prefix = RelatedItemCountStaging(epoch, I_ID, null).key
+      val inflightRef = inflight
+      relatedItemCountStaging.asyncTopK(prefix, prefix, Seq("RELATED_COUNT"), k, false).respond(resp => {
+        resp.map(t => generated.add(RelatedItemCount(t.epoch, t.I_ID, t.RELATED_COUNT, t.I_RELATED_ID)))
+        inflightRef.release()
       })
-    } finally {
-      defaultForkJoinPool.setParallelism(oldLim)
+    })
+    if (!inflight.tryAcquire(maxInFlightOps, timeoutSeconds, TimeUnit.SECONDS)) {
+      failures += maxInFlightOps - inflight.availablePermits()
     }
-    failures.get
+    relatedItemCount ++= generated
+    failures
   }
 
   val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems, orderCountStaging, orderCount)
