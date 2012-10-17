@@ -127,17 +127,10 @@ case class MessageFuture[MessageType <: IndexedRecord](val dest: RemoteServicePr
 
   protected var respondFunctions: List[MessageType => Unit] = Nil
   def respond(r: MessageType => Unit): Unit = synchronized {
-    if(message.isSet) {
+    if (message.isSet) {
       r(message.get)
     } else {
       respondFunctions ::= r
-    }
-  }
-
-  def finishByOrDie(deadline: Long): Unit = {
-    val res = done.get(deadline - System.currentTimeMillis)
-    if (!res.isDefined) {
-      sys.error("Exceeded deadline waiting for message response.")
     }
   }
 
@@ -332,4 +325,49 @@ trait ComputationFuture[T] extends ScadsFuture[T] {
     }   
   }   
   def isSet = syncVar.isSet
+}
+
+/**
+ * Future which implements callbacks like MessageFuture does.
+ */
+class CallbackFuture[T] extends ScadsFuture[T] { self =>
+
+  import scala.concurrent.SyncVar
+
+  private val message = new SyncVar[T]
+  protected var respondFunctions: List[T => Unit] = Nil
+
+  def respond(r: T => Unit): Unit = synchronized {
+    if (message.isSet) {
+      r(message.get)
+    } else {
+      respondFunctions ::= r
+    }
+  }
+
+  def setResult(msg: T): Unit = synchronized {
+    if (message.isSet) {
+      throw new IllegalStateException
+    }
+    message.set(msg)
+    respondFunctions.foreach(_(msg))
+  }
+
+  def cancel = sys.error("UNIMPLEMENTED")
+  def get = message.get
+  def get(timeout: Long, unit: TimeUnit) = message.get(unit.toMillis(timeout))
+  def isSet = message.isSet
+
+  /**
+   * Return a new future which is backed by this future and maps the
+   * result according to the given function
+   */
+  override def map[T1](f: T => T1): CallbackFuture[T1] = new CallbackFuture[T1] {
+    override def cancel = self.cancel
+    override def get = f(self.get)
+    override def get(timeout: Long, unit: TimeUnit = TimeUnit.MILLISECONDS) =
+      self.get(timeout, unit) map f
+    override def isSet = self.isSet
+    override def respond(r: T1 => Unit): Unit = self.respond(t => r(f(t)))
+  }
 }

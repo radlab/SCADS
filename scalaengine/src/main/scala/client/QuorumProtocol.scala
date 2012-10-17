@@ -12,6 +12,7 @@ import concurrent.ManagedBlocker
 
 import scala.collection.JavaConversions._
 import java.util.concurrent._
+import java.util.concurrent.atomic._
 
 private[storage] object QuorumProtocol {
   val ZK_QUORUM_CONFIG = "quorumProtConfig"
@@ -381,27 +382,27 @@ trait QuorumRangeProtocol
   with QuorumProtocol
   with KeyRangeRoutable {
 
-  override def asyncTopKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): ScadsFuture[Seq[Record]] = {
+  override def asyncTopKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): CallbackFuture[Seq[Record]] = {
     val partitions = serversForKeyRange(startKey, endKey)
     val futures = partitions.map{ s =>
       s.servers.head !! TopKRequest(s.startKey, s.endKey, orderingFields, k, ascending)
     }
 
     val pq = new TruncatingQueue[Record](k, new FieldComparator(orderingFields, valueSchema, ascending))
+    val counter = new AtomicInteger(futures.length)
+    val wrapper = new CallbackFuture[Seq[Record]]()
     futures.foreach(_.respond(_ match {
-        case TopKResponse(recs) =>
+        case TopKResponse(recs) => {
           recs.toStream.takeWhile(pq.offer(_)).force
+          counter.getAndDecrement
+          if (counter.get == 0) {
+            wrapper.setResult(pq.drainToList.map(v => Record(v.key, Some(extractRecordFromValue(v.value.get)))))
+          }
+        }
         case m => sys.error("Unexpected message: "+ m)
     }))
 
-    new ComputationFuture[Seq[Record]] {
-      def compute(timeoutHint: Long, unit: TimeUnit) = {
-        val deadline = System.currentTimeMillis + unit.toMillis(timeoutHint)
-        futures.foreach(_.finishByOrDie(deadline))
-        pq.drainToList.map(v => Record(v.key, Some(extractRecordFromValue(v.value.get))))
-      }
-      def cancelComputation = sys.error("NOT IMPLEMENTED")
-    }
+    wrapper
   }
 
   /** assumes start/end key prepopulated w/ sentinel min/max values */
