@@ -101,6 +101,7 @@ class TpcwLoader(val numEBs : Double,
       RandomData(client.customers, createCustomer(_), numCustomers),
       RandomData(client.items, createItem(_), numItems),
       RandomData(client.orderCountStaging, createOrderCountStaging(_), numItems),
+      RandomData(client.relatedItemCountStaging, createRelatedItemCountStaging(_), numItems),
       RandomData(client.orders, createOrder(_), numOrders),
       FlattenedRandomData(client.orderLines, createOrderline(_), numOrders),
       new RandomData(client.shoppingCartItems, i => ShoppingCartItem(toCustomer(i), ""), numCustomers) with NoLoad)
@@ -251,6 +252,11 @@ class TpcwLoader(val numEBs : Double,
   def createOrderCountStaging(id: Int): OrderCountStaging = {
     val i = createItem(id)
     OrderCountStaging(0, i.I_SUBJECT, i.I_ID)
+  }
+
+  def createRelatedItemCountStaging(id: Int): RelatedItemCountStaging = {
+    val i = createItem(id)
+    RelatedItemCountStaging(0, i.I_ID, "")
   }
 
   def createItem(itemId : Int) : Item = {
