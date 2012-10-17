@@ -54,6 +54,11 @@ abstract class NioAvroChannelManagerBase[SendMsgType <: IndexedRecord, RecvMsgTy
 
   private val socketAddrReverseMap = new ConcurrentHashMap[SocketChannel, RemoteNode]
 
+  /**
+   * Allows address translation. For instance from EC2 internal to external addresses.
+   */
+  def addMapping(originalAddress: String, newAddress: String): Unit = sys.error("not implemented")
+
   private def registerReverseMap(channel: SocketChannel) = {
     socketAddrReverseMap.put(
       channel,

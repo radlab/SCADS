@@ -16,6 +16,7 @@ import scala.collection.JavaConversions._
 import edu.berkeley.cs.scads.config._
 import edu.berkeley.cs.avro.runtime.TypedSchema
 import org.apache.avro.generic.IndexedRecord
+import collection.mutable
 
 /**
  * Easier to instantiate via reflection
@@ -186,12 +187,28 @@ abstract class NettyChannelManager[S <: IndexedRecord, R <: IndexedRecord]
     }
   }
 
+  protected val addressMappings = new scala.collection.mutable.HashMap[String,String]()
+
+  /**
+   * Allows address translation. For instance from EC2 internal to external addresses.
+   */
+  def addMapping(originalAddress: String, newAddress: String): Unit =
+    addressMappings.put(originalAddress, newAddress)
+
   private def connect(addr: InetSocketAddress) = {
     require(addr ne null)
 
-    log.info("opening new connection to address: %s".format(addr))
+    val newAddress = addressMappings.get(addr.getHostName) match {
+      case Some(a) =>
+        log.info("Using address mapping from %s to %s", addr.getHostName, a)
+        new InetSocketAddress(a, addr.getPort)
+      case None => addr
+    }
+
+    log.info("opening new connection to address: %s".format(newAddress))
+
     // open the connection in the current thread
-    clientBootstrap.connect(addr).awaitUninterruptibly.getChannel
+    clientBootstrap.connect(newAddress).awaitUninterruptibly.getChannel
   }
 
   override def flush {

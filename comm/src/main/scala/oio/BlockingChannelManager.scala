@@ -86,6 +86,11 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
     conn.send(os.underlyingBuffer, os.numPreAllocBytes, os.effectiveSize, flush)
   }
 
+  /**
+   * Allows address translation. For instance from EC2 internal to external addresses.
+   */
+  def addMapping(originalAddress: String, newAddress: String): Unit = sys.error("Not implemented")
+
   private def getConnectionFor(dest: RemoteNode) = {
     val addr  = dest.getInetSocketAddress
     val conn0 = nodeToConnections.get(addr)

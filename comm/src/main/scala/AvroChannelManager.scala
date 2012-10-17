@@ -2,7 +2,7 @@ package edu.berkeley.cs.scads.comm
 
 import java.nio._
 import java.nio.channels._
-import java.net.InetSocketAddress
+import java.net.{InetAddress, InetSocketAddress}
 
 import org.apache.avro.io._
 import org.apache.avro.specific._
@@ -41,6 +41,11 @@ trait AvroChannelManager[SendMsgType <: IndexedRecord, RecvMsgType <: IndexedRec
    * Abstract method to be implemented by the user
    */
   def receiveMessage(src: RemoteNode, msg: RecvMsgType):Unit
+
+  /**
+   * Allows address translation. For instance from EC2 internal to external addresses.
+   */
+  def addMapping(originalAddress: String, newAddress: String): Unit
 }
 
 /*

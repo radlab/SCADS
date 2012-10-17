@@ -20,6 +20,7 @@ import scala.collection.JavaConversions._
 import edu.berkeley.cs.avro.runtime._
 import org.apache.avro.Schema.Field
 import org.apache.avro.specific.SpecificRecord
+import java.net.InetAddress
 
 /* General message types */
 sealed trait ServiceId extends AvroUnion
@@ -84,6 +85,12 @@ class ServiceRegistry[MessageType <: IndexedRecord](implicit schema: TypedSchema
         logger.error(e, "Could not initialize channel manager implementation")
         throw e
     }
+
+  /**
+   * Allows address translation. For instance from EC2 internal to external addresses.
+   */
+  def addMapping(originalAddress: String, newAddress: String): Unit =
+    impl.addMapping(originalAddress, newAddress)
 
   private def getImpl = {
     val clzName = config.getString(

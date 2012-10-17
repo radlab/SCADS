@@ -10,6 +10,7 @@ import java.io.File
 import collection.JavaConversions._
 import net.lag.logging.Logger
 import java.lang.RuntimeException
+import java.net.InetAddress
 
 object ServiceSchedulerDaemon extends optional.Application {
   val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
@@ -118,6 +119,12 @@ class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = 
   val frameworkDir = new File(mesosDir, "frameworks/deploylib")
 
   val binDir = new File(mesosDir, "bin")
+
+  def addInternalAddressMappings(registry: ServiceRegistry[_]): Unit = {
+    (slaves ++ masters ++ zooKeepers).foreach{ i =>
+      registry.addMapping(i.privateDnsName, i.publicDnsName)
+    }
+  }
 
   /**
    * The ami used when launching new instances
