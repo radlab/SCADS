@@ -17,6 +17,7 @@ import collection.mutable.{ArrayBuffer, HashMap}
 import org.apache.avro.generic.IndexedRecord
 import edu.berkeley.cs.avro.runtime._
 import org.apache.avro.util.Utf8
+import scala.collection.JavaConversions._
 
 
 class TpcwLoader(val numEBs : Double,
@@ -106,29 +107,39 @@ class TpcwLoader(val numEBs : Double,
       FlattenedRandomData(client.orderLines, createOrderline(_), numOrders),
       new RandomData(client.shoppingCartItems, i => ShoppingCartItem(toCustomer(i), ""), numCustomers) with NoLoad)
 
-  def createNamespaces(client: TpcwClient, replicationFactor: Int) = {
-    namespaces(client).foreach(_.repartition(replicationFactor))
-
-    //HACK: adjust the partitions to stripe each epoch across all servers.
+  //HACK: this adjusts the current partitions to stripe each epoch across all servers for the next 2 hours
+  def partitionEpochs(client: TpcwClient, ns: PairNamespace[_]):Unit = {
     val epochs = client.calculateEpochs(windowSize = 2 * 60 * 60 * 1000) //Only partition for the next two hours
-    val oldPartitions = client.orderCountStaging.serversForKeyRange(None, None).map {
-        case RangeDesc(start, _, servers) => (start.map(client.orderCountStaging.bytesToKey(_)), servers.map(_.storageService))
+    val oldPartitions = ns.serversForKeyRange(None, None).map {
+        case RangeDesc(start, _, servers) => (start.map(ns.bytesToKey(_)), servers.map(_.storageService))
       }
+
+    def copyWithEpoch(e: Long, r: IndexedRecord): IndexedRecord = {
+      val newR = ns.newKeyInstance
+      newR.put(0, e) //Place Epoch
+      r.getSchema.getFields.foreach(f => if(f.pos != 0) newR.put(f.pos, r.get(f.pos))) //Copy other fields
+      newR
+    }
 
     val newPartitions =
       oldPartitions.map {
         case (start, servers) =>
-          (start.map(s => OrderCountStaging(epochs.head, s.get(1).toString, s.get(2).toString).key), servers)
+          (start.map(copyWithEpoch(epochs.head, _)), servers)
       } ++
       epochs.drop(1).flatMap(e => {
         oldPartitions.map {
           case (start, servers) =>
-            (Some(OrderCountStaging(e, start.map(_.get(1).toString).orNull, start.map(_.get(2).toString).orNull).key), servers)
+            (Some(copyWithEpoch(e, start.getOrElse(ns.newKeyInstance))), servers)
         }
       })
 
+    ns.setPartitionScheme(newPartitions)
+  }
 
-    client.orderCountStaging.setPartitionScheme(newPartitions)
+  def createNamespaces(client: TpcwClient, replicationFactor: Int) = {
+    namespaces(client).foreach(_.repartition(replicationFactor))
+    partitionEpochs(client, client.orderCountStaging)
+    partitionEpochs(client, client.relatedItemCountStaging)
   }
 
   private def uuid() : String =
