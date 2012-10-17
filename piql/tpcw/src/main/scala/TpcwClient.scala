@@ -15,6 +15,7 @@ import storage.client.index._
 import ch.ethz.systems.tpcw.populate.data.Utils
 import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.Schema.Type._
+import org.apache.avro.Schema
 
 import collection.parallel.ForkJoinTasks.defaultForkJoinPool
 
@@ -61,7 +62,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
   // Returns list of List(Record[I_ID, I_RELATED_ID, COUNT])
   // Given item A, increments all (?, A) pairs by qty(A)
-  val deltaGrantingRank = orders.as("orders")
+  val UNUSED_deltaGrantingRank = orders.as("orders")
     .where("orders.O_C_UNAME".a === (1.?))
     .range("orders.O_DATE_Time".a, (2.?), (3.?))
     .dataLimit(kMaxCustomerOrdersPerEpoch)
@@ -71,8 +72,28 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     .select("lines.OL_I_ID".a, 0 ?= STRING, 4 ?= INT)
     .toPiql("deltaGrantingRank")
 
+  val deltaGrantingRankIndexOnly = new OptimizedQuery(
+    "deltaGrantingRankIndexOnly",
+    LocalProjection(
+      Vector(AttributeValue(1,2), ParameterValue(0,Some(STRING)), ParameterValue(4,Some(INT))),
+      IndexMergeJoin(
+        orderLines,
+        Vector(AttributeValue(0,2)),
+        List(),
+        FixedLimit(kMaxCustomerOrdersPerEpoch),
+        true,
+        IndexScan(
+          orders.getOrCreateIndex(AttributeIndex("O_C_UNAME") :: AttributeIndex("O_DATE_Time") :: Nil),
+          Vector(ParameterValue(1,None)),
+          FixedLimit(kMaxCustomerOrdersPerEpoch),
+          true,
+          Some(RangeConstraint(Some(ParameterValue(2,None)),Some(ParameterValue(3,None))))),
+        None),
+      new Schema.Parser().parse("{\"type\":\"record\",\"name\":\"LocalProjection\",\"fields\":[{\"name\":\"OL_I_ID\",\"type\":\"string\",\"doc\":\"Auto-Generated Field\"},{\"name\":\"param_0\",\"type\":\"string\",\"doc\":\"\"},{\"name\":\"param_4\",\"type\":\"int\",\"doc\":\"\"}]}")),
+    executor)
+
   // if exists >1 result from this, then don't run deltaCountingRank
-  val findOrderedInEpoch = orders.as("orders")
+  val UNUSED_findOrderedInEpoch = orders.as("orders")
     .where("orders.O_C_UNAME".a === (1.?))
     .range("orders.O_DATE_Time".a, (2.?), (3.?))
     .dataLimit(kMaxCustomerOrdersPerEpoch)
@@ -123,7 +144,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         var total = 0
         var isFirstOfType = true
         // Manually evalutes distinct(item) clause unimplemented in PIQL.
-        for (tuple <- deltaGrantingRank(args:_*).map(_(0))) {
+        for (tuple <- deltaGrantingRankIndexOnly(args:_*).map(_(0))) {
           total += 1
           if (!seen.contains(tuple.get(0).toString)) {
             seen.add(tuple.get(0).toString)
