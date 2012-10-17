@@ -275,7 +275,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       val prefix = RelatedItemCountStaging(epoch, I_ID, null).key
       val inflightRef = inflight
       relatedItemCountStaging.asyncTopK(prefix, prefix, Seq("RELATED_COUNT"), k, false).respond(resp => {
-        resp.map(t => generated.add(RelatedItemCount(t.epoch, t.I_ID, t.RELATED_COUNT, t.I_RELATED_ID)))
+        resp.foreach(t => generated.add(RelatedItemCount(t.epoch, t.I_ID, t.RELATED_COUNT, t.I_RELATED_ID)))
         inflightRef.release()
       })
     })
