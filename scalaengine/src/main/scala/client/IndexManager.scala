@@ -14,6 +14,9 @@ import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.avro.marker._
 import org.apache.avro.util.Utf8
 
+import scala.actors.Future
+import scala.actors.Futures._
+
 private[storage] object IndexManager {
   val indexValueSchema = {
     val schema = Schema.createRecord("DummyValue", "", "", false)
@@ -128,6 +131,18 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
         ns.repartition(data.flatMap(d => makeIndexFor(d.key, d.value, ns.keySchema, mapping)), replicationFactor)
     }
     super.repartition(data, replicationFactor)
+  }
+
+  override abstract def repartitionForClusters(data: Seq[BulkType], numClusters: Int): Unit = {
+    indexCache.values.map(n => future {
+      n match {
+        case (ns, mapping) =>
+          logger.info("index repartitionForClusters: %s", ns)
+          ns.repartitionForClusters(data.flatMap(d => makeIndexFor(d.key, d.value, ns.keySchema, mapping)), numClusters)
+      }
+    }).map(_())
+
+    super.repartitionForClusters(data, numClusters)
   }
 
   override abstract def put(key: IndexedRecord, value: Option[IndexedRecord]): Unit = {
