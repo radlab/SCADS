@@ -7,6 +7,9 @@ import edu.berkeley.cs.scads.storage.transactions.conflict.ArrayLT
 
 import scala.collection.mutable.ListBuffer
 
+import mdcc.ByteArrayWrapper
+import scala.collection.mutable.HashMap
+
 import net.lag.logging.Logger
 
 sealed trait UpdateInfo {
@@ -24,12 +27,15 @@ case class LogicalUpdateInfo(var ns : TransactionI,
 // TODO: Worry about thread safety?
 class UpdateList {
   private val updateList = new ListBuffer[UpdateInfo]
+//  private val updateList = new scala.collection.mutable.HashMap[ByteArrayWrapper, UpdateInfo]
+  // TODO: is hashmap really that slow???
 
   def appendValueUpdateInfo(ns : TransactionI,
                             servers: Seq[PartitionService],
                             key: Array[Byte],
                             rec: Option[Array[Byte]]) = {
     updateList.append(ValueUpdateInfo(ns, servers, key, rec))
+//    updateList.put(new ByteArrayWrapper(key), ValueUpdateInfo(ns, servers, key, rec))
   }
 
   def appendLogicalUpdate(ns : TransactionI,
@@ -37,18 +43,16 @@ class UpdateList {
                           key: Array[Byte],
                           rec: Option[Array[Byte]]) = {
     updateList.append(LogicalUpdateInfo(ns, servers, key, rec))
+//    updateList.put(new ByteArrayWrapper(key), LogicalUpdateInfo(ns, servers, key, rec))
   }
 
   def getUpdateList() = {
     updateList.sortWith((a, b) => ArrayLT.arrayLT(a.key, b.key)).readOnly
+//    updateList.values.toSeq
   }
 
   def size() = {
     updateList.size
   }
 
-  def print() {
-    println("len: " + updateList.length)
-    updateList.foreach(x => println(x))
-  }
 }
