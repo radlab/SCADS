@@ -19,6 +19,9 @@ import edu.berkeley.cs.scads.piql.tpcw._
 
 import tpcw._
 
+import scala.actors.Future
+import scala.actors.Futures._
+
 case class Result(var hostname: String,
 		  var timestamp: Long) extends AvroPair {
   var rows: Int = _
@@ -34,11 +37,17 @@ object Experiment extends ExperimentBase {
   }
 
   def restartClusters(c: Seq[deploylib.mesos.Cluster] = clusters) = {
-    c.map(v => new Future(v.restart)).map(_())
+    c.map(v => future { v.restart }).map(_())
   }
 
   def updateJars(c: Seq[deploylib.mesos.Cluster] = clusters) = {
-    c.map(v => new Future(v.slaves.pforeach(_.pushJars(MesosCluster.jarFiles)))).map(_())
+    c.map(v => future {v.slaves.pforeach(_.pushJars(MesosCluster.jarFiles))}).map(_())
+  }
+
+  def addSlaves(numSlaves: Int, c: Seq[deploylib.mesos.Cluster] = clusters) = {
+    c.map(v => future {
+      v.addSlaves(numSlaves)
+    }).map(_())
   }
 
   private var actionHistograms: Map[String, scala.collection.mutable.HashMap[String, Histogram]] = null
@@ -51,13 +60,13 @@ object Experiment extends ExperimentBase {
     }
   }
 
-  def expName(startTime: String, numClusters: Int, prot: NSTxProtocol) = startTime + " (" + numClusters + ") : " + prot
+  def expName(res: tpcw.MDCCResult) = res.startTime + " (" + res.clientConfig.numClusters + "DC." + res.clientConfig.numClients + "." + res.clientConfig.numThreads + "=" + (res.clientConfig.numClusters * res.clientConfig.numClients * res.clientConfig.numThreads) + ")-" + res.loaderConfig.txProtocol.toString.replace("NSTxProtocol", "").replace("()", "")
 
   // Only gets histograms with something greater than 'name'
-  def getActionHistograms(name: String = "2012-01-05 15:55:42.176 (5) : NSTxProtocolNone()") = {
+  def getActionHistograms(name: String = "2012-01-05 15:55:42.176") = {
     val resultNS = resultCluster.getNamespace[tpcw.MDCCResult]("tpcwMDCCResults")
     val histograms = resultNS.iterateOverRange(None, None)
-    .filter(r => expName(r.startTime, r.loaderConfig.numClusters, r.loaderConfig.txProtocol) > name)
+    .filter(r => expName(r) > name)
     .toSeq
     .groupBy(r => (r.startTime, r.loaderConfig.txProtocol, r.loaderConfig.numClusters))
     .map {
@@ -76,8 +85,8 @@ object Experiment extends ExperimentBase {
             addHist(aggHist, "TOTAL" + "-" + txCommit, x._2)
           })
         })
-        println(expName(startTime, numClusters, txProtocol) + "      " + results.size)
-        (expName(startTime, numClusters, txProtocol), aggHist)
+        println(expName(results.head) + "      " + results.size)
+        (expName(results.head), aggHist)
       }
     }.toList.toMap
 
@@ -92,7 +101,7 @@ object Experiment extends ExperimentBase {
     val resultNS = resultCluster.getNamespace[tpcw.MDCCResult]("tpcwMDCCResults")
     val histList = new collection.mutable.ArrayBuffer[tpcw.MDCCResult]()
     val histograms = resultNS.iterateOverRange(None, None).foreach(r => {
-      val s = expName(r.startTime, r.loaderConfig.numClusters, r.loaderConfig.txProtocol)
+      val s = expName(r)
       if (name == s) {
         histList.append(r)
       }
@@ -107,27 +116,38 @@ object Experiment extends ExperimentBase {
       val dirs = ("data/" + name + "/").replaceAll(" ", "_")
       (new java.io.File(dirs)).mkdirs
 
+      val readmeFilename = dirs + ("README.txt").replaceAll(" ", "_")
+      val readmeOut = new java.io.BufferedWriter(
+        new java.io.FileWriter(readmeFilename))
+
       mh.foreach(t => {
         val n = t._1
         val h = t._2
+        var total:Long = 0
         val totalRequests = h.totalRequests
+
         val filename = dirs + ("tpcw_" + n + ".csv").replaceAll(" ", "_")
-        try {
-          var total:Long = 0
-          val out = new java.io.BufferedWriter(new java.io.FileWriter(filename))
-          ((1 to h.buckets.length).map(_ * h.bucketSize) zip h.buckets).foreach(x => {
-            total = total + x._2
-            out.write(" " + x._1 + ", " + total * 100.0 / totalRequests.toFloat + "\n")
-          })
-          out.close()
-          println(n + ": requests: " + totalRequests + " 50%: " + h.quantile(.5) + " 90%: " + h.quantile(.9) + " 95%: " + h.quantile(.95) + " 99%: " + h.quantile(.99) + " avg: " + h.average)
-        } catch {
-          case e: Exception =>
-            println("error in writing file: " + filename)
-        }
+        val out = new java.io.BufferedWriter(new java.io.FileWriter(filename))
+        ((0 until h.buckets.length).map(_ * h.bucketSize) zip h.buckets).foreach(x => {
+          total = total + x._2
+          out.write(" " + x._1 + ", " + total * 100.0 / totalRequests.toFloat + "\n")
+        })
+        out.close()
+
+        val rawFilename = dirs + ("RAW_tpcw_" + n + ".csv").replaceAll(" ", "_")
+        val rawOut = new java.io.BufferedWriter(new java.io.FileWriter(rawFilename))
+        ((0 until h.buckets.length).map(_ * h.bucketSize) zip h.buckets).foreach(x => {
+          rawOut.write(" " + x._1 + ", " + x._2 + "\n")
+        })
+        rawOut.close()
+
+        val summary = n + ": requests: " + totalRequests + " 50%: " + h.quantile(.5) + " 90%: " + h.quantile(.9) + " 95%: " + h.quantile(.95) + " 99%: " + h.quantile(.99) + " avg: " + h.average
+        println(summary)
+        readmeOut.write(summary + "\n")
       })
+      readmeOut.close()
     } catch {
-      case e: Exception => println("error in create dirs: " + name)
+      case e: Exception => println("error in create dirs: " + name + ". " + e)
     }
   }
 
@@ -135,7 +155,7 @@ object Experiment extends ExperimentBase {
 
   def run(c: Seq[deploylib.mesos.Cluster] = clusters,
           protocol: NSTxProtocol = NSTxProtocolNone()): Unit = {
-    stopCluster
+//    stopCluster
     if (c.size < 1) {
       logger.error("cluster list must not be empty")
     } else if (c.head.slaves.size < 2) {
@@ -154,22 +174,6 @@ object Experiment extends ExperimentBase {
   }
 }
 
-case class KeyRec(var x: Int) extends AvroRecord
-
-case class ValueRec(var s: String,
-                    @FieldGT(1)
-                    @FieldGE(2)
-                    @FieldLT(3)
-                    @FieldLE(4)
-                    var i: Int,
-                    @FieldGT(1)
-                    @FieldGE(1)
-                    @FieldLT(4)
-                    @FieldLE(4)
-                    var a: Long,
-                    var b: Float,
-                    var c: Double) extends AvroRecord
-
 case class Task()
      extends AvroTask with AvroRecord with TaskBase {
   
@@ -178,33 +182,89 @@ case class Task()
   var numPartitions: Int = _
   var numClusters: Int = _
 
-  def schedule(resultClusterAddress: String, clusters: Seq[deploylib.mesos.Cluster], protocol: NSTxProtocol): Unit = {
+  def schedule(resultClusterAddress: String, clusters: Seq[deploylib.mesos.Cluster], protocol: NSTxProtocol, partitions: Int = 1): Unit = {
     this.resultClusterAddress = resultClusterAddress
 
-    val firstSize = clusters.head.slaves.size - 1
-    numPartitions = (clusters.tail.map(_.slaves.size) ++ List(firstSize)).min
+    numPartitions = partitions
     numClusters = clusters.size
+    val clientsPerCluster = 6
+    val threadsPerClient = 5
+
+    var addlProps = new collection.mutable.ArrayBuffer[(String, String)]()
+
+    // Using fast.
+    addlProps.append("scads.mdcc.fastDefault" -> "true")
+    addlProps.append("scads.mdcc.DefaultRounds" -> "1")
+
+    // Megastore is classic.
+//    addlProps.append("scads.mdcc.fastDefault" -> "false")
+//    addlProps.append("scads.mdcc.DefaultRounds" -> "999999999999")
+
+    // Use quorum demarcation.
+    addlProps.append("scads.mdcc.classicDemarcation" -> "false")
+
+    // Try not setting this for the metadata to be the same as before.
+    // for regular mdcc, should be commented out.
+    // megastore needs this to be true.
+//    addlProps.append("scads.mdcc.onEC2" -> "true")
+
+    // All masters are in ap-southeast. use this for mdcc.
+    addlProps.append("scads.mdcc.localMasterPercentage" -> "-1")
+
+    // mdcc cannot use random. but maybe helps with none, 2pc?
+//    addlProps.append("scads.mdcc.localMasterPercentage" -> "-2")
+
+    // Megastore is all local.
+//    addlProps.append("scads.mdcc.localMasterPercentage" -> "100")
+
+    // For profiling??
+    // http://pedanttinen.blogspot.com/2012/02/remote-visualvm-session-through-ssh.html
+//    addlProps.append("com.sun.management.jmxremote.port" -> "9999")
+//    addlProps.append("com.sun.management.jmxremote.ssl" -> "false")
+//    addlProps.append("com.sun.management.jmxremote.authenticate" -> "false")
+
+    // more actor threads?
+    addlProps.append("actors.corePoolSize" -> "75")
+    addlProps.append("actors.maxPoolSize" -> "200")
 
     // Start the storage servers.
-    val scadsCluster = newMDCCScadsCluster(numPartitions, clusters)
+    val scadsCluster = newMDCCScadsCluster(numPartitions, clusters, addlProps)
     clusterAddress = scadsCluster.root.canonicalAddress
 
     // Start loaders.
-    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, 15, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol).getLoadingTasks(clusters.head.classSource, scadsCluster.root)
+    // Usually 75 ebs, 5000 items, for 50 clients.
+    // Usually 150 ebs, 10000 items, for 100 clients.
+    // try 300 ebs, 20000 items for 200 clients.
+    // try 450 ebs, 30000 items for 300 clients.
+    // try 600 ebs, 40000 items for 400 clients.
+    // try 37 ebs, 2500 items for Megastore.
+    // Usually 10 loaders. trying 5.
+    // For load test, 150, 5000
+    val loaderTasks = MDCCTpcwLoaderTask(numClusters * numPartitions, clientsPerCluster, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol).getLoadingTasks(clusters.head.classSource, scadsCluster.root, addlProps)
     clusters.head.serviceScheduler.scheduleExperiment(loaderTasks)
 
-    // Start clients.
-    val tpcwTasks = MDCCTpcwWorkflowTask(
-      numClients=15,
-      executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
-      numThreads=7,
-      iterations=1,
-      runLengthMin=5).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress)
-    clusters.head.serviceScheduler.scheduleExperiment(tpcwTasks)
 
-    // Start the task.
-//    val task1 = this.toJvmTask(clusters.head.classSource)
-//    clusters.head.serviceScheduler.scheduleExperiment(task1 :: Nil)
+    val startTime: String = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new java.util.Date)
+
+    // Start clients.
+    clusters.zipWithIndex.foreach(x => {
+//    List(clusters.head).zipWithIndex.foreach(x => {  // Megastore
+      val cluster = x._1
+      val index = x._2
+      val tpcwTasks = MDCCTpcwWorkflowTask(
+        numClients=clientsPerCluster,
+//        numClients=1,  // Megastore
+        executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
+        startTime=startTime,
+        numThreads=threadsPerClient,
+        runLengthMin=2,
+        clusterId=index,
+        numClusters=numClusters).getExperimentTasks(cluster.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))
+//        numClusters=1).getExperimentTasks(cluster.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))  // Megastore
+
+      cluster.serviceScheduler.scheduleExperiment(tpcwTasks)
+    })
+
   }
 
   def stopCluster() = {
@@ -213,70 +273,6 @@ case class Task()
   }
 
   def run(): Unit = {
-    val logger = Logger()
-    val cluster = new ExperimentalScadsCluster(ZooKeeperNode(clusterAddress))
-    cluster.blockUntilReady(numPartitions * numClusters)
-
-    val serversByCluster = (0 until numClusters).map(i => cluster.getAvailableServers("cluster-" + i))
-
-    val serversByPartition = (0 until numPartitions).map(i => serversByCluster.map(_(i)))
-
-//    val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
-//    val results = resultCluster.getNamespace[Result]("singleDataCenterTest")
-
-    val ns = new SpecificNamespace[KeyRec, ValueRec]("testns", cluster, cluster.namespaces) with Transactions[KeyRec, ValueRec] {
-      override lazy val protocolType = NSTxProtocol2pc()
-    }
-    ns.open()
-    ns.setPartitionScheme(List((None, cluster.getAvailableServers)))
-
-    // Load data in a tx to get default metadata.
-    new Tx(100) ({
-      ns.put(KeyRec(1), ValueRec("A", 1, 1, 1.0.floatValue, 1.0))
-      ns.put(KeyRec(2), ValueRec("B", 1, 1, 1.0.floatValue, 1.0))
-      ns.put(KeyRec(3), ValueRec("C", 1, 1, 1.0.floatValue, 1.0))
-      ns.put(KeyRec(4), ValueRec("D", 1, 1, 1.0.floatValue, 1.0))
-    }).Execute()
-
-    val tx1 = new Tx(100) ({
-      List.range(5, 5 + 4).foreach(x => ns.put(KeyRec(x),
-                                               ValueRec("G", 1, 1, 1.0.floatValue, 1.0)))
-    }).Execute()
-
-    val tx2 = new Tx(100) ({
-      List.range(9, 9 + 4).foreach(x => ns.put(KeyRec(x),
-                                               ValueRec("H", 1, 1, 1.0.floatValue, 1.0)))
-    }).Execute()
-
-    val tx3 = new Tx(100) ({
-      List.range(7, 7 + 4).foreach(x => {
-        ns.get(KeyRec(x))
-        ns.put(KeyRec(x), ValueRec("I", 1, 1, 1.0.floatValue, 1.0))})
-    }).Execute()
-
-    println("delete 1")
-    val tx4 = new Tx(100) ({
-      // need to read your writes...
-      ns.get(KeyRec(1))
-      ns.put(KeyRec(1), None)
-    }).Execute()
-
-    println("running some logical updates")
-    val tx5 = new Tx(100) ({
-      ns.putLogical(KeyRec(12), ValueRec("", 2, 3, 2.1.floatValue, 0.2))
-    })
-    tx5.Execute()
-    tx5.Execute()
-    tx5.Execute()
-    tx5.Execute()
-    tx5.Execute()
-    ns.getRange(None, None).foreach(x => println(x))
-
-//    val hostname = java.net.InetAddress.getLocalHost.getHostName
-//    val result = Result(hostname, System.currentTimeMillis)
-//    result.rows = ns.getRange(None, None).size
-//    results.put(result)
-
-    cluster.shutdown
   }
+
 }
