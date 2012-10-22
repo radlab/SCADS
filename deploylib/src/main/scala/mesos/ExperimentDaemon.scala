@@ -13,7 +13,7 @@ case class RemoteServiceScheduler(var remoteNode: RemoteNode, var id: ServiceId)
   registry = MsgHandler
 
   def scheduleExperiment(processes: Seq[JvmTask]): Unit = {
-    this !? (RunExperimentRequest(processes.toList), 60 * 1000)
+    this !? (RunExperimentRequest(processes.toList), 10 * 1000)
   }
 }
 
