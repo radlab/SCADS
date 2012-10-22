@@ -110,6 +110,11 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
     // Compute leftover commands, not in provedSafe.
     leftover.remove(safe.commands)
 
+    // Should make a copy of the commands, so when the master might modify
+    // them, it doesn't modify the server copy. (This might happen when the
+    // server and the master share the same machine.)
+    safe.commands = safe.commands.map(c => CStructCommand(c.xid, c.command, c.pending, c.commit))
+
     // TODO: Check if LUB is valid w.r.t. constraints?
     (safe, leftover.toList.map(c => SinglePropose(c.xid, c.command)))
   }
@@ -121,6 +126,10 @@ class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
 
     // All subsets which intersect with the cstructs.
     val allCombos = cstructs.combinations(minSize).toSeq
+
+    if (allCombos.size == 0) {
+      println("getLearnedCStruct: cstructs.size " + cstructs.size + " kQuorumSize: " + kQuorumSize + " mQuorumSize: " + mQuorumSize + " minSize: " + minSize + " allCombos.size: " + allCombos.size)
+    }
 
     // GLB for each possible subset.
     val allGLBs = allCombos.map(getGLB _)
