@@ -15,20 +15,54 @@ import actors.TIMEOUT
 import java.util.concurrent.Semaphore
 import collection.mutable.HashSet
 
+import scala.concurrent.Lock
+
+import scala.actors.Future
+import scala.actors.Futures._
+
 case object TRX_EXIT
 case object TRX_TIMEOUT
+
+import java.util.concurrent.{ArrayBlockingQueue, TimeUnit, ThreadPoolExecutor}
 
 //import tools.nsc.matching.ParallelMatching.MatchMatrix.VariableRule
 object MDCCProtocol extends ProtocolBase {
   protected val logger = Logger(classOf[MDCCProtocol])
 
+  // for Megastore
+  private val lock = new Lock()
+  private var msgQueue = new ArrayBlockingQueue[Runnable](1024)
+  protected val executor = new ThreadPoolExecutor(1, 1, 100, TimeUnit.SECONDS, msgQueue)
+
+  class MSRequest(handler: MDCCTrxHandler) extends Runnable {
+    var status: TxStatus = ABORTED
+    val sema = new Semaphore(0, false)
+    def run() {
+      println("start serial tx: " + handler.Xid)
+      status = handler.execute()
+      println("finish serial tx: " + handler.Xid)
+      println("")
+      sema.release()
+    }
+  }
+
   def RunProtocol(tx: Tx): TxStatus = {
-    val trxHandler = new MDCCTrxHandler(tx)
-    trxHandler.execute()
+//    logger.info("START1 %s", Thread.currentThread.getName)
+    val trxHandler = new MDCCTrxHandler(tx, Thread.currentThread.getName)
+
+    if (false) {  // Megatore
+      val req = new MSRequest(trxHandler)
+      executor.execute(req)
+      req.sema.acquire()
+      req.status
+    } else {
+      val status = trxHandler.execute()
+      status
+    }
   }
 }
 
-class MDCCTrxHandler(tx: Tx) extends Actor {
+class MDCCTrxHandler(tx: Tx, threadName: String) extends Actor {
   @volatile var status: TxStatus = UNKNOWN
   var Xid = ScadsXid.createUniqueXid()
   var count = 0
@@ -47,7 +81,15 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
   @inline def info(msg : String, items : scala.Any*) = logger.info("" + remoteHandle.id +   ": Xid:" + Xid + " ->" + msg, items:_*)
 
   def execute(): TxStatus = {
+//    logger.info("START2 %s %s", threadName, Xid)
+//    logger.info("START3 %s %s", threadName, Xid)
+    val startT = System.nanoTime / 1000000
+
     startTrx(tx.updateList, tx.readList)
+
+    val endT = System.nanoTime / 1000000
+//    logger.info("END4 %s %s", threadName, Xid)
+
     this.start()
     debug("Waiting for status")
     sema.acquire()
@@ -62,21 +104,42 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
 
 
   protected def startTrx(updateList: UpdateList, readList: ReadList) = {
+    val startT = System.nanoTime / 1000000
+
+    // TODO: filter out duplicates?
     updateList.getUpdateList.foreach(update => {
       update match {
         case ValueUpdateInfo(ns, servers, key, value) => {
+          val endT1 = System.nanoTime / 1000000
+          var action = ""
           val (md, oldBytes) = readList.getRecord(key) match {
-            case None => (ns.getDefaultMeta(key), None)
-            case Some((r, b)) => (r.metadata, Some(b))
+            case None => {
+              action = "N"
+              (ns.getDefaultMeta(key), None)
+            }
+            case Some((r, b)) => {
+              action = "S"
+              (r.metadata, Some(b))
+            }
           }
+          val endT2 = System.nanoTime / 1000000
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           //TODO: Do we really need the MDCCMetadata
+          val endT3 = System.nanoTime / 1000000
           val propose = SinglePropose(Xid, ValueUpdate(key, oldBytes, newBytes))  //TODO: We need a read-strategy
+
+          val endT4 = System.nanoTime / 1000000
           val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), md, servers, ns.getConflictResolver)
+
           participants += rHandler
+          val endT5 = System.nanoTime / 1000000
           debug("" + Xid + ": Sending physical update propose to MCCCRecordHandler", propose)
           debug("Record handler " + rHandler.hashCode )
           rHandler.remoteHandle ! propose
+          val endT6 = System.nanoTime / 1000000
+//          if (endT6 - startT > 5) {
+//            logger.error("slow %s %s [%s, %s%s, %s, %s, %s, %s] startTrx: %s", Thread.currentThread.getName, Xid, (endT1 - startT), (endT2 - endT1), action, (endT3 - endT2), (endT4 - endT3), (endT5 - endT4), (endT6 - endT5), (endT6 - startT))
+//          }
         }
         case LogicalUpdateInfo(ns, servers, key, value) => {
           val md = readList.getRecord(key) match {
@@ -120,6 +183,15 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
 //          s.remoteHandle ! msg
         }
       })
+//      // Only send one commit to each machine.
+//      // (this doesn't work because there could be multiple services on
+//      //  same machine. commented out.)
+//      val uniqServers = servers.map(s => {
+//        (s.host, s)
+//      }).toMap.values
+//      debug("Notify servers: %s", uniqServers)
+//      uniqServers.foreach( _ ! msg)
+
       debug("Notify servers: %s", servers)
       servers.foreach( _ ! msg)
     }
@@ -132,6 +204,8 @@ class MDCCTrxHandler(tx: Tx) extends Actor {
     debug("" + this.hashCode() + "Starting to wait for messages. Setting timeout:" + tx.timeout)
     Scheduler.schedule(() => {
       this ! TRX_TIMEOUT}, tx.timeout)
+//      this ! TRX_TIMEOUT}, 10000)  // Megastore
+
     var timedOut = false
 
     loop {
