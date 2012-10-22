@@ -52,14 +52,26 @@ class MDCCServer(val namespace : String,
   }
 
   @inline def getMeta(key : Array[Byte])(implicit txn : TransactionData) : MDCCMetadata = {
-    extractMeta(key, getRecord(key))
+    val startT = System.nanoTime / 1000000
+    val rec = getRecord(key)
+    val endT = System.nanoTime / 1000000
+    if (endT - startT > 35) {
+      logger.info("slow get meta get record rec: %s, %s", rec, (endT - startT))
+    }
+    extractMeta(key, rec)
   }
 
   @inline def extractMeta(key : Array[Byte], record : Option[MDCCRecord])(implicit txn : TransactionData) : MDCCMetadata = {
-     if(record.isEmpty)
-      return default.defaultMetaData(key)
-     else
-      return record.get.metadata
+     if(record.isEmpty) {
+       val startT = System.nanoTime / 1000000
+       val ret = default.defaultMetaData(key)
+       val endT = System.nanoTime / 1000000
+       if (endT - startT > 35) {
+         logger.info("slow extract meta: %s", (endT - startT))
+       }
+       return ret
+     } else
+       return record.get.metadata
   }
 
   @inline def putMeta(key : Array[Byte], value : Option[Array[Byte]], meta : MDCCMetadata)(implicit txn : TransactionData) : Boolean  = {
@@ -73,10 +85,12 @@ class MDCCServer(val namespace : String,
     }
     val key = proposes.head.update.key
     val previousCommits = proposes.head.previousCommits
+    val startT = System.nanoTime / 1000000
     debug(key, "Processing Propose. %s src: %s, msg: %s previousCommits: %s", Thread.currentThread.getName, src, msg, previousCommits)
     assert(!proposes.isEmpty, "The propose has to contain at least one update")
     assert(proposes.map(_.update.key).distinct.size == 1, "Currenty we only support multi proposes for the same key")
     previousCommits.foreach(pc => pendingUpdates.addEarlyCommit(pc.xid, pc.status))
+    val endT2 = System.nanoTime / 1000000
     implicit val trx = startTrx()
     val meta = getMeta(proposes.head.update.key)
     val ballot = meta.ballots.head.ballot
@@ -87,11 +101,17 @@ class MDCCServer(val namespace : String,
     //               The main problem is that the code is making a decision
     //               based on the default metadata, which is really old, and
     //               potentially wrong.
+
+    val endT3 = System.nanoTime / 1000000
     if(ballot.fast) {
       //TODO can we optimize the accept?
       debug(key, "Fast ballot: update local db. %s", Thread.currentThread.getName)
       val results = proposes.map(prop => (prop, pendingUpdates.acceptOption(prop.xid, prop.update, true)))
+      val endT4 = System.nanoTime / 1000000
       commitTrx(trx)
+
+      val endT5 = System.nanoTime / 1000000
+
       val cstruct = results.last._2._3
       debug(key, "Replying with 2b to fast ballot source:%s cstruct:%s", src, cstruct)
       // Get possibly old decisions on the new updates.
@@ -100,10 +120,20 @@ class MDCCServer(val namespace : String,
       }).filter(!_._2.isEmpty).map(i => OldCommit(i._1, i._2.get))
 
       src ! Phase2b(ballot, cstruct, oldCommits)
+
+      val endT6 = System.nanoTime / 1000000
+
       // Must be outside of db lock.
       results.foreach(r => {
         pendingUpdates.txStatusAccept(r._1.xid, List(r._1.update), r._2._1)
       })
+
+      val endT7 = System.nanoTime / 1000000
+
+      val endT = System.nanoTime / 1000000
+      if (endT - startT >= 50) {
+        logger.info("Processing Propose DONE. key:%s %s msg: %s [%s, %s, %s, %s, %s, %s] proposeTime: %s", (new ByteArrayWrapper(key)).hashCode(), Thread.currentThread.getName, msg, (endT2 - startT), (endT3 - endT2), (endT4 - endT3), (endT5 - endT4), (endT6 - endT5), (endT7 - endT6), (endT - startT))
+      }
     }else{
       commitTrx(trx)
       debug(key, "Classic ballot: We get or start our own MDCCRecordHandler")
@@ -117,6 +147,9 @@ class MDCCServer(val namespace : String,
       debug(key, "Classic ballot: forwarding src: %s, msg: %s handler: %s", src, msg, recordHandler.remoteHandle)
       recordHandler.remoteHandle.forward(msg, src)
     }
+    val endT = System.nanoTime / 1000000
+    debug(key, "Processing Propose DONE. %s msg: %s proposeTime: %s", Thread.currentThread.getName, msg, (endT - startT))
+
   }
 
   protected  def processRecordHandlerMsg(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], msg : MDCCProtocol) : Unit = {
@@ -191,13 +224,18 @@ class MDCCServer(val namespace : String,
         debug(key, "Overwrite value: %s \n - committedXids %s \n - abortedXids %s, \n - newUpdates %s, \n - myBallot.get.fast %s - status \n %s", value, committedXids, abortedXids, newUpdates, myBallot.get.fast, oR)
         if (!oR) debug(key, "Not accepted overwrite")
       } else {
+        debug(key, "put rec rec: %s", record)
+
         // Write the new metadata to db record.
         if (record.isDefined) {
           val r = record.get
           r.metadata = meta
+
+          debug(key, "put2 rec rec: %s", record)
           // This record is still correct since overwrite() was not called.
           putRecord(key, r)
         } else {
+          debug(key, "put3 rec rec: %s", record)
           // What should we do when it is empty.  Can this ever happen?
         }
       }
@@ -227,18 +265,21 @@ class MDCCServer(val namespace : String,
   }
 
   protected def processAccept(src: RemoteServiceProxy[StorageMessage], xid: ScadsXid, commit : Boolean) = {
-    logger.debug("Id: %s Trx-Id: %s Process commit message. Status: %s", this.hashCode(), xid, commit )
+    logger.debug("Id: %s %s %s Trx-Id: %s Process commit message. Status: %s", this.hashCode(), partition.id, Thread.currentThread.getName, xid, commit )
     if(commit)
       pendingUpdates.commit(xid)
     else
       pendingUpdates.abort(xid)
+    logger.debug("Id: %s %s %s Trx-Id: %s Process commit message DONE.", this.hashCode(), partition.id, Thread.currentThread.getName, xid)
   }
 
   protected def processRecordAccept(src: RemoteServiceProxy[StorageMessage], key: Array[Byte], msg: TrxMessage) = {
     val recordHandler = recordCache.get(key)
+    logger.debug("Id: %s %s key:%s Process record commit message. exists: %s msg: %s", this.hashCode(), partition.id, (new ByteArrayWrapper(key)).hashCode(), recordHandler.isDefined, msg)
     if (recordHandler.isDefined) {
       recordHandler.get.remoteHandle.forward(msg, src)
     }
+    logger.debug("Id: %s %s key:%s Process record commit message DONE. msg: %s", this.hashCode(), partition.id, (new ByteArrayWrapper(key)).hashCode(), msg)
   }
 
   def process(src: RemoteServiceProxy[StorageMessage], msg: TrxMessage) = {
