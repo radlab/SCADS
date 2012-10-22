@@ -61,7 +61,7 @@ object ProfileTest extends ExperimentBase {
 
     (0 until 50).map(_ => future {
       (0 until 1000).foreach(_ => {
-        var handler = new MDCCRecordHandler(key, cstruct, null, Nil,  true, Nil, microItems.conflictResolver, null)
+        var handler = new MDCCRecordHandler(key, cstruct, null, Nil,  true, Nil, microItems.conflictResolver, null, None)
       })
     }).map(_())
 
