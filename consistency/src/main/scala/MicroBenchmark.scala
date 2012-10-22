@@ -57,16 +57,16 @@ object MicroBenchmark extends ExperimentBase {
     }
   }
 
-  def expName(startTime: String, prot: NSTxProtocol, log: Boolean, note: String) = {
-    val logical = if (log) "logical" else "physical"
-    startTime + " " + prot + " " + logical + " " + note
+  def expName(res: tpcw.MDCCMicroBenchmarkResult) = {
+    val logical = if (res.clientConfig.useLogical) "logical" else "physical"
+    res.startTime + " (" + res.clientConfig.numClusters + "DC." + res.clientConfig.numClients + "." + res.clientConfig.numThreads + "=" + (res.clientConfig.numClusters * res.clientConfig.numClients * res.clientConfig.numThreads) + ")(" + res.loaderConfig.numItems + ")-" + res.loaderConfig.txProtocol.toString.replace("NSTxProtocol", "").replace("()", "") + " " + logical + " " + res.clientConfig.note
   }
 
   // Only gets histograms with something greater than 'name'
-  def getActionHistograms(name: String = "2012-01-05 15:55:42.176") = {
+  def getActionHistograms(name: String = "2012-06-26 09:59:16.992") = {
     val resultNS = resultCluster.getNamespace[MDCCMicroBenchmarkResult]("MicroBenchmarkResults")
     val histograms = resultNS.iterateOverRange(None, None)
-    .filter(r => expName(r.startTime, r.loaderConfig.txProtocol, r.clientConfig.useLogical, r.clientConfig.note) > name)
+    .filter(r => expName(r) > name)
     .toSeq
     .groupBy(r => (r.startTime, r.loaderConfig.txProtocol, r.clientConfig.useLogical, r.clientConfig.note))
     .map {
@@ -85,8 +85,8 @@ object MicroBenchmark extends ExperimentBase {
             addHist(aggHist, "TOTAL" + "-" + txCommit, x._2)
           })
         })
-        println(expName(startTime, txProtocol, logical, note) + "      " + results.size)
-        (expName(startTime, txProtocol, logical, note), aggHist)
+        println(expName(results.head) + "      " + results.size)
+        (expName(results.head), aggHist)
       }
     }.toList.toMap
 
@@ -101,7 +101,7 @@ object MicroBenchmark extends ExperimentBase {
     val resultNS = resultCluster.getNamespace[MDCCMicroBenchmarkResult]("MicroBenchmarkResults")
     val histList = new collection.mutable.ArrayBuffer[MDCCMicroBenchmarkResult]()
     val histograms = resultNS.iterateOverRange(None, None).foreach(r => {
-      val s = expName(r.startTime, r.loaderConfig.txProtocol, r.clientConfig.useLogical, r.clientConfig.note)
+      val s = expName(r)
       if (name == s) {
         histList.append(r)
       }
@@ -116,31 +116,47 @@ object MicroBenchmark extends ExperimentBase {
       val dirs = ("micro_data/" + name + "/").replaceAll(" ", "_")
       if (write) (new java.io.File(dirs)).mkdirs
 
+      val readmeFilename = dirs + ("README.txt").replaceAll(" ", "_")
+      val readmeOut =
+        if (write)
+          new java.io.BufferedWriter(new java.io.FileWriter(readmeFilename))
+        else
+          null
+
       mh.foreach(t => {
         val n = t._1
         val h = t._2
         val totalRequests = h.totalRequests
         val filename = dirs + ("micro_" + n + ".csv").replaceAll(" ", "_")
-        try {
-          var total:Long = 0
-          val out =
-            if (write)
-              new java.io.BufferedWriter(new java.io.FileWriter(filename))
-            else
-              null
-          ((1 to h.buckets.length).map(_ * h.bucketSize) zip h.buckets).foreach(x => {
-            total = total + x._2
-            if (write) out.write(" " + x._1 + ", " + total * 100.0 / totalRequests.toFloat + "\n")
+
+        var total:Long = 0
+        val out =
+          if (write)
+            new java.io.BufferedWriter(new java.io.FileWriter(filename))
+          else
+            null
+        ((0 until h.buckets.length).map(_ * h.bucketSize) zip h.buckets).foreach(x => {
+          total = total + x._2
+          if (write) out.write(" " + x._1 + ", " + total * 100.0 / totalRequests.toFloat + "\n")
+        })
+        if (write) out.close()
+
+        if (write) {
+          val rawFilename = dirs + ("RAW_micro_" + n + ".csv").replaceAll(" ", "_")
+          val rawOut = new java.io.BufferedWriter(new java.io.FileWriter(rawFilename))
+          ((0 until h.buckets.length).map(_ * h.bucketSize) zip h.buckets).foreach(x => {
+            rawOut.write(" " + x._1 + ", " + x._2 + "\n")
           })
-          if (write) out.close()
-          println(n + ": requests: " + totalRequests + " 50%: " + h.quantile(.5) + " 90%: " + h.quantile(.9) + " 95%: " + h.quantile(.95) + " 99%: " + h.quantile(.99) + " avg: " + h.average)
-        } catch {
-          case e: Exception =>
-            println("error in writing file: " + filename)
+          rawOut.close()
         }
+
+        val summary = n + ": requests: " + totalRequests + " 50%: " + h.quantile(.5) + " 90%: " + h.quantile(.9) + " 95%: " + h.quantile(.95) + " 99%: " + h.quantile(.99) + " avg: " + h.average
+        println(summary)
+        if (write) readmeOut.write(summary + "\n")
       })
+      if (write) readmeOut.close()
     } catch {
-      case e: Exception => println("error in create dirs: " + name)
+      case e: Exception => println("error in create dirs: " + name + ". " + e)
     }
   }
 
@@ -150,14 +166,14 @@ object MicroBenchmark extends ExperimentBase {
           protocol: NSTxProtocol,
           useLogical: Boolean, useFast: Boolean,
           classicDemarcation: Boolean,
-          localMasterPercentage: Int): Unit = {
+          localMasterPercentage: Int, hotspot: Int = 90, localMaster: Int = -1): Unit = {
     if (c.size < 1) {
       logger.error("cluster list must not be empty")
     } else if (c.head.slaves.size < 2) {
       logger.error("first cluster must have at least 2 slaves")
     } else {
       task = MicroBenchmarkTask()
-      task.schedule(resultClusterAddress, c, protocol, useLogical, useFast, classicDemarcation, localMasterPercentage)
+      task.schedule(resultClusterAddress, c, protocol, useLogical, useFast, classicDemarcation, localMasterPercentage, hotspot, localMaster)
     }
   }
 
@@ -171,13 +187,22 @@ case class MicroBenchmarkTask()
   var numPartitions: Int = _
   var numClusters: Int = _
 
-  def schedule(resultClusterAddress: String, clusters: Seq[deploylib.mesos.Cluster], protocol: NSTxProtocol, useLogicalUpdates: Boolean, useFast: Boolean, classicDemarcation: Boolean, localMasterPercentage: Int): Unit = {
+  def schedule(resultClusterAddress: String,
+               clusters: Seq[deploylib.mesos.Cluster],
+               protocol: NSTxProtocol,
+               useLogicalUpdates: Boolean,
+               useFast: Boolean,
+               classicDemarcation: Boolean,
+               localMasterPercentage: Int,
+               hotspot: Int = 90,
+               localMaster: Int = -1,
+               partitions: Int = 2): Unit = {
     this.resultClusterAddress = resultClusterAddress
 
-    val firstSize = clusters.head.slaves.size - 1
-    numPartitions = (clusters.tail.map(_.slaves.size) ++ List(firstSize)).min
+    numPartitions = partitions
     numClusters = clusters.size
-
+    val clientsPerCluster = 2
+    val threadsPerClient = 10
 
     var addlProps = new collection.mutable.ArrayBuffer[(String, String)]()
     var notes = ""
@@ -207,10 +232,20 @@ case class MicroBenchmarkTask()
       }
     }
     addlProps.append("scads.mdcc.localMasterPercentage" -> localMasterPercentage.toString)
-    if (protocol != NSTxProtocolMDCC()) {
+    if (protocol == NSTxProtocol2pc()) {
       notes = "2pc"
+    } else if (protocol == NSTxProtocolNone()) {
+      notes = "qw"
     } else {
       notes += "_local_" + localMasterPercentage
+    }
+
+    // percentage of data which is the hotspot (90% of access)
+    notes += "_hot_" + hotspot
+
+    if (localMaster != -1) {
+      // for localMaster test.
+      notes += "_localMaster_" + localMaster
     }
 
     // Start the storage servers.
@@ -218,22 +253,35 @@ case class MicroBenchmarkTask()
     clusterAddress = scadsCluster.root.canonicalAddress
 
     // Start loaders.
-    val loaderTasks = MDCCTpcwMicroLoaderTask(numClusters * numPartitions, 2, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol, namespace="items").getLoadingTasks(clusters.head.classSource, scadsCluster.root, addlProps)
+    // usually 150, 10000, for 100 clients
+    // try 50000 items? much closer
+    // try 100000 items? stick with this.
+    // 100 for inconsistency test.
+    val loaderTasks = MDCCTpcwMicroLoaderTask(numClusters * numPartitions, clientsPerCluster, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol, namespace="items").getLoadingTasks(clusters.head.classSource, scadsCluster.root, addlProps)
     clusters.head.serviceScheduler.scheduleExperiment(loaderTasks)
 
     var expStartTime: String = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new java.util.Date)
 
     // Start clients.
-    val tpcwTasks = MDCCTpcwMicroWorkflowTask(
-      numClients=15,
-      executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
-      numThreads=7,
-      iterations=1,
-      runLengthMin=2,
-      startTime=expStartTime,
-      useLogical=useLogicalUpdates,
-      note=notes).getExperimentTasks(clusters.head.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))
-    clusters.head.serviceScheduler.scheduleExperiment(tpcwTasks)
+    clusters.zipWithIndex.foreach(x => {
+//    clusters.take(5).zipWithIndex.foreach(x => {
+      val cluster = x._1
+      val index = x._2
+      val tpcwTasks = MDCCTpcwMicroWorkflowTask(
+        numClients=clientsPerCluster,
+        executorClass="edu.berkeley.cs.scads.piql.exec.SimpleExecutor",
+        numThreads=threadsPerClient,
+        iterations=1,
+        runLengthMin=3,
+        startTime=expStartTime,
+        useLogical=useLogicalUpdates,
+        clusterId=index,
+        numClusters=numClusters,
+//        numClusters=5,
+        note=notes).getExperimentTasks(cluster.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))
+      cluster.serviceScheduler.scheduleExperiment(tpcwTasks)
+    })
+
   }
 
   def run(): Unit = {
