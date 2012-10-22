@@ -157,7 +157,7 @@ object ApplyUpdates {
     val (base, remainingCommands) = lastPhysical match {
       case -1 => {
         // If no physical update, base cannot be empty.
-        assert(!origBase.isEmpty)
+        assert(!origBase.isEmpty, " origBase: " + origBase + " updates: " + updates)
         (origBase, updates)
       }
       case _ => {
@@ -174,7 +174,13 @@ object ApplyUpdates {
       }
     }
 
-    val newBase = Some(logicalRecordUpdater.applyDeltaBytes(base, remainingCommands.map(x => MDCCRecordUtil.fromBytes(x.command.asInstanceOf[LogicalUpdate].delta).value)))
+    val newBase = base match {
+      case None =>
+        // Record was probably deleted.
+        None
+      case b =>
+        Some(logicalRecordUpdater.applyDeltaBytes(base, remainingCommands.map(x => MDCCRecordUtil.fromBytes(x.command.asInstanceOf[LogicalUpdate].delta).value)))
+    }
     newBase
   }
 }
