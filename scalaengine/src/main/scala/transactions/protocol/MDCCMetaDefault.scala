@@ -103,7 +103,7 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
 
     val reader = new AvroSpecificReaderWriter[MDCCMetadata](None)
     _defaultMeta = reader.deserialize(defaultNode.onDataChange(loadDefault))
-    logger.debug("Reloaded default metadata: %s", _defaultMeta)
+//    logger.debug("Reloaded default metadata: %s", _defaultMeta)
     _defaultMeta
   }
 
@@ -126,9 +126,20 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
         val l = List("compute-1", "eu-west-1", "ap-northeast-1", "ap-southeast-1")
         l(rand.nextInt(l.size))
       }
-      val randomHost = routingTable.serversForKey(key).find(x => x.host.split("\\.")(1) == randomRegion).get.host
 
-      _serviceMap(randomRegion).find(x => x.host == randomHost) match {
+//      logger.info("randomRegion: %s serversForKey: %s serviceMap: %s", randomRegion, routingTable.serversForKey(key), _serviceMap)
+
+      val randomHost = routingTable.serversForKey(key).find(x => x.host.split("\\.")(1) == randomRegion) match {
+        case None => {
+          logger.error("routing table does not have randomRegion: %s", randomRegion)
+          routingTable.serversForKey(key).head.host
+        }
+        case Some(r) => r.host
+      }
+      // This might not be the one specified.
+      val newRandomRegion = randomHost.split("\\.")(1)
+
+      _serviceMap(newRandomRegion).find(x => x.host == randomHost) match {
         case None =>
           // This should never happen.
           logger.error("serviceMap does not have correct partition. serviceMap: " + _serviceMap(randomRegion) + " host: " + randomHost)
@@ -152,8 +163,9 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
     if (onEC2) {
       ec2MetaData(key)
     } else {
-//      _defaultMeta
-      localMetaData(key)
+      _defaultMeta
+      // For local stress test, need to use this one.
+//      localMetaData(key)
     }
   }
 
