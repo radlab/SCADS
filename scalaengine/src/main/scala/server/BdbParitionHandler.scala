@@ -206,7 +206,9 @@ class BdbStorageManager(val db: Database,
    def get(key:Array[Byte]):Option[Array[Byte]] = {
      val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
      logger.debug("Running get %s %s", dbeKey, dbeValue)
-     db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+//     db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+     // Try uncomitted for mdcc.
+     db.get(null, dbeKey, dbeValue, LockMode.READ_UNCOMMITTED)
      logger.debug("get operation complete %s %s", dbeKey, dbeValue)
      Option(dbeValue.getData())
    }
