@@ -84,7 +84,28 @@ class MDCCMicroTpcwLoader(numEBs : Double,
     item.I_SRP = to.getI_srp
     item.I_COST = to.getI_cost
     item.I_AVAIL = to.getI_avail
-    item.I_STOCK = to.getI_stock
+
+
+//    item.I_STOCK = to.getI_stock + 30 // hotspot test with 50,000 items, 3 minutes, maybe ok at uniform?
+
+    // tried 30 for 10,000, 3 minutes, lots of aborts at hotspot_2
+    // try higher for fewer aborts at hotspot_2
+//    item.I_STOCK = to.getI_stock + 50
+
+
+    // 100 for inconsistency test
+//    item.I_STOCK = 100
+
+    // vary classic master %
+    item.I_STOCK = to.getI_stock + 100
+
+
+
+//    item.I_STOCK = to.getI_stock + 100 // hotspot test with 10,000 items, 3 minutes.  maybe too low?
+//    item.I_STOCK = to.getI_stock + 30 // 30 works well for 30 clients, 1 minute
+//    item.I_STOCK = to.getI_stock
+
+
     item.ISBN = to.getI_isbn
     item.I_PAGE = to.getI_page
     item.I_BACKING = to.getI_backing
