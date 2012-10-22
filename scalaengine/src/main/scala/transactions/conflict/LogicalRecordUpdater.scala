@@ -20,8 +20,8 @@ class LogicalRecordUpdater(val schema: Schema) {
 
   def applyDeltaBytes(baseBytes: Option[Array[Byte]], deltaBytesList: Seq[Option[Array[Byte]]]): Array[Byte] = {
     if (deltaBytesList.length == 0) {
-      //Gene is this correct?
-      assert(baseBytes.isDefined)
+      // This is allowed to be None, if it record was deleted.
+      // assert(baseBytes.isDefined)
       return baseBytes.get
     }
 
