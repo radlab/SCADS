@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.TimeUnit._
 import scala.util.Random
 
+import java.util.concurrent.{ArrayBlockingQueue, TimeUnit, ThreadPoolExecutor}
 
 sealed trait RecordStatus {def name: String}
 case object READY extends RecordStatus {val name = "READY"}
@@ -29,6 +30,24 @@ case object RECOVERY extends RecordStatus {val name = "RECOVERY"}
 case object WAITING_FOR_COMMIT extends RecordStatus {val name = "WAITING_FOR_COMMIT"}
 case object WAITING_FOR_NEW_FAST_ROUND extends RecordStatus {val name = "WAITING_FOR_NEW_ROUND"}
 case object SCAN_FOR_PROPOSE extends RecordStatus {val name = "SCAN_FOR_PROPOSE"}
+
+
+object AsyncSender {
+  private var msgQueue = new ArrayBlockingQueue[Runnable](1024)
+  protected val sendExecutor = new ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS, msgQueue)
+
+  def addSend(msg: MDCCProtocol, dests: Seq[PartitionService])(implicit sender: RemoteServiceProxy[StorageMessage]) = {
+    sendExecutor.execute(new AsyncSendRequest(msg, sender, dests))
+  }
+}
+
+class AsyncSendRequest(msg: StorageMessage, sender: RemoteServiceProxy[StorageMessage], dests: Seq[RemoteServiceProxy[StorageMessage]]) extends Runnable {
+  def run() {
+    dests.foreach(d => d.!(msg)(sender))
+  }
+}
+
+
 
 object ServerMessageHelper {
   class SMH(s: Seq[PartitionService]) {
@@ -67,17 +86,26 @@ class MDCCRecordHandler (
 
   import ServerMessageHelper._
 
+  private val tt1 = System.nanoTime / 1000000
   //TODO we should always
   private var provedSafe : CStruct = value //Because of readCommitted property, that value is fine
+  private val tt2 = System.nanoTime / 1000000
   private var unsafeCommands : Seq[SinglePropose] = Nil
 
+  private val tt3 = System.nanoTime / 1000000
   private val logger = Logger(classOf[MDCCRecordHandler])
 
+  private val tt4 = System.nanoTime / 1000000
   private val responses = new HashMap[ServiceType, MDCCProtocol]()
+  private val tt5 = System.nanoTime / 1000000
 
+  // LAZY
   val mailbox = new PlainMailbox[StorageMessage]("" + this.hashCode)
+  private val tt6 = System.nanoTime / 1000000
 
+  // LAZY
   implicit val remoteHandle = StorageService(StorageRegistry.registerFastMailboxFunc(processMailbox, mailbox))
+  private val tt7 = System.nanoTime / 1000000
 
 
   private var request : Envelope[StorageMessage] = null
@@ -100,8 +128,18 @@ class MDCCRecordHandler (
     }
   }
 
+  private val tt8 = System.nanoTime / 1000000
   // Stores Commit messages for the next propose.
   private val previousCommits = scala.collection.mutable.HashSet[CommitStatus]()
+  private val tt9 = System.nanoTime / 1000000
+
+  if (tt9 - tt1 > 5) {
+    try {
+      logger.error("slow_new %s %s [%s, %s, %s, %s, %s, %s, %s, %s]", Thread.currentThread.getName, (tt9 - tt1), (tt2 - tt1), (tt3 - tt2), (tt4 - tt3), (tt5 - tt4), (tt6 - tt5), (tt7 - tt6), (tt8 - tt7), (tt9 - tt8))
+    } catch {
+      case e =>
+    }
+  }
 
   private var status: RecordStatus = READY
 
@@ -145,7 +183,7 @@ class MDCCRecordHandler (
 
   override def toString = "[id:" + remoteHandle.id + " key:" + (new ByteArrayWrapper(key)).hashCode() + ":" + status + "]"
 
-  debug("Created RecordHandler. Hash %s, Mailbox: %s", this.hashCode, mailbox.hashCode())
+//  debug("Created RecordHandler. Hash %s, Mailbox: %s", this.hashCode, mailbox.hashCode())
 
   implicit def toRemoteService(src : ServiceType) : RemoteService[StorageMessage] = src.asInstanceOf[RemoteService[StorageMessage]]
 
@@ -195,6 +233,7 @@ class MDCCRecordHandler (
     if(cmd.isDefined) {
       cmd.get.pending = false
       cmd.get.commit = trxStatus
+      debug("committed master cstruct xid: %s command: %s value: %s", xid, cmd, value)
       if(status == WAITING_FOR_COMMIT) {
         debug("stop blocking with commit. commit: %s msg: %s", trxStatus, request)
         status = READY
@@ -209,8 +248,16 @@ class MDCCRecordHandler (
     }
   }
 
+
+  var startT0 = System.nanoTime / 1000000
+
+  var startT1 = System.nanoTime / 1000000
+  var startT2 = System.nanoTime / 1000000
+
   //TODO We should create a proper priority queue
   def processMailbox(mailbox : Mailbox[StorageMessage]) {
+      startT0 = System.nanoTime / 1000000
+
       debug("Mailbox %s %s", this.hashCode(), mailbox)
       if(mailbox.size() > 10) debug("################   PROBLEM #################################### %s", mailbox.size())
       mailbox{
@@ -364,6 +411,7 @@ class MDCCRecordHandler (
           resolveConflict(src, msg)
         }
         case env@StorageEnvelope(src, msg: Propose) if status == READY => {
+          startT1 = System.nanoTime / 1000000
           debug("Processing Propose request", env)
           request = env
           processProposal(src, msg)
@@ -453,8 +501,10 @@ class MDCCRecordHandler (
   }
 
 
-
+  var firstXid: Option[ScadsXid] = None
   def fastPropose(propose : Propose){
+    startT2 = System.nanoTime / 1000000
+
     //val rnd = Random
     status = FAST_PROPOSED
     debug("Sending fast propose from " + remoteHandle + " to [" + servers.mkString(", ") + "]")
@@ -471,10 +521,50 @@ class MDCCRecordHandler (
         MultiPropose(List(SinglePropose(h.xid, h.update, previousCommits.toList)) ++ seq.tail)
       }
     }
+
+    val startT = System.nanoTime / 1000000
+
+/*
     servers.foreach(server => {
       //Thread.sleep(rnd.nextInt(1000))
       server !!! withCommits
     })
+*/
+
+/*
+    val timings = servers.map(server => {
+      server !!! withCommits
+      System.nanoTime / 1000000
+    })
+*/
+
+    AsyncSender.addSend(withCommits, servers)
+
+    val endT = System.nanoTime / 1000000
+
+    val extra = if (firstXid.isDefined) {
+      if (firstXid.get == theXid) {
+        "S"
+      } else {
+        "D"
+      }
+    } else {
+      "F"
+    }
+
+//    val allTimings = timings.zip((startT :: Nil) ++ timings).map(x => x._1 - x._2).mkString(",")
+    val allTimings = ""
+
+    val processTime = (endT - startT0)
+
+//    logger.info("SEND %s[%s](%s)-%s %s", (endT - startT), allTimings, processTime, extra, theXid)
+    if (processTime >= 5) {
+      logger.info("slow_process %s[%s,%s,%s,%s] %s", processTime, (startT1 - startT0), (startT2 - startT1), (startT - startT2), (endT - startT), theXid)
+    }
+
+
+    if (!firstXid.isDefined) firstXid = theXid
+
     previousCommits.clear
     RoundStats.fast.incrementAndGet()
   }
@@ -813,7 +903,7 @@ class MDCCRecordHandler (
               RoundStats.classic.incrementAndGet()
               forwardRequest(src, MultiPropose(props.tail))
             } else {
-              error("Classic rounds: No pending updates but unsafe commands -> we resolve the unsafe commands first")
+              error("Classic rounds: No pending updates but unsafe commands -> we resolve the unsafe commands first. unsafe: %s", unsafeCommands)
               fullDebug("Unsafe commands")
               moveToNextRound()
               val forceNonPending = unsafeCommands.head.update.isInstanceOf[PhysicalUpdate] && hasPending
@@ -957,7 +1047,7 @@ class MDCCRecordHandler (
 */
             if(currentBallot.fast && !cmd.get.commit && cmd.get.command.isInstanceOf[LogicalUpdate]){
               debug("We learned an abort in a fast classic round with logical updates. This can only happend when we violate the limit. So we switch to classic. send BeMaster to %s", currentBallot.server)
-              currentBallot.server ! createBeMasterRequest( currentBallot.round, currentBallot.round + 1000, false)
+              currentBallot.server ! createBeMasterRequest( currentBallot.round, currentBallot.round + 10000, false)
 
             }
             debug("We inform the requester about the learned value. cmd: %s src: %s, propose: %s", cmd, src, propose)
