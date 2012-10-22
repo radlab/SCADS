@@ -39,7 +39,6 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
 
     val Home, NewProduct, BestSeller, ProductDetail, SearchRequest, SearchResult, ShoppingCart,
     CustomerReg, BuyRequest, BuyConfirm, OrderInquiry, OrderDisplay, AdminRequest, AdminConfirm = Value
-
   }
 
   object SearchResultType extends Enumeration {
@@ -118,6 +117,7 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
             val cust = data.createCustomer(0)
             cust.C_UNAME = newUserName // use a random UUID for a username
             actionCommit = client.insertCustomer(cust) // save new customer
+            println("homeWI2: " + cust.C_UNAME + ", " + actionCommit)
             cust
           } else {
             // pick existing user
@@ -125,6 +125,7 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
             val user = randomUser
             val userData = client.homeWI(user)
             actionCommit = true
+            println("homeWI: " + user)
             userData(0)(0).toSpecificRecord[Customer]
           }
       }
@@ -148,7 +149,6 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
         assert(currentUser != null)
         client.orderDisplayWI(currentUser.C_UNAME, currentUser.C_PASSWD, 100)
         actionCommit = true
-
       case ActionType.SearchResult =>
         logger.debug("SearchResult")
         // pick a random search type
@@ -199,7 +199,6 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
         // for now always assuming existing user
         client.buyRequestExistingCustomerWI(currentUser.C_UNAME)
         actionCommit = true
-
       case ActionType.BuyConfirm =>
         logger.debug("BuyConfirm")
         actionName = "buyConfirm-Write"
