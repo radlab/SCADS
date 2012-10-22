@@ -10,6 +10,10 @@ package edu.berkeley.cs.scads.util
 
 object Logger {
 
-  def apply[T](cls : Class[T]) : net.lag.logging.Logger = net.lag.logging.Logger(cls.toString.replaceAll("class ", "") + ".t")
+  def apply[T](cls : Class[T]) : net.lag.logging.Logger = {
+    val l = net.lag.logging.Logger(cls.toString.replaceAll("class ", "") + ".t")
+//    l.setLevel(java.util.logging.Level.FINEST)
+    l
+  }
 
 }
