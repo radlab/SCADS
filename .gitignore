@@ -29,3 +29,7 @@ scads.jar
 *.avro
 .idea/
 
+backup/
+data/
+failure_data/
+micro_data/
