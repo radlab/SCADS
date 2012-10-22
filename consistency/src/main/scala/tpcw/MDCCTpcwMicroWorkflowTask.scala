@@ -39,6 +39,8 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
                                      var runLengthMin: Int = 5,
                                      var useLogical: Boolean = false,
                                      var startTime: String,
+                                     var clusterId: Int = 0,
+                                     var numClusters: Int = 1,
                                      var note: String) extends AvroRecord with ReplicatedExperimentTask {
 
   var experimentAddress: String = _
@@ -73,7 +75,9 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
 
   def run(): Unit = {
 
-    val clientId = coordination.registerAndAwait("clientStart", numClients, timeout=60*60*1000)
+    val numGlobalClients = numClients * numClusters
+
+    val clientId = coordination.registerAndAwait("clientStart", numGlobalClients, timeout=60*60*1000)
 
     logger.info("Waiting for cluster to be ready")
     val clusterConfig = clusterRoot.awaitChild("clusterReady")
@@ -90,26 +94,131 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
     // out of stock items.
     val oosItems = new mu.BitSet(loaderConfig.numItems)
 
+
+
+    // List(USWest1, USEast1, EUWest1, APNortheast1, APSoutheast1)
+    val ownRegion = clusterId match {
+      case 0 => "us-west-1"
+      case 1 => "compute-1"
+      case 2 => "eu-west-1"
+      case 3 => "ap-northeast-1"
+      case 4 => "ap-southeast-1"
+      case _ => "wrong_cluster_id"
+    }
+
+    def getMetadataRegion(ns: PairNamespace[MicroItem] with PairTransactions[MicroItem], item: MicroItem): String = {
+      val hash = java.util.Arrays.hashCode(ns.keyToBytes(item.key))
+      val rand = new scala.util.Random(hash)
+
+      val randomRegion = if (rand.nextInt(100) < 20) {
+        "us-west-1"
+      } else {
+        val l = List("compute-1", "eu-west-1", "ap-northeast-1", "ap-southeast-1")
+        l(rand.nextInt(l.size))
+      }
+      randomRegion
+    }
+
+
+    // For classic master locality test.
+    val testMicroItems = cluster.getNamespace[MicroItem]("microItems", loaderConfig.txProtocol)
+    val localItemIds = new scala.collection.mutable.ArrayBuffer[Int]()
+    val remoteItemIds = new scala.collection.mutable.ArrayBuffer[Int]()
+    (1 to loaderConfig.numItems).foreach(id => {
+      if (getMetadataRegion(testMicroItems, MicroItem(loader.toItem(id))) == ownRegion) {
+        localItemIds.append(id)
+      } else {
+        remoteItemIds.append(id)
+      }
+    })
+    logger.info("localItemIds: %d", localItemIds.size)
+    logger.info("remoteItemIds: %d", remoteItemIds.size)
+
+    val localMaster = note.indexOf("localMaster_") match {
+      case -1 =>
+        -1
+      case i =>
+        note.substring(i + 12).toInt
+    }
+    logger.info("localMaster: %d", localMaster)
+
+    // requested hotspot percent
+    val hotspot_percent = note.indexOf("hot_") match {
+      case -1 =>
+        90
+      case i =>
+        val rest = note.substring(i + 4)
+        rest.indexOf("_") match {
+          case -1 =>
+            note.substring(i + 4).toInt
+          case j =>
+            note.substring(i + 4, i + 4 + j).toInt
+        }
+    }
+
+    val hotspot_cutoff = loaderConfig.numItems * hotspot_percent / 100
+
+    logger.info("Hotspot info: percent: %d, id cutoff: %d, numItems: %d", hotspot_percent, hotspot_cutoff, loaderConfig.numItems)
+
     // returns the (name, id) of a random item.
     def randomItem = {
       var id = 0
       do {
-        // Uniformly random item.
-        id = random.nextInt(loaderConfig.numItems) + 1
+        if (hotspot_cutoff == 100) {
+          // Uniformly random item.
+          id = random.nextInt(loaderConfig.numItems) + 1
+        } else {
+          // use hotspot access pattern
+          if (random.nextInt(100) < 90) {
+            // pick a random item from the hotspot.
+            id = random.nextInt(hotspot_cutoff) + 1
+          } else {
+            // pick a random item from the cold spot.
+            id = random.nextInt(loaderConfig.numItems - hotspot_cutoff) + 1 + hotspot_cutoff
+          }
+        }
       } while (oosItems.contains(id))
-      (loader.toItem(id), id)
+      val ret = (loader.toItem(id), id)
+      ret
+    }
+
+    def randomLocalItem = {
+      var id = 0
+      val pickLocal = random.nextInt(100) < localMaster
+      val itemIds = if (pickLocal) localItemIds else remoteItemIds
+      do {
+        id = itemIds.get(random.nextInt(itemIds.size))
+      } while (oosItems.contains(id))
+      val ret = (loader.toItem(id), id)
+      ret
     }
 
     // buyList is a list of ((itemName, itemId), # to buy)
     def getBuyList() = {
 //      val itemIds = (1 to random.nextInt(10) + 1).map(_ => randomItem).toSet.toSeq
-      val itemIds = (1 to 3).map(_ => randomItem).toSet.toSeq
+
+
+//      val itemIds = (1 to 3).map(_ => randomItem).toSet.toSeq
+
+      // localMaster test
+      val itemIds = (1 to 3).map(_ => randomLocalItem).toSet.toSeq
+
+
+
 //      val itemIds = (1 to random.nextInt(3) + 1).map(_ => randomItem).toSet.toSeq
       itemIds.map(i => (i, random.nextInt(3) + 1))
     }
 
+    // buyList is a list of ((itemName, itemId), # to buy)
+    def getSingularBuyList() = {
+      List(((loader.toItem(1), 1), 1))
+    }
+
+    var stopTest = false
+
     def buyAction(ns: PairNamespace[MicroItem] with PairTransactions[MicroItem]): (Boolean, String) = {
       val buyList = getBuyList()
+//      val buyList = getSingularBuyList()  // inconsistency test
 
       var commit = true
       val txStatus = new Tx(4000, ReadLocal()) ({
@@ -130,6 +239,7 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
           // No items in cart are in stock.
           // Do not write items.
           commit = false
+//          stopTest = true  // inconsistency test
         } else {
           i2.foreach(i => {
             if (!useLogical) {
@@ -139,7 +249,7 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
             } else {
               val item = clearItem(i._1.I_ID)
               item.I_STOCK = -i._2
-              ns.putLogical(item)          
+              ns.putLogical(item)
             }
           })
         }
@@ -152,6 +262,7 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
     }
 
     val warmupTime = 1 * 60 * 1000
+//    val warmupTime = -1  // inconsistency test
 
     logger.info("starting experiment at: " + startTime)
 
@@ -167,6 +278,8 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
         var failures = 0
 
         while(endTime - iterationStartTime < (runTime + warmupTime)) {
+//        while(!stopTest) {  // inconsistency test
+
           val startTime = getTime
           try {
             val (actionCommit, aName) = buyAction(microItems)
@@ -228,7 +341,7 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
       logger.info("******** writing out aggregated results.")
       results ++= List(res)
 
-      coordination.registerAndAwait("iteration" + iteration, numClients)
+      coordination.registerAndAwait("iteration" + iteration, numGlobalClients)
     }
 
     if(clientId == 0) {
