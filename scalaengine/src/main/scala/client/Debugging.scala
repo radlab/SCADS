@@ -50,7 +50,7 @@ trait DebuggingClient {
 
   def dumpWorkload: Unit = {
     val partitions = serversForKeyRange(None, None)
-    logger.info("\nStats for namespace %s: %d partitions", namespace, partitions.size)
+    logger.warning("Stats for namespace %s: %d partitions", namespace, partitions.size)
     val futures = partitions.map(p =>
       (p.startKey, p.servers.map(s => (s, s !! GetWorkloadStats()))))
 
@@ -78,7 +78,7 @@ trait DebuggingClient {
         }
       }
 
-    logger.warning("getDiff: %d, putDiff: %d\n", values.map(_._1).max - values.map(_._1).min, values.map(_._2).max - values.map(_._2).min)
+    logger.warning("total get: %d, total put: %d, getDiff: %d, putDiff: %d\n", values.map(_._1).sum, values.map(_._2).sum, values.map(_._1).max - values.map(_._1).min, values.map(_._2).max - values.map(_._2).min)
   }
 
   //HACK
