@@ -53,6 +53,11 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   val relatedItemCountEpoch = relatedItemCount.root.getOrCreate("currentEpoch")
 
 
+  val namespaces = List(addresses, authors, xacts, countries,
+    customers, items, orderLines, orders, shoppingCartItems,
+    orderCountStaging, orderCount, relatedItemCountStaging, relatedItemCount)
+
+
   /* View Maintenance Code */
   val fetchLineKeys = LocalTuples(0, "line", OrderLine.keySchema, OrderLine.schema)
     .join(items.as("item"))
@@ -285,8 +290,6 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     relatedItemCount ++= generated
     failures
   }
-
-  val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems, orderCountStaging, orderCount)
 
   val windowSize = 60 * 60 * 1000  // 1 hour in milliseconds
   val stepSize = 5 * 60 * 1000     // 5 minutes in milliseconds
