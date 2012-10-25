@@ -13,7 +13,7 @@ import java.lang.RuntimeException
 /**
  * This is the base trait for any type of future in SCADS.
  */
-trait ScadsFuture[+T] { self =>
+trait ScadsFuture[T] { self =>
 
   /**
    * Cancels the current future
@@ -52,6 +52,18 @@ trait ScadsFuture[+T] { self =>
     def isSet = self.isSet
   }
 
+  private var respondFunctions: List[T => Unit] = Nil
+  def respond(r: T => Unit): Unit = synchronized {
+    if (isSet) {
+      r(get)
+    } else {
+      respondFunctions ::= r
+    }
+  }
+
+  protected def activateResponse: Unit = synchronized {
+    respondFunctions.foreach(_(get))
+  }
 }
 
 object FutureReference {
@@ -103,7 +115,7 @@ object MessageFuture {
   implicit def toFutureCollection[MessageType <: IndexedRecord](futures: Seq[MessageFuture[MessageType]]) = new FutureCollection[MessageType](futures)
 }
 
-case class MessageFuture[MessageType <: IndexedRecord](val dest: RemoteServiceProxy[MessageType], val request: MessageType)(implicit val registry: ServiceRegistry[MessageType]) extends Future[MessageType] {
+case class MessageFuture[MessageType <: IndexedRecord](val dest: RemoteServiceProxy[MessageType], val request: MessageType)(implicit val registry: ServiceRegistry[MessageType]) extends ScadsFuture[MessageType] {
   protected[comm] val sender = new SyncVar[Option[RemoteServiceProxy[MessageType]]]
   protected val message = new SyncVar[MessageType]
   protected val done = new SyncVar[Int]
@@ -120,19 +132,8 @@ case class MessageFuture[MessageType <: IndexedRecord](val dest: RemoteServicePr
     def receiveWithin[R](msec: Long)(f: PartialFunction[Any, R]): R = f(message.get(msec).getOrElse(throw new RuntimeException("timeout")))
   }
 
-  def apply() = message.get
-
   //The actual sender of a message
   def source =  sender.get
-
-  protected var respondFunctions: List[MessageType => Unit] = Nil
-  def respond(r: MessageType => Unit): Unit = synchronized {
-    if (message.isSet) {
-      r(message.get)
-    } else {
-      respondFunctions ::= r
-    }
-  }
 
   def get(): MessageType = message.get
 
@@ -143,6 +144,8 @@ case class MessageFuture[MessageType <: IndexedRecord](val dest: RemoteServicePr
     message.get(unit.toMillis(timeout))
 
   def isSet: Boolean = message.isSet
+
+  def cancel() = null
 
   /**
    * Either forward the result to the following queue, or request that it be forwarded upon arrival.
@@ -158,7 +161,7 @@ case class MessageFuture[MessageType <: IndexedRecord](val dest: RemoteServicePr
     message.set(msg)
     sender.set(src)
     forwardList.foreach(_.offer(this))
-    respondFunctions.foreach(_(msg))
+    activateResponse
     done.set(0)
   }
 }
@@ -167,9 +170,12 @@ class FutureCollection[MessageType <: IndexedRecord](val futures: Seq[MessageFut
   val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture[MessageType]]
   futures.foreach(_.forward(responses))
 
+  def blockForAll(timeout: Long, unit: TimeUnit = TimeUnit.MILLISECONDS) =
+    blockFor(futures.size, timeout, unit)
+
   def blockFor(count: Int): Seq[MessageFuture[MessageType]] = (1 to count).map(_ => responses.take())
 
-  def blockFor(count: Int, timeout: Long, unit: TimeUnit): Seq[MessageFuture[MessageType]] = {
+  def blockFor(count: Int, timeout: Long, unit: TimeUnit = TimeUnit.MILLISECONDS): Seq[MessageFuture[MessageType]] = {
     (1 to count).map(_ => Option(responses.poll(timeout, unit)).getOrElse(throw new RuntimeException("TIMEOUT "+ timeout)))
   }
 }
@@ -335,22 +341,14 @@ class CallbackFuture[T] extends ScadsFuture[T] { self =>
   import scala.concurrent.SyncVar
 
   private val message = new SyncVar[T]
-  protected var respondFunctions: List[T => Unit] = Nil
 
-  def respond(r: T => Unit): Unit = synchronized {
-    if (message.isSet) {
-      r(message.get)
-    } else {
-      respondFunctions ::= r
-    }
-  }
 
   def setResult(msg: T): Unit = synchronized {
     if (message.isSet) {
       throw new IllegalStateException
     }
     message.set(msg)
-    respondFunctions.foreach(_(msg))
+    activateResponse
   }
 
   def cancel = sys.error("UNIMPLEMENTED")
@@ -368,6 +366,5 @@ class CallbackFuture[T] extends ScadsFuture[T] { self =>
     override def get(timeout: Long, unit: TimeUnit = TimeUnit.MILLISECONDS) =
       self.get(timeout, unit) map f
     override def isSet = self.isSet
-    override def respond(r: T1 => Unit): Unit = self.respond(t => r(f(t)))
   }
 }
