@@ -262,33 +262,10 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * to be called at same interval as updateOrderCount.
    * Returns number of failed operations, or zero.
    */
-  def updateRelatedCounts(itemIds: Traversable[String],
-                          epoch: Long = getEpoch(),
-                          k: Int = kRelatedItemsToFind,
-                          maxInFlightOps: Int = 1000,
-                          timeoutSeconds: Int = 60): Int = {
-    var failures = 0
-    var generated = new ConcurrentLinkedQueue[RelatedItemCount]
-    var inflight = new Semaphore(maxInFlightOps)
-    assert (maxInFlightOps > 0)
-    itemIds.foreach(I_ID => {
-      while (!inflight.tryAcquire(1, timeoutSeconds, TimeUnit.SECONDS)) {
-        // Gives up on all outstanding operations.
-        failures += maxInFlightOps
-        inflight = new Semaphore(maxInFlightOps)
-      }
-      val prefix = RelatedItemCountStaging(epoch, I_ID, null).key
-      val inflightRef = inflight
-      relatedItemCountStaging.asyncTopK(prefix, prefix, Seq("RELATED_COUNT"), k, false).respond(resp => {
-        resp.foreach(t => generated.add(RelatedItemCount(t.epoch, t.I_ID, t.RELATED_COUNT, t.I_RELATED_ID)))
-        inflightRef.release()
-      })
-    })
-    if (!inflight.tryAcquire(maxInFlightOps, timeoutSeconds, TimeUnit.SECONDS)) {
-      failures += maxInFlightOps - inflight.availablePermits()
-    }
-    relatedItemCount ++= generated
-    failures
+  def updateRelatedCounts(epoch: Long = getEpoch(),
+                          k: Int = kRelatedItemsToFind): Unit = {
+    val prefix = RelatedItemCountStaging(epoch, null, null).key
+    relatedItemCountStaging.asyncGroupedTopK(prefix, prefix, relatedItemCount.nsRoot.canonicalAddress, Seq("I_ID"), Seq("RELATED_COUNT"), k, false).blockForAll(3, TimeUnit.MINUTES)
   }
 
   val windowSize = 60 * 60 * 1000  // 1 hour in milliseconds

@@ -6,6 +6,7 @@ package mviews
 import deploylib.mesos._
 import tpcw._
 import tpcw.scale._
+import perf._
 import comm._
 import storage._
 import piql.debug.DebugExecutor
@@ -23,7 +24,7 @@ case class RefreshResult(var expId: String,
 case class TpcwViewRefreshTask(var experimentAddress: String,
                                var clusterAddress: String,
                                var resultClusterAddress: String,
-                               var expId: String) extends AvroRecord with AvroTask {
+                               var expId: String) extends AvroRecord with ExperimentTask {
 
 
   def run() = {
@@ -42,23 +43,20 @@ case class TpcwViewRefreshTask(var experimentAddress: String,
     val ocTimes = new scala.collection.mutable.ArrayBuffer[Long]()
     val rcTimes = new scala.collection.mutable.ArrayBuffer[Long]()
 
-    logger.info("getting items")
-    val itemIds = client.items.iterateOverRange(None,None).map(_.I_ID).toSeq
-
     logger.info("Waiting for clients to start")
     coordination.awaitChild("runViewRefresh")
 
     while(coordination.get("expRunning").isDefined) {
       logger.info("Updating OrderCounts")
       val ocStartTime = System.currentTimeMillis()
-      client.updateOrderCount()
+      retry(5) { client.updateOrderCount() }
       val ocEndTime = System.currentTimeMillis()
       logger.info("OrderCount Update complete in %d", ocEndTime - ocStartTime)
       ocTimes += (ocEndTime - ocStartTime)
 
       logger.info("Updating RelatedCounts")
       val rcStartTime = System.currentTimeMillis()
-      client.updateRelatedCounts(itemIds = itemIds)
+      retry(5) { client.updateRelatedCounts() }
       val rcEndTime = System.currentTimeMillis()
       logger.info("Related Counts updated in %d", rcEndTime - rcStartTime)
       rcTimes += (rcEndTime - rcStartTime)

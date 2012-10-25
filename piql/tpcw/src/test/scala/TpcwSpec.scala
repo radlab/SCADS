@@ -161,7 +161,7 @@ class TpcwAdminSpec extends Spec with ShouldMatchers with QueryResultMatchers {
     fetch(4,3) should equal(5)    // 3 from user1, 2 from user2
     fetch(3,2) should equal(6)    // unaffected
 
-    client.updateRelatedCounts(1 to 4 map("book" + _), 800002800000L, k=2) should equal(0)
+    client.updateRelatedCounts(800002800000L, k=2)
 
     client.relatedItemCount.iterateOverRange(None,None).toList should equal(List(
       RelatedItemCount(800002800000L, "book1", 6, "book2"),
