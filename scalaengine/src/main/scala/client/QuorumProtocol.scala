@@ -246,6 +246,8 @@ trait QuorumProtocol
 
   private var readQuorum: Double = 0.001
   private var writeQuorum: Double = 1.0
+  var tolerance: Int = 10
+  val rand = new scala.util.Random
 
   /** Initialization callbacks */
 
@@ -295,11 +297,12 @@ trait QuorumProtocol
     (servers, scala.math.ceil(servers.size * writeQuorum).toInt)
   }
 
-  protected def readQuorum(nbServers: Int): Int = scala.math.ceil(nbServers * readQuorum).toInt
+  def readQuorum(nbServers: Int): Int = scala.math.ceil(nbServers * readQuorum).toInt
 
-  protected def readQuorumForKey(key: Array[Byte]): (Seq[PartitionService], Int) = {
+  def readQuorumForKey(key: Array[Byte]): (Seq[PartitionService], Int) = {
     val servers = serversForKey(key)
-    (servers, readQuorum(servers.size))
+    val quorum = readQuorum(servers.size)
+    (rand.shuffle(servers).take(quorum + tolerance), quorum)
   }
 
   /**
@@ -421,11 +424,13 @@ trait QuorumRangeProtocol
       case Some(_) => /* if limit is defined, then only send a req to the first server. return a pointer to the tail of the first partition */
         val range = partitions.head
         val rangeRequest = new GetRangeRequest(range.startKey, range.endKey, limit, offset, ascending)
-        (partitions.tail, Seq(range.servers.map(_ !! rangeRequest)))
+        val servers = rand.shuffle(range.servers).take(readQuorum(range.servers.size) + tolerance)
+        (partitions.tail, Seq(servers.map(_ !! rangeRequest)))
       case None => /* if no limit is defined, then we'll have to send a request to every server. the pointer should be nil since no servers left */
         (Nil, partitions.map(range => {
           val rangeRequest = new GetRangeRequest(range.startKey, range.endKey, limit, offset, ascending)
-          range.servers.map(_ !! rangeRequest)
+          val servers = rand.shuffle(range.servers).take(readQuorum(range.servers.size) + tolerance)
+          servers.map(_ !! rangeRequest)
         }).toSeq)
     }
   }
@@ -456,7 +461,9 @@ trait QuorumRangeProtocol
           val range = servers.head
           val newLimit = if(limit.isDefined) Some(openRec.toInt) else None
           val rangeRequest = new GetRangeRequest(range.startKey, range.endKey, newLimit, offset, ascending)
-          handlers.append(newRangeHandle(range.servers.map(_ !! rangeRequest)))
+          val curServers = rand.shuffle(range.servers).take(readQuorum(range.servers.size) + tolerance)
+
+          handlers.append(newRangeHandle(curServers.map(_ !! rangeRequest)))
           servers = servers.tail
         }
         result.appendAll(records.flatMap(rec =>
