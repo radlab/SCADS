@@ -4,7 +4,7 @@ package storage
 
 import comm._
 import config._
-import util._
+import edu.berkeley.cs.scads.util._
 
 import com.sleepycat.je.{Cursor,Database, DatabaseConfig, CursorConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
 import org.apache.avro.Schema
@@ -23,7 +23,7 @@ import java.io._
 import atomic._
 
 import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
-import org.apache.avro.io.{EncoderFactory, DecoderFactory}
+import org.apache.avro.io.{BinaryDecoder, EncoderFactory, DecoderFactory}
 
 /**
  * Handles a partition from [startKey, endKey). Refuses to service any
@@ -236,8 +236,9 @@ class BdbStorageManager(val db: Database,
     txn.commit()
   }
 
-  val reader = new GenericDatumReader[IndexedRecord](valueSchema)
-  val writer = new GenericDatumWriter[IndexedRecord](valueSchema)
+  val keyReader = new GenericDatumReader[IndexedRecord](keySchema)
+  val valueReader = new GenericDatumReader[IndexedRecord](valueSchema)
+  val valueWriter = new GenericDatumWriter[IndexedRecord](valueSchema)
   protected def doIncrementField(txn: Transaction, key: Array[Byte], fieldName: String, amount: Int, oldValue: GenericData.Record): GenericData.Record = {
     val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry())
 
@@ -248,7 +249,7 @@ class BdbStorageManager(val db: Database,
 
         val oldValue = new GenericData.Record(valueSchema)
         val decoder = DecoderFactory.get().binaryDecoder(valueBytes, null)
-        reader.read(oldValue, decoder)
+        valueReader.read(oldValue, decoder)
         oldValue
       }
       case OperationStatus.NOTFOUND => {
@@ -263,7 +264,7 @@ class BdbStorageManager(val db: Database,
     /* Serialize the value */
     val outBuffer = new ByteArrayOutputStream
     val encoder = EncoderFactory.get().binaryEncoder(outBuffer,null)
-    writer.write(value, encoder)
+    valueWriter.write(value, encoder)
     encoder.flush
 
     /* Commit new value */
@@ -272,8 +273,9 @@ class BdbStorageManager(val db: Database,
     oldValue
   }
 
+  //I'm not really sure why this part is async?  I think the change only needs to be made in the client...
   def asyncTopK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): ScadsFuture[Seq[Record]] = {
-    val pq = new TruncatingQueue[Record](k, new FieldComparator(orderingFields, valueSchema, ascending))
+    val pq = new TruncatingQueue[Record](k, new BinaryFieldComparator(orderingFields, valueSchema, ascending))
 
     iterateOverRange(minKey, maxKey, None, None, true)((key, value, _) => {
       pq.offer(new Record(key.getData, value.getData))
@@ -281,6 +283,68 @@ class BdbStorageManager(val db: Database,
 
     // TODO(ekl) implement real future, which is not really necessary at partition level
     FutureWrapper(pq.drainToList)
+  }
+
+  def groupedTopK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], nsAddress: String, groupFields: Seq[String], orderingFields: Seq[String], k: Int, ascending: Boolean): Unit = {
+    val targetNs = GenericNamespace(ZooKeeperNode(nsAddress))
+
+    val groupComparator = new FieldOrdering(groupFields, false, keySchema, valueSchema)
+    val topComparator = new FieldOrdering(orderingFields, ascending, keySchema, valueSchema)
+    val groups = new java.util.TreeMap[Pair, TruncatingQueue[Pair]](groupComparator)
+
+    //Decoders to be reused
+    var keyDec: BinaryDecoder = null
+    var valueDec: BinaryDecoder = null
+
+    //Build the groups
+    iterateOverRange(minKey, maxKey, None, None, ascending)((key, value, _) => {
+      keyDec = DecoderFactory.get.binaryDecoder(key.getData, keyDec)
+      valueDec = DecoderFactory.get.binaryDecoder(extractRecordFromValue(value.getData), valueDec)
+      val p = new Pair(
+        keyReader.read(null, keyDec),
+        valueReader.read(null, valueDec)
+      )
+
+      var group = groups.get(p)
+      if(group == null) {
+        group = new TruncatingQueue[Pair](k, topComparator)
+        groups.put(p, group)
+      }
+
+      group.offer(p)
+    })
+
+    //Figure out mapping from records in this ns to the target ns
+    val keyMapping: Seq[Either[Int, Int]] =
+      targetNs.keySchema.getFields.map(f =>
+        keySchema.getFields.find(_.name == f.name).map(x =>new Left(x.pos))
+          .getOrElse(valueSchema.getFields.find(_.name == f.name).map(x => new Right(x.pos))
+          .getOrElse(sys.error("Unknown Field " + f))))
+
+    val valueMapping: Seq[Either[Int,Int]] =
+      targetNs.valueSchema.getFields.map(f =>
+        keySchema.getFields.find(_.name == f.name).map(x =>new Left(x.pos))
+          .getOrElse(valueSchema.getFields.find(_.name == f.name).map(x => new Right(x.pos))
+          .getOrElse(sys.error("Unknown Field " + f))))
+
+    val newKey = new GenericData.Record(targetNs.keySchema)
+    val newValue = new GenericData.Record(targetNs.valueSchema)
+    //Map the topK in each group and insert into targetNs
+    groups.values.foreach(_.foreach {pair: Pair =>
+      keyMapping.zipWithIndex.foreach {
+        case  (Left(p), i: Int) => newKey.put(i, pair.key.get(p))
+        case  (Right(p), i: Int) => newKey.put(i, pair.value.get(p))
+      }
+
+      valueMapping.zipWithIndex.foreach {
+        case  (Left(p), i: Int) => newValue.put(i, pair.key.get(p))
+        case  (Right(p), i: Int) => newValue.put(i, pair.value.get(p))
+      }
+
+      targetNs.bulkPutBytes(targetNs.keyToBytes(newKey), Some(targetNs.valueToBytes(newValue)))
+    })
+
+    targetNs.flushBulkBytes()
   }
 
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean = timed("testAndSet") {

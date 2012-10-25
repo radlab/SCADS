@@ -87,6 +87,9 @@ case class AggReply(var results:Seq[GroupedAgg]) extends AvroRecord with KeyValu
 case class TopKRequest(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]], var orderingFields: Seq[String], var k: Int, var ascending: Boolean) extends AvroRecord with KeyValueStoreOperation
 case class TopKResponse(var records: Seq[Record]) extends AvroRecord with KeyValueStoreOperation
 
+case class GroupedTopKRequest(var startKey: Option[Array[Byte]], var endKey: Option[Array[Byte]], var nsAddress: String, var groupFields: Seq[String], var orderingFields: Seq[String], var k: Int, var ascending: Boolean) extends AvroRecord with KeyValueStoreOperation
+case class GroupedTopKResponse() extends AvroRecord with KeyValueStoreOperation
+
 /* Storage Handler Operations */
 sealed trait StorageServiceOperation extends StorageMessage
 case class CreatePartitionRequest(var namespace: String, var partitionType:String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None) extends AvroRecord with StorageServiceOperation

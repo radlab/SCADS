@@ -73,11 +73,26 @@ trait BaseRangeKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
   override def asyncTopK(start: Option[K],
                     end: Option[K],
                     orderingFields: Seq[String],
-                    k: Int, ascending: Boolean = false) =
+                    k: Int, ascending: Boolean = false): ScadsFuture[Seq[B]] =
     asyncTopKBytes(start.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal)).map(keyToBytes),
               end.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal)).map(keyToBytes),
               orderingFields,
               k, ascending).map(_.map { case Record(k, v) => bytesToBulk(k, v.get) })
+
+  override def asyncGroupedTopK(startKey: Option[K],
+                                endKey: Option[K],
+                                nsAddress: String,
+                                groupFields: Seq[String],
+                                orderingFields: Seq[String],
+                                k: Int, ascending: Boolean = false): FutureCollection[StorageMessage] =
+    asyncGroupedTopKBytes(
+      startKey.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal)).map(keyToBytes),
+      endKey.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal)).map(keyToBytes),
+      nsAddress,
+      groupFields,
+      orderingFields,
+      k,
+      ascending)
 
   override def asyncGetRange(start: Option[K],
                              end: Option[K],

@@ -27,6 +27,7 @@ abstract trait StorageManager {
   def put(key:Array[Byte],value:Option[Array[Byte]]):Unit
   def incrementField(key: Array[Byte], fieldName: String, amount: Int): Unit
   def asyncTopK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): ScadsFuture[Seq[Record]]
+  def groupedTopK(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], nsAddress: String, groupFields: Seq[String], orderingFields: Seq[String], k: Int, ascending: Boolean): Unit
   def topK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): Seq[Record] = asyncTopK(minKey, maxKey, orderingFields, k, ascending).get
 
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean
@@ -107,6 +108,10 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
         }
         case TopKRequest(startKey, endKey, orderingFields, k, ascending) => {
           reply(TopKResponse(manager.topK(startKey, endKey, orderingFields, k, ascending)))
+        }
+        case GroupedTopKRequest(startKey, endKey, nsAddress, groupFields, orderingFields, k, ascending) => {
+          manager.groupedTopK(startKey, endKey, nsAddress, groupFields, orderingFields, k, ascending)
+          reply(GroupedTopKResponse())
         }
         case BulkUrlPutReqest(parserBytes, locations) => {
           val ois = new ObjectInputStream(new ByteArrayInputStream(parserBytes))

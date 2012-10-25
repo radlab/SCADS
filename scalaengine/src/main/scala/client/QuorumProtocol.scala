@@ -382,13 +382,21 @@ trait QuorumRangeProtocol
   with QuorumProtocol
   with KeyRangeRoutable {
 
+  override def asyncGroupedTopKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], nsAddress: String, groupFields: Seq[String], orderingFields: Seq[String], k: Int, ascending: Boolean = false): FutureCollection[StorageMessage] = {
+    val partitions = serversForKeyRange(startKey, endKey)
+    partitions.map {
+      case RangeDesc(startKey, endKey, servers) =>
+        servers.head !! GroupedTopKRequest(startKey, endKey, nsAddress, groupFields, orderingFields, k, ascending)
+    }
+  }
+
   override def asyncTopKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): CallbackFuture[Seq[Record]] = {
     val partitions = serversForKeyRange(startKey, endKey)
     val futures = partitions.map{ s =>
       s.servers.head !! TopKRequest(s.startKey, s.endKey, orderingFields, k, ascending)
     }
 
-    val pq = new TruncatingQueue[Record](k, new FieldComparator(orderingFields, valueSchema, ascending))
+    val pq = new TruncatingQueue[Record](k, new BinaryFieldComparator(orderingFields, valueSchema, ascending))
     val counter = new AtomicInteger(futures.length)
     val wrapper = new CallbackFuture[Seq[Record]]()
     futures.foreach(_.respond(_ match {

@@ -9,6 +9,7 @@ import scala.collection.JavaConversions._
 
 import java.util.Comparator
 import java.util.concurrent.PriorityBlockingQueue
+import org.apache.avro.util.Utf8
 
 // TruncatingQueue retains only the top k items offered.
 class TruncatingQueue[A](k: Int, cmp: Comparator[A])
@@ -36,9 +37,9 @@ class TruncatingQueue[A](k: Int, cmp: Comparator[A])
   }
 }
 
-// FieldComparator compares records using fields named by string.
+// BinaryFieldComparator compares records using fields named by string.
 // TODO there's probably a binary comparator somewhere
-class FieldComparator(val fields: Seq[String],
+class BinaryFieldComparator(val fields: Seq[String],
                       val valueSchema: Schema,
                       val ascending: Boolean = false)
   extends Comparator[Record]
@@ -67,6 +68,40 @@ class FieldComparator(val fields: Seq[String],
       } else if (leftDecoded.get(pos).asInstanceOf[Int] > rightDecoded.get(pos).asInstanceOf[Int]) {
         return order
       }
+    }
+    return 0
+  }
+}
+
+class Pair(var key: IndexedRecord, var value: IndexedRecord)
+
+class FieldOrdering(fields: Seq[String], ascending: Boolean, keySchema: Schema, valueSchema: Schema) extends Comparator[Pair] {
+  type PairField = Either[Int, Int]
+  type KeyField = Left[Int, Int]
+  type ValueField = Right[Int,Int]
+
+  val fieldPositions: Seq[PairField] = fields.map(f =>
+    keySchema.getFields.find(_.name == f).map(x =>new KeyField(x.pos)).getOrElse(
+    valueSchema.getFields.find(_.name == f).map(x => new ValueField(x.pos)).getOrElse(sys.error("Unknown Field " + f))
+    )
+  )
+
+  def compareValue(x: Any, y: Any): Int = {
+    val comp: Int = (x, y) match {
+      case (x: Int, y: Int) => (x - y)
+      case (x: Utf8, y: Utf8) => x.toString.compare(y.toString)
+    }
+    if(ascending) -1 * comp else  comp
+  }
+
+  def compare(x: Pair, y: Pair): Int = {
+    fieldPositions.foreach {
+      case Left(p) =>
+        val c = compareValue(x.key.get(p), y.key.get(p))
+        if (c != 0) return c
+      case Right(p) =>
+        val c = compareValue(x.value.get(p), y.value.get(p))
+        if(c != 0) return c
     }
     return 0
   }

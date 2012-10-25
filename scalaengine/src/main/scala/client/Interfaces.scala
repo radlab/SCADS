@@ -10,6 +10,7 @@ import org.apache.avro.Schema.Type
 import org.apache.avro.util.Utf8
 
 import scala.collection.JavaConversions._
+import java.util.concurrent.TimeUnit
 
 trait PersistentStore[BulkPutType] {
   def ++=(that: TraversableOnce[BulkPutType]): Unit
@@ -49,12 +50,19 @@ trait RangeKeyValueStoreLike[KeyType <: IndexedRecord,
            end: Option[KeyType],
            orderingFields: Seq[String],
            k: Int, ascending: Boolean = false): Seq[RangeType] =
-    asyncTopK(start, end, orderingFields, k, ascending).get
+    asyncTopK(start, end, orderingFields, k, ascending).get(30, TimeUnit.SECONDS).getOrElse(sys.error("TIMEOUT"))
 
   def asyncTopK(start: Option[KeyType],
                 end: Option[KeyType],
                 orderingFields: Seq[String],
-                k: Int, ascending: Boolean = false): CallbackFuture[Seq[RangeType]]
+                k: Int, ascending: Boolean = false): ScadsFuture[Seq[RangeType]]
+
+  def asyncGroupedTopK(startKey: Option[KeyType],
+                       endKey: Option[KeyType],
+                       nsAddress: String,
+                       groupFields: Seq[String],
+                       orderingFields: Seq[String],
+                       k: Int, ascending: Boolean = false): FutureCollection[StorageMessage]
 }
 
 
@@ -142,7 +150,15 @@ trait RangeProtocol extends Protocol {
               offset: Option[Int], 
               ascending: Boolean): Seq[(Array[Byte], Array[Byte])]
 
-  def asyncTopKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): CallbackFuture[Seq[Record]]
+  def asyncTopKBytes(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): ScadsFuture[Seq[Record]]
+
+  def asyncGroupedTopKBytes(startKey: Option[Array[Byte]],
+                            endKey: Option[Array[Byte]],
+                            nsAddress: String,
+                            groupFields: Seq[String],
+                            orderingFields: Seq[String],
+                            k: Int,
+                            ascending: Boolean): FutureCollection[StorageMessage]
 
   def asyncGetKeys(start: Option[Array[Byte]], 
                    end: Option[Array[Byte]], 

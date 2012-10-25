@@ -88,11 +88,14 @@ class InMemStorageManager
   }
 
   def asyncTopK(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], orderingFields: Seq[String], k: Int, ascending: Boolean = false): ScadsFuture[Seq[Record]] = {
-    val pq = new TruncatingQueue[Record](k, new FieldComparator(orderingFields, valueSchema, ascending))
+    val pq = new TruncatingQueue[Record](k, new BinaryFieldComparator(orderingFields, valueSchema, ascending))
     getRange(minKey, maxKey, None, None, true).foreach(pq.offer(_))
     // TODO(ekl) implement real future, which is not really necessary for mem storage
     FutureWrapper(pq.drainToList)
   }
+
+  def groupedTopK(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], nsAddress: String, groupFields: Seq[String], orderingFields: Seq[String], k: Int, ascending: Boolean): Unit =
+    sys.error("Not Implemented")
 
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean = {
     synchronized { 

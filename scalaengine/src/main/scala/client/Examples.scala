@@ -15,7 +15,22 @@ import specific._
 
 import java.util.Comparator
 
-// TODO: change Manifest to ClassManifest
+object GenericNamespace {
+  def apply(nsRoot: ZooKeeperProxy#ZooKeeperNode): GenericNamespace = {
+    val parser = new Schema.Parser()
+    val ns = new GenericNamespace(
+      nsRoot.name,
+      new ScadsCluster(nsRoot.parent.parent),
+      nsRoot.parent, //This is a little weird, right?
+      parser.parse(new String(nsRoot("keySchema").data)),
+      parser.parse(new String(nsRoot("valueSchema").data)),
+      "org.apache.generic.GenericData.Record"
+    )
+    ns.open()
+    ns
+  }
+}
+
 class GenericNamespace(
     val name: String,
     val cluster: ScadsCluster,
