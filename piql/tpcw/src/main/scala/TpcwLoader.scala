@@ -140,6 +140,10 @@ class TpcwLoader(val numEBs : Double,
     namespaces(client).foreach(_.repartition(replicationFactor))
     partitionEpochs(client, client.orderCountStaging)
     partitionEpochs(client, client.relatedItemCountStaging)
+
+    val replicateToAll: Seq[(Option[IndexedRecord], Seq[StorageService])] = Seq((None, client.cluster.getAvailableServers))
+    client.orderCount.setPartitionScheme(replicateToAll)
+    client.relatedItemCount.setPartitionScheme(replicateToAll)
   }
 
   private def uuid() : String =
