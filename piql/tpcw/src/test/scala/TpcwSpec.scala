@@ -285,12 +285,10 @@ class TpcwSpec extends Spec with ShouldMatchers with QueryResultMatchers {
 
       // (1) Materializes order counts for round 1 of orders at +0 min.
       client.updateOrderCount(client.getEpoch(timeA),
-        subjects = "subject0" :: Nil,
         k = 4)
 
       // (2) Materializes order counts for round 1&2 of orders at +45 min.
       client.updateOrderCount(client.getEpoch(timeA + 45 * 60 * 1000),
-        subjects = "subject0" :: Nil,
         k = 4)
 
       // TopK was never materialized for these epochs.
