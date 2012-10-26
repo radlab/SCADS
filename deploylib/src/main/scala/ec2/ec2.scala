@@ -166,7 +166,7 @@ class EC2Region(val endpoint: String, val location: String, val defaultAMI: Stri
    * A specific RemoteMachine used to control a single 
    * Instances of this class can be obtained by instanceId from the static method getInstance
    */
-  class EC2Instance(val instanceId: String) extends RemoteMachine with RunitManager with Sudo with ServiceManager {
+  class EC2Instance(val instanceId: String) extends RemoteMachine with Sudo with ServiceManager {
     import RemoteMachine._
 
     lazy val hostname: String = getHostname()
