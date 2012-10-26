@@ -55,6 +55,8 @@ trait ServiceManager extends RemoteMachine {
   val serviceDir = new File("$HOME/deploylib/services")
   val logDir = new File("$HOME/deploylib/logs")
 
+  def services = ls(serviceDir).filter(_.name endsWith ".sh").map(_.name.dropRight(3)).map(new RemoteService(_))
+
   case class RemoteService(name: String) {
     val runScript = new java.io.File(serviceDir, name + ".sh")
     val pidFile = new java.io.File(serviceDir, name + ".pid")
@@ -76,6 +78,12 @@ trait ServiceManager extends RemoteMachine {
     def restart = {
       stop; start
     }
+
+    def catLog =
+      catFile(logFile)
+
+    def watchLog =
+      watch(logFile)
   }
 
   def getService(name: String, cmd: String, vars: Map[String,String] = Map()) = RemoteService(name).setCmd(cmd, vars)
