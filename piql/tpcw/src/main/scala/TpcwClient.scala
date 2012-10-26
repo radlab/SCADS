@@ -681,7 +681,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     }
 
     /* Block until puts complete */
-    (stockUpdatePuts ++ clearCartPuts :+ orderPut).foreach(_())
+    (stockUpdatePuts ++ clearCartPuts :+ orderPut).foreach(_.get(10, TimeUnit.SECONDS).getOrElse(sys.error("TIMEOUT puts")))
 
     logger.debug("finished buy confirmation of %d items", cart.size)
 
