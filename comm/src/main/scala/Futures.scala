@@ -50,6 +50,7 @@ trait ScadsFuture[T] { self =>
     def get(timeout: Long, unit: TimeUnit = TimeUnit.MILLISECONDS) =
       self.get(timeout, unit) map f 
     def isSet = self.isSet
+    override def respond(r: T1 => Unit): Unit = self.respond(t => r(f(t)))
   }
 
   private var respondFunctions: List[T => Unit] = Nil
@@ -355,16 +356,4 @@ class CallbackFuture[T] extends ScadsFuture[T] { self =>
   def get = message.get
   def get(timeout: Long, unit: TimeUnit) = message.get(unit.toMillis(timeout))
   def isSet = message.isSet
-
-  /**
-   * Return a new future which is backed by this future and maps the
-   * result according to the given function
-   */
-  override def map[T1](f: T => T1): CallbackFuture[T1] = new CallbackFuture[T1] {
-    override def cancel = self.cancel
-    override def get = f(self.get)
-    override def get(timeout: Long, unit: TimeUnit = TimeUnit.MILLISECONDS) =
-      self.get(timeout, unit) map f
-    override def isSet = self.isSet
-  }
 }
