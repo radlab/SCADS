@@ -11,6 +11,7 @@ import collection.JavaConversions._
 import net.lag.logging.Logger
 import java.lang.RuntimeException
 import java.net.InetAddress
+import com.amazonaws.services.ec2.model._
 
 object ServiceSchedulerDaemon extends optional.Application {
   val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
@@ -139,6 +140,8 @@ class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = 
     case r => throw new RuntimeException("No AMI for region: " + r)
   }
 
+  val instanceType = "m1.large"
+
   /**
    * The default availability zone used when launching new instances.
    */
@@ -156,6 +159,31 @@ class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = 
       Some(masters.head.availabilityZone)
     } else
       throw new RuntimeException("Cluster is split across zones: " + activeZones)
+  }
+
+  /**
+   * HACK: support for adding spot slaves...
+   */
+  def claimSpotInstances: Unit = {
+    val spots = region.activeInstances.filter(_.tags.size == 0)
+
+    spots.foreach(_.tags += ("mesos", "slave"))
+    spots.foreach(_.tags += ("spot", "true"))
+    spots.pforeach(configureSlave)
+  }
+
+  def requestSpotInstances(count: Int): Unit = {
+    val launchSpec = new LaunchSpecification()
+      .withImageId(mesosAmi)
+      .withKeyName(region.keyName)
+      .withInstanceType(instanceType)
+    val request = new RequestSpotInstancesRequest()
+      .withAvailabilityZoneGroup(availabilityZone.get)
+      .withInstanceCount(count)
+      .withSpotPrice("0.05")
+      .withLaunchSpecification(launchSpec)
+
+    region.client.requestSpotInstances(request)
   }
 
   /**
@@ -247,7 +275,7 @@ class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = 
     firstMaster.getService("service-scheduler", serviceSchedulerCmd).restart
   }
 
-  protected def slaveService(inst: EC2Instance): ServiceManager#RemoteService = inst.getService("mesos-slave", new File(binDir, "mesos-slave").getCanonicalPath, Map("MESOS_PUBLIC_DNS" -> inst.publicDnsName))
+  def slaveService(inst: EC2Instance): ServiceManager#RemoteService = inst.getService("mesos-slave", new File(binDir, "mesos-slave").getCanonicalPath, Map("MESOS_PUBLIC_DNS" -> inst.publicDnsName))
 
   /* running slave services */
   def slaveServices: List[ServiceManager#RemoteService] = {
@@ -290,6 +318,16 @@ class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = 
       .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
+  def spots = {
+    region.update()
+    region.client.describeTags().getTags()
+      .filter(_.getResourceType equals "instance")
+      .filter(_.getKey equals "spot")
+      .filter(_.getValue equals "true")
+      .map(t => region.getInstance(t.getResourceId))
+      .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
+  }
+
   /**
    * Returns a list of EC2Instances for all the zookeepers in the clsuter
    */
@@ -326,7 +364,7 @@ class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = 
         missingServers,
         missingServers,
         region.keyName,
-        "m1.large",
+        instanceType,
         availabilityZone,
         None)
 
@@ -431,7 +469,7 @@ class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = 
       count,
       count,
       region.keyName,
-      "m1.large",
+      instanceType,
       zone,
       None)
     instances.foreach(_.tags += ("mesos", "master"))
@@ -486,17 +524,20 @@ class Cluster(val region: EC2Region = DefaultRegion.value, val useFT: Boolean = 
       masters.foreach(_.blockUntilRunning)
       firstMaster.blockTillPortOpen(5050)
 
-      instances.pforeach(i => try {
-        i.blockUntilRunning
-        updateDeploylib(i :: Nil)
-        updateSlaveConf(i :: Nil)
-        slaveService(i).start
-      } catch {
-        case e => logger.error(e, "Failed to start slave on instance %s:%s", i.instanceId, i.publicDnsName)
-      })
+      instances.pforeach(configureSlave)
     }
 
     instances
+  }
+
+
+  def configureSlave(i: EC2Instance): Unit = try {
+    i.blockUntilRunning
+    updateDeploylib(i :: Nil)
+    updateSlaveConf(i :: Nil)
+    slaveService(i).start
+  } catch {
+    case e => logger.error(e, "Failed to start slave on instance %s:%s", i.instanceId, i.publicDnsName)
   }
 
   protected val baseConf = (
