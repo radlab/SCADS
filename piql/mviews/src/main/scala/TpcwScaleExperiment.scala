@@ -99,6 +99,26 @@ object TpcwScaleExperiment {
     .groupBy(_.name)
     .map { case (name, hists) => (name, hists.reduceLeft(_ + _).quantile(0.99)) }
 
+  def results = {
+    val allResults = scaleResults.iterateOverRange(None,None).toSeq
+
+    allResults.filter(_.iteration != 1)
+      .groupBy(r => (r.loaderConfig.numServers, r.clientConfig.expId)).toSeq
+      .sortBy(_._1)
+      .foreach {
+      case (size, results) =>
+        println(size.toString + " servers")
+        results.flatMap(_.times)
+          .groupBy(_.name).toSeq
+          .sortBy(_._1)
+          .foreach {
+          case (wi, hists) =>
+            val aggResults = hists.reduceLeft(_+_)
+          println(Seq(wi, aggResults.quantile(0.99), aggResults.stddev).mkString(", "))
+        }
+    }
+  }
+
   def runScaleTest(numServers: Int, executor: String = "edu.berkeley.cs.scads.piql.exec.ParallelExecutor")(implicit cluster: Cluster) = {
     val (scadsTasks, scadsCluster) = TpcwLoaderTask(numServers, numServers/2, replicationFactor=2, numEBs = 150 * numServers/2, numItems = 10000).delayedCluster
 
