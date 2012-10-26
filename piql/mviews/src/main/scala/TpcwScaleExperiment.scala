@@ -14,6 +14,7 @@ import avro.marker.{AvroPair, AvroRecord}
 import edu.berkeley.cs.scads.perf.ReplicatedExperimentTask
 import java.util.concurrent.TimeUnit
 import net.lag.logging.Logger
+import org.apache.avro.generic.GenericContainer
 
 
 case class RefreshResult(var expId: String,
@@ -84,6 +85,30 @@ object TpcwScaleExperiment {
   val resultsCluster = new ScadsCluster(resultClusterAddress)
   val scaleResults =  resultsCluster.getNamespace[Result]("tpcwScaleResults")
 
+  implicit def productSeqToExcel(lines: Seq[Product]) = new {
+    import java.io._
+    def toExcel: Unit = {
+      val file = File.createTempFile("scadsOut", ".csv")
+      val writer = new FileWriter(file)
+
+      lines.map(_.productIterator.mkString(",") + "\n").foreach(writer.write)
+      writer.close
+
+      Runtime.getRuntime.exec(Array("/usr/bin/open", file.getCanonicalPath))
+    }
+  }
+
+  implicit def avroIterWriter[RecordType <: GenericContainer](iter: Iterator[RecordType]) = new {
+     def toAvroFile(file: File, codec: Option[CodecFactory] = None)(implicit schema: TypedSchema[RecordType]) = {
+       val outfile = AvroOutFile[RecordType](file, codec)
+       iter.foreach(outfile.append)
+       outfile.close
+      }
+    }
+
+
+  def backup = scaleResults.iterateOverRange(None,None).toAvroFile(new java.io.File("scaleResults" + System.currentTimeMillis() + ".avro"))
+
   implicit def toOption[A](a: A) = Option(a)
 
   lazy val testTpcwClient =
@@ -107,14 +132,13 @@ object TpcwScaleExperiment {
       .sortBy(_._1)
       .foreach {
       case (size, results) =>
-        println(size.toString + " servers")
         results.flatMap(_.times)
           .groupBy(_.name).toSeq
           .sortBy(_._1)
           .foreach {
           case (wi, hists) =>
             val aggResults = hists.reduceLeft(_+_)
-          println(Seq(wi, aggResults.quantile(0.99), aggResults.stddev).mkString(", "))
+          println(Seq(size._1, size._2, wi, aggResults.quantile(0.90), aggResults.quantile(0.99), aggResults.stddev, aggResults.totalRequests).mkString("\t"))
         }
     }
   }
@@ -125,7 +149,7 @@ object TpcwScaleExperiment {
     val tpcwTaskTemplate = TpcwWorkflowTask(
           numServers/2,
           executor,
-          iterations = 4,
+          iterations = 5,
           runLengthMin = 5
         )
 
