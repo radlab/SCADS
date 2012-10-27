@@ -175,6 +175,7 @@ class PairNamespace[Pair <: AvroPair : Manifest](
   with index.ViewManager[Pair]
   with index.TriggerManager[Pair]
   with DebuggingClient
+  with PerformanceLogger[Pair]
   with NamespaceIterator[Pair] {
   
   override protected val pairManifest = manifest[Pair]

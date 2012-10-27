@@ -75,6 +75,13 @@ case class TpcwWorkflowTask(var numClients: Int,
       results ++= (1 to numThreads).pmap(threadId => {
         def getTime = System.nanoTime / 1000000
         val histograms = new scala.collection.mutable.HashMap[ActionType.ActionType, Histogram]
+        val nsHistograms = new scala.collection.mutable.HashMap[String, Histogram]
+        for (ns <- tpcwClient.namespaces) {
+          // Logs latency of asyncGetRecord to the given histogram.
+
+          val hist = nsHistograms.getOrElseUpdate("namespace_" + ns.name, Histogram(1, 5000))
+          ns.logPerformanceData(hist.add _)
+        }
 
         val runTime = runLengthMin * 60 * 1000L
         val iterationStartTime = getTime
@@ -109,6 +116,11 @@ case class TpcwWorkflowTask(var numClients: Int,
             logger.info("%s Thread %d 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms",
             action, threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99), histogram.average, histogram.stddev)
         }
+        nsHistograms.foreach {
+          case (namespace, histogram) =>
+            logger.info("%s Thread %d 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms",
+            namespace, threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99), histogram.average, histogram.stddev)
+        }
         val res = Result(expId, this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId)
         res.totalElaspedTime =  endTime - iterationStartTime
 
@@ -116,7 +128,11 @@ case class TpcwWorkflowTask(var numClients: Int,
           case (action, histogram) =>
             histogram.name = action.toString
             histogram
-        }.toSeq
+        }.toSeq ++ nsHistograms.map {
+          case (namespace, histogram) =>
+            histogram.name = namespace
+            histogram
+        }
         res.failures = failures
         res.skips = skips
 

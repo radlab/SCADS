@@ -3,6 +3,10 @@ package scads
 package piql
 package mviews
 
+import avro.runtime._
+import org.apache.avro.file.CodecFactory
+import java.io.File
+
 import deploylib.mesos._
 import tpcw._
 import tpcw.scale._
