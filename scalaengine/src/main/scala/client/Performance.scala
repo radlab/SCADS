@@ -5,26 +5,58 @@ package client
 
 import comm._
 import avro.marker.AvroPair
+import org.apache.avro.generic.IndexedRecord
 
-trait PerformanceLogger[BulkType <: AvroPair] extends Namespace with Protocol {
-  private var logFn: Option[Long => Unit] = None
+trait PerformanceLogger[BulkType <: AvroPair] extends Namespace
+    with Protocol
+    with RangeKeyValueStoreLike[IndexedRecord, IndexedRecord, BulkType] {
+  private var logGetFn: Option[Long => Unit] = None
+  private var logGetRangeFn: Option[Long => Unit] = None
 
-  def logPerformanceData(fn: Long => Unit): Unit = {
-    logFn = Some(fn)
+  def logGetPerformance(fn: Long => Unit): Unit = {
+    logGetFn = Some(fn)
+  }
+
+  def logGetRangePerformance(fn: Long => Unit): Unit = {
+    logGetRangeFn = Some(fn)
   }
 
   abstract override def getBytes(key: Array[Byte]): Option[Array[Byte]] = {
-    val start = System.currentTimeMillis
+    val t0 = System.currentTimeMillis
     val resp = super.getBytes(key)
-    logFn.map(_(System.currentTimeMillis - start))
+    logGetFn.map(_(System.currentTimeMillis - t0))
     resp
   }
 
   abstract override def asyncGetBytes(key: Array[Byte]): ScadsFuture[Option[Array[Byte]]] = {
-    val start = System.currentTimeMillis
+    val t0 = System.currentTimeMillis
     val fut = super.asyncGetBytes(key)
     fut.respond(_ => {
-      logFn.map(_(System.currentTimeMillis - start))
+      logGetFn.map(_(System.currentTimeMillis - t0))
+    })
+    fut
+  }
+
+  abstract override def getRange(start: Option[IndexedRecord],
+                                 end: Option[IndexedRecord],
+                                 limit: Option[Int] = None,
+                                 offset: Option[Int] = None,
+                                 ascending: Boolean = true): Seq[BulkType] = {
+    val t0 = System.currentTimeMillis
+    val resp = super.getRange(start, end, limit, offset, ascending)
+    logGetRangeFn.map(_(System.currentTimeMillis - t0))
+    resp
+  }
+
+  abstract override def asyncGetRange(start: Option[IndexedRecord],
+                                      end: Option[IndexedRecord],
+                                      limit: Option[Int] = None,
+                                      offset: Option[Int] = None,
+                                      ascending: Boolean = true): ScadsFuture[Seq[BulkType]] = {
+    val t0 = System.currentTimeMillis
+    val fut = super.asyncGetRange(start, end, limit, offset, ascending)
+    fut.respond(_ => {
+      logGetRangeFn.map(_(System.currentTimeMillis - t0))
     })
     fut
   }

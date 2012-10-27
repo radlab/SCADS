@@ -79,8 +79,10 @@ case class TpcwWorkflowTask(var numClients: Int,
         for (ns <- tpcwClient.namespaces) {
           // Logs latency of asyncGetRecord to the given histogram.
 
-          val hist = nsHistograms.getOrElseUpdate("namespace_" + ns.name, Histogram(1, 500))
-          ns.logPerformanceData(hist.add _)
+          val getLatencies = nsHistograms.getOrElseUpdate("gets_" + ns.name, Histogram(1, 500))
+          ns.logGetPerformance(getLatencies.add _)
+          val getRangeLatencies = nsHistograms.getOrElseUpdate("getRanges_" + ns.name, Histogram(5, 100))
+          ns.logGetRangePerformance(getRangeLatencies.add _)
         }
 
         val runTime = runLengthMin * 60 * 1000L
