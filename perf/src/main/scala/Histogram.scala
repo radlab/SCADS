@@ -29,15 +29,29 @@ case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long], var ne
     add(value)
   }
 
-  def add(value: Long): Histogram = synchronized {
-    if(value < 0)
+  def addAmount(value: Long, amount: Long): Histogram = synchronized {
+    if (value < 0) {
       negative += 1
-    else {
+    } else {
       val bucket = (value / bucketSize).toInt
       if (bucket >= buckets.length)
-	buckets(buckets.length - 1) += 1
+        buckets(buckets.length - 1) += amount
       else
-	buckets(bucket) += 1
+        buckets(bucket) += amount
+    }
+    this
+  }
+
+
+  def add(value: Long): Histogram = synchronized {
+    if (value < 0) {
+      negative += 1
+    } else {
+      val bucket = (value / bucketSize).toInt
+      if (bucket >= buckets.length)
+        buckets(buckets.length - 1) += 1
+      else
+        buckets(bucket) += 1
     }
     this
   }

@@ -24,7 +24,7 @@ trait PerformanceLogger[BulkType <: AvroPair] extends Namespace
   abstract override def getBytes(key: Array[Byte]): Option[Array[Byte]] = {
     val t0 = System.currentTimeMillis
     val resp = super.getBytes(key)
-    logGetFn.map(_(System.currentTimeMillis - t0))
+    logGetFn.foreach(_(System.currentTimeMillis - t0))
     resp
   }
 
@@ -32,7 +32,7 @@ trait PerformanceLogger[BulkType <: AvroPair] extends Namespace
     val t0 = System.currentTimeMillis
     val fut = super.asyncGetBytes(key)
     fut.respond(_ => {
-      logGetFn.map(_(System.currentTimeMillis - t0))
+      logGetFn.foreach(_(System.currentTimeMillis - t0))
     })
     fut
   }
@@ -44,7 +44,7 @@ trait PerformanceLogger[BulkType <: AvroPair] extends Namespace
                                  ascending: Boolean = true): Seq[BulkType] = {
     val t0 = System.currentTimeMillis
     val resp = super.getRange(start, end, limit, offset, ascending)
-    logGetRangeFn.map(_(System.currentTimeMillis - t0))
+    logGetRangeFn.foreach(_(System.currentTimeMillis - t0))
     resp
   }
 
@@ -56,7 +56,7 @@ trait PerformanceLogger[BulkType <: AvroPair] extends Namespace
     val t0 = System.currentTimeMillis
     val fut = super.asyncGetRange(start, end, limit, offset, ascending)
     fut.respond(_ => {
-      logGetRangeFn.map(_(System.currentTimeMillis - t0))
+      logGetRangeFn.foreach(_(System.currentTimeMillis - t0))
     })
     fut
   }

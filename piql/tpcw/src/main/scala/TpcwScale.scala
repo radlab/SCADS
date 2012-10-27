@@ -74,13 +74,20 @@ case class TpcwWorkflowTask(var numClients: Int,
       logger.info("Begining iteration %d", iteration)
       results ++= (1 to numThreads).pmap(threadId => {
         def getTime = System.nanoTime / 1000000
+        val totalLatency = new scala.collection.mutable.HashMap[Long,Long]
+        val totalCount = new scala.collection.mutable.HashMap[Long,Long]
         val histograms = new scala.collection.mutable.HashMap[ActionType.ActionType, Histogram]
         val nsHistograms = new scala.collection.mutable.HashMap[String, Histogram]
         for (ns <- tpcwClient.namespaces) {
-          // Logs latency of asyncGetRecord to the given histogram.
-
           val getLatencies = nsHistograms.getOrElseUpdate("gets_" + ns.name, Histogram(1, 500))
-          ns.logGetPerformance(getLatencies.add _)
+          ns.logGetPerformance(delta => {
+            // Logs latency of asyncGetRecord to the given histogram.
+            getLatencies.add(delta)
+            // Logs get ops on aggregate in 5-second windows.
+            val ts = System.currentTimeMillis / (1000 * 5)
+            totalLatency(ts) = totalLatency.getOrElse(ts, 0L) + delta
+            totalCount(ts) = totalCount.getOrElse(ts, 0L) + 1
+          })
           val getRangeLatencies = nsHistograms.getOrElseUpdate("getRanges_" + ns.name, Histogram(5, 100))
           ns.logGetRangePerformance(getRangeLatencies.add _)
         }
@@ -126,6 +133,15 @@ case class TpcwWorkflowTask(var numClients: Int,
         val res = Result(expId, this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId)
         res.totalElaspedTime =  endTime - iterationStartTime
 
+        val (t0, tn) = (totalLatency.keys.min, totalLatency.keys.max)
+        val windowSize = (tn - t0 + 1).intValue
+        val latencyOverTime = Histogram(1, windowSize)
+        val countOverTime = Histogram(1, windowSize)
+        latencyOverTime.name = "latencyOverTime"
+        countOverTime.name = "countOverTime"
+        totalLatency.foreach(t => latencyOverTime.addAmount(t._1 - t0, t._2))
+        totalCount.foreach(t => countOverTime.addAmount(t._1 - t0, t._2))
+
         res.times = histograms.map {
           case (action, histogram) =>
             histogram.name = action.toString
@@ -134,7 +150,7 @@ case class TpcwWorkflowTask(var numClients: Int,
           case (namespace, histogram) =>
             histogram.name = namespace
             histogram
-        }
+        } ++ List(latencyOverTime, countOverTime)
         res.failures = failures
         res.skips = skips
 
