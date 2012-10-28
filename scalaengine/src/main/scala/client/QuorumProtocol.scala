@@ -405,8 +405,8 @@ trait QuorumRangeProtocol
     futures.foreach(_.respond(_ match {
         case TopKResponse(recs) => {
           recs.toStream.takeWhile(pq.offer(_)).force
-          counter.getAndDecrement
-          if (counter.get == 0) {
+          val pending = counter.decrementAndGet
+          if (pending == 0) {
             wrapper.setResult(pq.drainToList.map(v => Record(v.key, Some(extractRecordFromValue(v.value.get)))))
           }
         }
