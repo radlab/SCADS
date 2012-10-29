@@ -14,6 +14,8 @@ import deploylib._
 import deploylib.mesos._
 import deploylib.ec2._
 
+import storage.client._
+
 import scala.util.Random
 import scala.collection.{ mutable => mu }
 import org.apache.zookeeper.CreateMode
@@ -27,6 +29,8 @@ case class Result(var expId: String,
                   var threadId: Int) extends AvroPair {
   var totalElaspedTime: Long = _ /* in ms */
   var times: Seq[Histogram] = null
+  var getTimes: Seq[Histogram] = null
+  var getRangeTimes: Seq[Histogram] = null
   var skips: Int = _
   var failures: Int = _
 }
@@ -55,8 +59,9 @@ case class TpcwWorkflowTask(var numClients: Int,
     val tpcwClient = new TpcwClient(cluster, executor)
 
     /* Turn on caching for relations commonly used in view delta queries */
-    tpcwClient.orders.cacheActive = true
-    tpcwClient.items.cacheActive = true
+    //HACK
+    //tpcwClient.orders.cacheActive = true
+    //tpcwClient.items.cacheActive = true
 
     val loader = new TpcwLoader(
       numEBs = loaderConfig.numEBs,
@@ -74,24 +79,7 @@ case class TpcwWorkflowTask(var numClients: Int,
       logger.info("Begining iteration %d", iteration)
       results ++= (1 to numThreads).pmap(threadId => {
         def getTime = System.nanoTime / 1000000
-        val totalLatency = new scala.collection.mutable.HashMap[Long,Long]
-        val totalCount = new scala.collection.mutable.HashMap[Long,Long]
         val histograms = new scala.collection.mutable.HashMap[ActionType.ActionType, Histogram]
-        val nsHistograms = new scala.collection.mutable.HashMap[String, Histogram]
-        for (ns <- tpcwClient.namespaces) {
-          val getLatencies = nsHistograms.getOrElseUpdate("gets_" + ns.name, Histogram(1, 500))
-          ns.logGetPerformance(delta => {
-            // Logs latency of asyncGetRecord to the given histogram.
-            getLatencies.add(delta)
-            // Logs get ops on aggregate in 5-second windows.
-            val ts = System.currentTimeMillis / (1000 * 5)
-            totalLatency(ts) = totalLatency.getOrElse(ts, 0L) + delta
-            totalCount(ts) = totalCount.getOrElse(ts, 0L) + 1
-          })
-          val getRangeLatencies = nsHistograms.getOrElseUpdate("getRanges_" + ns.name, Histogram(5, 100))
-          ns.logGetRangePerformance(getRangeLatencies.add _)
-        }
-
         val runTime = runLengthMin * 60 * 1000L
         val iterationStartTime = getTime
         var endTime = iterationStartTime
@@ -125,34 +113,21 @@ case class TpcwWorkflowTask(var numClients: Int,
             logger.info("%s Thread %d 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms",
             action, threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99), histogram.average, histogram.stddev)
         }
-        nsHistograms.foreach {
-          case (namespace, histogram) =>
-            logger.info("%s Thread %d 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms",
-            namespace, threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99), histogram.average, histogram.stddev)
-        }
+
         val res = Result(expId, this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId)
         res.totalElaspedTime =  endTime - iterationStartTime
-
-        val (t0, tn) = if (totalLatency.isEmpty) (0L, 0L) else (totalLatency.keys.min, totalLatency.keys.max)
-        val windowSize = (tn - t0 + 1).intValue
-        val latencyOverTime = Histogram(1, windowSize)
-        val countOverTime = Histogram(1, windowSize)
-        latencyOverTime.name = "latencyOverTime"
-        countOverTime.name = "countOverTime"
-        totalLatency.foreach(t => latencyOverTime.addAmount(t._1 - t0, t._2))
-        totalCount.foreach(t => countOverTime.addAmount(t._1 - t0, t._2))
 
         res.times = histograms.map {
           case (action, histogram) =>
             histogram.name = action.toString
             histogram
-        }.toSeq ++ nsHistograms.map {
-          case (namespace, histogram) =>
-            histogram.name = namespace
-            histogram
-        } ++ List(latencyOverTime, countOverTime)
+        }.toSeq
         res.failures = failures
         res.skips = skips
+
+        val allNs: Seq[PerformanceLogger[_]] = tpcwClient.namespaces.asInstanceOf[Seq[PerformanceLogger[_]]] ++ tpcwClient.namespaces.flatMap(_.listIndexes.values).asInstanceOf[Seq[PerformanceLogger[_]]]
+        res.getTimes = allNs.map(_.getTimes)
+        res.getRangeTimes = allNs.map(_.getRangeTimes)
 
         res
       })

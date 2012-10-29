@@ -6,25 +6,26 @@ package client
 import comm._
 import avro.marker.AvroPair
 import org.apache.avro.generic.IndexedRecord
+import perf._
 
-trait PerformanceLogger[BulkType <: AvroPair] extends Namespace
+trait PerformanceLogger[BulkType] extends Namespace
     with Protocol
     with RangeKeyValueStoreLike[IndexedRecord, IndexedRecord, BulkType] {
-  private var logGetFn: Option[Long => Unit] = None
-  private var logGetRangeFn: Option[Long => Unit] = None
 
-  def logGetPerformance(fn: Long => Unit): Unit = {
-    logGetFn = Some(fn)
-  }
+  val getTimes = Histogram(1, 5000)
+  val getRangeTimes = Histogram(1, 5000)
 
-  def logGetRangePerformance(fn: Long => Unit): Unit = {
-    logGetRangeFn = Some(fn)
+  onOpen { isNew =>
+    getTimes.name = name + "_getTimes"
+    getRangeTimes.name = name + "_getRangeTimes"
+    isNew
   }
 
   abstract override def getBytes(key: Array[Byte]): Option[Array[Byte]] = {
     val t0 = System.currentTimeMillis
     val resp = super.getBytes(key)
-    logGetFn.foreach(_(System.currentTimeMillis - t0))
+    val t1 = System.currentTimeMillis()
+    getTimes.add(t1 - t0)
     resp
   }
 
@@ -32,7 +33,8 @@ trait PerformanceLogger[BulkType <: AvroPair] extends Namespace
     val t0 = System.currentTimeMillis
     val fut = super.asyncGetBytes(key)
     fut.respond(_ => {
-      logGetFn.foreach(_(System.currentTimeMillis - t0))
+      val t1 = System.currentTimeMillis()
+      getTimes.add(t1 - t0)
     })
     fut
   }
@@ -44,7 +46,8 @@ trait PerformanceLogger[BulkType <: AvroPair] extends Namespace
                                  ascending: Boolean = true): Seq[BulkType] = {
     val t0 = System.currentTimeMillis
     val resp = super.getRange(start, end, limit, offset, ascending)
-    logGetRangeFn.foreach(_(System.currentTimeMillis - t0))
+    val t1 = System.currentTimeMillis()
+    getRangeTimes.add(t1 - t0)
     resp
   }
 
@@ -56,7 +59,8 @@ trait PerformanceLogger[BulkType <: AvroPair] extends Namespace
     val t0 = System.currentTimeMillis
     val fut = super.asyncGetRange(start, end, limit, offset, ascending)
     fut.respond(_ => {
-      logGetRangeFn.foreach(_(System.currentTimeMillis - t0))
+      val t1 = System.currentTimeMillis()
+      getRangeTimes.add(t1 - t0)
     })
     fut
   }
