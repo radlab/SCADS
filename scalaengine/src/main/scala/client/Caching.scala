@@ -106,14 +106,17 @@ trait CacheManager[BulkType <: AvroPair] extends Namespace
     super.asyncPutBytes(key, value)
   }
 
-  abstract override def asyncGetBytes(key: Array[Byte]): ScadsFuture[Option[Array[Byte]]] = {
-    val cachedValue = lookupInCache(key)
-    if(cachedValue == null)
-      new CachingFuture(key, super.asyncGetBytes(key))
-    else {
-      FutureWrapper(Option(cachedValue))
+  abstract override def asyncGetBytes(key: Array[Byte]): ScadsFuture[Option[Array[Byte]]] =
+    if (cacheActive) {
+      val cachedValue = lookupInCache(key)
+      if (cachedValue == null)
+        new CachingFuture(key, super.asyncGetBytes(key))
+      else {
+        FutureWrapper(Option(cachedValue))
+      }
     }
-  }
+    else
+      super.asyncGetBytes(key)
 
   abstract override def incrementFieldBytes(key: Array[Byte], fieldName: String, amount: Int): Unit = {
     //TODO: we could locally update the field, but for now we'll just invalidate the cache.
