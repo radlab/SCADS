@@ -133,7 +133,7 @@ case class TpcwWorkflowTask(var numClients: Int,
         val res = Result(expId, this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId)
         res.totalElaspedTime =  endTime - iterationStartTime
 
-        val (t0, tn) = (totalLatency.keys.min, totalLatency.keys.max)
+        val (t0, tn) = if (totalLatency.isEmpty) (0, 0) else (totalLatency.keys.min, totalLatency.keys.max)
         val windowSize = (tn - t0 + 1).intValue
         val latencyOverTime = Histogram(1, windowSize)
         val countOverTime = Histogram(1, windowSize)
