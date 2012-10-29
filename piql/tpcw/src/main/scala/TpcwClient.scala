@@ -55,6 +55,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   relatedItemCount.tolerance = 1
 
 
+  items.tolerance = 1
+  authors.tolerance = 1
 
   val namespaces = List(addresses, authors, xacts, countries,
     customers, items, orderLines, orders, shoppingCartItems,
