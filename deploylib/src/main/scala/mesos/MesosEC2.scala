@@ -94,7 +94,7 @@ object MesosCluster {
 }
 
 object DefaultRegion {
-  var value: EC2Region = USEast1
+  var value: EC2Region = USWest2
   val preferred = System.getenv("AWS_DEFAULT_REGION")
   for (region <- EC2Region.allRegions) {
     if (region.location equals preferred) {
