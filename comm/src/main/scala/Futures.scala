@@ -9,6 +9,7 @@ import java.util.concurrent.{ LinkedBlockingQueue, TimeUnit }
 import java.util.{LinkedList, Queue}
 import java.lang.ref.WeakReference
 import java.lang.RuntimeException
+import scala.deprecated
 
 /**
  * This is the base trait for any type of future in SCADS.
@@ -23,11 +24,13 @@ trait ScadsFuture[T] { self =>
   /**
    * Block on the future until T is ready
    */
+  @deprecated("You should always specify a timeout!", "use a timeout")
   def get(): T
 
   /**
    * Same as get()
    */
+  @deprecated("You should always specify a timeout!", "use a timeout")
   def apply(): T = get()
 
   /**
@@ -54,7 +57,7 @@ trait ScadsFuture[T] { self =>
   }
 
   private var respondFunctions: List[T => Unit] = Nil
-  def respond(r: T => Unit): Unit = synchronized {
+  def respond(r: T => Unit): Unit =  synchronized {
     if (isSet) {
       r(get)
     } else {
@@ -144,7 +147,7 @@ case class MessageFuture[MessageType <: IndexedRecord](val dest: RemoteServicePr
   def get(timeout: Long, unit: TimeUnit): Option[MessageType] =
     message.get(unit.toMillis(timeout))
 
-  def isSet: Boolean = message.isSet
+  @volatile var isSet: Boolean = message.isSet
 
   def cancel() = null
 
@@ -161,6 +164,7 @@ case class MessageFuture[MessageType <: IndexedRecord](val dest: RemoteServicePr
   def receiveMessage(src: Option[RemoteServiceProxy[MessageType]], msg: MessageType): Unit = synchronized {
     message.set(msg)
     sender.set(src)
+    isSet = true
     forwardList.foreach(_.offer(this))
     activateResponse
     done.set(0)
@@ -324,6 +328,7 @@ trait ComputationFuture[T] extends ScadsFuture[T] {
       try syncVar.set(Left(compute(timeout, unit))) catch {
         case e: Throwable => syncVar.set(Right(e))
       }
+      activateResponse
       Some(dispatchResult(syncVar.get))
     } else {
       // other thread beat us out to finishing the get handler- in this
