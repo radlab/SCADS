@@ -149,6 +149,25 @@ object TpcwScaleExperiment {
     }
   }
 
+  def reqResults = {
+    val allResults = scaleResults.iterateOverRange(None,None).toSeq
+
+    allResults.filter(_.iteration != 1)
+      .groupBy(r => (r.loaderConfig.numServers, r.clientConfig.expId)).toSeq
+      .sortBy(_._1)
+      .foreach {
+      case (size, results) =>
+        (results.flatMap(_.getTimes) ++ results.flatMap(_.getRangeTimes))
+          .groupBy(_.name).toSeq
+          .sortBy(_._1)
+          .foreach {
+          case (wi, hists) =>
+            val aggResults = hists.reduceLeft(_+_)
+          println(Seq(size._1, size._2, wi, aggResults.quantile(0.90), aggResults.quantile(0.99), aggResults.stddev, aggResults.totalRequests).mkString("\t"))
+        }
+    }
+  }
+
   def runScaleTest(numServers: Int, executor: String = "edu.berkeley.cs.scads.piql.exec.ParallelExecutor")(implicit cluster: Cluster) = {
     val (scadsTasks, scadsCluster) = TpcwLoaderTask(numServers, numServers/2, replicationFactor=2, numEBs = 150 * numServers/2, numItems = 10000).delayedCluster
 
