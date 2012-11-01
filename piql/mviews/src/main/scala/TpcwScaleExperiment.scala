@@ -4,6 +4,7 @@ package piql
 package mviews
 
 import avro.runtime._
+import deploylib.RemoteMachine
 import org.apache.avro.file.CodecFactory
 import java.io.File
 
@@ -83,21 +84,157 @@ case class TpcwViewRefreshTask(var experimentAddress: String,
   }
 }
 
+case class WorkloadStat(
+  var host: String,
+  var id: ServiceId,
+  var ns: String,
+  var time: Long) extends AvroPair {
+  var stat: GetWorkloadStatsResponse = null
+}
+
 object TpcwScaleExperiment {
   val logger = Logger()
-  var resultClusterAddress = ZooKeeperNode("zk://zoo1.millennium.berkeley.edu,zoo2.millennium.berkeley.edu,zoo3.millennium.berkeley.edu/home/marmbrus/sigmod2013")
-  val resultsCluster = new ScadsCluster(resultClusterAddress)
-  val scaleResults =  resultsCluster.getNamespace[Result]("tpcwScaleResults")
-  val updateResults = resultsCluster.getNamespace[RefreshResult]("updateResults")
+  lazy val resultClusterAddress = ZooKeeperNode("zk://zoo1.millennium.berkeley.edu,zoo2.millennium.berkeley.edu,zoo3.millennium.berkeley.edu/home/marmbrus/sigmod2013")
+  lazy val resultsCluster = new ScadsCluster(resultClusterAddress)
+  lazy val scaleResults =  resultsCluster.getNamespace[Result]("tpcwScaleResults")
+  lazy val updateResults = resultsCluster.getNamespace[RefreshResult]("updateResults")
+  lazy val workloadStats = resultsCluster.getNamespace[WorkloadStat]("workloadStats")
 
+  def statsPerPartition = {
+    workloadStats.iterateOverRange(None,None).toSeq
+      .groupBy(s => (s.host, s.id))
+      .map {
+        case (node, recs) =>
+          (node, recs.size, recs.map(_.time).min, recs.map(_.time).max)
+    }
+  }
 
-  implicit def productSeqToExcel(lines: Seq[Product]) = new {
+  def partitionsPerServer = {
+    workloadStats.iterateOverRange(None,None).toSeq
+      .map(s => (s.host, s.id))
+      .distinct
+      .groupBy(_._1)
+      .map {
+      case (host, ids) => (host, ids.size)
+    }
+  }
+
+  def workloadByServer = {
+    workloadStats.iterateOverRange(None,None).toSeq
+      .filter(_.time <= 1351726381068L)
+      .filter(_.time >= 1351724814792L)
+      .groupBy(s => s.host)
+      .map {
+      case (host, recs) =>
+        val stats = recs.map(_.stat)
+          (host,
+              stats.map(_.getCount).sum,
+              stats.map(_.getRangeCount).sum,
+              stats.map(_.putCount).sum,
+              stats.map(_.bulkCount).sum,
+              stats.size)
+    }
+  }
+
+  def workloadByServerNamespace = {
+    workloadStats.iterateOverRange(None,None).toSeq
+      .groupBy(s => (s.host, s.ns))
+      .map {
+      case ((host,ns), recs) =>
+        val stats = recs.map(_.stat)
+          (host,
+            ns,
+              stats.map(_.getCount).sum,
+              stats.map(_.getRangeCount).sum,
+              stats.map(_.putCount).sum,
+              stats.map(_.bulkCount).sum,
+              stats.size)
+    }
+  }
+
+  def namespaceStats = {
+    AvroInFile[WorkloadStat]("wstats.avro").toSeq
+      .groupBy(s => s.ns)
+      .map {
+      case (ns, recs) =>
+        val stats = recs.groupBy(_.host).map {
+          case (host, s) =>
+            val hostStats = s.map(_.stat)
+            GetWorkloadStatsResponse(
+              hostStats.map(_.getCount).sum,
+              hostStats.map(_.getRangeCount).sum,
+              hostStats.map(_.putCount).sum,
+              hostStats.map(_.bulkCount).sum,
+              0
+            )
+        }.toSeq
+
+        def mkStats(s: Seq[Int]) = {
+          val min = s.min
+          val max = s.max
+          Seq(min, max, if(max != 0) (max - min).toDouble / max else 0)
+        }
+        Seq(ns) ++
+          mkStats(stats.map(_.getCount)) ++
+          mkStats(stats.map(_.getRangeCount)) ++
+          mkStats(stats.map(_.putCount)) ++
+          mkStats(stats.map(_.bulkCount))
+    }
+  }
+
+  def captureWorkload(clientRoot: String)(implicit cluster: Cluster): Unit =
+    captureWorkload(new TpcwClient(new ScadsCluster(ZooKeeperNode(clientRoot)), new ParallelExecutor))
+
+  def captureWorkload(client: TpcwClient)(implicit cluster: Cluster): Unit = {
+    cluster.addInternalAddressMappings(StorageRegistry)
+
+    val t = new Thread {
+      override def run(): Unit = {
+        val allNs = client.namespaces.asInstanceOf[Seq[Namespace with KeyRangeRoutable]] ++ client.namespaces.flatMap(_.listIndexes).map(_._2).asInstanceOf[Seq[Namespace with KeyRangeRoutable]]
+
+        while(true) {
+          logger.warning("Sending requests")
+          val futures = (allNs
+            .flatMap(ns => ns.serversForKeyRange(None,None).map(r => (ns.name, r)))
+            .flatMap { case (name, rangeDesc) => rangeDesc.servers.map(s => (name, s !! GetWorkloadStats())) }
+          )
+          logger.warning("Collecting responses")
+
+          workloadStats ++= futures.map {
+            case (name, f) =>
+              val result = f.get(100000).getOrElse(sys.error("TIMEOUT")).asInstanceOf[GetWorkloadStatsResponse]
+              var node = f.dest.asInstanceOf[PartitionService]
+              WorkloadStat(node.host, node.id, name, result.statsSince, result)
+          }
+
+          Thread.sleep(10)
+        }
+      }
+    }
+
+    t.start()
+  }
+
+  implicit def productSeqToExcel(lines: Traversable[Product]) = new {
     import java.io._
     def toExcel: Unit = {
       val file = File.createTempFile("scadsOut", ".csv")
       val writer = new FileWriter(file)
 
       lines.map(_.productIterator.mkString(",") + "\n").foreach(writer.write)
+      writer.close
+
+      Runtime.getRuntime.exec(Array("/usr/bin/open", file.getCanonicalPath))
+    }
+  }
+
+  implicit def seqSeqToExcel(lines: Traversable[Traversable[Any]]) = new {
+    import java.io._
+    def toExcel: Unit = {
+      val file = File.createTempFile("scadsOut", ".csv")
+      val writer = new FileWriter(file)
+
+      lines.map(_.mkString(",") + "\n").foreach(writer.write)
       writer.close
 
       Runtime.getRuntime.exec(Array("/usr/bin/open", file.getCanonicalPath))
