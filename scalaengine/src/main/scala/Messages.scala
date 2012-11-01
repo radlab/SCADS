@@ -76,7 +76,7 @@ case class TestSetRequest(var key: Array[Byte], var value: Option[Array[Byte]], 
 case class TestSetResponse(var success: Boolean) extends AvroRecord with KeyValueStoreOperation
 
 case class GetWorkloadStats() extends AvroRecord with KeyValueStoreOperation
-case class GetWorkloadStatsResponse(var getCount:Int, var putCount:Int, var statsSince:Long) extends AvroRecord with KeyValueStoreOperation
+case class GetWorkloadStatsResponse(var getCount:Int, var getRangeCount: Int, var putCount: Int, var bulkCount: Int, var statsSince:Long) extends AvroRecord with KeyValueStoreOperation
 
 case class AggFilter(var obj:Array[Byte]) extends AvroRecord
 case class AggOp(var codename:String, var code:Array[Byte], var obj:Array[Byte], var raw:Boolean) extends AvroRecord

@@ -59,7 +59,7 @@ trait DebuggingClient {
       case (startKey, replicas) => {
         logger.info("==%s==", startKey.map(bytesToKey))
         replicas.map(f => (f._1, f._2())).foreach {
-          case (hander, GetWorkloadStatsResponse(getCount, putCount, _)) => logger.info("%s: %d gets, %d puts", hander, getCount, putCount)
+          case (hander, GetWorkloadStatsResponse(getCount, _, putCount, _, _)) => logger.info("%s: %d gets, %d puts", hander, getCount, putCount)
           case m => logger.warning("Invalid message received for workload stats %s", m)
         }
       }
@@ -69,7 +69,7 @@ trait DebuggingClient {
       futures.flatMap {
         case (startKey, replicas) => {
           replicas.map(f => (f._1, f._2())).map {
-            case (hander, GetWorkloadStatsResponse(x, y, _)) => (x, y)
+            case (hander, GetWorkloadStatsResponse(x, _, y, _, _)) => (x, y)
             case m => {
               logger.warning("Invalid message received for workload stats %s", m)
               (0, 0)
@@ -90,7 +90,7 @@ trait DebuggingClient {
     distribution.foreach(logger.debug("%s: %s", namespace, _))
 
     val workload = waitForAndThrowException(partitions.flatMap(p => p.servers.map(s => (s !! GetWorkloadStats(), (s, p.startKey.map(bytesToKey), p.endKey.map(bytesToKey)))))) {
-      case (GetWorkloadStatsResponse(gets, puts, _), p) => (gets, puts, p) }
+      case (GetWorkloadStatsResponse(gets, _, puts, _, _), p) => (gets, puts, p) }
     logger.debug("==workload==")
     workload.foreach(logger.debug("%s: %s", namespace, _))
 

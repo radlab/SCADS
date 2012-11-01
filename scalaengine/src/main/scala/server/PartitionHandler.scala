@@ -6,8 +6,6 @@ import scala.collection.mutable.ArrayBuffer
 import java.io.{BufferedReader,ObjectInputStream,InputStream,InputStreamReader,ByteArrayInputStream}
 import java.util.concurrent.atomic.AtomicInteger
 
-// keep track of number of gets and puts
-case class PartitionWorkloadStats(var gets:Int, var puts:Int)
 
 // Used for bulk puts of urls
 abstract trait RecParser extends Serializable {
@@ -61,45 +59,42 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
   def registry = StorageRegistry
 
   // workload stats code
-  protected var currentStats = PartitionWorkloadStats(0,0)
-  protected var completedStats = PartitionWorkloadStats(0,0)
-  private var statsClearedTime = System.currentTimeMillis
+  @volatile protected var completedStats = GetWorkloadStatsResponse(0,0,0,0,0)
   protected val statWindowTime = 20*1000 // ms, how long a window to maintain stats for
   protected val clearStatWindowsTime = 60*1000 // ms, keep long to keep stats around, in all windows
-  protected var statWindows = (0 until clearStatWindowsTime/statWindowTime)
-    .map {_=>(new AtomicInteger,new AtomicInteger)}.toList // (get,put) for each window
-  private val getSamplingRate = 1.0
-  private val putSamplingRate = 1.0
-  private val samplerRandom = new java.util.Random
 
-  def getWorkloadStats():(PartitionWorkloadStats,Long) = (completedStats,statsClearedTime)
+  val putCount = new AtomicInteger()
+  val getCount = new AtomicInteger()
+  val getRangeCount = new AtomicInteger()
+  val bulkCount = new AtomicInteger()
+
+  def getWorkloadStats() = completedStats
+
   /**
   * set the current stats as the last completed interval, used when stats are queried
   * zero out the current stats to start a new interval
   * return the old completed interval for archiving
   */
-  def resetWorkloadStats():PartitionWorkloadStats = {
-    val ret = completedStats
-    completedStats = currentStats
-    statsClearedTime = System.currentTimeMillis()
-    currentStats = PartitionWorkloadStats(0,0)
-    ret
+  def resetWorkloadStats() = {
+    completedStats = GetWorkloadStatsResponse(
+      getCount.getAndSet(0),
+      getRangeCount.getAndSet(0),
+      putCount.getAndSet(0),
+      bulkCount.getAndSet(0),
+      System.currentTimeMillis())
   }
-  @inline private def incrementGetCount(num:Int) = currentStats.gets += num
-  @inline private def incrementPutCount(num:Int) = currentStats.puts += num
-  // end workload stats stuff
 
   protected def process(src: Option[RemoteServiceProxy[StorageMessage]], msg: StorageMessage): Unit = {
     def reply(msg: StorageMessage) = src.foreach(_ ! msg)
     try {
       msg match {
         case GetRequest(key) => {
-          if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(1)
+          getCount.incrementAndGet()
           reply(GetResponse(manager.get(key)))
         }
         case PutRequest(key,value) => {
+          putCount.incrementAndGet()
           manager.put(key,value)
-          if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(1)
           reply(PutResponse())
         }
         case IncrementFieldRequest(key, fieldName, amount) => {
@@ -120,12 +115,13 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
           reply(BulkUpdateResponse())
         }
         case BulkUpdateRequest(updates) => {
+          bulkCount.incrementAndGet()
           manager.bulkUpdate(updates)
           /*if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(reccount)*/
           reply(BulkUpdateResponse())
         }
         case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
-          if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(1/*reccount*/)
+          getRangeCount.incrementAndGet()
           reply(GetRangeResponse(manager.getRange(minKey,maxKey,limit,offset,ascending)))
         }
         case BatchRequest(ranges) =>
@@ -149,24 +145,21 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
           val resp = manager.getResponsibility()
           reply(GetResponsibilityResponse(resp._1,resp._2))
         }
-	case GetWorkloadStats() => {
-          val (stats,clearedTime) = getWorkloadStats()
-	  reply(GetWorkloadStatsResponse(stats.gets, stats.puts, clearedTime))
+        case GetWorkloadStats() => {
+          reply(completedStats)
         }
-        case AggRequest(groups,keyType,valType,filters,aggs) => 
-          reply(AggReply(manager.applyAggregate(groups,keyType,valType,filters,aggs)))
+        case AggRequest(groups, keyType, valType, filters, aggs) =>
+          reply(AggReply(manager.applyAggregate(groups, keyType, valType, filters, aggs)))
         case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
       }
     } catch {
-      case r:RequestRejectedException => reply(RequestRejected(r.getMessage(),msg))
-      case e:Exception => {
+      case r: RequestRejectedException => reply(RequestRejected(r.getMessage(), msg))
+      case e: Exception => {
         logger.info("Exception processing request")
         e.printStackTrace()
         reply(ProcessingException(e.getMessage, e.getStackTrace.mkString("\n")))
       }
     }
   }
-  
-
 }
 

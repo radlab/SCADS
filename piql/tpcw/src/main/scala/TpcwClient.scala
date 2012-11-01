@@ -277,7 +277,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     val partitions = namespaces.flatMap(_.serversForKeyRange(None, None))
     val workloads = partitions.flatMap(p => p.servers.map(s => (s.host, s !! GetWorkloadStats())))
                               .map {case (h, f) => (h, f())}
-                              .map {case (h, GetWorkloadStatsResponse(w1, w2, _)) => (h, w1+w2); case (h, _) => throw new RuntimeException("Invalid response from: " + h)}
+                              .map {case (h, GetWorkloadStatsResponse(w1, _, w2, _, _)) => (h, w1+w2); case (h, _) => throw new RuntimeException("Invalid response from: " + h)}
                               .groupBy(_._1).toSeq
 
     workloads.map {

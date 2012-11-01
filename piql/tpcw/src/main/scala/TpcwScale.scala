@@ -28,9 +28,9 @@ case class Result(var expId: String,
                   var iteration: Int,
                   var threadId: Int) extends AvroPair {
   var totalElaspedTime: Long = _ /* in ms */
-  var times: Seq[Histogram] = null
-  var getTimes: Seq[Histogram] = null
-  var getRangeTimes: Seq[Histogram] = null
+  var times: Seq[Histogram] = Nil
+  var getTimes: Seq[Histogram] = Nil
+  var getRangeTimes: Seq[Histogram] = Nil
   var skips: Int = _
   var failures: Int = _
 }
@@ -125,9 +125,9 @@ case class TpcwWorkflowTask(var numClients: Int,
         res.failures = failures
         res.skips = skips
 
-        val allNs: Seq[PerformanceLogger[_]] = tpcwClient.namespaces.asInstanceOf[Seq[PerformanceLogger[_]]] ++ tpcwClient.namespaces.flatMap(_.listIndexes.values).asInstanceOf[Seq[PerformanceLogger[_]]]
-        res.getTimes = allNs.map(_.getTimes)
-        res.getRangeTimes = allNs.map(_.getRangeTimes)
+        //val allNs: Seq[PerformanceLogger[_]] = tpcwClient.namespaces.asInstanceOf[Seq[PerformanceLogger[_]]] ++ tpcwClient.namespaces.flatMap(_.listIndexes.values).asInstanceOf[Seq[PerformanceLogger[_]]]
+        //res.getTimes = allNs.map(_.getTimes)
+        //res.getRangeTimes = allNs.map(_.getRangeTimes)
 
         res
       })
