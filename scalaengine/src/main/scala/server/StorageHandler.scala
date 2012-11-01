@@ -84,23 +84,22 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     /**
      * Workload statistics thread periodically clears the stats from all partitions
      */
-    private val period = 20 // seconds
-    private val intervalsToSave = 3
-    protected lazy val statsThread = new Thread(new StatsManager(period), "workload statistic clearing thread")
+    private val periodInSeconds = 20
+    protected lazy val statsThread = new Thread("workload statistic clearing thread") {
+      @volatile var running = true
+      override def run():Unit =
+	    while (running) {
+	      Thread.sleep(periodInSeconds*1000)
+	      logger.debug("starting stats clearing")
+        val time = System.currentTimeMillis()
+        val interval = time - (time % (periodInSeconds * 1000))
+	      partitions.foreach(_._2.resetWorkloadStats(interval))
+	      logger.debug("finished stats clearing")
+	    }
+      def stopStats() = running = false
+    }
     statsThread.setDaemon(true)
     statsThread.start()
-    
-    class StatsManager(periodInSeconds:Int) extends Runnable {
-      @volatile var running = true
-      def run():Unit =
-	while (running) {
-	  Thread.sleep(periodInSeconds*1000)
-	  logger.debug("starting stats clearing")
-	  partitions.foreach(_._2.resetWorkloadStats)
-	  logger.debug("finished stats clearing")
-	}
-      def stop() = running = false
-    }
 
   private def makeDatabase(databaseName: String, keySchema: Schema, txn: Option[Transaction]): Database =
     makeDatabase(databaseName, Some(new AvroBdbComparator(keySchema)), txn)

@@ -75,13 +75,13 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
   * zero out the current stats to start a new interval
   * return the old completed interval for archiving
   */
-  def resetWorkloadStats() = {
+  def resetWorkloadStats(interval: Long) = {
     completedStats = GetWorkloadStatsResponse(
       getCount.getAndSet(0),
       getRangeCount.getAndSet(0),
       putCount.getAndSet(0),
       bulkCount.getAndSet(0),
-      System.currentTimeMillis())
+      interval)
   }
 
   protected def process(src: Option[RemoteServiceProxy[StorageMessage]], msg: StorageMessage): Unit = {

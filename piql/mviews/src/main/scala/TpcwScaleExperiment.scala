@@ -204,7 +204,9 @@ object TpcwScaleExperiment {
             case (name, f) =>
               val result = f.get(100000).getOrElse(sys.error("TIMEOUT")).asInstanceOf[GetWorkloadStatsResponse]
               var node = f.dest.asInstanceOf[PartitionService]
-              WorkloadStat(node.host, node.id, name, result.statsSince, result)
+              val s = WorkloadStat(node.host, node.id, name, result.statsSince)
+              s.stat = result
+              s
           }
 
           Thread.sleep(10)
