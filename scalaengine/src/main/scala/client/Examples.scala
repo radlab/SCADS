@@ -170,12 +170,12 @@ class PairNamespace[Pair <: AvroPair : Manifest](
   with QuorumRangeProtocol
   with AvroPairSerializer[Pair]
   with RecordStore[Pair]
-  with CacheManager[Pair]
+//  with CacheManager[Pair]
   with index.IndexManager[Pair]
   with index.ViewManager[Pair]
   with index.TriggerManager[Pair]
   with DebuggingClient
-  with PerformanceLogger[Pair]
+//  with PerformanceLogger[Pair]
   with NamespaceIterator[Pair] {
   
   override protected val pairManifest = manifest[Pair]

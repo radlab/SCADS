@@ -54,7 +54,7 @@ class IndexNamespace(
   with DefaultKeyRangeRoutable
   with RecordStore[IndexedRecord]
   with Serializer[IndexedRecord, IndexedRecord, IndexedRecord]
-  with PerformanceLogger[IndexedRecord]
+//  with PerformanceLogger[IndexedRecord]
   with NamespaceIterator[IndexedRecord]
   with DebuggingClient
 { 
