@@ -305,14 +305,15 @@ object TpcwScaleExperiment {
     }
   }
 
-  def runScaleTest(numServers: Int, executor: String = "edu.berkeley.cs.scads.piql.exec.ParallelExecutor")(implicit cluster: Cluster) = {
+  def runScaleTest(numServers: Int, small: Boolean = false, executor: String = "edu.berkeley.cs.scads.piql.exec.ParallelExecutor")(implicit cluster: Cluster) = {
     val (scadsTasks, scadsCluster) = TpcwLoaderTask(numServers, numServers/2, replicationFactor=2, numEBs = 150 * numServers/2, numItems = 10000).delayedCluster
 
     val tpcwTaskTemplate = TpcwWorkflowTask(
-          numServers/2,
+          if(small) 1 else numServers/2,
           executor,
           iterations = 5,
-          runLengthMin = 5
+          runLengthMin = 5,
+          numThreads = 1
         )
 
     val tpcwTasks = tpcwTaskTemplate.delayedSchedule(scadsCluster, resultsCluster)
