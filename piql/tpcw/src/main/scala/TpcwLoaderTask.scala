@@ -52,8 +52,8 @@ case class TpcwLoaderTask(var numServers: Int,
     val tpcwClient = new TpcwClient(cluster, new ParallelExecutor)
 
     /* Turn on the cache for commonly used ns by delta queries */
-    tpcwClient.orders.cacheActive = true
-    tpcwClient.items.cacheActive = true
+    //tpcwClient.orders.cacheActive = true
+    //tpcwClient.items.cacheActive = true
 
     /* HACK: Loading is taking forever!  Don't do it? */
     tpcwClient.orderLines.triggersActive = false
