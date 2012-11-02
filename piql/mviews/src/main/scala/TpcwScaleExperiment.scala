@@ -209,7 +209,7 @@ object TpcwScaleExperiment {
               s
           }
 
-          Thread.sleep(10)
+          Thread.sleep(10000)
         }
       }
     }
