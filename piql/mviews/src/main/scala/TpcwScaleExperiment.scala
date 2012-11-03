@@ -269,6 +269,30 @@ object TpcwScaleExperiment {
     .groupBy(_.name)
     .map { case (name, hists) => (name, hists.reduceLeft(_ + _).quantile(0.99)) }
 
+  def resultsCsv = {
+    val lines = new scala.collection.mutable.ArrayBuffer[String]
+    lines.append(Seq("numServers", "action", "99th", "numRequests", "expId").mkString(","))
+    val allResults = scaleResults.iterateOverRange(None,None).toSeq
+    def rd(x: Double) = (x * 100).intValue / 100.0
+    allResults.filter(_.iteration != 1)
+      .groupBy(r => (r.loaderConfig.numServers, r.clientConfig.expId)).toSeq
+      .sortBy(_._1)
+      .flatMap {
+        case (size, results) =>
+          results.flatMap(_.times)
+            .groupBy(_.name).toSeq
+            .map {
+              case (wi, hists) =>
+                val quantiles = hists.map(_.quantile(0.99))
+                val aggResults = hists.reduceLeft(_+_)
+                (size._1, wi, rd(aggResults.quantile(0.99)), aggResults.totalRequests, size._2)
+          }
+      }.sortBy(_._1).sortBy(_._2).foreach{
+        case t => lines.append(t.productIterator.toList.mkString(","))
+      }
+    lines.mkString("\n")
+  }
+
   def results = {
     val allResults = scaleResults.iterateOverRange(None,None).toSeq
 
@@ -280,7 +304,7 @@ object TpcwScaleExperiment {
         results.flatMap(_.times)
           .groupBy(_.name).toSeq
           .sortBy(_._1)
-          .foreach {
+          .foreach  {
           case (wi, hists) =>
             val aggResults = hists.reduceLeft(_+_)
           println(Seq(size._1, size._2, wi, aggResults.quantile(0.90), aggResults.quantile(0.99), aggResults.stddev, aggResults.totalRequests).mkString("\t"))
