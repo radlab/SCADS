@@ -4,7 +4,9 @@ import edu.berkeley.cs.scads.comm._
 import net.lag.logging.Logger
 import scala.collection.mutable.ArrayBuffer
 import java.io.{BufferedReader,ObjectInputStream,InputStream,InputStreamReader,ByteArrayInputStream}
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic._
+import java.util.concurrent._
+import scala.collection.JavaConversions._
 
 
 // Used for bulk puts of urls
@@ -59,14 +61,14 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
   def registry = StorageRegistry
 
   // workload stats code
-  @volatile protected var completedStats = GetWorkloadStatsResponse(0,0,0,0,0)
+  @volatile protected var completedStats = {
+    val st = GetWorkloadStatsResponse(0,0,0,0,0)
+    st.countKeys = List()
+    st.countValues = List()
+    st
+  }
   protected val statWindowTime = 20*1000 // ms, how long a window to maintain stats for
   protected val clearStatWindowsTime = 60*1000 // ms, keep long to keep stats around, in all windows
-
-  val putCount = new AtomicInteger()
-  val getCount = new AtomicInteger()
-  val getRangeCount = new AtomicInteger()
-  val bulkCount = new AtomicInteger()
 
   def getWorkloadStats() = completedStats
 
@@ -76,29 +78,42 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
   * return the old completed interval for archiving
   */
   def resetWorkloadStats(interval: Long) = {
-    completedStats = GetWorkloadStatsResponse(
-      getCount.getAndSet(0),
-      getRangeCount.getAndSet(0),
-      putCount.getAndSet(0),
-      bulkCount.getAndSet(0),
-      interval)
+    val oldCounters = counters.getAndSet(new ConcurrentHashMap[String,AtomicInteger]())
+    val stats = GetWorkloadStatsResponse(0,0,0,0,interval)
+    val tuples = oldCounters.map(t => (t._1, t._2.get)).toList
+    // HACK since we can't serialize sequences of tuples yet
+    stats.countKeys = tuples.map(_._1)
+    stats.countValues = tuples.map(_._2)
+    completedStats = stats
+  }
+
+  val sampleCounter = new AtomicInteger()
+  val counters = new AtomicReference(new ConcurrentHashMap[String,AtomicInteger]())
+  def recordSample(tag: Option[String], op: String) = {
+//    if ((sampleCounter.getAndIncrement & 0xff) == 0) {
+      val id = op + ":" + tag.getOrElse("unknown")
+      val ctr = counters.get.putIfAbsent(id, new AtomicInteger(1))
+      if (ctr != null) {
+        ctr.getAndIncrement
+      }
+//    }
   }
 
   protected def process(src: Option[RemoteServiceProxy[StorageMessage]], msg: StorageMessage): Unit = {
     def reply(msg: StorageMessage) = src.foreach(_ ! msg)
     try {
       msg match {
-        case GetRequest(key) => {
-          getCount.incrementAndGet()
+        case GetRequest(key, tag) => {
+          recordSample(tag, "get")
           reply(GetResponse(manager.get(key)))
         }
-        case PutRequest(key,value) => {
-          putCount.incrementAndGet()
+        case PutRequest(key,value,tag) => {
+          recordSample(tag, "put")
           manager.put(key,value)
           reply(PutResponse())
         }
-        case IncrementFieldRequest(key, fieldName, amount) => {
-          manager.incrementField(key, fieldName, amount)
+        case IncrementFieldRequest(key, fieldName, amount, tag) => {
+          recordSample(tag, "incr")
           reply(IncrementFieldResponse())
         }
         case TopKRequest(startKey, endKey, orderingFields, k, ascending) => {
@@ -114,14 +129,14 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
           manager.bulkUrlPut(parser,locations)
           reply(BulkUpdateResponse())
         }
-        case BulkUpdateRequest(updates) => {
-          bulkCount.incrementAndGet()
+        case BulkUpdateRequest(updates, tag) => {
+          recordSample(tag, "bulkUpdate")
           manager.bulkUpdate(updates)
           /*if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(reccount)*/
           reply(BulkUpdateResponse())
         }
-        case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
-          getRangeCount.incrementAndGet()
+        case GetRangeRequest(minKey, maxKey, limit, offset, ascending, tag) => {
+          recordSample(tag, "getRange")
           reply(GetRangeResponse(manager.getRange(minKey,maxKey,limit,offset,ascending)))
         }
         case BatchRequest(ranges) =>

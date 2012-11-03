@@ -391,7 +391,7 @@ class BdbStorageManager(val db: Database,
                                       new DatabaseEntry(v))
           case None => db.delete(txn, new DatabaseEntry(rec.key))
         }
-      case IncrementFieldRequest(key, fieldName, amount) => {
+      case IncrementFieldRequest(key, fieldName, amount, tag) => {
         oldValue = doIncrementField(txn, key, fieldName, amount, oldValue)
 
         //HACK: because locks are timing out with large puts
@@ -424,7 +424,7 @@ class BdbStorageManager(val db: Database,
     val results = new ArrayBuffer[GetRangeResponse]
     results.sizeHint(ranges.size)
     ranges.foreach {
-      case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
+      case GetRangeRequest(minKey, maxKey, limit, offset, ascending, tag) => {
         val records = new ArrayBuffer[Record]
         limit.map(records.sizeHint(_))
         iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {

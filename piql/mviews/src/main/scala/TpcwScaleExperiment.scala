@@ -152,55 +152,50 @@ object TpcwScaleExperiment {
     }
   }
 
-  def namespaceStats = {
-    workloadStats.iterateOverRange(None,None).toSeq
-      .groupBy(s => s.ns)
-      .map {
-      case (ns, recs) =>
-        val stats = recs.groupBy(_.host).map {
-          case (host, s) =>
-            val hostStats = s.map(_.stat)
-            GetWorkloadStatsResponse(
-              hostStats.map(_.getCount).sum,
-              hostStats.map(_.getRangeCount).sum,
-              hostStats.map(_.putCount).sum,
-              hostStats.map(_.bulkCount).sum,
-              0
-            )
-        }.toSeq
-
-        def mkStats(s: Seq[Int]) = {
-          val min = s.min
-          val max = s.max
-          Seq(min, max, if(max != 0) (max - min).toDouble / max else 0)
+  /*
+   * Returns list of high skew operations, weighted by skewed load induced
+   * Seq[Tuple2[namespace, op_desc, host_min, host_max, skew, estimated_skew_load]]
+   */
+  def findHighSkewOps(iter: Seq[WorkloadStat]) = {
+    iter.groupBy(t => (t.ns, t.host)).toList.map {
+      case ((ns, host), recs) =>
+        val hostStats = recs.flatMap(s => s.stat.countKeys.zip(s.stat.countValues))
+        (ns, host) -> hostStats.groupBy(_._1).map {
+          case (k,v) => (k, v.map(_._2).sum)
         }
-        Seq(ns) ++
-          mkStats(stats.map(_.getCount)) ++
-          mkStats(stats.map(_.getRangeCount)) ++
-          mkStats(stats.map(_.putCount)) ++
-          mkStats(stats.map(_.bulkCount))
-    }
+    }.groupBy(_._1._1).map {
+      case (ns, hostRecs) =>
+        val tracedOps = hostRecs.flatMap(_._2.keys).toSet
+        ns -> tracedOps.flatMap{op =>
+          val distribution = hostRecs.map(_._2.getOrElse(op, 0))
+          val min = distribution.min
+          val max = distribution.max
+          val skew = if (max != 0) (max - min).toDouble / max else 0
+          List((ns, op, min, max, skew, skew * max))
+        }
+    }.flatMap {
+      case (ns, skewed) => skewed
+    }.toList.sortBy(t => - t._6)
   }
 
-  def captureWorkload(clientRoot: String)(implicit cluster: Cluster): Unit =
-    captureWorkload(new TpcwClient(new ScadsCluster(ZooKeeperNode(clientRoot)), new ParallelExecutor))
+  def captureWorkload(clientRoot: String, buffer: collection.mutable.ArrayBuffer[WorkloadStat])(implicit cluster: Cluster): Unit =
+    captureWorkload(new TpcwClient(new ScadsCluster(ZooKeeperNode(clientRoot)), new ParallelExecutor), buffer)
 
-  def captureWorkload(client: TpcwClient)(implicit cluster: Cluster): Unit = {
+  def captureWorkload(client: TpcwClient, buffer: collection.mutable.ArrayBuffer[WorkloadStat])(implicit cluster: Cluster): Unit = {
     cluster.addInternalAddressMappings(StorageRegistry)
 
     val t = new Thread {
       override def run(): Unit = {
         val allNs = client.namespaces.asInstanceOf[Seq[Namespace with KeyRangeRoutable]] ++ client.namespaces.flatMap(_.listIndexes).map(_._2).asInstanceOf[Seq[Namespace with KeyRangeRoutable]]
 
+        logger.warning("Start workload collection.")
         while(true) {
-          logger.warning("Sending requests")
           val futures = (allNs
             .flatMap(ns => ns.serversForKeyRange(None,None).map(r => (ns.name, r)))
             .flatMap { case (name, rangeDesc) => rangeDesc.servers.map(s => (name, s !! GetWorkloadStats())) }
           )
-          logger.warning("Collecting responses")
 
-          workloadStats ++= futures.map {
+          buffer ++= futures.map {
             case (name, f) =>
               val result = f.get(100000).getOrElse(sys.error("TIMEOUT")).asInstanceOf[GetWorkloadStatsResponse]
               var node = f.dest.asInstanceOf[PartitionService]

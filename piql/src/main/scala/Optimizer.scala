@@ -16,15 +16,20 @@ case class ImplementationLimitation(desc: String) extends Exception
 
 class OptimizedQuery(val name: Option[String], val physicalPlan: QueryPlan, executor: QueryExecutor, val logicalPlan: Option[LogicalPlan] = None) {
   def apply(args: Any*): QueryResult = {
-    val encodedArgs = args.map {
-      case s: String => new Utf8(s)
-      case o => o
+    try {
+      storage.pushTag(name.getOrElse("query"))
+      val encodedArgs = args.map {
+        case s: String => new Utf8(s)
+        case o => o
+      }
+      val iterator = executor(physicalPlan, encodedArgs: _*)
+      iterator.open
+      val ret = iterator.toList
+      iterator.close
+      ret
+    } finally {
+      storage.popTag
     }
-    val iterator = executor(physicalPlan, encodedArgs: _*)
-    iterator.open
-    val ret = iterator.toList
-    iterator.close
-    ret
   }
 
   def toHtml: xml.NodeSeq = {

@@ -43,24 +43,24 @@ case class InvalidNamespace(var namespace: String) extends RemoteException with 
 
 /* KVStore Operations */
 sealed trait KeyValueStoreOperation extends PartitionServiceOperation
-case class GetRequest(var key: Array[Byte]) extends AvroRecord with KeyValueStoreOperation
+case class GetRequest(var key: Array[Byte], var tag: Option[String]=currentTag.get) extends AvroRecord with KeyValueStoreOperation
 case class GetResponse(var value: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation
 
 sealed trait BulkRequest extends AvroUnion {
   def key: Array[Byte]
 }
 
-case class PutRequest(var key: Array[Byte], var value: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation with BulkRequest
+case class PutRequest(var key: Array[Byte], var value: Option[Array[Byte]], var tag: Option[String]=currentTag.get) extends AvroRecord with KeyValueStoreOperation with BulkRequest
 case class PutResponse() extends AvroRecord with KeyValueStoreOperation
 
-case class IncrementFieldRequest(var key: Array[Byte], var fieldName: String, var amount: Int) extends AvroRecord with KeyValueStoreOperation with BulkRequest
+case class IncrementFieldRequest(var key: Array[Byte], var fieldName: String, var amount: Int, var tag: Option[String]=currentTag.get) extends AvroRecord with KeyValueStoreOperation with BulkRequest
 case class IncrementFieldResponse() extends AvroRecord with KeyValueStoreOperation
 
 case class BulkUrlPutReqest(var parser:Array[Byte], var locations:Seq[String]) extends AvroRecord with KeyValueStoreOperation
-case class BulkUpdateRequest(var records: Seq[BulkRequest]) extends AvroRecord with KeyValueStoreOperation
+case class BulkUpdateRequest(var records: Seq[BulkRequest], var tag: Option[String]=currentTag.get) extends AvroRecord with KeyValueStoreOperation
 case class BulkUpdateResponse() extends AvroRecord with KeyValueStoreOperation
 
-case class GetRangeRequest(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]], var limit: Option[Int] = None, var offset: Option[Int] = None, var ascending: Boolean = true) extends AvroRecord with KeyValueStoreOperation
+case class GetRangeRequest(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]], var limit: Option[Int] = None, var offset: Option[Int] = None, var ascending: Boolean = true, var tag: Option[String]=currentTag.get) extends AvroRecord with KeyValueStoreOperation
 case class GetRangeResponse(var records: Seq[Record]) extends AvroRecord with KeyValueStoreOperation
 
 case class CursorScanRequest(var cursorId: Option[Int], var recsPerRequest: Int) extends AvroRecord with KeyValueStoreOperation
@@ -76,7 +76,10 @@ case class TestSetRequest(var key: Array[Byte], var value: Option[Array[Byte]], 
 case class TestSetResponse(var success: Boolean) extends AvroRecord with KeyValueStoreOperation
 
 case class GetWorkloadStats() extends AvroRecord with KeyValueStoreOperation
-case class GetWorkloadStatsResponse(var getCount:Int, var getRangeCount: Int, var putCount: Int, var bulkCount: Int, var statsSince:Long) extends AvroRecord with KeyValueStoreOperation
+case class GetWorkloadStatsResponse(var getCount:Int, var getRangeCount: Int, var putCount: Int, var bulkCount: Int, var statsSince:Long) extends AvroRecord with KeyValueStoreOperation {
+  var countKeys: Seq[String] = Nil
+  var countValues: Seq[Int] = Nil
+}
 
 case class AggFilter(var obj:Array[Byte]) extends AvroRecord
 case class AggOp(var codename:String, var code:Array[Byte], var obj:Array[Byte], var raw:Boolean) extends AvroRecord

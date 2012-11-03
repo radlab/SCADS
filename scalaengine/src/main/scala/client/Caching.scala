@@ -67,7 +67,7 @@ trait CacheManager[BulkType <: AvroPair] extends Namespace
   }
 
   var cacheActive: Boolean = false
-  val cachedValues = util.Collections.synchronizedMap(new map.LRUMap(200).asInstanceOf[util.Map[EQArray, Array[Byte]]])
+  val cachedValues = util.Collections.synchronizedMap(new map.LRUMap(2000).asInstanceOf[util.Map[EQArray, Array[Byte]]])
 
   protected def addToCache(key: Array[Byte], value: Option[Array[Byte]]): Option[Array[Byte]] = {
     if (cacheActive)
