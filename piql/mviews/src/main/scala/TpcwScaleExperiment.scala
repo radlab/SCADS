@@ -314,7 +314,7 @@ object TpcwScaleExperiment {
           math.sqrt(mean_99th_sq - math.pow(mean_99th, 2))
         }
       }
-      val count = rows.map(_._4).sum
+      val count = rows.map(_._4).sum / rows.length
       List(n) ++ means ++ stddevs ++ List(count, rows.length)
     }}
   }
