@@ -92,7 +92,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
 
   class ZooKeeperNode(val path: String) {
     require(path.startsWith("/"), "Path must start with a slash (/)")
-    val defaultTimeout = 15*60*1000
+    val defaultTimeout = 60*60*1000
     lazy val name: String = path.split("/").last
     lazy val prefix: String = if (path == "/") "/" else path + "/"
 
