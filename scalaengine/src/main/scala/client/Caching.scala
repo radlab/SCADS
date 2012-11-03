@@ -19,6 +19,12 @@ trait CacheManager[BulkType <: AvroPair] extends Namespace
   with ZooKeeperGlobalMetadata
   with RecordStore[BulkType] {
 
+  @volatile
+  var cacheMisses = 0
+
+  @volatile
+  var cacheHits = 0
+
   protected case class EQArray(bytes:Array[Byte]) extends Serializable {
     require(bytes != null)
 
@@ -68,7 +74,7 @@ trait CacheManager[BulkType <: AvroPair] extends Namespace
       value match {
         case Some(v) => {
           if (cachedValues.size % 100 == 0) {
-            logger.warning("Cache size increased to %d", cachedValues.size)
+            logger.warning("%s cache size now %d, hit rate %f", name, cachedValues.size, cacheHits / (cacheHits + cacheMisses))
           }
           cachedValues.put(EQArray(key), v)
         }
@@ -79,12 +85,12 @@ trait CacheManager[BulkType <: AvroPair] extends Namespace
   }
 
   protected def lookupInCache(key: Array[Byte]) = {
-    if(cacheActive) {
+    if (cacheActive) {
       val cv = cachedValues.get(EQArray(key))
-      if(cv == null)
-        logger.trace("CacheMiss %s", name)
+      if (cv == null)
+        cacheMisses += 1
       else
-        logger.trace("CacheHit %s", name)
+        cacheHits += 1
       cv
     }
     else
