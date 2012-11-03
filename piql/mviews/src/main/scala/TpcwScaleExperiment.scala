@@ -270,9 +270,8 @@ object TpcwScaleExperiment {
     .map { case (name, hists) => (name, hists.reduceLeft(_ + _).quantile(0.99)) }
 
   /* Returns rows of (numServers, action, 99th, numRequests, expId) */
-  def resultRows = {
-    val allResults = scaleResults.iterateOverRange(None,None).toSeq
-    allResults.filter(_.iteration != 1)
+  def resultRows(iter: Traversable[Result]=scaleResults.iterateOverRange(None,None).toSeq) = {
+    iter.filter(_.iteration != 1)
       .groupBy(r => (r.loaderConfig.numServers, r.clientConfig.expId)).toSeq
       .sortBy(_._1)
       .flatMap {
@@ -288,21 +287,21 @@ object TpcwScaleExperiment {
       }.sortBy(_._1).sortBy(_._2)
   }
 
-  def resultTable(rows: Seq[Tuple5[Int,String,Int,Long,String]] = resultRows) = {
+  def resultTable(rows: Seq[Tuple5[Int,String,Int,Long,String]] = resultRows()) = {
     val lines = new scala.collection.mutable.ArrayBuffer[String]
     lines.append("numServers,action,99th,numRequests,expId")
-    resultRows.foreach {
+    rows.foreach {
       case t => lines.append(t.productIterator.toList.mkString(","))
     }
     lines.mkString("\n")
   }
 
-  def resultScatterTable(rows: Seq[Tuple5[Int,String,Int,Long,String]] = resultRows) = {
-    val actions = resultRows.map(_._2).toSet.toList.sorted
+  def resultScatterTable(rows: Seq[Tuple5[Int,String,Int,Long,String]] = resultRows()) = {
+    val actions = rows.map(_._2).toSet.toList.sorted
     val meanHeader = actions.map(_ + "_avg")
     val stddevHeader = actions.map(_ + "_stddev")
-    List(List("numServers") ++ meanHeader ++ stddevHeader ++ List("numSamples")) ++
-    resultRows.groupBy(_._1).map{case (n, rows) => {
+    List(List("numServers") ++ meanHeader ++ stddevHeader ++ List("numRequests", "numSamples")) ++
+    rows.groupBy(_._1).map{case (n, rows) => {
       val means = rows.groupBy(_._2).toList.sortBy(_._1).map{
         case (action, samples) => {
           samples.map(_._3).sum / samples.length
@@ -315,7 +314,8 @@ object TpcwScaleExperiment {
           math.sqrt(mean_99th_sq - math.pow(mean_99th, 2))
         }
       }
-      List(n) ++ means ++ stddevs ++ List(rows.length)
+      val count = rows.map(_._4).sum
+      List(n) ++ means ++ stddevs ++ List(count, rows.length)
     }}
   }
 
