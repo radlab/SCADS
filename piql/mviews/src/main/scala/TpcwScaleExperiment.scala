@@ -298,18 +298,24 @@ object TpcwScaleExperiment {
   }
 
   def resultScatterTable(rows: Seq[Tuple5[Int,String,Int,Long,String]] = resultRows) = {
-    val actions = resultRows.map(_._2).sorted.flatMap(a => List(a + "_mean", a + "_stddev"))
-    List(List("numServers") ++ actions ++ List("numSamples")) ++
+    val actions = resultRows.map(_._2).toSet.toList.sorted
+    val meanHeader = actions.map(_ + "_avg")
+    val stddevHeader = actions.map(_ + "_stddev")
+    List(List("numServers") ++ meanHeader ++ stddevHeader ++ List("numSamples")) ++
     resultRows.groupBy(_._1).map{case (n, rows) => {
-      val columns = rows.groupBy(_._2).toList.sortBy(_._1).flatMap{
+      val means = rows.groupBy(_._2).toList.sortBy(_._1).map{
+        case (action, samples) => {
+          samples.map(_._3).sum / samples.length
+        }
+      }
+      val stddevs = rows.groupBy(_._2).toList.sortBy(_._1).map{
         case (action, samples) => {
           val mean_99th = samples.map(_._3).sum / samples.length
           val mean_99th_sq = samples.map(_._3 match {case x => math.pow(x, 2)}).sum / samples.length
-          val stddev_99th = math.sqrt(mean_99th_sq - math.pow(mean_99th, 2))
-          List(mean_99th, stddev_99th)
+          math.sqrt(mean_99th_sq - math.pow(mean_99th, 2))
         }
       }
-      List(n) ++ columns ++ List(rows.length)
+      List(n) ++ means ++ stddevs ++ List(rows.length)
     }}
   }
 
