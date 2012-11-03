@@ -67,7 +67,9 @@ trait CacheManager[BulkType <: AvroPair] extends Namespace
     if (cacheActive)
       value match {
         case Some(v) => {
-          logger.warning("Cache size is now %d", cachedValues.size)
+          if (cachedValues.size % 100 == 0) {
+            logger.warning("Cache size increased to %d", cachedValues.size)
+          }
           cachedValues.put(EQArray(key), v)
         }
         case None =>
