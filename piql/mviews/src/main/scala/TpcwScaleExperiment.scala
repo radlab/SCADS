@@ -271,7 +271,7 @@ object TpcwScaleExperiment {
 
   /* Returns rows of (numServers, action, 99th, numRequests, expId) */
   def resultRows = {
-    val allResults = scaleResults.iterateOverRange(None,None).take(5).toSeq
+    val allResults = scaleResults.iterateOverRange(None,None).toSeq
     allResults.filter(_.iteration != 1)
       .groupBy(r => (r.loaderConfig.numServers, r.clientConfig.expId)).toSeq
       .sortBy(_._1)
