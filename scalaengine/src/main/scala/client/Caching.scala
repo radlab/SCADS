@@ -6,6 +6,7 @@ package client
 import comm._
 import avro.marker.AvroPair
 import org.apache.avro.generic.IndexedRecord
+import org.apache.commons.collections.map
 import java.util
 import java.io.Serializable
 import util.concurrent.TimeUnit
@@ -66,8 +67,7 @@ trait CacheManager[BulkType <: AvroPair] extends Namespace
   }
 
   var cacheActive: Boolean = false
-  //TODO: Use a more intelligent data structure...
-  val cachedValues = new util.HashMap[EQArray, Array[Byte]]
+  val cachedValues = util.Collections.synchronizedMap(new map.LRUMap(200).asInstanceOf[util.Map[EQArray, Array[Byte]]])
 
   protected def addToCache(key: Array[Byte], value: Option[Array[Byte]]): Option[Array[Byte]] = {
     if (cacheActive)
