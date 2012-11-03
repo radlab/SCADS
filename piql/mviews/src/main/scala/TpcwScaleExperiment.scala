@@ -153,7 +153,7 @@ object TpcwScaleExperiment {
   }
 
   def namespaceStats = {
-    AvroInFile[WorkloadStat]("wstats.avro").toSeq
+    workloadStats.iterateOverRange(None,None).toSeq
       .groupBy(s => s.ns)
       .map {
       case (ns, recs) =>
