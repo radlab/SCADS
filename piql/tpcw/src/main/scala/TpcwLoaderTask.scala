@@ -53,7 +53,7 @@ case class TpcwLoaderTask(var numServers: Int,
 
     /* Turn on the cache for commonly used ns by delta queries */
     //tpcwClient.orders.cacheActive = true
-    //tpcwClient.items.cacheActive = true
+    tpcwClient.items.cacheActive = true
 
     /* HACK: Loading is taking forever!  Don't do it? */
     tpcwClient.orderLines.triggersActive = false

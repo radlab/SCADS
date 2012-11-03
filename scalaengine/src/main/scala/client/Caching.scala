@@ -61,13 +61,15 @@ trait CacheManager[BulkType <: AvroPair] extends Namespace
 
   var cacheActive: Boolean = false
   //TODO: Use a more intelligent data structure...
-  val cachedValues = new util.WeakHashMap[EQArray, Array[Byte]]
+  val cachedValues = new util.HashMap[EQArray, Array[Byte]]
 
   protected def addToCache(key: Array[Byte], value: Option[Array[Byte]]): Option[Array[Byte]] = {
     if (cacheActive)
       value match {
-        case Some(v) =>
+        case Some(v) => {
+          logger.warning("Cache size is now %d", cachedValues.size)
           cachedValues.put(EQArray(key), v)
+        }
         case None =>
           cachedValues.remove(EQArray(key))
       }
@@ -78,9 +80,9 @@ trait CacheManager[BulkType <: AvroPair] extends Namespace
     if(cacheActive) {
       val cv = cachedValues.get(EQArray(key))
       if(cv == null)
-        logger.trace("CacheHit %s", name)
-      else
         logger.trace("CacheMiss %s", name)
+      else
+        logger.trace("CacheHit %s", name)
       cv
     }
     else

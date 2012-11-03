@@ -170,7 +170,7 @@ class PairNamespace[Pair <: AvroPair : Manifest](
   with QuorumRangeProtocol
   with AvroPairSerializer[Pair]
   with RecordStore[Pair]
-//  with CacheManager[Pair]
+  with CacheManager[Pair]
   with index.IndexManager[Pair]
   with index.ViewManager[Pair]
   with index.TriggerManager[Pair]
