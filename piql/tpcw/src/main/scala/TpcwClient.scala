@@ -211,13 +211,14 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * group by I_ID,I_TITLE,A_FNAME,A_LNAME
    * order by SUM(OL_QTY) desc
    */
-  val bestSellerWI = orderCount.as("count")
-        .where("count.epoch".a === new CurrentEpoch(orderCountEpoch))
-        .where("count.I_SUBJECT".a === (0.?))
-        .limit(kTopOrdersToList)
-        .join(items.as("i"))
-        .where("count.I_ID".a === "i.I_ID".a)
-        .toPiql("bestSellerWI")
+   def bestSellerWI(x: String) = {}
+//  val bestSellerWI = orderCount.as("count")
+//        .where("count.epoch".a === new CurrentEpoch(orderCountEpoch))
+//        .where("count.I_SUBJECT".a === (0.?))
+//        .limit(kTopOrdersToList)
+//        .join(items.as("i"))
+//        .where("count.I_ID".a === "i.I_ID".a)
+//        .toPiql("bestSellerWI")
 
   val listTopOrdersQuery = orderCount.as("count")
       .where("count.epoch".a === (0.?))
