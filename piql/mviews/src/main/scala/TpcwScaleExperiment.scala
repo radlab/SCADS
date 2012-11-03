@@ -269,11 +269,9 @@ object TpcwScaleExperiment {
     .groupBy(_.name)
     .map { case (name, hists) => (name, hists.reduceLeft(_ + _).quantile(0.99)) }
 
-  def resultsCsv = {
-    val lines = new scala.collection.mutable.ArrayBuffer[String]
-    lines.append(Seq("numServers", "action", "99th", "numRequests", "expId").mkString(","))
-    val allResults = scaleResults.iterateOverRange(None,None).toSeq
-    def rd(x: Double) = (x * 100).intValue / 100.0
+  /* Returns rows of (numServers, action, 99th, numRequests, expId) */
+  def resultRows = {
+    val allResults = scaleResults.iterateOverRange(None,None).take(5).toSeq
     allResults.filter(_.iteration != 1)
       .groupBy(r => (r.loaderConfig.numServers, r.clientConfig.expId)).toSeq
       .sortBy(_._1)
@@ -285,12 +283,34 @@ object TpcwScaleExperiment {
               case (wi, hists) =>
                 val quantiles = hists.map(_.quantile(0.99))
                 val aggResults = hists.reduceLeft(_+_)
-                (size._1, wi, rd(aggResults.quantile(0.99)), aggResults.totalRequests, size._2)
+                (size._1, wi, aggResults.quantile(0.99), aggResults.totalRequests, size._2)
           }
-      }.sortBy(_._1).sortBy(_._2).foreach{
-        case t => lines.append(t.productIterator.toList.mkString(","))
-      }
+      }.sortBy(_._1).sortBy(_._2)
+  }
+
+  def resultTable(rows: Seq[Tuple5[Int,String,Int,Long,String]] = resultRows) = {
+    val lines = new scala.collection.mutable.ArrayBuffer[String]
+    lines.append("numServers,action,99th,numRequests,expId")
+    resultRows.foreach {
+      case t => lines.append(t.productIterator.toList.mkString(","))
+    }
     lines.mkString("\n")
+  }
+
+  def resultScatterTable(rows: Seq[Tuple5[Int,String,Int,Long,String]] = resultRows) = {
+    val actions = resultRows.map(_._2).sorted.flatMap(a => List(a + "_mean", a + "_stddev"))
+    List(List("numServers") ++ actions ++ List("numSamples")) ++
+    resultRows.groupBy(_._1).map{case (n, rows) => {
+      val columns = rows.groupBy(_._2).toList.sortBy(_._1).flatMap{
+        case (action, samples) => {
+          val mean_99th = samples.map(_._3).sum / samples.length
+          val mean_99th_sq = samples.map(_._3 match {case x => math.pow(x, 2)}).sum / samples.length
+          val stddev_99th = math.sqrt(mean_99th_sq - math.pow(mean_99th, 2))
+          List(mean_99th, stddev_99th)
+        }
+      }
+      List(n) ++ columns ++ List(rows.length)
+    }}
   }
 
   def results = {
