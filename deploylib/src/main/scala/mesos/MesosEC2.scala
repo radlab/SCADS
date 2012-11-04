@@ -178,6 +178,11 @@ class Cluster(val region: EC2Region = DefaultRegion.preferred, val useFT: Boolea
       s.tags += ("spot", "true")
       configureSlave(s)
     })
+
+    (slaves.toSet -- spots.toSet).pforeach(s => {
+      s.tags += ("spot", "true")
+      configureSlave(s)
+    })
   }
 
   def requestSpotInstances(count: Int): Unit = {
