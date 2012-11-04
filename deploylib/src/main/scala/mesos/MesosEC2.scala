@@ -142,6 +142,7 @@ class Cluster(val region: EC2Region = DefaultRegion.preferred, val useFT: Boolea
   /**
    * The default availability zone used when launching new instances.
    */
+  var overrideAvailabilityZone: Option[String] = None
   def availabilityZone: Option[String] = synchronized {
     val activeZones = (masters ++ slaves ++ zooKeepers).map(_.availabilityZone).toSet
     if (activeZones.size == 1)
@@ -154,8 +155,16 @@ class Cluster(val region: EC2Region = DefaultRegion.preferred, val useFT: Boolea
         region.forceUpdate()
       }
       Some(masters.head.availabilityZone)
-    } else
-      throw new RuntimeException("Cluster is split across zones: " + activeZones)
+    } else {
+      if (overrideAvailabilityZone.isDefined) {
+        logger.warning("Cluster is split across zones: " + activeZones)
+        logger.warning("Masters: " + masters.map(_.availabilityZone).toSet)
+        logger.warning("Slaves: " + slaves.map(_.availabilityZone).toSet)
+        overrideAvailabilityZone
+      } else {
+        throw new RuntimeException("Cluster is split across zones.")
+      }
+    }
   }
 
   /**
