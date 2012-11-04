@@ -246,7 +246,7 @@ trait QuorumProtocol
 
   private var readQuorum: Double = 0.001
   private var writeQuorum: Double = 1.0
-  var tolerance: Int = 10
+  var tolerance: Int = 1
   val rand = new scala.util.Random
 
   /** Initialization callbacks */

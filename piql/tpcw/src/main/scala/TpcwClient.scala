@@ -56,16 +56,11 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   val orderCountStaging = cluster.getNamespace[OrderCountStaging]("orderCountStaging")
   val orderCount = cluster.getNamespace[OrderCount]("orderCount")
   val orderCountEpoch = orderCount.root.getOrCreate("currentEpoch")
-  orderCount.tolerance = 1
 
   val relatedItemCountStaging = cluster.getNamespace[RelatedItemCountStaging]("relatedItemCountStaging")
   val relatedItemCount = cluster.getNamespace[RelatedItemCount]("relatedItemCount")
   val relatedItemCountEpoch = relatedItemCount.root.getOrCreate("currentEpoch")
-  relatedItemCount.tolerance = 1
 
-
-  //items.tolerance = 1
-  //authors.tolerance = 1
 
   val namespaces = List(addresses, authors, xacts, countries,
     customers, items, orderLines, orders, shoppingCartItems,
