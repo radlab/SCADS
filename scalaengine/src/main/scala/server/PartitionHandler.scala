@@ -87,16 +87,15 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
     completedStats = stats
   }
 
-  val sampleCounter = new AtomicInteger()
   val counters = new AtomicReference(new ConcurrentHashMap[String,AtomicInteger]())
   def recordSample(tag: Option[String], op: String) = {
-//    if ((sampleCounter.getAndIncrement & 0xff) == 0) {
+    if (samplingEnabled) {
       val id = op + ":" + tag.getOrElse("unknown")
       val ctr = counters.get.putIfAbsent(id, new AtomicInteger(1))
       if (ctr != null) {
         ctr.getAndIncrement
       }
-//    }
+    }
   }
 
   protected def process(src: Option[RemoteServiceProxy[StorageMessage]], msg: StorageMessage): Unit = {

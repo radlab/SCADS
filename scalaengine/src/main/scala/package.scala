@@ -6,9 +6,20 @@ import avro.runtime._
 package object storage {
   implicit object StorageRegistry extends comm.ServiceRegistry[StorageMessage]
 
+  /* Global flag that disables transmission/counting of tags. */
+  val samplingEnabled = false
+
   /* Global thread-local tag for performance analysis of rpc messages */
-  val currentTag = new ThreadLocal[Option[String]]() {
+  private val currentTag = new ThreadLocal[Option[String]]() {
     override def initialValue(): Option[String] = None
+  }
+
+  def getTag(): Option[String] = {
+    if (samplingEnabled) {
+      currentTag.get
+    } else {
+      None
+    }
   }
 
   def pushTag(tag: String): Unit = {
