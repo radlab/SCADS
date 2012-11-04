@@ -88,13 +88,11 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
   }
 
   val counters = new AtomicReference(new ConcurrentHashMap[String,AtomicInteger]())
-  def recordSample(tag: Option[String], op: String) = {
-    if (samplingEnabled) {
-      val id = op + ":" + tag.getOrElse("unknown")
-      val ctr = counters.get.putIfAbsent(id, new AtomicInteger(1))
-      if (ctr != null) {
-        ctr.getAndIncrement
-      }
+  def recordTrace(tag: Option[String], op: String) = if (tracingEnabled) {
+    val id = op + ":" + tag.getOrElse("unknown")
+    val ctr = counters.get.putIfAbsent(id, new AtomicInteger(1))
+    if (ctr != null) {
+      ctr.getAndIncrement
     }
   }
 
@@ -103,16 +101,16 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
     try {
       msg match {
         case GetRequest(key, tag) => {
-          recordSample(tag, "get")
+          recordTrace(tag, "get")
           reply(GetResponse(manager.get(key)))
         }
         case PutRequest(key,value,tag) => {
-          recordSample(tag, "put")
+          recordTrace(tag, "put")
           manager.put(key,value)
           reply(PutResponse())
         }
         case IncrementFieldRequest(key, fieldName, amount, tag) => {
-          recordSample(tag, "incr")
+          recordTrace(tag, "incr")
           reply(IncrementFieldResponse())
         }
         case TopKRequest(startKey, endKey, orderingFields, k, ascending) => {
@@ -129,13 +127,13 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
           reply(BulkUpdateResponse())
         }
         case BulkUpdateRequest(updates, tag) => {
-          recordSample(tag, "bulkUpdate")
+          recordTrace(tag, "bulkUpdate")
           manager.bulkUpdate(updates)
           /*if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(reccount)*/
           reply(BulkUpdateResponse())
         }
         case GetRangeRequest(minKey, maxKey, limit, offset, ascending, tag) => {
-          recordSample(tag, "getRange")
+          recordTrace(tag, "getRange")
           reply(GetRangeResponse(manager.getRange(minKey,maxKey,limit,offset,ascending)))
         }
         case BatchRequest(ranges) =>

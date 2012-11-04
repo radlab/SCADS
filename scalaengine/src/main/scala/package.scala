@@ -7,7 +7,7 @@ package object storage {
   implicit object StorageRegistry extends comm.ServiceRegistry[StorageMessage]
 
   /* Global flag that disables transmission/counting of tags. */
-  val samplingEnabled = false
+  val tracingEnabled = true
 
   /* Global thread-local tag for performance analysis of rpc messages */
   private val currentTag = new ThreadLocal[Option[String]]() {
@@ -15,14 +15,10 @@ package object storage {
   }
 
   def getTag(): Option[String] = {
-    if (samplingEnabled) {
-      currentTag.get
-    } else {
-      None
-    }
+    currentTag.get
   }
 
-  def pushTag(tag: String): Unit = {
+  def pushTag(tag: String): Unit = if (tracingEnabled) {
     val cur = currentTag.get
     if (cur.isDefined) {
       val suffix = cur.get
@@ -34,7 +30,7 @@ package object storage {
     }
   }
 
-  def popTag(): Unit = {
+  def popTag(): Unit = if (tracingEnabled) {
     val arr = currentTag.get.getOrElse("").split(":", 2)
     if (arr.length == 2) {
       currentTag.set(Some(arr(1)))
