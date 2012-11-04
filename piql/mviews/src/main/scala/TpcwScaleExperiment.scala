@@ -157,7 +157,8 @@ object TpcwScaleExperiment {
    * Seq[Tuple2[namespace, op_desc, host_min, host_max, skew, estimated_skew_load]]
    */
   def findHighSkewOps(iter: Seq[WorkloadStat]) = {
-    iter.groupBy(t => (t.ns, t.host)).toList.map {
+    val deduped: Seq[WorkloadStat] = iter.toSet.toSeq
+    deduped.groupBy(t => (t.ns, t.host)).toList.map {
       case ((ns, host), recs) =>
         val hostStats = recs.flatMap(s => s.stat.countKeys.zip(s.stat.countValues))
         (ns, host) -> hostStats.groupBy(_._1).map {
@@ -291,7 +292,8 @@ object TpcwScaleExperiment {
     lines.mkString("\n")
   }
 
-  def resultScatterTable(rows: Seq[Tuple5[Int,String,Int,Long,String]] = resultRows()) = {
+  def resultScatterTable(expIdHorizon: String, allRows: Seq[Tuple5[Int,String,Int,Long,String]] = resultRows()) = {
+    val rows = allRows.filter(_._5 >= expIdHorizon)
     val actions = rows.map(_._2).toSet.toList.sorted
     val meanHeader = actions.map(_ + "_avg")
     val stddevHeader = actions.map(_ + "_stddev")
