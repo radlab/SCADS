@@ -45,7 +45,7 @@ case class TpcwLoaderTask(var numServers: Int,
            orders,
            shoppingCartItems,
            relatedItemCountStaging,
-           orderCountStaging) foreach { ns => ns.setReadWriteQuorum(0.33, 0.67) }
+           orderCountStaging) foreach { ns => ns.setReadWriteQuorum(0.001, 1.00) }
     }
     coordination.registerAndAwait("namespacesReady", numLoaders)
 
