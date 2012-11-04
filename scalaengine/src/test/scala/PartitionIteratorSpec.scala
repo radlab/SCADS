@@ -19,7 +19,7 @@ class PartitionMock extends ServiceHandler[StorageMessage] {
 
   def process(src: Option[RemoteServiceProxy[StorageMessage]], msg: StorageMessage): Unit = {
     msg match {
-      case GetRangeRequest(startKey, None, limit, offset, true) => {
+      case GetRangeRequest(startKey, None, limit, offset, true, tag) => {
         val start = startKey.map(new IntRec().parse(_).f1).getOrElse(1) + offset.getOrElse(0)
         val end = if((start + limit.getOrElse(10000) - 1) >= 10000) 10000 else start + limit.get - 1
         src.foreach(_ ! GetRangeResponse((start to end).map(i => Record(IntRec(i).toBytes, Some(IntRec(i).toBytes))).toList))

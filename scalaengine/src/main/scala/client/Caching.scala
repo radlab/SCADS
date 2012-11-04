@@ -67,14 +67,14 @@ trait CacheManager[BulkType <: AvroPair] extends Namespace
   }
 
   var cacheActive: Boolean = false
-  val cachedValues = util.Collections.synchronizedMap(new map.LRUMap(2000).asInstanceOf[util.Map[EQArray, Array[Byte]]])
+  val cachedValues = util.Collections.synchronizedMap(new map.LRUMap(500).asInstanceOf[util.Map[EQArray, Array[Byte]]])
 
   protected def addToCache(key: Array[Byte], value: Option[Array[Byte]]): Option[Array[Byte]] = {
     if (cacheActive)
       value match {
         case Some(v) => {
           if (cachedValues.size % 100 == 0) {
-            logger.warning("%s cache size now %d, hit rate %f", name, cachedValues.size, cacheHits / (cacheHits + cacheMisses + 1))
+            logger.warning("%s cache size now %d, hit rate %f", name, cachedValues.size, cacheHits / (cacheHits + cacheMisses + 1.0))
           }
           cachedValues.put(EQArray(key), v)
         }
