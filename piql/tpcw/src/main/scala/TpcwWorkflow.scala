@@ -152,7 +152,7 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
             client.searchByAuthorWI(name, perPage)
           case SearchResultType.ByTitle =>
             /* Pick a random token from a random title */
-            val titleParts = data.createItem(random.nextInt(data.numItems)).I_TITLE.split(" ")
+            val titleParts = data.createItem(random.nextInt(data.numItems))._1.I_TITLE.split(" ")
             val title = titleParts(random.nextInt(titleParts.size))
             logger.debug("Search by title %s", title)
             client.searchByTitleWI(title, perPage)

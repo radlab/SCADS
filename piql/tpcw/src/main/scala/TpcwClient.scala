@@ -48,6 +48,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   val countries = cluster.getNamespace[Country]("countries")
   val customers = cluster.getNamespace[Customer]("customers")
   val items = cluster.getNamespace[Item]("items")
+  val itemStocks = cluster.getNamespace[ItemStock]("itemStocks")
   val orderLines = cluster.getNamespace[OrderLine]("orderLines")
   val orders = cluster.getNamespace[Order]("orders")
   val shoppingCartItems = cluster.getNamespace[ShoppingCartItem]("shoppingCartItems")
@@ -63,7 +64,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
 
   val namespaces = List(addresses, authors, xacts, countries,
-    customers, items, orderLines, orders, shoppingCartItems,
+    customers, items, itemStocks, orderLines, orders, shoppingCartItems,
     orderCountStaging, orderCount, relatedItemCountStaging, relatedItemCount)
 
 
@@ -496,6 +497,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
                      .limit(1000)
                      .join(items)
                      .where("SCL_I_ID".a === "I_ID".a)
+                     .join(itemStocks)
+                     .where("SCL_I_ID".a === "IS_I_ID".a)
                      .toPiql("retrieveShoppingCart")
 
   /**
@@ -610,11 +613,11 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
                    cc_expiry: Long,
                    shipping: String): String = tracescope("buyConfirmWI") {
     val customer = homeWI(c_uname).head.head.asInstanceOf[Customer]
-    val cart = retrieveShoppingCart(c_uname).map(sl => (sl(0).asInstanceOf[ShoppingCartItem], sl(1).asInstanceOf[Item]))
+    val cart = retrieveShoppingCart(c_uname).map(sl => (sl(0).asInstanceOf[ShoppingCartItem], sl(1).asInstanceOf[Item], sl(2).asInstanceOf[ItemStock]))
 
     // calculate costs
     val sc_sub_total = cart.map {
-      case (scl, itm) => itm.I_COST * scl.SCL_QTY
+      case (scl, itm, stock) => itm.I_COST * scl.SCL_QTY
     }.sum * (1.0 - customer.C_DISCOUNT)
 
     val sc_tax = sc_sub_total * 0.0825
@@ -641,7 +644,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
     // make order lines
     val orderLinePuts = cart.zipWithIndex.map {
-      case ((scl, itm), idx) =>
+      case ((scl, itm, stock), idx) =>
         val ol = new OrderLine(order.O_ID, idx + 1)
         ol.OL_I_ID = itm.I_ID
         ol.OL_QTY = scl.SCL_QTY
@@ -655,13 +658,13 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
     // make item stocks updates
     val stockUpdatePuts = cart.map {
-      case (scl, itm) =>
-      if (itm.I_STOCK - scl.SCL_QTY >= 10)
-        itm.I_STOCK = itm.I_STOCK - scl.SCL_QTY
+      case (scl, itm, stock) =>
+      if (stock.I_STOCK - scl.SCL_QTY >= 10)
+        stock.I_STOCK = stock.I_STOCK - scl.SCL_QTY
       else
-        itm.I_STOCK = scala.math.min(0, (itm.I_STOCK - scl.SCL_QTY) + 21) // ... uhh, what happens if this goes negative??? that's why i put the min condition there (it's not given in the spec)
+        stock.I_STOCK = scala.math.min(0, (stock.I_STOCK - scl.SCL_QTY) + 21) // ... uhh, what happens if this goes negative??? that's why i put the min condition there (it's not given in the spec)
 
-      items.asyncPut(itm.key, itm.value)
+      itemStocks.asyncPut(stock.key, stock.value)
     }
 
     // credit card (PGE) auth stuff ignored...
@@ -681,7 +684,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     // so we do this inefficiently by looping. if our numbers are not good we
     // could try to make this more efficient, but since max cart size is 100,
     // this shouldn't be THAT bad
-    val clearCartPuts = cart map { case (scl, _) =>
+    val clearCartPuts = cart map { case (scl, _, _) =>
       shoppingCartItems.asyncPut(scl.key, None)
     }
 

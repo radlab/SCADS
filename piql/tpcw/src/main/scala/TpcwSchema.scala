@@ -8,6 +8,10 @@ import edu.berkeley.cs.avro.marker._
 
 import org.apache.avro.util._
 
+case class ItemStock(var IS_I_ID: String) extends AvroPair {
+  var I_STOCK: Int = _
+}
+
 case class Item(var I_ID: String) extends AvroPair {
   var I_TITLE: String = _
   var I_A_ID: String = _
@@ -25,7 +29,6 @@ case class Item(var I_ID: String) extends AvroPair {
   var I_SRP: Double = _
   var I_COST: Double = _
   var I_AVAIL: Long = _
-  var I_STOCK: Int = _
   var ISBN: String = _
   var I_PAGE: Int = _
   var I_BACKING: String = _

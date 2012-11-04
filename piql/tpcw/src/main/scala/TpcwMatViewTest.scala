@@ -39,7 +39,7 @@ object TpcwTestClient extends TpcwClient(TestScalaEngine.newScadsCluster(), new 
     o.I_SRP = 0.0
     o.I_COST = 0.0
     o.I_AVAIL = 0
-    o.I_STOCK = 1
+//    o.I_STOCK = 1
     o.ISBN = "30941823-0491823-40"
     o.I_PAGE = 100
     o.I_BACKING = "HARDCOVER"

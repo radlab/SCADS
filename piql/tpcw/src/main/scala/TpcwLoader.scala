@@ -100,7 +100,8 @@ class TpcwLoader(val numEBs : Double,
       RandomData(client.xacts, createXacts(_), numOrders),
       RandomData(client.countries, createCountry(_), numCountries),
       RandomData(client.customers, createCustomer(_), numCustomers),
-      RandomData(client.items, createItem(_), numItems),
+      RandomData(client.items, createItem(_)._1, numItems),
+      RandomData(client.itemStocks, createItem(_)._2, numItems),
       RandomData(client.orderCountStaging, createOrderCountStaging(_), numItems),
       RandomData(client.relatedItemCountStaging, createRelatedItemCountStaging(_), numItems),
       RandomData(client.orders, createOrder(_), numOrders),
@@ -268,16 +269,16 @@ class TpcwLoader(val numEBs : Double,
     nameUuid("order%d".format(id))
 
   def createOrderCountStaging(id: Int): OrderCountStaging = {
-    val i = createItem(id)
+    val (i, s) = createItem(id)
     OrderCountStaging(0, i.I_SUBJECT, i.I_ID)
   }
 
   def createRelatedItemCountStaging(id: Int): RelatedItemCountStaging = {
-    val i = createItem(id)
+    val (i, s) = createItem(id)
     RelatedItemCountStaging(0, i.I_ID, "")
   }
 
-  def createItem(itemId : Int) : Item = {
+  def createItem(itemId : Int) : Tuple2[Item,ItemStock] = {
     val to = Generator.generateItem(itemId, numItems).asInstanceOf[ItemTO]
     //val idStr = itemIds.getOrElseUpdate(itemId, uuid())
     //itemSubjectDateTitleIndexInserts += Tuple2(
@@ -311,12 +312,13 @@ class TpcwLoader(val numEBs : Double,
     item.I_SRP = to.getI_srp
     item.I_COST = to.getI_cost
     item.I_AVAIL = to.getI_avail
-    item.I_STOCK = to.getI_stock
     item.ISBN = to.getI_isbn
     item.I_PAGE = to.getI_page
     item.I_BACKING = to.getI_backing
     item.I_DIMENSION = to.getI_dimensions
-    item
+    var stock = ItemStock(toItem(itemId))
+    stock.I_STOCK = to.getI_stock
+    (item, stock)
   }
 
   def createCountry(countryId : Int) : Country = {
