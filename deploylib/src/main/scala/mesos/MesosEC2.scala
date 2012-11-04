@@ -164,8 +164,10 @@ class Cluster(val region: EC2Region = DefaultRegion.preferred, val useFT: Boolea
   def claimSpotInstances: Unit = {
     val spots = region.activeInstances.filter(_.tags.size == 0)
 
-    spots.foreach(_.tags += ("mesos", "slave"))
-    spots.foreach(_.tags += ("spot", "true"))
+    spots.foreach(s => {
+      s.tags += ("mesos", "slave")
+      s.tags += ("spot", "true")
+    })
     spots.pforeach(configureSlave)
   }
 
