@@ -7,7 +7,7 @@ package object storage {
   implicit object StorageRegistry extends comm.ServiceRegistry[StorageMessage]
 
   /* Global flag that disables transmission/counting of tags. */
-  val tracingEnabled = true
+  val tracingEnabled = false
 
   /* Global thread-local tag for performance analysis of rpc messages */
   private val currentTag = new ThreadLocal[Option[String]]() {
