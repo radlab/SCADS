@@ -298,7 +298,7 @@ object TpcwScaleExperiment {
     val meanHeader = actions.map(_ + "_avg")
     val stddevHeader = actions.map(_ + "_stddev")
     List(List("numServers") ++ meanHeader ++ stddevHeader ++ List("numRequests", "numSamples")) ++
-    rows.groupBy(_._1).map{case (n, rows) => {
+    rows.groupBy(t => t._1).map{case (n, rows) => {
       val means = rows.groupBy(_._2).toList.sortBy(_._1).map{
         case (action, samples) => {
           samples.map(_._3).sum / samples.length
@@ -311,7 +311,7 @@ object TpcwScaleExperiment {
           math.sqrt(mean_99th_sq - math.pow(mean_99th, 2))
         }
       }
-      val count = rows.map(_._4).sum / rows.length
+      val count = rows.map(_._4).sum / rows.map(_._5).toSet.size
       List(n) ++ means ++ stddevs ++ List(count, rows.length)
     }}
   }
