@@ -45,7 +45,11 @@ case class TpcwLoaderTask(var numServers: Int,
            orders,
            shoppingCartItems,
            relatedItemCountStaging,
-           orderCountStaging) foreach { ns => ns.setReadWriteQuorum(0.001, 1.00) }
+           orderCountStaging) foreach {
+             /* Increasing read quorum above ~0 is disastrous
+              * to read perf on partitions replicated to all servers */
+             ns => ns.setReadWriteQuorum(0.001, 1.00)
+           }
     }
     coordination.registerAndAwait("namespacesReady", numLoaders)
 

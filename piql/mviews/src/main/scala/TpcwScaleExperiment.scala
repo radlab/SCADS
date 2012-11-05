@@ -362,7 +362,7 @@ object TpcwScaleExperiment {
           executor,
           iterations = 5,
           runLengthMin = 5,
-          numThreads = 1
+          numThreads = 10
         )
 
     val tpcwTasks = tpcwTaskTemplate.delayedSchedule(scadsCluster, resultsCluster)
