@@ -14,11 +14,26 @@ package object storage {
     override def initialValue(): Option[String] = None
   }
 
+  /**
+   * Returns the trace tags in the current thread scope.
+   */
   def getTag(): Option[String] = {
     currentTag.get
   }
 
-  def pushTag(tag: String): Unit = if (tracingEnabled) {
+  /**
+   * Executes a block with a trace tag defined for the duration of execution.
+   */
+  def trace[A,B](tag: String)(block: => B): B = {
+    try {
+      pushTag(tag)
+      block
+    } finally {
+      popTag
+    }
+  }
+
+  private def pushTag(tag: String): Unit = if (tracingEnabled) {
     val cur = currentTag.get
     if (cur.isDefined) {
       val suffix = cur.get
@@ -30,7 +45,7 @@ package object storage {
     }
   }
 
-  def popTag(): Unit = if (tracingEnabled) {
+  private def popTag(): Unit = if (tracingEnabled) {
     val arr = currentTag.get.getOrElse("").split(":", 2)
     if (arr.length == 2) {
       currentTag.set(Some(arr(1)))

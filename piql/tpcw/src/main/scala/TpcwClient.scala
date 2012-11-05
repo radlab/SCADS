@@ -28,15 +28,6 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   protected val logger = Logger("edu.berkeley.cs.scads.piql.TpcwWorkflow")
   protected implicit val exec = executor
 
-  def tracescope[A,B](tag: String)(block: => B): B = {
-    try {
-      pushTag(tag)
-      block
-    } finally {
-      popTag
-    }
-  }
-
   val kTopOrdersToList = 50
   val kRelatedItemsToFind = 5
   val kMaxCustomerOrdersPerEpoch = 99
@@ -470,7 +461,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       .where("OL_I_ID".a === "I_ID".a)
       .toPiql("orderDisplayGetOrderLines")
 
-  def orderDisplayWI(c_uname: String, c_passwd: String, numOrderLinesPerPage: Int) = tracescope("orderDisplayWI") {
+  def orderDisplayWI(c_uname: String, c_passwd: String, numOrderLinesPerPage: Int) = storage.trace("orderDisplayWI") {
     val cust = orderDisplayGetCustomer(c_uname).head.head.asInstanceOf[Customer]
     //assert(cust.C_PASSWD == c_passwd, "Passwords don't match")
 
@@ -507,7 +498,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * quantity will be updated. this is not really conformant to the TPC-W
    * benchmark spec */
 
-   def shoppingCartWI(c_uname: String, newItems: Seq[(String, Int)]) = tracescope("shoppingCartWI") {
+   def shoppingCartWI(c_uname: String, newItems: Seq[(String, Int)]) = storage.trace("shoppingCartWI") {
     val cart = retrieveShoppingCart(c_uname).map(_.head.asInstanceOf[ShoppingCartItem])
     val currentItems = cart.map(c => (c.SCL_I_ID, c.SCL_QTY))
 
@@ -611,7 +602,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
                    cc_number: Int,
                    cc_name: String,
                    cc_expiry: Long,
-                   shipping: String): String = tracescope("buyConfirmWI") {
+                   shipping: String): String = storage.trace("buyConfirmWI") {
     val customer = homeWI(c_uname).head.head.asInstanceOf[Customer]
     val cart = retrieveShoppingCart(c_uname).map(sl => (sl(0).asInstanceOf[ShoppingCartItem], sl(1).asInstanceOf[Item], sl(2).asInstanceOf[ItemStock]))
 

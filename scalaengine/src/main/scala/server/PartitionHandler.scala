@@ -70,6 +70,11 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
   protected val statWindowTime = 20*1000 // ms, how long a window to maintain stats for
   protected val clearStatWindowsTime = 60*1000 // ms, keep long to keep stats around, in all windows
 
+  val putCount = new AtomicInteger()
+  val getCount = new AtomicInteger()
+  val getRangeCount = new AtomicInteger()
+  val bulkCount = new AtomicInteger()
+
   def getWorkloadStats() = completedStats
 
   /**
@@ -79,7 +84,12 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
   */
   def resetWorkloadStats(interval: Long) = {
     val oldCounters = counters.getAndSet(new ConcurrentHashMap[String,AtomicInteger]())
-    val stats = GetWorkloadStatsResponse(0,0,0,0,interval)
+    val stats = GetWorkloadStatsResponse(
+      getCount.getAndSet(0),
+      getRangeCount.getAndSet(0),
+      putCount.getAndSet(0),
+      bulkCount.getAndSet(0),
+      interval)
     val tuples = oldCounters.map(t => (t._1, t._2.get)).toList
     // HACK since we can't serialize sequences of tuples yet
     stats.countKeys = tuples.map(_._1)
@@ -101,10 +111,12 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
     try {
       msg match {
         case GetRequest(key, tag) => {
+          getCount.incrementAndGet()
           recordTrace(tag, "get")
           reply(GetResponse(manager.get(key)))
         }
         case PutRequest(key,value,tag) => {
+          putCount.incrementAndGet()
           recordTrace(tag, "put")
           manager.put(key,value)
           reply(PutResponse())
@@ -127,12 +139,14 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Stora
           reply(BulkUpdateResponse())
         }
         case BulkUpdateRequest(updates, tag) => {
+          bulkCount.incrementAndGet()
           recordTrace(tag, "bulkUpdate")
           manager.bulkUpdate(updates)
           /*if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(reccount)*/
           reply(BulkUpdateResponse())
         }
         case GetRangeRequest(minKey, maxKey, limit, offset, ascending, tag) => {
+          getRangeCount.incrementAndGet()
           recordTrace(tag, "getRange")
           reply(GetRangeResponse(manager.getRange(minKey,maxKey,limit,offset,ascending)))
         }
