@@ -77,7 +77,7 @@ case class TpcwWorkflowTask(var numClients: Int,
 
     for(iteration <- (1 to iterations)) {
       logger.info("Begining iteration %d", iteration)
-      results ++= (1 to numThreads).pmap(threadId => {
+      (1 to numThreads).pmap(threadId => {
         def getTime = System.nanoTime / 1000000
         val histograms = new scala.collection.mutable.HashMap[ActionType.ActionType, Histogram]
         val runTime = runLengthMin * 60 * 1000L
@@ -132,7 +132,7 @@ case class TpcwWorkflowTask(var numClients: Int,
         res.getRangeTimes = List[Histogram]()
 
         res
-      })
+      }).foreach(results ++= List(_))
 
       coordination.registerAndAwait("iteration" + iteration, numClients)
     }

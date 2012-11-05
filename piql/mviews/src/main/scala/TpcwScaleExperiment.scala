@@ -80,7 +80,7 @@ case class TpcwViewRefreshTask(var experimentAddress: String,
     ocResult.times = ocTimes
     val rcResult = RefreshResult(expId, "relatedCount")
     rcResult.times = rcTimes
-    results ++= Seq(ocResult, rcResult)
+    Seq(ocResult, rcResult).foreach(results ++= List(_))
   }
 }
 
