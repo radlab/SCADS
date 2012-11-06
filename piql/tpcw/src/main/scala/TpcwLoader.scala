@@ -102,7 +102,7 @@ class TpcwLoader(val numEBs : Double,
       RandomData(client.customers, createCustomer(_), numCustomers),
       RandomData(client.items, createItem(_)._1, numItems),
       RandomData(client.itemStocks, createItem(_)._2, numItems),
-      RandomData(client.orderCountStaging, createOrderCountStaging(_), numItems * 1000),
+      RandomData(client.orderCountStaging, createOrderCountStaging(_), numItems),
       RandomData(client.relatedItemCountStaging, createRelatedItemCountStaging(_), numItems),
       RandomData(client.orders, createOrder(_), numOrders),
       FlattenedRandomData(client.orderLines, createOrderline(_), numOrders),
@@ -300,7 +300,8 @@ class TpcwLoader(val numEBs : Double,
     item.I_A_ID = toAuthor(to.getI_a_id)
     item.I_PUB_DATE = to.getI_pub_date
     item.I_PUBLISHER = to.getI_publisher
-    item.I_SUBJECT = to.getI_subject
+//    item.I_SUBJECT = to.getI_subject
+    item.I_SUBJECT = Utils.getSubjects()(itemId % Utils.getSubjects().length)
     item.I_DESC = to.getI_desc
     item.I_RELATED1 = to.getI_related1
     item.I_RELATED2 = to.getI_related2
