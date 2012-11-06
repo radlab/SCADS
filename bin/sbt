@@ -5,4 +5,4 @@ then
 	export JAVA_REBEL=-javaagent:$HOME/local/jrebel/jrebel.jar
 fi
 
-SCADS_CONFIG=config/test.conf java $JAVA_REBEL -XX:MaxGCPauseMillis=100 -XX:+UseConcMarkSweepGC -noverify -XX:ReservedCodeCacheSize=64M -noverify -Djava.library.path=/usr/local/mesos/lib/java -Xss2M -Xmx4G -XX:MaxPermSize=3G -jar `dirname $0`/sbt-launch-0.11.0-SNAPSHOT.jar "$@"
+SCADS_CONFIG=config/test.conf java $JAVA_REBEL -XX:MaxGCPauseMillis=100 -XX:+UseConcMarkSweepGC -noverify -XX:ReservedCodeCacheSize=64M -noverify -Djava.library.path=/usr/local/mesos/lib/java -Xss2M -Xmx24G -XX:MaxPermSize=16G -jar `dirname $0`/sbt-launch-0.11.0-SNAPSHOT.jar "$@"
