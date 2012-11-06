@@ -158,7 +158,9 @@ object TpcwScaleExperiment {
    */
   def findHighSkewOps(iter: Seq[WorkloadStat]) = {
     val deduped: Seq[WorkloadStat] = iter.toSet.toSeq
-    deduped.groupBy(t => (t.ns, t.host)).toList.map {
+    val width = deduped.groupBy(t => t.time).map(_._2.length).max
+    val complete = deduped.groupBy(t => t.time).filter(_._2.length == width).flatMap(_._2)
+    complete.groupBy(t => (t.ns, t.host)).toList.map {
       case ((ns, host), recs) =>
         val hostStats = recs.flatMap(s => s.stat.countKeys.zip(s.stat.countValues))
         (ns, host) -> hostStats.groupBy(_._1).map {
@@ -298,7 +300,7 @@ object TpcwScaleExperiment {
     val meanHeader = actions.map(_ + "_avg")
     val stddevHeader = actions.map(_ + "_stddev")
     List(List("numServers") ++ meanHeader ++ stddevHeader ++ List("numRequests", "numSamples")) ++
-    rows.groupBy(t => t._1).map{case (n, rows) => {
+    rows.groupBy(t => (t._1, t._5)).map{case ((n, expId), rows) => {
       val means = rows.groupBy(_._2).toList.sortBy(_._1).map{
         case (action, samples) => {
           samples.map(_._3).sum / samples.length
@@ -311,8 +313,9 @@ object TpcwScaleExperiment {
           math.sqrt(mean_99th_sq - math.pow(mean_99th, 2))
         }
       }
-      val count = rows.map(_._4).sum / rows.map(_._5).toSet.size
-      List(n) ++ means ++ stddevs ++ List(count, rows.length)
+      val samples = rows.map(_._5).toSet.size
+      val count = rows.map(_._4).sum / samples
+      List(n) ++ means ++ stddevs ++ List(count, samples)
     }}
   }
 
