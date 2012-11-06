@@ -179,6 +179,7 @@ object TpcwScaleExperiment {
     }.flatMap {
       case (ns, skewed) => skewed
     }.toList.sortBy(t => - t._8)
+  }
 
   def captureWorkload(clientRoot: String, buffer: collection.mutable.ArrayBuffer[WorkloadStat])(implicit cluster: Cluster): Unit =
     captureWorkload(new TpcwClient(new ScadsCluster(ZooKeeperNode(clientRoot)), new ParallelExecutor), buffer)
@@ -267,8 +268,8 @@ object TpcwScaleExperiment {
     .map { case (name, hists) => (name, hists.reduceLeft(_ + _).quantile(0.99)) }
 
   /* Returns rows of (numServers, action, 99th, numRequests, expId) */
-  def resultRows(iter: Traversable[Result]=scaleResults.iterateOverRange(None,None).toSeq) = {
-    iter.filter(_.iteration != 1)
+  def resultRows(expIdHorizon: String, iter: Traversable[Result]=scaleResults.iterateOverRange(None,None).toSeq) = {
+    iter.filter(t => t.iteration != 1 && t.expId >= expIdHorizon)
       .groupBy(r => (r.loaderConfig.numServers, r.clientConfig.expId)).toSeq
       .sortBy(_._1)
       .flatMap {
@@ -284,7 +285,7 @@ object TpcwScaleExperiment {
       }.sortBy(_._1).sortBy(_._2)
   }
 
-  def resultTable(rows: Seq[Tuple5[Int,String,Int,Long,String]] = resultRows()) = {
+  def resultTable(rows: Seq[Tuple5[Int,String,Int,Long,String]]) = {
     val lines = new scala.collection.mutable.ArrayBuffer[String]
     lines.append("numServers,action,99th,numRequests,expId")
     rows.foreach {
@@ -293,8 +294,7 @@ object TpcwScaleExperiment {
     lines.mkString("\n")
   }
 
-  def resultScatterTable(expIdHorizon: String, allRows: Seq[Tuple5[Int,String,Int,Long,String]] = resultRows()) = {
-    val rows = allRows.filter(_._5 >= expIdHorizon)
+  def resultScatterTable(rows: Seq[Tuple5[Int,String,Int,Long,String]]) = {
     val actions = rows.map(_._2).toSet.toList.sorted
     val meanHeader = actions.map(_ + "_avg")
     val stddevHeader = actions.map(_ + "_stddev")
