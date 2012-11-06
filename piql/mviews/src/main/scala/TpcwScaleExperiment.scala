@@ -170,16 +170,15 @@ object TpcwScaleExperiment {
       case (ns, hostRecs) =>
         val tracedOps = hostRecs.flatMap(_._2.keys).toSet
         ns -> tracedOps.flatMap{op =>
-          val distribution = hostRecs.map(_._2.getOrElse(op, 0))
-          val min = distribution.min
-          val max = distribution.max
+          val distribution = hostRecs.map(h => (h._2.getOrElse(op, 0), h._1._2))
+          val (min, minh) = distribution.min
+          val (max, maxh) = distribution.max
           val skew = if (max != 0) (max - min).toDouble / max else 0
-          List((ns, op, min, max, skew, skew * max))
+          List((ns, op, min, max, minh, maxh, skew, skew * max))
         }
     }.flatMap {
       case (ns, skewed) => skewed
-    }.toList.sortBy(t => - t._6)
-  }
+    }.toList.sortBy(t => - t._8)
 
   def captureWorkload(clientRoot: String, buffer: collection.mutable.ArrayBuffer[WorkloadStat])(implicit cluster: Cluster): Unit =
     captureWorkload(new TpcwClient(new ScadsCluster(ZooKeeperNode(clientRoot)), new ParallelExecutor), buffer)
