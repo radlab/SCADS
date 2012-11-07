@@ -504,8 +504,31 @@ class Cluster(val region: EC2Region = DefaultRegion.preferred, val useFT: Boolea
     instances
   }
 
+  def listBadSlaves() = {
+    val online = new collection.mutable.ArrayBuffer[EC2Instance]
+    var lastArrival = System.currentTimeMillis + 20000
+    val sender = new Thread() {
+      override def run() = {
+        slaves.pforeach(t => {
+          slaveService(t)
+          this.synchronized {
+            online.append(t)
+            lastArrival = System.currentTimeMillis
+          }
+        })
+      }
+    }
+    sender.start()
+    while (System.currentTimeMillis - lastArrival < 2000) {
+      Thread.sleep(1000)
+    }
+    sender.interrupt()
+    slaves.toSet -- online.toSet
+  }
+
   /**
    * Add slaves to the cluster
+
    */
   def addSlaves(count: Int, updateDeploylibOnStart: Boolean = true): Seq[EC2Instance] = {
     val userData =
