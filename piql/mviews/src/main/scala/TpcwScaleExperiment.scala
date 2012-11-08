@@ -267,6 +267,23 @@ object TpcwScaleExperiment {
     .groupBy(_.name)
     .map { case (name, hists) => (name, hists.reduceLeft(_ + _).quantile(0.99)) }
 
+  def resultHistograms(action: String) = {
+    scaleResults
+    .iterateOverRange(None,None)
+    .filter(_.iteration != 1)
+    .toSeq
+    .groupBy(_.loaderConfig.numServers)
+    .map { case (n, results) => {
+      val hists = results.flatMap(_.times.filter(_.name == action))
+      (n, hists.reduceLeft(_ + _))
+    }}
+    .toSeq
+    .sortBy(_._1)
+    .map(_._2.buckets)
+    .transpose
+    .foreach(row => println(row.mkString(" ")))
+  }
+
   /* Returns rows of (numServers, action, 99th, numRequests, expId) */
   def resultRows(expIdHorizon: String, iter: Traversable[Result]=scaleResults.iterateOverRange(None,None).toSeq) = {
     iter.filter(t => t.iteration != 1 && t.expId >= expIdHorizon)
