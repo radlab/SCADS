@@ -94,7 +94,7 @@ case class WorkloadStat(
 
 object TpcwScaleExperiment {
   val logger = Logger()
-  lazy val resultClusterAddress = ZooKeeperNode("zk://zoo1.millennium.berkeley.edu,zoo2.millennium.berkeley.edu,zoo3.millennium.berkeley.edu/home/ekl/sigmod2013_ec2_east")
+  lazy val resultClusterAddress = ZooKeeperNode("zk://zoo1.millennium.berkeley.edu,zoo2.millennium.berkeley.edu,zoo3.millennium.berkeley.edu/home/marmbrus/sigmod2013")
   lazy val resultsCluster = new ScadsCluster(resultClusterAddress)
   lazy val scaleResults =  resultsCluster.getNamespace[Result]("tpcwScaleResults")
   lazy val updateResults = resultsCluster.getNamespace[RefreshResult]("updateResults")
