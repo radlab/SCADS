@@ -10,7 +10,7 @@ import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.marker._
 
 import edu.berkeley.cs.scads.piql.DataGenerator._
-import ch.ethz.systems.tpcw.populate.data.Generator
+import ch.ethz.systems.tpcw.populate.data.{Generator, Utils}
 import java.util.UUID
 import ch.ethz.systems.tpcw.populate.data.objects._
 import collection.mutable.{ArrayBuffer, HashMap}
