@@ -56,6 +56,31 @@ case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long], var ne
     quantile(0.5)
   }
 
+  def boxplotExtremes(noOutliers: Boolean): (Double, Double) = {
+    var lo = 0.0
+    var hi = buckets.length.toDouble * bucketSize.toDouble
+    if (noOutliers) {
+      val q25 = quantile(0.25)
+      val q75 = quantile(0.75)
+      lo = q25.toDouble - 1.5 * (q75 - q25)
+      hi = q75.toDouble + 1.5 * (q75 - q25)
+    }
+    val bmin = buckets.zipWithIndex.find { case (num, idx) =>
+      num > 0 && (idx.toDouble * bucketSize.toDouble >= lo)
+    } match {
+      case None => 0.0
+      case Some((n, i)) => i.toDouble * bucketSize.toDouble
+    }
+    val bmax = buckets.zipWithIndex.reverse.find { case (num, idx) =>
+      num > 0 && (idx.toDouble * bucketSize.toDouble <= hi)
+    } match {
+      case None => 0.0
+      case Some((n, i)) => i.toDouble * bucketSize.toDouble
+    }
+
+    (bmin, bmax)
+  }
+
   def average: Double = {
     val n = totalRequests.toDouble
     buckets.zipWithIndex.foldLeft(0.0) { case (acc, (num, idx)) => acc + num.toDouble * idx.toDouble * bucketSize.toDouble / n }
