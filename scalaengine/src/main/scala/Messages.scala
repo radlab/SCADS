@@ -273,3 +273,81 @@ case class PrepareResponse(var success: Boolean) extends AvroRecord with TxProto
 case class CommitRequest(var xid: ScadsXid, var updates: Seq[RecordUpdate], var commit: Boolean) extends AvroRecord with TxProtocol2pc
 //case class CommitRequest(var xid: ScadsXid, var commit: Boolean) extends AvroRecord with TxProtocol2pc
 case class CommitResponse(var success: Boolean) extends AvroRecord with TxProtocol2pc
+
+
+/* latency sampling messages. */
+case class LatencyInfo(var count: Int, var sum: Long) extends AvroRecord {
+  var mean = if (count == 0) 0 else sum.toDouble / count.toDouble
+
+  def merge(l: LatencyInfo) = {
+    count = count + l.count
+    sum = sum + l.sum
+    mean = if (count == 0) 0 else sum.toDouble / count.toDouble
+  }
+
+  override def toString() = {
+    "LatencyInfo(" + count + "," + mean + ")"
+  }
+}
+
+case class LatencyInfoList(var infos: Seq[LatencyInfo]) extends AvroRecord {
+
+  var totalCount = if (infos == null) 0 else infos.map(_.count).sum
+  var mean = computeMean
+
+  def merge(l: LatencyInfoList) = {
+    infos.zip(l.infos).foreach(x => {
+      x._1.merge(x._2)
+    })
+
+    totalCount = infos.map(_.count).sum
+    mean = computeMean
+  }
+
+  def computeMean: Double = {
+    if (totalCount == 0 || infos == null) {
+      0.0
+    } else {
+      infos.map(li => {
+        li.sum.toDouble / totalCount
+      }).sum
+    }
+  }
+
+}
+
+case class LatencyDelayInfo(var totalCount: Int, var delayCount: Int, var sum: Double) extends AvroRecord {
+  var avgDelay = if (totalCount == 0) 0 else sum / totalCount.toDouble
+
+  def merge(l: LatencyDelayInfo) = {
+    totalCount = totalCount + l.totalCount
+    delayCount = delayCount + l.delayCount
+    sum = sum + l.sum
+    avgDelay = if (totalCount == 0) 0 else sum / totalCount.toDouble
+  }
+
+  def add(v: Double) = {
+    if (v > 0.02) {
+      delayCount += 1
+      sum += v
+      avgDelay = if (totalCount == 0) 0 else sum / totalCount.toDouble
+    }
+    totalCount += 1
+  }
+
+  def getDelayFactor(): Double = {
+    if (totalCount == 0) {
+      0.0
+    } else {
+      avgDelay * delayCount.toDouble / totalCount.toDouble
+//      avgDelay
+    }
+  }
+
+  override def toString() = {
+    "LatencyDelayInfo(" + totalCount + "," + delayCount + "," + avgDelay + ")"
+  }
+}
+
+case class LatencyPing(var pings: Map[String, LatencyInfoList], var delays: Map[String, LatencyDelayInfo]) extends AvroRecord with StorageServiceOperation
+case class LatencyPingResponse(var allPings: scala.collection.Map[String, scala.collection.Map[String, LatencyInfoList]], var allDelays: scala.collection.Map[String, scala.collection.Map[String, LatencyDelayInfo]]) extends AvroRecord with StorageServiceOperation
