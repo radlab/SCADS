@@ -281,7 +281,8 @@ class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
         missingServers,
         missingServers,
         region.keyName,
-        "m1.large",
+//        "m1.large",
+        "m1.small",
         availabilityZone,
         None)
 
@@ -386,7 +387,8 @@ class Cluster(val region: EC2Region = USEast1, val useFT: Boolean = false) {
       count,
       count,
       region.keyName,
-      "m1.large",
+//      "m1.large",
+      "m1.small",
       zone,
       None)
     instances.foreach(_.tags += ("mesos", "master"))
