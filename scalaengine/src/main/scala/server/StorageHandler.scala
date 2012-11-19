@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.{ Arrays => JArrays }
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable.{ Set => MSet, HashSet }
+import scala.collection.mutable.{ Set => MSet, HashSet, HashMap }
 
 import org.apache.zookeeper.KeeperException.NodeExistsException
 import transactions._
@@ -106,6 +106,14 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
 	}
       def stop() = running = false
     }
+
+  // Stores latency info from everyone.
+  // client -> (dc -> latency info list)
+  private val latencyStats = new HashMap[String, scala.collection.Map[String, LatencyInfoList]]()
+
+  // Stores latency info from everyone.
+  // client -> (dc -> latency delay)
+  private val latencyDelayStats = new HashMap[String, scala.collection.Map[String, LatencyDelayInfo]]()
 
   private def makeDatabase(databaseName: String, keySchema: Schema, txn: Option[je.Transaction]): Database =
     makeDatabase(databaseName, Some(new AvroBdbComparator(keySchema)), txn)
@@ -536,6 +544,11 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
         reply(DeleteNamespaceResponse())
       }
       case ShutdownStorageHandler() => System.exit(0)
+      case LatencyPing(m, d) =>
+        val sname = src.get.host
+        latencyStats.put(sname, m)
+        latencyDelayStats.put(sname, d)
+        reply(LatencyPingResponse(latencyStats, latencyDelayStats))
       case _ => reply(RequestRejected("StorageHandler can't process this message type", msg))
     }
   }
