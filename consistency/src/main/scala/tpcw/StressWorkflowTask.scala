@@ -102,7 +102,11 @@ case class StressWorkflowTask(var numClients: Int,
     // buyList is a list of ((itemName, itemId), # to buy)
     def getBuyList() = {
 //      val itemIds = (1 to random.nextInt(10) + 1).map(_ => randomItem).toSet.toSeq
-      val itemIds = (1 to 3).map(_ => randomItem).toSet.toSeq
+
+//      val itemIds = (1 to 3).map(_ => randomItem).toSet.toSeq
+
+      val itemIds = (1 to 1).map(_ => randomItem).toSet.toSeq
+
 //      val itemIds = (1 to random.nextInt(3) + 1).map(_ => randomItem).toSet.toSeq
       itemIds.map(i => (i, random.nextInt(3) + 1))
     }
@@ -110,8 +114,11 @@ case class StressWorkflowTask(var numClients: Int,
     def buyAction(ns: PairNamespace[MicroItem] with PairTransactions[MicroItem]): (Boolean, String) = {
       val buyList = getBuyList()
 
+      var rowsProbList: List[RowLikelihood] = null
+      var txLikelihood = 0.0
+
       var commit = true
-      val txStatus = new Tx(4000, ReadLocal()) ({
+      val tx = new Tx(4000, ReadLocal()) ({
         val i1 = buyList.map(i => {
           // ((future, item id), buy amt)
           ((ns.asyncGetRecord(MicroItem(i._1._1)), i._1._2), i._2)
@@ -142,15 +149,41 @@ case class StressWorkflowTask(var numClients: Int,
             }
           })
         }
-      }).Execute() match {
+      }).Probabilistic((rowsProb: Seq[RowLikelihood], txProb: Double) => {
+        rowsProbList = rowsProb.toList
+        txLikelihood = txProb
+        false
+      })
+
+      val txStatus = tx.Execute() match {
         case COMMITTED => true && commit
         case _ => false
       }
+
+      println(txStatus + " likelihood: " + txLikelihood + " rowsProb: " + rowsProbList)
+
       val aName = if (useLogical) "buyAction-Write-logical" else "buyAction-Write-physical"
       (txStatus, aName)
     }
 
     val warmupTime = 0
+
+    // Sync up before collecting latency stats
+    coordination.registerAndAwait("beforelatencystats", numClients, timeout=60*60*1000)
+
+    val samplingServers = (0 until loaderConfig.numClusters).map(c => {
+      cluster.getAvailableServers("cluster-" + c).sortBy(x => x.toString).head
+    })
+    LatencySampling.startSampling(samplingServers)
+    Thread.sleep(10*1000)
+    LatencySampling.slowSampling(5000)
+
+    // Sync up with other clients.
+    coordination.registerAndAwait("iteration1start", numClients, timeout=60*60*1000)
+
+
+
+
 
     logger.info("starting experiment at: " + startTime)
 
@@ -225,6 +258,10 @@ case class StressWorkflowTask(var numClients: Int,
       })
 
       logger.info("******** writing out aggregated results.")
+
+      res.times.foreach(x => {
+        println(x._1 + ": " + x._2.totalRequests + " 50%: " + x._2.quantile(0.5) + " avg: " + x._2.average)
+      })
 
       coordination.registerAndAwait("iteration" + iteration, numClients)
     }
