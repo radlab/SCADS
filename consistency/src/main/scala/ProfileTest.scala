@@ -27,6 +27,10 @@ import tpcw._
 
 import edu.berkeley.cs.scads.storage.transactions.mdcc._
 
+import java.util.Calendar
+import java.util.TimeZone
+import java.util.Date
+import java.sql.Timestamp
 
 object ProfileTest extends ExperimentBase {
   val logger = Logger()
@@ -77,7 +81,16 @@ object ProfileTest extends ExperimentBase {
   }
 
   def main(args: Array[String]) {
-    ProfileTest.run()
+//    ProfileTest.run()
+
+
+    val start = System.currentTimeMillis
+    var end = System.currentTimeMillis
+    while (end - start < 1000) {
+      println(end + " " + end / 500)
+      end = System.currentTimeMillis
+    }
+
     println("Exiting...")
     System.exit(0)
   }
