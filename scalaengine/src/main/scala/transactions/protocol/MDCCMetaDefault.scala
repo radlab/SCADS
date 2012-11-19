@@ -163,9 +163,9 @@ class MDCCMetaDefault(nsRoot: ZooKeeperProxy#ZooKeeperNode) {
     if (onEC2) {
       ec2MetaData(key)
     } else {
-      _defaultMeta
+//      _defaultMeta
       // For local stress test, need to use this one.
-//      localMetaData(key)
+      localMetaData(key)
     }
   }
 
