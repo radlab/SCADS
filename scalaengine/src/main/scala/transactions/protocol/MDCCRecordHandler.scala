@@ -413,12 +413,12 @@ class MDCCRecordHandler (
           request = env
           resolveConflict(src, msg)
         }
-        case env@StorageEnvelope(src, msg: Propose) if status == READY => {
-          startT1 = System.nanoTime / 1000000
-          debug("Processing Propose request", env)
-          request = env
-          processProposal(src, msg)
-        }
+//        case env@StorageEnvelope(src, msg: Propose) if status == READY => {
+//          startT1 = System.nanoTime / 1000000
+//          debug("Processing Propose request", env)
+//          request = env
+//          processProposal(src, msg)
+//        }
         case env@StorageEnvelope(src, msg: SinglePropose) if status == SCAN_FOR_PROPOSE => {
           val sfp = request.msg.asInstanceOf[ScanForPropose]
           if (sfp.learned.xid == msg.xid) {
@@ -427,6 +427,35 @@ class MDCCRecordHandler (
           } else {
             // Skip over this message, since it does not have the same xid.
             mailbox.keepMsgInMailbox = true
+          }
+        }
+        case env@StorageEnvelope(src, msg: Propose) => {
+          if (status == READY) {
+            startT1 = System.nanoTime / 1000000
+            debug("Processing Propose request", env)
+            request = env
+            processProposal(src, msg)
+          } else {
+            mailbox.keepMsgInMailbox = true
+            if (status == PHASE2A) {
+              if (confirmedBallot && !currentBallot.fast && areWeMaster(currentBallot.server)) {
+                val prop = seq(msg).head
+                prop.update match {
+                  case ValueUpdate(key, oldValue, _) => {
+                    val rec = oldValue.map(MDCCRecordUtil.fromBytes(_))
+                    if (rec.isDefined) {
+                      val oldVersion = rec.get.metadata.currentVersion
+                      if (version.round >= oldVersion.round) {
+                        // send a shortcut abort.
+                        src ! Learned(prop.xid, key, false)
+                        mailbox.keepMsgInMailbox = false
+                        error("shortcut abort %s: oldVersion.round: %d currentVersion.round: %d src: %s currentRequest: %s", prop.xid, oldVersion.round, version.round, src, request)
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
         case env@StorageEnvelope(src, msg: ScanForPropose) if status == READY => {
