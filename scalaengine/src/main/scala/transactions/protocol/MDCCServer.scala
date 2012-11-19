@@ -209,7 +209,8 @@ class MDCCServer(val namespace : String,
     if (myBallot.isEmpty || myBallot.get.compare(reqBallot) != 0) {
       commitTrx(trx)
       debug(key, "Sending Master Failure local: %s - request: %s record: %s meta: %s", myBallot, reqBallot, record, meta)
-      src ! Phase2bMasterFailure(meta.ballots, false)
+      // TODO: try not sending this for classic rounds. Will catch up with a newer message.
+//      src ! Phase2bMasterFailure(meta.ballots, false)
     } else {
       // Update metadata.
       meta.ballots = adjustRound(meta.ballots, reqBallot.round)
