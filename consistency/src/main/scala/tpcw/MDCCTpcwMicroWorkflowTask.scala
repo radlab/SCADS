@@ -20,6 +20,8 @@ import deploylib.ec2._
 import scala.util.Random
 import scala.collection.{ mutable => mu }
 
+import scala.collection.JavaConversions._
+
 case class MDCCMicroBenchmarkResult(var clientConfig: MDCCTpcwMicroWorkflowTask,
                                     var loaderConfig: MDCCTpcwMicroLoaderTask,
                                     var clusterAddress: String,
@@ -32,6 +34,10 @@ case class MDCCMicroBenchmarkResult(var clientConfig: MDCCTpcwMicroWorkflowTask,
   var failures: Int = _
 }
 
+// additionalSettings:
+//    "hotspot": int, percent of hotspot size, 90 is uniform
+//    "localMaster": int, pecent of local masters, -1 is unused
+//    "useSpecCommit": int 0 for false, 1 for true
 case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
                                      var executorClass: String,
                                      var numThreads: Int = 10,
@@ -41,6 +47,8 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
                                      var startTime: String,
                                      var clusterId: Int = 0,
                                      var numClusters: Int = 1,
+                                     var programmingModelTest: Boolean = false,
+                                     var additionalSettings: Map[String, String] = Map(),
                                      var note: String) extends AvroRecord with ReplicatedExperimentTask {
 
   var experimentAddress: String = _
@@ -73,6 +81,19 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
     item
   }
 
+  def getMetadataRegion(ns: PairNamespace[MicroItem] with PairTransactions[MicroItem], item: MicroItem): String = {
+    val hash = java.util.Arrays.hashCode(ns.keyToBytes(item.key))
+    val rand = new scala.util.Random(hash)
+
+    val randomRegion = if (rand.nextInt(100) < 20) {
+      "us-west-1"
+    } else {
+      val l = List("compute-1", "eu-west-1", "ap-northeast-1", "ap-southeast-1")
+      l(rand.nextInt(l.size))
+    }
+    randomRegion
+  }
+
   def run(): Unit = {
 
     val numGlobalClients = numClients * numClusters
@@ -94,8 +115,6 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
     // out of stock items.
     val oosItems = new mu.BitSet(loaderConfig.numItems)
 
-
-
     // List(USWest1, USEast1, EUWest1, APNortheast1, APSoutheast1)
     val ownRegion = clusterId match {
       case 0 => "us-west-1"
@@ -105,20 +124,6 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
       case 4 => "ap-southeast-1"
       case _ => "wrong_cluster_id"
     }
-
-    def getMetadataRegion(ns: PairNamespace[MicroItem] with PairTransactions[MicroItem], item: MicroItem): String = {
-      val hash = java.util.Arrays.hashCode(ns.keyToBytes(item.key))
-      val rand = new scala.util.Random(hash)
-
-      val randomRegion = if (rand.nextInt(100) < 20) {
-        "us-west-1"
-      } else {
-        val l = List("compute-1", "eu-west-1", "ap-northeast-1", "ap-southeast-1")
-        l(rand.nextInt(l.size))
-      }
-      randomRegion
-    }
-
 
     // For classic master locality test.
     val testMicroItems = cluster.getNamespace[MicroItem]("microItems", loaderConfig.txProtocol)
@@ -134,6 +139,7 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
     logger.info("localItemIds: %d", localItemIds.size)
     logger.info("remoteItemIds: %d", remoteItemIds.size)
 
+    // TODO: read this from the map, not the note.
     val localMaster = note.indexOf("localMaster_") match {
       case -1 =>
         -1
@@ -142,6 +148,7 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
     }
     logger.info("localMaster: %d", localMaster)
 
+    // TODO: read this from the map, not the note.
     // requested hotspot percent
     val hotspot_percent = note.indexOf("hot_") match {
       case -1 =>
@@ -156,20 +163,51 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
         }
     }
 
-    val hotspot_cutoff = loaderConfig.numItems * hotspot_percent / 100
+    val hotspot_cutoff = if (hotspot_percent < 0) {
+      // hotspot_percent < 0 means, just use that many items, not a percent.
+      -hotspot_percent
+    } else {
+      loaderConfig.numItems * hotspot_percent / 100
+    }
 
     logger.info("Hotspot info: percent: %d, id cutoff: %d, numItems: %d", hotspot_percent, hotspot_cutoff, loaderConfig.numItems)
 
+    // using speculative commit.  only when using programming model test.
+    val useSpecCommit = if (programmingModelTest && additionalSettings.contains("useSpecCommit")) {
+      additionalSettings.get("useSpecCommit").get.toInt == 1
+    } else {
+      false
+    }
+
+    // number of rows in a tx. (1, 1) means exactly 1 record
+    val txMinSize = additionalSettings.getOrElse("txMinSize", "1").get.toInt
+    val txSizeRange = additionalSettings.getOrElse("txSizeRange", "1").get.toInt
+
+    // use zipfian distribution
+    val useZipf = additionalSettings.getOrElse("useZipf", "0").get.toInt == 1
+    val randomZipf = new ZipfGenerator(loaderConfig.numItems, 0.1)
+
+    logger.info("programmingModelTest: %s", programmingModelTest)
+    logger.info("useSpecCommit: %s", useSpecCommit)
+    logger.info("txSizes: (%d - %d)", txMinSize, txMinSize + txSizeRange - 1)
+    logger.info("useZipf: %s", useZipf)
+
+
     // returns the (name, id) of a random item.
-    def randomItem = {
+    def randomItem(forceHotspot: Boolean = false, avoidHotspot: Boolean = false) = {
       var id = 0
       do {
-        if (hotspot_cutoff == 100) {
-          // Uniformly random item.
-          id = random.nextInt(loaderConfig.numItems) + 1
+        if ((hotspot_percent == 90) && !forceHotspot && !avoidHotspot) {
+          if (useZipf) {
+            // use zipf distribution.
+            id = randomZipf.nextInt() + 1
+          } else {
+            // Uniformly random item.
+            id = random.nextInt(loaderConfig.numItems) + 1
+          }
         } else {
           // use hotspot access pattern
-          if (random.nextInt(100) < 90) {
+          if (!avoidHotspot && ((random.nextInt(100) < 90) || forceHotspot)) {
             // pick a random item from the hotspot.
             id = random.nextInt(hotspot_cutoff) + 1
           } else {
@@ -195,17 +233,50 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
 
     // buyList is a list of ((itemName, itemId), # to buy)
     def getBuyList() = {
-//      val itemIds = (1 to random.nextInt(10) + 1).map(_ => randomItem).toSet.toSeq
+//      val itemIds = (1 to random.nextInt(10) + 1).map(_ => randomItem()).toSet.toSeq
+
+      val numRecs = txMinSize + random.nextInt(txSizeRange)
 
 
-//      val itemIds = (1 to 3).map(_ => randomItem).toSet.toSeq
+
+
+      // usually use this for micro test.
+//      val itemIds = (1 to numRecs).map(_ => randomItem()).toSet.toSeq
 
       // localMaster test
-      val itemIds = (1 to 3).map(_ => randomLocalItem).toSet.toSeq
+//      val itemIds = (1 to numRecs).map(_ => randomLocalItem).toSet.toSeq
 
 
 
-//      val itemIds = (1 to random.nextInt(3) + 1).map(_ => randomItem).toSet.toSeq
+      // programming model test. use 1 rec?
+//      val itemIds = (1 to numRecs).map(_ => randomItem()).toSet.toSeq
+
+      val itemIds = if (hotspot_percent == 90) {
+        // just normal item picking
+        (1 to numRecs).map(_ => randomItem()).toSet.toSeq
+      } else {
+        if (random.nextInt(100) < 90) {
+          // touch the hotspot.  basically, make 90% of TX hit hotspot,
+          // not individual records.
+          (1 to numRecs).map(i => {
+            if (i == 1) {
+              // first one is always in hotspot.
+              randomItem(true)
+            } else {
+              // other ones may or may not be in the hotspot.
+              randomItem()
+            }
+          })
+        } else {
+          // do not touch hotspot.
+          (1 to numRecs).map(_ => randomItem(false, true)).toSet.toSeq
+        }
+      }
+
+
+
+
+//      val itemIds = (1 to random.nextInt(3) + 1).map(_ => randomItem()).toSet.toSeq
       itemIds.map(i => (i, random.nextInt(3) + 1))
     }
 
@@ -216,21 +287,32 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
 
     var stopTest = false
 
-    def buyAction(ns: PairNamespace[MicroItem] with PairTransactions[MicroItem]): (Boolean, String) = {
+    def buyAction(ns: PairNamespace[MicroItem] with PairTransactions[MicroItem], duringWarmup: Boolean, startTime: Long, specResults: java.util.concurrent.ConcurrentLinkedQueue[(String, Long)]): (TxStatus, String, Boolean) = {
       val buyList = getBuyList()
 //      val buyList = getSingularBuyList()  // inconsistency test
 
+      var rowsProbList: List[RowLikelihood] = null
+      var txLikelihood = 0.0
+
+      var aName = if (useLogical) "buyAction-Write-logical" else "buyAction-Write-physical"
+
+      val startT = System.nanoTime / 1000000
+      var usedHotspot = false
       var commit = true
-      val txStatus = new Tx(4000, ReadLocal()) ({
+      var speculated = false
+      val tx = new Tx(10000, ReadLocal()) ({
         val i1 = buyList.map(i => {
           // ((future, item id), buy amt)
           ((ns.asyncGetRecord(MicroItem(i._1._1)), i._1._2), i._2)
         })
+
         val i2 = i1.map(i => {
           val x = i._1._1().get
           if (x.I_STOCK == 0) {
             oosItems.add(i._1._2)
             println("oos: " + oosItems.size)
+          } else if (hotspot_percent < 90 && i._1._2 <= hotspot_cutoff) {
+            usedHotspot = true
           }
           // (MicroItem, buy amt)
           (x, scala.math.min(x.I_STOCK, i._2))
@@ -253,16 +335,62 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
             }
           })
         }
-      }).Execute() match {
-        case COMMITTED => true && commit
-        case _ => false
+      }).Probabilistic((rowsProb: Seq[RowLikelihood], txProb: Double) => {
+        rowsProbList = rowsProb.toList
+        txLikelihood = txProb
+        if (useSpecCommit && txProb >= 0.95) {
+          speculated = true
+          true
+        } else {
+          false
+        }
+      }).Finally((status: TxStatus, timedOut: Boolean, endSpecTime: Long) => {
+        if (useSpecCommit && !duringWarmup && endSpecTime > 0) {
+          val actionName = if (status == COMMITTED) {
+            aName + "-SPEC-COMMIT"
+          } else {
+            aName + "-SPEC-ABORT"
+          }
+          val elapsedTime = endSpecTime - startTime
+          specResults.add((actionName, elapsedTime))
+        }
+      })
+
+      val txStatus = tx.Execute() match {
+        case COMMITTED => if (!commit) ABORTED else COMMITTED
+        case x => x
       }
-      val aName = if (useLogical) "buyAction-Write-logical" else "buyAction-Write-physical"
-      (txStatus, aName)
+      val endT = System.nanoTime / 1000000
+
+      if (!duringWarmup) {
+        println(txStatus + " likelihood: " + txLikelihood + " rowsProb: " + rowsProbList + " real_duration: " + (endT - startT))
+      }
+
+      if (usedHotspot) aName = aName + "-hotspot"
+      (txStatus, aName, speculated)
     }
 
-    val warmupTime = 1 * 60 * 1000
+
+
+    /****************************************************************/
+    /****************************************************************/
+    /****************************************************************/
+
+    val warmupTime = 2 * 60 * 1000
 //    val warmupTime = -1  // inconsistency test
+
+    // Sync up before collecting latency stats
+    coordination.registerAndAwait("beforelatencystats", numGlobalClients, timeout=60*60*1000)
+
+    val samplingServers = (0 until loaderConfig.numClusters).map(c => {
+      cluster.getAvailableServers("cluster-" + c).sortBy(x => x.toString).head
+    })
+    LatencySampling.startSampling(samplingServers)
+    Thread.sleep(45*1000)
+    LatencySampling.slowSampling(1000)
+
+    // Sync up with other clients.
+    coordination.registerAndAwait("iteration1start", numGlobalClients, timeout=60*60*1000)
 
     logger.info("starting experiment at: " + startTime)
 
@@ -276,17 +404,22 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
         val iterationStartTime = getTime
         var endTime = iterationStartTime
         var failures = 0
+        // (name, elapsed time)
+        val specResults = new java.util.concurrent.ConcurrentLinkedQueue[(String, Long)]()
 
         while(endTime - iterationStartTime < (runTime + warmupTime)) {
 //        while(!stopTest) {  // inconsistency test
 
           val startTime = getTime
           try {
-            val (actionCommit, aName) = buyAction(microItems)
+            val duringWarmup = (endTime - iterationStartTime) <= warmupTime
+            val (actionStatus, aName, speculated) = buyAction(microItems, duringWarmup, startTime, specResults)
             endTime = getTime
-            if (endTime - iterationStartTime > warmupTime) {
-              val actionName = if (actionCommit) {
+            if (!duringWarmup && !speculated) {
+              val actionName = if (actionStatus == COMMITTED) {
                 aName + "-COMMIT"
+              } else if (actionStatus == REJECTED) {
+                aName + "-REJECT"
               } else {
                 aName + "-ABORT"
               }
@@ -307,7 +440,23 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
               failures += 1
             }
           }
-        }
+        }  // while loop for time
+
+        // add in all the spec results
+        specResults.iterator.foreach(x => {
+          val actionName = x._1
+          val elapsedTime = x._2
+          println("specResult: " + actionName + " : " + elapsedTime)
+          if (histograms.isDefinedAt(actionName)) {
+            // Histogram for this action already exists.
+            histograms.get(actionName).get += elapsedTime
+          } else {
+            // Create a histogram for this action.
+            val newHist = Histogram(1, 10000)
+            newHist += elapsedTime
+            histograms.put(actionName, newHist)
+          }
+        })
 
         val res = MDCCMicroBenchmarkResult(this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId)
         res.startTime = startTime
@@ -316,7 +465,7 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
         res.failures = failures
 
         res
-      })
+      })  // threads pmap
 
       logger.info("******** aggregate results.")
 
@@ -336,6 +485,12 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
 
         res.times = histograms.toMap
         res.failures += r.failures
+      })
+
+      res.times.foreach(x => {
+        val (k, h) = x
+        logger.info("%s stats count: %d 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms",
+                    k, h.totalRequests, h.quantile(0.50), h.quantile(0.90), h.quantile(0.99), h.average, h.stddev)
       })
 
       logger.info("******** writing out aggregated results.")

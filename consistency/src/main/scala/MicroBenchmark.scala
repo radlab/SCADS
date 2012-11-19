@@ -58,8 +58,15 @@ object MicroBenchmark extends ExperimentBase {
   }
 
   def expName(res: tpcw.MDCCMicroBenchmarkResult) = {
+    val spec = if (res.clientConfig.programmingModelTest && (res.clientConfig.additionalSettings.getOrElse("useSpecCommit", "0") == "1")) {
+      "_spec"
+    } else {
+      ""
+    }
+
+    val notes = res.clientConfig.note + spec
     val logical = if (res.clientConfig.useLogical) "logical" else "physical"
-    res.startTime + " (" + res.clientConfig.numClusters + "DC." + res.clientConfig.numClients + "." + res.clientConfig.numThreads + "=" + (res.clientConfig.numClusters * res.clientConfig.numClients * res.clientConfig.numThreads) + ")(" + res.loaderConfig.numItems + ")-" + res.loaderConfig.txProtocol.toString.replace("NSTxProtocol", "").replace("()", "") + " " + logical + " " + res.clientConfig.note
+    res.startTime + " (" + res.clientConfig.numClusters + "DC." + res.clientConfig.numClients + "." + res.clientConfig.numThreads + "=" + (res.clientConfig.numClusters * res.clientConfig.numClients * res.clientConfig.numThreads) + ")(" + res.loaderConfig.numItems + ")-" + res.loaderConfig.txProtocol.toString.replace("NSTxProtocol", "").replace("()", "") + " " + logical + " " + notes
   }
 
   // Only gets histograms with something greater than 'name'
@@ -150,7 +157,10 @@ object MicroBenchmark extends ExperimentBase {
           rawOut.close()
         }
 
-        val summary = n + ": requests: " + totalRequests + " 50%: " + h.quantile(.5) + " 90%: " + h.quantile(.9) + " 95%: " + h.quantile(.95) + " 99%: " + h.quantile(.99) + " avg: " + h.average
+        val extremes = h.boxplotExtremes(false)
+        val extremesNoOutliers = h.boxplotExtremes(true)
+
+        val summary = n + ": requests: " + totalRequests + " 50%: " + h.quantile(.5) + " 90%: " + h.quantile(.9) + " 95%: " + h.quantile(.95) + " 99%: " + h.quantile(.99) + " avg: " + h.average + " boxplot(25, 50, 75): " + extremes._1 + " " + extremesNoOutliers._1 + " " + h.quantile(0.25) + " " + h.quantile(0.5) + " " + h.quantile(0.75) + " " + extremesNoOutliers._2 + " " + extremes._2
         println(summary)
         if (write) readmeOut.write(summary + "\n")
       })
@@ -166,14 +176,14 @@ object MicroBenchmark extends ExperimentBase {
           protocol: NSTxProtocol,
           useLogical: Boolean, useFast: Boolean,
           classicDemarcation: Boolean,
-          localMasterPercentage: Int, hotspot: Int = 90, localMaster: Int = -1): Unit = {
+          localMasterPercentage: Int, hotspot: Int = 90, localMaster: Int = -1, numItems: Int = 10000): Unit = {
     if (c.size < 1) {
       logger.error("cluster list must not be empty")
     } else if (c.head.slaves.size < 2) {
       logger.error("first cluster must have at least 2 slaves")
     } else {
       task = MicroBenchmarkTask()
-      task.schedule(resultClusterAddress, c, protocol, useLogical, useFast, classicDemarcation, localMasterPercentage, hotspot, localMaster)
+      task.schedule(resultClusterAddress, c, protocol, useLogical, useFast, classicDemarcation, localMasterPercentage, hotspot, localMaster, numItems)
     }
   }
 
@@ -196,12 +206,13 @@ case class MicroBenchmarkTask()
                localMasterPercentage: Int,
                hotspot: Int = 90,
                localMaster: Int = -1,
-               partitions: Int = 2): Unit = {
+               numItems: Int = 10000,
+               partitions: Int = 4): Unit = {
     this.resultClusterAddress = resultClusterAddress
 
     numPartitions = partitions
     numClusters = clusters.size
-    val clientsPerCluster = 2
+    val clientsPerCluster = 1
     val threadsPerClient = 10
 
     var addlProps = new collection.mutable.ArrayBuffer[(String, String)]()
@@ -248,6 +259,28 @@ case class MicroBenchmarkTask()
       notes += "_localMaster_" + localMaster
     }
 
+    val addlSettings = new scala.collection.mutable.HashMap[String, String]
+    addlSettings.put("hotspot", hotspot.toString)
+    addlSettings.put("localMaster", localMaster.toString)
+
+    // true, to test the programming model.
+    val progModel = true
+
+    // for spec commit.
+    addlSettings.put("useSpecCommit", "0")
+
+    // for general purpose test, use these options.
+
+    // using zipf distribution.
+    addlSettings.put("useZipf", "0")
+
+    // transaction min size
+    addlSettings.put("txMinSize", "1")
+
+    // # possible tx sizes
+    addlSettings.put("txSizeRange", "4")
+
+
     // Start the storage servers.
     val scadsCluster = newMDCCScadsCluster(numPartitions, clusters, addlProps)
     clusterAddress = scadsCluster.root.canonicalAddress
@@ -257,7 +290,13 @@ case class MicroBenchmarkTask()
     // try 50000 items? much closer
     // try 100000 items? stick with this.
     // 100 for inconsistency test.
-    val loaderTasks = MDCCTpcwMicroLoaderTask(numClusters * numPartitions, clientsPerCluster, numEBs=150, numItems=10000, numClusters=numClusters, txProtocol=protocol, namespace="items").getLoadingTasks(clusters.head.classSource, scadsCluster.root, addlProps)
+    // try 5000 for probability test. 50 clients.
+    //    prob test: 250 ~ 65% commit
+    //    prob test: 100 ~ 50% commit
+    //    prob test: 20 ~ 20%
+    // spec commit: 10000 items, 95% commit, good setting
+    //    5000 items
+    val loaderTasks = MDCCTpcwMicroLoaderTask(numClusters * numPartitions, clientsPerCluster, numEBs=150, numItems=numItems, numClusters=numClusters, txProtocol=protocol, namespace="items").getLoadingTasks(clusters.head.classSource, scadsCluster.root, addlProps)
     clusters.head.serviceScheduler.scheduleExperiment(loaderTasks)
 
     var expStartTime: String = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new java.util.Date)
@@ -278,6 +317,8 @@ case class MicroBenchmarkTask()
         clusterId=index,
         numClusters=numClusters,
 //        numClusters=5,
+        programmingModelTest=progModel,
+        additionalSettings=addlSettings.toMap,
         note=notes).getExperimentTasks(cluster.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))
       cluster.serviceScheduler.scheduleExperiment(tpcwTasks)
     })
