@@ -9,11 +9,10 @@ import actors.Actor
 import util.Logger._
 import comm.RemoteService
 import actors.Actor._
-import collection.mutable.HashSet
 import util.{Scheduler, Logger}
 import actors.TIMEOUT
 import java.util.concurrent.Semaphore
-import collection.mutable.HashSet
+import collection.mutable.{HashSet, HashMap, ArrayBuffer}
 
 import scala.concurrent.Lock
 
@@ -66,7 +65,7 @@ class MDCCTrxHandler(tx: Tx, threadName: String) extends Actor {
   @volatile var status: TxStatus = UNKNOWN
   var Xid = ScadsXid.createUniqueXid()
   var count = 0
-  var participants = collection.mutable.HashSet[MDCCRecordHandler]()
+  var participants = HashSet[MDCCRecordHandler]()
 
   //Semaphore is used for the programming model timeout SLO 300ms
   private val sema = new Semaphore(0, false)
@@ -77,52 +76,102 @@ class MDCCTrxHandler(tx: Tx, threadName: String) extends Actor {
 
   implicit val remoteHandle = StorageRegistry.registerActor(this).asInstanceOf[RemoteService[StorageMessage]]
 
+  val rowsProb = new HashMap[List[Byte], RowLikelihood]
+
+  val rowsMetadata = new HashMap[List[Byte], MDCCMetadata]
+
+  var txStartT = System.nanoTime / 1000000
+  var txEndT = System.nanoTime / 1000000
+
+  val rand = new scala.util.Random
+
   @inline def debug(msg : String, items : scala.Any*) = logger.debug("" + remoteHandle.id + ": Xid:" + Xid + " ->" + msg, items:_*)
   @inline def info(msg : String, items : scala.Any*) = logger.info("" + remoteHandle.id +   ": Xid:" + Xid + " ->" + msg, items:_*)
 
+  def txLikelihood() = {
+    rowsProb.values.map(_.lastProb).reduceLeft(_ * _)
+  }
+
   def execute(): TxStatus = {
-//    logger.info("START2 %s %s", threadName, Xid)
-//    logger.info("START3 %s %s", threadName, Xid)
-    val startT = System.nanoTime / 1000000
+    // Send messages.
+    txStartT = System.nanoTime / 1000000
+    val updatesInfo = getTrx(tx.updateList, tx.readList)
 
-    startTrx(tx.updateList, tx.readList)
+    updatesInfo.foreach(r => {
+      val update = r._1
+      val md = r._2
+      update match {
+        case ValueUpdateInfo(_, _, key, _) =>
+          rowsMetadata.put(key.toList, md)
+          rowsProb.put(key.toList, new RowLikelihood("pred-0", Likelihood.rowSuccess(md), Likelihood.rowDuration(md)))
+        case LogicalUpdateInfo(_, _, key, _) =>
+          None
+        case _ =>
+          None
+      }
+    })
 
-    val endT = System.nanoTime / 1000000
-//    logger.info("END4 %s %s", threadName, Xid)
+    // likelihood of entire transaction.
+    val txProb = txLikelihood()
 
-    this.start()
-    debug("Waiting for status")
-    sema.acquire()
-    debug("We got a status: %s", status)
-    status match {
-      case UNKNOWN => tx.unknownFn()
-      case COMMITTED=> tx.commitFn(COMMITTED)
-      case ABORTED => tx.commitFn(ABORTED)
+    // admission control
+    // try probabilistic reject (reject 80% of the time)
+    if (false && txProb < 0.20 && rand.nextDouble() >= 0.20) {
+      status = REJECTED
+    } else {
+      // continue with transaction.
+      val rowsInfo = startTrx(updatesInfo)
+
+      // Start this actor.
+      this.start()
+      debug("Waiting for status")
+      sema.acquire()
+      debug("We got a status: %s", status)
+      status match {
+        case UNKNOWN => tx.unknownFn()
+        case COMMITTED=> tx.commitFn(COMMITTED)
+        case ABORTED => tx.commitFn(ABORTED)
+        case REJECTED => tx.commitFn(REJECTED)
+      }
     }
+
     status
   }
 
+  // returns list of (update info, metadata, old bytes) for each update.
+  protected def getTrx(updateList: UpdateList, readList: ReadList): Seq[(UpdateInfo, MDCCMetadata, Option[Array[Byte]])] = {
+    // TODO: filter out duplicates?
+    updateList.getUpdateList.map(update => {
+      update match {
+        case ValueUpdateInfo(ns, servers, key, value) => {
+          val (md, oldBytes) = readList.getRecord(key) match {
+            case None => (ns.getDefaultMeta(key), None)
+            case Some((r, b)) => (r.metadata, Some(b))
+          }
+          (update, md, oldBytes)
+        }
+        case LogicalUpdateInfo(ns, servers, key, value) => {
+          val md = readList.getRecord(key) match {
+            case None => ns.getDefaultMeta(key)
+            case Some((r, _)) => r.metadata
+          }
+          (update, md, None)
+        }
+      }
+    })
+  }
 
-  protected def startTrx(updateList: UpdateList, readList: ReadList) = {
+
+  protected def startTrx(updatesInfo: Seq[(UpdateInfo, MDCCMetadata, Option[Array[Byte]])]) = {
     val startT = System.nanoTime / 1000000
 
-    // TODO: filter out duplicates?
-    updateList.getUpdateList.foreach(update => {
+    updatesInfo.foreach(x => {
+      val update = x._1
+      val md = x._2
+      val oldBytes = x._3
       update match {
         case ValueUpdateInfo(ns, servers, key, value) => {
           val endT1 = System.nanoTime / 1000000
-          var action = ""
-          val (md, oldBytes) = readList.getRecord(key) match {
-            case None => {
-              action = "N"
-              (ns.getDefaultMeta(key), None)
-            }
-            case Some((r, b)) => {
-              action = "S"
-              (r.metadata, Some(b))
-            }
-          }
-          val endT2 = System.nanoTime / 1000000
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           //TODO: Do we really need the MDCCMetadata
           val endT3 = System.nanoTime / 1000000
@@ -138,14 +187,13 @@ class MDCCTrxHandler(tx: Tx, threadName: String) extends Actor {
           rHandler.remoteHandle ! propose
           val endT6 = System.nanoTime / 1000000
 //          if (endT6 - startT > 5) {
-//            logger.error("slow %s %s [%s, %s%s, %s, %s, %s, %s] startTrx: %s", Thread.currentThread.getName, Xid, (endT1 - startT), (endT2 - endT1), action, (endT3 - endT2), (endT4 - endT3), (endT5 - endT4), (endT6 - endT5), (endT6 - startT))
+//            logger.error("slow %s %s [%s, %s, %s, %s, %s] startTrx: %s", Thread.currentThread.getName, Xid, (endT1 - startT), (endT3 - endT1), (endT4 - endT3), (endT5 - endT4), (endT6 - endT5), (endT6 - startT))
 //          }
+
+          // return (update, metadata)
+          (update, md)
         }
         case LogicalUpdateInfo(ns, servers, key, value) => {
-          val md = readList.getRecord(key) match {
-            case None => ns.getDefaultMeta(key)
-            case Some((r, _)) => r.metadata
-          }
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           val propose = SinglePropose(Xid, LogicalUpdate(key, newBytes))
           val rHandler = ns.recordCache.getOrCreate(key, CStruct(value, Nil), md, servers, ns.getConflictResolver)  //TODO: Gene is the CStruct correct?
@@ -153,6 +201,9 @@ class MDCCTrxHandler(tx: Tx, threadName: String) extends Actor {
           debug("" + Xid + ": Sending logical update propose to MCCCRecordHandler", propose)
           debug("Record handler " + rHandler.hashCode )
           rHandler.remoteHandle ! propose
+
+          // return (update, metadata)
+          (update, md)
         }
       }
     })
@@ -206,11 +257,25 @@ class MDCCTrxHandler(tx: Tx, threadName: String) extends Actor {
       this ! TRX_TIMEOUT}, tx.timeout)
 //      this ! TRX_TIMEOUT}, 10000)  // Megastore
 
+    var speculated = false
     var timedOut = false
+    var endSpecTime: Long = 0
+
+    speculated = tx.probFn(rowsProb.values.toSeq, txLikelihood)
+
+    // TODO: execute more progress notifications when there is more info
+    // available.
+    if (speculated) {
+      sema.release()
+      endSpecTime = System.nanoTime / 1000000
+    }
 
     loop {
       react {
-        case StorageEnvelope(src, msg@Learned(_, _, success)) => {
+        case StorageEnvelope(src, msg@Learned(_, key, success)) => {
+          val endT = System.nanoTime / 1000000
+          // measure possible delays or queuing.
+          Likelihood.rowLearned(rowsMetadata.get(key.toList).get, rowsProb.get(key.toList).get.initialDuration, (endT - txStartT))
           if(success) {
             //TODO Take care of duplicate messages
             count += 1
@@ -235,6 +300,9 @@ class MDCCTrxHandler(tx: Tx, threadName: String) extends Actor {
           debug("" + Xid + ": TRX_EXIT requested. timedOut: " + timedOut)
           notifyAcceptors
           StorageRegistry.unregisterService(remoteHandle)
+
+          // call finally.
+          tx.finallyFn(status, timedOut, endSpecTime)
           //TODO Add finally remote
           exit()
         }
