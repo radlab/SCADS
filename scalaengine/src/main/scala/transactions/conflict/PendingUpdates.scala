@@ -5,6 +5,7 @@ package conflict
 import actors.threadpool.ThreadPoolExecutor.AbortPolicy
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
+import scala.collection.mutable.ListBuffer
 import java.util.Arrays
 import java.util.concurrent.ConcurrentHashMap
 
@@ -239,6 +240,36 @@ case class PendingCommandsInfo(var base: Option[Array[Byte]],
   }
 }
 
+class AccessStats() {
+  var buckets = new ListBuffer[AccessStatsBucket]()
+  // create a bucket in constructor.
+  buckets.prepend(AccessStatsBucket(System.currentTimeMillis / AccessStatsConstants.bucketSize, 1))
+
+  // add an access to the statistics.
+  def addAccess() = {
+    val millis = System.currentTimeMillis
+    val bucket = millis / AccessStatsConstants.bucketSize
+    buckets.headOption match {
+      case None =>
+        // no buckets, so add the first.
+        buckets.prepend(AccessStatsBucket(bucket, 1))
+      case Some(b) =>
+        if (b.bucket == bucket) {
+          // update the current bucket.
+          b.num = b.num + 1
+        } else {
+          // this update does not belong to current bucket. prepend a new one.
+          buckets.prepend(AccessStatsBucket(bucket, 1))
+          if (buckets.length > AccessStatsConstants.numBuckets) {
+            buckets = buckets.take(AccessStatsConstants.numBuckets)
+          }
+        }
+    }
+  }
+
+  def getMetadataStatistics = Statistics(buckets)
+}
+
 class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                                override val factory: TxDBFactory,
                                val keySchema: Schema,
@@ -253,6 +284,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   private val pendingCStructs = new ConcurrentHashMap[List[Byte], PendingCommandsInfo](100000, 0.75f, 100)
 
   private val committedXidMap = new ConcurrentHashMap[(ScadsXid, Int), Boolean](1000000, 0.75f, 1000)
+
+  // access statistics.
+  private val rowStats = new ConcurrentHashMap[List[Byte], AccessStats](100000, 0.75f, 100)
 
   // Detects conflicts for new updates.
   private var newUpdateResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs, committedXidMap)
@@ -270,6 +304,25 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     newUpdateResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs, committedXidMap)
     conflictResolver = new ConflictResolver(valueSchema, valueICs)
     println("ics: " + valueICs)
+  }
+
+  def updateRowStats(key: Array[Byte]) = {
+    val prev = rowStats.putIfAbsent(key.toList, new AccessStats())
+    if (prev != null) {
+      // already existed.
+      prev.addAccess()
+    }
+  }
+
+  def addStatsToMetadata(key: Array[Byte], meta: MDCCMetadata) = {
+    val stats = rowStats.get(key.toList) match {
+      case null =>
+        None
+      case s =>
+        Some(s.getMetadataStatistics)
+    }
+    meta.statistics = stats
+    meta
   }
 
   // If accept was successful, returns the cstruct.  Otherwise, returns None.
@@ -402,8 +455,11 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
 //          logger.debug("ACCEPT xid: %s %s key:%s ignore: %s storedRecValue: %s commands: %s", xid, Thread.currentThread.getName, (new mdcc.ByteArrayWrapper(r.key)).hashCode(), ignore, storedRecValue, commandsInfo)
 
+          updateRowStats(r.key)
+
           (r.key, CStruct(commandsInfo.base, commandsInfo.commands))
         } else {
+          updateRowStats(r.key)
           (null, null)
         }
       })
@@ -454,7 +510,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       })
 
       if (dbTxn == null) {
-        db.txAbort(txn)
+//        db.txAbort(txn)
+        // This can be commit, since we don't write uncommitted records.
+        db.txCommit(txn)
       }
     }
 
@@ -618,7 +676,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
                     // logger.debug("COMMIT logical2: " + xid + " " + Thread.currentThread.getName + " key:" + (new mdcc.ByteArrayWrapper(key)).hashCode() + " dbRec.metadata: " + dbRec.metadata)
 
-                    val newRec = MDCCRecordUtil.toBytes(MDCCRecord(Some(newBytes), dbRec.metadata))
+                    val newRec = MDCCRecordUtil.toBytes(MDCCRecord(Some(newBytes), addStatsToMetadata(key, dbRec.metadata)))
                     db.put(txn, key, newRec)
                   }
                 }
@@ -648,7 +706,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                            skippedPut = true
                          } else {
                            val newRec = MDCCRecordUtil.fromBytes(newValue)
-                           val newDbRec = MDCCRecordUtil.toBytes(MDCCRecord(newRec.value, dbRec.metadata))
+                           val newDbRec = MDCCRecordUtil.toBytes(MDCCRecord(newRec.value, addStatsToMetadata(key, dbRec.metadata)))
                            logger.debug("COMMIT replace: " + xid + " " + Thread.currentThread.getName + " key:" + (new mdcc.ByteArrayWrapper(key)).hashCode())
                            db.put(txn, key, newDbRec)
                          }
@@ -708,6 +766,10 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
     txRecords.foreach(ue => {
       val r = ue.update
+
+      // txn for writing stats on abort.
+      val txn = db.txStart()
+
       try {
         // Remove the updates in the pending list.
 
@@ -730,11 +792,25 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
         if (applyAbort) {
           commandsInfo.abortCommand(CStructCommand(xid, r, false, false))
         }
+
+        // Try writing stats for aborts.
+        val dbVal = db.get(txn, r.key)
+        val storedMDCCRec: Option[MDCCRecord] =
+          dbVal.map(MDCCRecordUtil.fromBytes(_))
+        if (storedMDCCRec.isDefined) {
+          val r1 = storedMDCCRec.get
+          val newDbRec = MDCCRecordUtil.toBytes(MDCCRecord(r1.value, addStatsToMetadata(r.key, r1.metadata)))
+          db.put(txn, r.key, newDbRec)
+        }
+        db.txCommit(txn)
+
       } catch {
         case e: Exception => {
           logger.debug("abortTxnException xid: %s %s", xid, e)
           e.printStackTrace()
         }
+        // txn for writing stats on abort.
+        db.txAbort(txn)
       }
 
     }) // txRecords.foreach
@@ -784,9 +860,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       //       a cstruct.
       case None => //throw new RuntimeException("When overwriting, db record should already exist. " + Thread.currentThread.getName + " key:" + (new mdcc.ByteArrayWrapper(key)).hashCode() + " safeValue: " + safeValue + " committedXids: " + committedXids + " abortedXids: " + abortedXids)
         logger.error("When overwriting, db record should already exist??? " + Thread.currentThread.getName + " key:" + (new mdcc.ByteArrayWrapper(key)).hashCode() + " safeValue: " + safeValue + " committedXids: " + committedXids + " abortedXids: " + abortedXids)
-        MDCCRecord(newDBrec, meta.get)
+        MDCCRecord(newDBrec, addStatsToMetadata(key, meta.get))
 
-      case Some(r) => MDCCRecord(newDBrec, meta.getOrElse(r.metadata))
+      case Some(r) => MDCCRecord(newDBrec, addStatsToMetadata(key, meta.getOrElse(r.metadata)))
     }
 
 //    logger.debug("Overwrite " + Thread.currentThread.getName + " key:" + (new mdcc.ByteArrayWrapper(key)).hashCode())
