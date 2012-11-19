@@ -96,8 +96,13 @@ class MDCCMicroTpcwLoader(numEBs : Double,
     // 100 for inconsistency test
 //    item.I_STOCK = 100
 
+
     // vary classic master %
-    item.I_STOCK = to.getI_stock + 100
+//    item.I_STOCK = to.getI_stock + 100
+
+
+    // programming model test.  don't let it sell out.
+    item.I_STOCK = to.getI_stock + 1000000
 
 
 
