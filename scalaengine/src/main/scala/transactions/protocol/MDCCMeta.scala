@@ -12,12 +12,17 @@ case class MDCCBallotRange(var startRound: Long, var endRound: Long, var vote: I
   def ballot() = MDCCBallot(startRound, vote, server, fast)
 }
 
-case class Statistics(var mean : Double, var variance : Double, var count : Int) extends AvroRecord
-
-
 case class MDCCMetadata(var currentVersion: MDCCBallot, var ballots: Seq[MDCCBallotRange], var confirmedVersion : Boolean, var confirmedBallot : Boolean, var statistics : Option[Statistics] = None) extends AvroRecord {
   def validate() =  {
     MDCCBallotRangeHelper.validate(currentVersion, ballots)
+  }
+
+  def getAvgAccessRate(alpha: Double = AccessStatsConstants.emaAlpha) = {
+    statistics match {
+      case None => 0.0
+//      case Some(s) => s.getEMA(alpha)
+      case Some(s) => s.getMean()
+    }
   }
 }
 
