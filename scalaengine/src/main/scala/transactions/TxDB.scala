@@ -262,7 +262,9 @@ class BDBTxDB[K <: AnyRef, V <: AnyRef](val db: Database,
     val (dbeKey, dbeValue) = (new DatabaseEntry(keyToBytes(key)),
                               new DatabaseEntry)
     val opStatus = txn match {
-      case null => db.get(txn, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+//      case null => db.get(txn, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+      // try reading uncommitted, since we don't rollback writes.
+      case null => db.get(txn, dbeKey, dbeValue, LockMode.READ_UNCOMMITTED)
       case _ => db.get(txn, dbeKey, dbeValue, LockMode.RMW)
     }
     if (opStatus == OperationStatus.SUCCESS) {
