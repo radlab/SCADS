@@ -20,6 +20,10 @@ package object storage {
     override def initialValue(): Boolean = false
   }
 
+  private val currentTracingId = new ThreadLocal[Long]() {
+    override def initialValue(): Long = 0
+  }
+
   /**
    * Returns the trace tags in the current thread scope.
    */
@@ -30,6 +34,11 @@ package object storage {
   /* Returns if we should sample this trace. */
   def shouldSampleTrace(): Boolean = {
     currentSamplingDecision.get
+  }
+
+  /* Returns trace id that should be used for this trace. */
+  def getTraceId(): Long = {
+    currentTracingId.get
   }
 
   /**
@@ -53,6 +62,7 @@ package object storage {
       }
     } else {
       currentSamplingDecision.set(scala.util.Random.nextInt % 1024 == 0)
+      currentTracingId.set(scala.util.Random.nextLong)
       currentTag.set(Some(tag))
     }
   }

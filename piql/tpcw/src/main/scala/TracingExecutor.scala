@@ -14,14 +14,14 @@ abstract trait TracingExecutor extends QueryExecutor {
     if (storage.shouldSampleTrace) {
       new TracingIterator(
         super.apply(plan),
-        scala.util.Random.nextInt,
+        storage.getTraceId,
         storage.getTag.getOrElse("undefined"))
     } else {
       super.apply(plan)
     }
   }
 
-  protected class TracingIterator(child: QueryIterator, traceId: Int, tag: String) extends QueryIterator {
+  protected class TracingIterator(child: QueryIterator, traceId: Long, tag: String) extends QueryIterator {
     val name = "TracingIterator"
 
     def recordSpan[A,B](opname: String)(block: => B): B = {
