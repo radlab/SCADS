@@ -1,7 +1,8 @@
 package edu.berkeley.cs
 package scads
 package piql
-package modeling
+package tpcw
+package scale
 
 import piql.exec._
 import piql.plans._

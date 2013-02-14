@@ -20,6 +20,8 @@ import scala.util.Random
 import scala.collection.{ mutable => mu }
 import org.apache.zookeeper.CreateMode
 
+import java.io.File
+
 case class Result(var expId: String,
                   var clientConfig: TpcwWorkflowTask,
                   var loaderConfig: TpcwLoaderTask,
@@ -55,7 +57,11 @@ case class TpcwWorkflowTask(var numClients: Int,
     val loaderConfig = classOf[TpcwLoaderTask].newInstance.parse(clusterConfig.data)
 
     val results = resultCluster.getNamespace[Result]("tpcwScaleResults")
-    val executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
+    val traceFile = new File("/tmp/piqltrace.avro")
+    val traceSink = new FileTraceSink(traceFile)
+    val executor = new ParallelExecutor with TracingExecutor {
+      val sink = traceSink
+    }
     val tpcwClient = new TpcwClient(cluster, executor)
 
     /* Turn on caching for relations commonly used in view delta queries */
@@ -136,6 +142,7 @@ case class TpcwWorkflowTask(var numClients: Int,
 
       coordination.registerAndAwait("iteration" + iteration, numClients)
     }
+    traceSink.flush()
 
     if(clientId == 0) {
       ExperimentNotification.completions.publish("TPCW Scale Complete", this.toJson)

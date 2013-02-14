@@ -187,6 +187,9 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     }
   }
 
+  var scaleDependentAdminConfirmWI = Nil // TODO
+  var scaleDependentBestSellerWI = Nil // TODO
+
   val adminConfirmWI = relatedItemCount.as("count")
     .where("count.epoch".a === new CurrentEpoch(relatedItemCountEpoch))
     .where("count.I_ID".a === (0.?))
