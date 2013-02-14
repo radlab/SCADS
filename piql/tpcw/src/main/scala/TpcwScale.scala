@@ -65,7 +65,9 @@ case class TpcwWorkflowTask(var numClients: Int,
     val messageTracer = new MessagePassingTracer(traceSink)
     StorageRegistry.registerListener(messageTracer)
     storage.setTracer((tag, start, delta) => {
-      traceSink.recordEvent(CustomSpan(tag, delta), start)
+      if (storage.shouldSampleTrace) {
+        traceSink.recordEvent(CustomSpan(delta), start)
+      }
     })
     val tpcwClient = new TpcwClient(cluster, executor)
 

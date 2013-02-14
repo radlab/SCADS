@@ -19,7 +19,7 @@ case class MessageEvent(var message: Array[Byte]) extends AvroRecord with TraceE
 case class Envelope(var src: ServiceId, var dest: ServiceId, var msg: StorageMessage) extends AvroRecord
 
 case class IteratorSpan(var iteratorName: String, var operation: String, var delta: Long) extends AvroRecord with TraceEvent
-case class CustomSpan(var spanName: String, var delta: Long) extends AvroRecord with TraceEvent
+case class CustomSpan(var delta: Long) extends AvroRecord with TraceEvent
 
 // messages for varying query params - used during data collection to facilitate log parsing
 case class ChangeCardinalityEvent(var numDataItems: Int) extends AvroRecord with TraceEvent
