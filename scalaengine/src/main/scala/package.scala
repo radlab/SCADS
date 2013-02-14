@@ -27,7 +27,9 @@ package object storage {
   /* Callback for recording trace spans.
    * Callback takes args: (tag, start_time_ns, time_span_ns) */
   private var tracer: Option[(String, Long, Long) => Unit] = None
-  private var timeStack: List[Long] = Nil
+  private val timeStack = new ThreadLocal[List[Long]]() {
+    override def initialValue(): List[Long] = Nil
+  }
 
   def setTracer(t: (String, Long, Long) => Unit): Unit = {
     tracer = Some(t)
@@ -75,18 +77,17 @@ package object storage {
       currentTag.set(Some(tag))
     }
 
-    timeStack ::= System.nanoTime
+    timeStack.set(System.nanoTime :: timeStack.get)
   }
 
   private def popTag(): Unit = if (tracingEnabled) {
-    var ts = timeStack
-    timeStack = timeStack.tail
-    tracer.map(fn => {
-      if (!timeStack.isEmpty) {
-        val start = ts.head
+    if (!timeStack.isEmpty) {
+      tracer.map(fn => {
+        val start = timeStack.get.head
         fn(currentTag.get.getOrElse(""), start, System.nanoTime - start)
-      }
-    })
+      })
+      timeStack.set(timeStack.get.tail)
+    }
 
     val arr = currentTag.get.getOrElse("").split(":", 2)
     if (arr.length == 2) {
