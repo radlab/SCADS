@@ -29,7 +29,7 @@ abstract trait TracingExecutor extends QueryExecutor {
         sink.recordEvent(IteratorSpan(
           child.name,
           opname,
-          System.nanoTime - start))
+          System.nanoTime - start), start)
       }
     }
 

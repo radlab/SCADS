@@ -31,8 +31,8 @@ class FileTraceSink(val traceFile: File) {
   }
   ioThread.start
 
-  def recordEvent(event: TraceEvent): Boolean = {
-    val trace = ExecutionTrace(System.nanoTime, storage.getTraceId, storage.getTag.getOrElse("undefined"), event)
+  def recordEvent(event: TraceEvent, time: Long = System.nanoTime): Boolean = {
+    val trace = ExecutionTrace(time, storage.getTraceId, storage.getTag.getOrElse("undefined"), event)
     val success = pendingTraceMessages.offer(trace, 0, TimeUnit.MILLISECONDS)
       if(!success)
         logger.warning("Failed to record trace event: %s", event)

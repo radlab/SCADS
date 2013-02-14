@@ -24,6 +24,15 @@ package object storage {
     override def initialValue(): Long = 0
   }
 
+  /* Callback for recording trace spans.
+   * Callback takes args: (tag, start_time_ns, time_span_ns) */
+  private var tracer: Option[(String, Long, Long) => Unit] = None
+  private var timeStack: List[Long] = Nil
+
+  def setTracer(t: (String, Long, Long) => Unit): Unit = {
+    tracer = Some(t)
+  }
+
   /**
    * Returns the trace tags in the current thread scope.
    */
@@ -65,9 +74,20 @@ package object storage {
       currentTracingId.set(scala.util.Random.nextLong)
       currentTag.set(Some(tag))
     }
+
+    timeStack ::= System.nanoTime
   }
 
   private def popTag(): Unit = if (tracingEnabled) {
+    var ts = timeStack
+    tracer.map(fn => {
+      if (!timeStack.isEmpty) {
+        var start = ts.head
+        ts = ts.tail
+        fn(currentTag.get.getOrElse(""), start, System.nanoTime - start)
+      }
+    })
+
     val arr = currentTag.get.getOrElse("").split(":", 2)
     if (arr.length == 2) {
       currentTag.set(Some(arr(1)))
