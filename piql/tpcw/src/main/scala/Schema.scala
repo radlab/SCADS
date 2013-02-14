@@ -10,7 +10,7 @@ import avro.marker._
 import comm.ServiceId
 
 /* Schema for PIQL modeling */
-case class ExecutionTrace(var timestamp: Long, var traceId: Long, var event: TraceEvent) extends AvroRecord
+case class ExecutionTrace(var timestamp: Long, var traceId: Long, var tag: String, var event: TraceEvent) extends AvroRecord
 
 sealed trait TraceEvent extends AvroUnion
 case class QueryEvent(var queryName: String, var params: Seq[Int], var queryCounter: Int, var start: Boolean) extends AvroRecord with TraceEvent
@@ -18,7 +18,7 @@ case class IteratorEvent(var iteratorName: String, var planId: Int, var operatio
 case class MessageEvent(var message: Array[Byte]) extends AvroRecord with TraceEvent
 case class Envelope(var src: ServiceId, var dest: ServiceId, var msg: StorageMessage) extends AvroRecord
 
-case class IteratorSpan(var iteratorName: String, var operation: String, var tag: String, var delta: Long) extends AvroRecord with TraceEvent
+case class IteratorSpan(var iteratorName: String, var operation: String, var delta: Long) extends AvroRecord with TraceEvent
 
 // messages for varying query params - used during data collection to facilitate log parsing
 case class ChangeCardinalityEvent(var numDataItems: Int) extends AvroRecord with TraceEvent
