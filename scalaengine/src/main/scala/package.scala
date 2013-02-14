@@ -14,11 +14,22 @@ package object storage {
     override def initialValue(): Option[String] = None
   }
 
+  /* Global thread-local decision on whether to sample this trace.
+   * Set every time root of tag stack is reached. */
+  private val currentSamplingDecision = new ThreadLocal[Boolean]() {
+    override def initialValue(): Boolean = false
+  }
+
   /**
    * Returns the trace tags in the current thread scope.
    */
   def getTag(): Option[String] = {
     currentTag.get
+  }
+
+  /* Returns if we should sample this trace. */
+  def shouldSampleTrace(): Boolean = {
+    currentSamplingDecision.get
   }
 
   /**
@@ -41,6 +52,7 @@ package object storage {
         currentTag.set(Some(tag + ":" + cur.get))
       }
     } else {
+      currentSamplingDecision.set(scala.util.Random.nextInt % 1024 == 0)
       currentTag.set(Some(tag))
     }
   }

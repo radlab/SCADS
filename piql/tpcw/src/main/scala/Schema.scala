@@ -15,6 +15,7 @@ case class ExecutionTrace(var timestamp: Long, var thread: String, var event: Tr
 sealed trait TraceEvent extends AvroUnion
 case class QueryEvent(var queryName: String, var params: Seq[Int], var queryCounter: Int, var start: Boolean) extends AvroRecord with TraceEvent
 case class IteratorEvent(var iteratorName: String, var planId: Int, var operation: String, var start: Boolean) extends AvroRecord with TraceEvent
+case class IteratorSpan(var iteratorName: String, var planId: Int, var operation: String, var tag: String, var delta: Long) extends AvroRecord with TraceEvent
 case class MessageEvent(var message: Array[Byte]) extends AvroRecord with TraceEvent
 case class Envelope(var src: ServiceId, var dest: ServiceId, var msg: StorageMessage) extends AvroRecord
 

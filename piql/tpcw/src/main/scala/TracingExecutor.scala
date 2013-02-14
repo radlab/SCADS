@@ -11,45 +11,39 @@ abstract trait TracingExecutor extends QueryExecutor {
   val sink: FileTraceSink
 
   abstract override def apply(plan: QueryPlan)(implicit ctx: Context): QueryIterator = {
-    new TracingIterator(super.apply(plan), scala.util.Random.nextInt)
+    if (storage.shouldSampleTrace) {
+      new TracingIterator(
+        super.apply(plan),
+        scala.util.Random.nextInt,
+        storage.getTag.getOrElse("undefined"))
+    } else {
+      super.apply(plan)
+    }
   }
 
-  protected class TracingIterator(child: QueryIterator, planId: Int) extends QueryIterator {
+  protected class TracingIterator(child: QueryIterator, traceId: Int, tag: String) extends QueryIterator {
     val name = "TracingIterator"
 
-    /* Place a trace message on the queue of messages to be written to disk.  If space isn't available issue a warning */
-    protected def recordTrace(operation: String, start: Boolean): Boolean = {
-      sink.recordEvent(IteratorEvent(
-        child.name,
-        planId,
-        operation,
-	start))
+    def recordSpan[A,B](opname: String)(block: => B): B = {
+      var start = System.nanoTime
+      try {
+        block
+      } finally {
+        sink.recordEvent(IteratorSpan(
+          child.name,
+          traceId,
+          opname,
+          tag,
+          System.nanoTime - start))
+      }
     }
 
-    def open = {
-      recordTrace("open", true)
-      child.open
-      recordTrace("open", false)
-    }
+    def open = recordSpan("open")(child.open)
 
-    def close = {
-      recordTrace("close", true)
-      child.close
-      recordTrace("close", false)
-    }
+    def close = recordSpan("close")(child.close)
 
-    def hasNext = {
-      recordTrace("hasNext", true)
-      val childHasNext = child.hasNext
-      recordTrace("hasNext", false)
-      childHasNext
-    }
+    def hasNext = recordSpan("hasNext")(child.hasNext)
 
-    def next = {
-      recordTrace("next", true)
-      val nextValue = child.next
-      recordTrace("next", false)
-      nextValue
-    }
+    def next = recordSpan("next")(child.next)
   }
 }
