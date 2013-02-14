@@ -142,7 +142,9 @@ object ScadsBuild extends Build {
         "import edu.berkeley.cs.scads.piql.exec._\n" +
         "import edu.berkeley.cs.scads.piql.plans._\n" +
         "import edu.berkeley.cs.scads.piql.tpcw._\n" +
-        "import edu.berkeley.cs.scads.piql.opt._"
+        "import edu.berkeley.cs.scads.piql.opt._\n" +
+        "import edu.berkeley.cs.avro.runtime._\n" +
+        "import edu.berkeley.cs.scads.piql.tpcw.scale._"
         ))
   ) dependsOn (piql, perf, tpcw)
 
