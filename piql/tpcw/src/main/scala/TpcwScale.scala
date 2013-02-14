@@ -62,6 +62,8 @@ case class TpcwWorkflowTask(var numClients: Int,
     val executor = new ParallelExecutor with TracingExecutor {
       val sink = traceSink
     }
+    val messageTracer = new MessagePassingTracer(traceSink)
+    StorageRegistry.registerListener(messageTracer)
     val tpcwClient = new TpcwClient(cluster, executor)
 
     /* Turn on caching for relations commonly used in view delta queries */

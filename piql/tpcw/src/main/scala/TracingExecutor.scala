@@ -14,14 +14,13 @@ abstract trait TracingExecutor extends QueryExecutor {
     if (storage.shouldSampleTrace) {
       new TracingIterator(
         super.apply(plan),
-        storage.getTraceId,
         storage.getTag.getOrElse("undefined"))
     } else {
       super.apply(plan)
     }
   }
 
-  protected class TracingIterator(child: QueryIterator, traceId: Long, tag: String) extends QueryIterator {
+  protected class TracingIterator(child: QueryIterator, tag: String) extends QueryIterator {
     val name = "TracingIterator"
 
     def recordSpan[A,B](opname: String)(block: => B): B = {
@@ -31,7 +30,6 @@ abstract trait TracingExecutor extends QueryExecutor {
       } finally {
         sink.recordEvent(IteratorSpan(
           child.name,
-          traceId,
           opname,
           tag,
           System.nanoTime - start))
