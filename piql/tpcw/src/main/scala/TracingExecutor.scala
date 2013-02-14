@@ -22,7 +22,7 @@ abstract trait TracingExecutor extends QueryExecutor {
     val name = "TracingIterator"
 
     def recordSpan[A,B](opname: String)(block: => B): B = {
-      var start = System.nanoTime
+      val start = System.nanoTime
       try {
         block
       } finally {

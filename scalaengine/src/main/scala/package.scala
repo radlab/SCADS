@@ -80,10 +80,10 @@ package object storage {
 
   private def popTag(): Unit = if (tracingEnabled) {
     var ts = timeStack
+    timeStack = timeStack.tail
     tracer.map(fn => {
       if (!timeStack.isEmpty) {
-        var start = ts.head
-        ts = ts.tail
+        val start = ts.head
         fn(currentTag.get.getOrElse(""), start, System.nanoTime - start)
       }
     })

@@ -10,7 +10,7 @@ import avro.marker._
 import comm.ServiceId
 
 /* Schema for PIQL modeling */
-case class ExecutionTrace(var timestamp: Long, var traceId: Long, var tag: String, var event: TraceEvent) extends AvroRecord
+case class ExecutionTrace(var timestamp: Long, var threadName: String, var traceId: Long, var tag: String, var event: TraceEvent) extends AvroRecord
 
 sealed trait TraceEvent extends AvroUnion
 case class QueryEvent(var queryName: String, var params: Seq[Int], var queryCounter: Int, var start: Boolean) extends AvroRecord with TraceEvent
