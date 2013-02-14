@@ -17,7 +17,7 @@ package object storage {
   /* Global thread-local decision on whether to sample this trace.
    * Set every time root of tag stack is reached. */
   private val currentSamplingDecision = new ThreadLocal[Boolean]() {
-    override def initialValue(): Boolean = (scala.util.Random.nextInt() % 1024 == 0)
+    override def initialValue(): Boolean = false
   }
 
   private val currentTracingId = new ThreadLocal[Long]() {
