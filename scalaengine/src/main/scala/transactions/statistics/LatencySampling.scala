@@ -60,115 +60,122 @@ object LatencySampling {
 
     def run() {
       while(!shouldStop) {
-        val output = localData.mapValues(_.toLatencyInfoList).toMap
-        val delayOutput = localDelayData.toMap
-        val outputMsg = LatencyPing(output, delayOutput)
+        try {
+          val output = localData.mapValues(_.toLatencyInfoList).toMap
+          val delayOutput = localDelayData.toMap
+          val outputMsg = LatencyPing(output, delayOutput)
 
-        // client -> (dc -> info list)
-        var lastResult: scala.collection.Map[String, scala.collection.Map[String, LatencyInfoList]] = null
+          // client -> (dc -> info list)
+          var lastResult: scala.collection.Map[String, scala.collection.Map[String, LatencyInfoList]] = null
 
-        // client -> (dc -> delay info)
-        var lastDelayResult: scala.collection.Map[String, scala.collection.Map[String, LatencyDelayInfo]] = null
+          // client -> (dc -> delay info)
+          var lastDelayResult: scala.collection.Map[String, scala.collection.Map[String, LatencyDelayInfo]] = null
 
-        dcs.foreach(s => {
-          val dc = hostToDC(s.host)
+          dcs.foreach(s => {
+            val dc = hostToDC(s.host)
 
-          val start = System.nanoTime / 1000000
-          s !? outputMsg match {
-            case LatencyPingResponse(m, d) =>
-              val end = System.nanoTime / 1000000
-              val latency = end - start
-              if (localData.contains(dc)) {
-                // update existing data for this dc.
-                localData.get(dc).get.add(latency)
-              } else {
-                // insert new data for dc.
-                val l = new LocalLatencyData
-                l.add(latency)
-                localData.put(dc, l)
-              }
-
-              lastResult = m
-              lastDelayResult = d
-            case _ =>
-          }
-        })
-
-        // aggregate global data.
-        if (lastResult != null) {
-          val groups = lastResult.groupBy(x => hostToDC(x._1))
-          groups.map(x => {
-            // group val
-            val g = x._1
-            // list of values (client -> (dc -> info list))
-            val l = x._2
-
-            val m = new HashMap[String, LatencyInfoList]
-            l.foreach(c => {
-              c._2.foreach(i => {
-                val dc1 = i._1
-                val info = i._2
-                if (m.contains(dc1)) {
-                  m.get(dc1).get.merge(info)
+            val start = System.nanoTime / 1000000
+            s !? outputMsg match {
+              case LatencyPingResponse(m, d) =>
+                val end = System.nanoTime / 1000000
+                val latency = end - start
+                if (localData.contains(dc)) {
+                  // update existing data for this dc.
+                  localData.get(dc).get.add(latency)
                 } else {
-                  m.put(dc1, info)
+                  // insert new data for dc.
+                  val l = new LocalLatencyData
+                  l.add(latency)
+                  localData.put(dc, l)
                 }
-              })
-            })
 
-            globalData.put(g, m)
+                lastResult = m
+                lastDelayResult = d
+              case _ =>
+            }
           })
-        }
+
+          // aggregate global data.
+          if (lastResult != null) {
+            val groups = lastResult.groupBy(x => hostToDC(x._1))
+            groups.map(x => {
+              // group val
+              val g = x._1
+              // list of values (client -> (dc -> info list))
+              val l = x._2
+
+              val m = new HashMap[String, LatencyInfoList]
+              l.foreach(c => {
+                c._2.foreach(i => {
+                  val dc1 = i._1
+                  val info = i._2
+                  if (m.contains(dc1)) {
+                    m.get(dc1).get.merge(info)
+                  } else {
+                    m.put(dc1, info)
+                  }
+                })
+              })
+
+              globalData.put(g, m)
+            })
+          }
 
 //        println("global: " + globalData)
 
-        // aggregate global delay data.
-        defaultDelay = LatencyDelayInfo(0, 0, 0.0)
-        if (lastDelayResult != null) {
-          val groups = lastDelayResult.groupBy(x => hostToDC(x._1))
-          groups.map(x => {
-            // group val
-            val g = x._1
-            // list of values (client -> (dc -> delay info))
-            val l = x._2
+          // aggregate global delay data.
+          defaultDelay = LatencyDelayInfo(0, 0, 0.0)
+          if (lastDelayResult != null) {
+            val groups = lastDelayResult.groupBy(x => hostToDC(x._1))
+            groups.map(x => {
+              // group val
+              val g = x._1
+              // list of values (client -> (dc -> delay info))
+              val l = x._2
 
-            val m = new HashMap[String, LatencyDelayInfo]
-            l.foreach(c => {
-              c._2.foreach(i => {
-                // master dc
-                val dc1 = i._1
-                val info = i._2
-                if (m.contains(dc1)) {
-                  m.get(dc1).get.merge(info)
-                } else {
-                  m.put(dc1, info)
-                }
-                defaultDelay.merge(info)
-                // group by master
-                if (globalMasterDelay.contains(dc1)) {
-                  globalMasterDelay.get(dc1).get.merge(info)
-                } else {
-                  globalMasterDelay.put(dc1, LatencyDelayInfo(info.totalCount, info.delayCount, info.sum))
-                }
-                // group by client
-                if (globalClientDelay.contains(g)) {
-                  globalClientDelay.get(g).get.merge(info)
-                } else {
-                  globalClientDelay.put(g, LatencyDelayInfo(info.totalCount, info.delayCount, info.sum))
-                }
+              val m = new HashMap[String, LatencyDelayInfo]
+              l.foreach(c => {
+                c._2.foreach(i => {
+                  // master dc
+                  val dc1 = i._1
+                  val info = i._2
+                  if (m.contains(dc1)) {
+                    m.get(dc1).get.merge(info)
+                  } else {
+                    m.put(dc1, info)
+                  }
+                  defaultDelay.merge(info)
+                  // group by master
+                  if (globalMasterDelay.contains(dc1)) {
+                    globalMasterDelay.get(dc1).get.merge(info)
+                  } else {
+                    globalMasterDelay.put(dc1, LatencyDelayInfo(info.totalCount, info.delayCount, info.sum))
+                  }
+                  // group by client
+                  if (globalClientDelay.contains(g)) {
+                    globalClientDelay.get(g).get.merge(info)
+                  } else {
+                    globalClientDelay.put(g, LatencyDelayInfo(info.totalCount, info.delayCount, info.sum))
+                  }
+                })
               })
-            })
 
-            globalDelayData.put(g, m)
-          })
-        }
+              globalDelayData.put(g, m)
+            })
+          }
 
 //        println("globalDelay: " + globalDelayData)
 
-        Thread.sleep(waitTime)
+          Thread.sleep(waitTime)
+        } catch {
+          case e: Exception => {
+            println("LatencySampling e: " + e)
+          }
+        }
       }
     }
-  }
+
+  }  // FastSampler
 
   def startSampling(s: Seq[StorageService]) = {
     this.synchronized {
