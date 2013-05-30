@@ -58,7 +58,8 @@ object MicroBenchmark extends ExperimentBase {
   }
 
   def expName(res: tpcw.MDCCMicroBenchmarkResult) = {
-    val spec = if (res.clientConfig.programmingModelTest && (res.clientConfig.additionalSettings.getOrElse("useSpecCommit", "0") == "1")) {
+    val additionalSettings = res.clientConfig.microSettings.toMap
+    val spec = if (res.clientConfig.programmingModelTest && (additionalSettings.getOrElse("useSpecCommit", "0") == "1")) {
       "_spec"
     } else {
       ""
@@ -267,18 +268,19 @@ case class MicroBenchmarkTask()
     val progModel = true
 
     // for spec commit.
-    addlSettings.put("useSpecCommit", "0")
+//    addlSettings.put("useSpecCommit", "0")
 
     // for general purpose test, use these options.
+//    addlSettings.put("useZipf", "0")
+//    addlSettings.put("txMinSize", "1")
+//    addlSettings.put("txSizeRange", "4")
+//    addlSettings.put("useSpecCommit", "1")  // toggle spec commit
 
-    // using zipf distribution.
+
+    // admission control settings
     addlSettings.put("useZipf", "0")
-
-    // transaction min size
     addlSettings.put("txMinSize", "1")
-
-    // # possible tx sizes
-    addlSettings.put("txSizeRange", "4")
+    addlSettings.put("txSizeRange", "1")
 
 
     // Start the storage servers.
@@ -318,7 +320,7 @@ case class MicroBenchmarkTask()
         numClusters=numClusters,
 //        numClusters=5,
         programmingModelTest=progModel,
-        additionalSettings=addlSettings.toMap,
+        microSettings=MicroSettingsFromMap(addlSettings.toMap),
         note=notes).getExperimentTasks(cluster.classSource, scadsCluster.root, resultClusterAddress, addlProps ++ List("scads.comm.externalip" -> "true"))
       cluster.serviceScheduler.scheduleExperiment(tpcwTasks)
     })

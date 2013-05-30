@@ -22,6 +22,35 @@ import scala.collection.{ mutable => mu }
 
 import scala.collection.JavaConversions._
 
+object MicroSettingsFromMap {
+  def apply(map: Map[String, String]) = {
+    val m = MicroSettings()
+    m.setMap(map)
+    m
+  }
+}
+
+case class MicroSettings() extends AvroRecord {
+  var list: List[String] = List()
+
+  def combine(t: (String, String)) = {
+    t._1 + ":" + t._2
+  }
+
+  def split(s: String) = {
+    val t = s.split(":")
+    (t(0), t(1))
+  }
+
+  def toMap = {
+    list.map(split _).toMap
+  }
+
+  def setMap(map: Map[String, String]) = {
+    list = map.toList.map(combine _)
+  }
+}
+
 case class MDCCMicroBenchmarkResult(var clientConfig: MDCCTpcwMicroWorkflowTask,
                                     var loaderConfig: MDCCTpcwMicroLoaderTask,
                                     var clusterAddress: String,
@@ -48,12 +77,15 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
                                      var clusterId: Int = 0,
                                      var numClusters: Int = 1,
                                      var programmingModelTest: Boolean = false,
-                                     var additionalSettings: Map[String, String] = Map(),
+                                     var microSettings: MicroSettings,
                                      var note: String) extends AvroRecord with ReplicatedExperimentTask {
 
   var experimentAddress: String = _
   var clusterAddress: String = _
   var resultClusterAddress: String = _
+
+  // has to be def, not var, to not save a map in avro.
+  def additionalSettings = microSettings.toMap
 
   def clearItem(itemId: String) = {
     val item = MicroItem(itemId)
