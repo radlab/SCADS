@@ -116,7 +116,9 @@ class MDCCTrxHandler(tx: Tx, threadName: String) extends Actor {
 
     // admission control
     // try probabilistic reject (reject 80% of the time)
-    if (false && txProb < 0.20 && rand.nextDouble() >= 0.20) {
+    if (txProb < 0.20 && rand.nextDouble() >= 0.20) {
+//    if (txProb < 0.20 && rand.nextDouble() >= 0.05) {
+//    if (false) {  // no admission control
       status = REJECTED
     } else {
       // continue with transaction.
