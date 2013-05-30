@@ -100,7 +100,7 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
 
     val clientId = coordination.registerAndAwait("clientStart", numGlobalClients, timeout=60*60*1000)
 
-    logger.info("Waiting for cluster to be ready")
+    logger.info("Waiting for cluster to be ready. clientId: " + clientId + " (" + numClients + " x " + numClusters + " = " + numGlobalClients + ")")
     val clusterConfig = clusterRoot.awaitChild("clusterReady")
     val loaderConfig = classOf[MDCCTpcwMicroLoaderTask].newInstance.parse(clusterConfig.data)
 
@@ -300,7 +300,7 @@ case class MDCCTpcwMicroWorkflowTask(var numClients: Int,
       var usedHotspot = false
       var commit = true
       var speculated = false
-      val tx = new Tx(10000, ReadLocal()) ({
+      val tx = new Tx(5000, ReadLocal()) ({
         val i1 = buyList.map(i => {
           // ((future, item id), buy amt)
           ((ns.asyncGetRecord(MicroItem(i._1._1)), i._1._2), i._2)
